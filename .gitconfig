@@ -1,1 +1,40 @@
-test
+[include]
+    path = .gitconfig.loacl
+[alias] # aliasコマンド : 別名定義を作成または再定義するか、または既存の別名定義を標準出力に書き出す。
+    a = add
+    aa = add --all
+    br = branch
+    co = checkout
+    com = commit
+    di = diff
+    ds = diff --staged
+    fe = fetch
+    g = log --graph --date=short --decorate=short --pretty=format:'%Cgreen%h %Creset%cd %Cblue%cn %Cred%d %Creset%s'
+    ga = log --graph --decorate --oneline --all
+    gg = log --all --graph --date=short --decorate=short --pretty=format:'%Cgreen%h %Creset%cd %Cblue%cn %Cred%d %Creset%s'
+    l = log
+    ld = git log --diff-filter=D --summary
+    lo = log --oneline
+    lp = log -p
+    ls = log --stat
+    pl = pull
+    ps = push
+    rr = restore
+    s = status
+    sh = show
+    st = stash
+    sub-update = !git submodule foreach git pull origin master
+    sw = switch
+    unstage = !git add --all && git reset HEAD --hard
+[color]
+    ui = auto
+[core]
+    editor = vim
+[merge]
+    ff = false
+[pull]
+    rebase = true
+[push]
+    default = simple
+[rerere]
+    enabled = true
