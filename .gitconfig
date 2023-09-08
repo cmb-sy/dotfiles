@@ -1,6 +1,6 @@
 [include]
     path = .gitconfig.loacl
-[alias] # aliasコマンド : 別名定義を作成または再定義するか、または既存の別名定義を標準出力に書き出す。
+[alias]
     a = add
     aa = add --all
     br = branch
@@ -30,11 +30,11 @@
     ui = auto
 [core]
     editor = vim
-# [merge]
-#     ff = false
-# [pull]
-#     rebase = true
-# [push]
-#     default = simple
-# [rerere]
-#     enabled = true
+[merge]
+    ff = false
+[pull]
+    rebase = true
+[push]
+    default = simple
+[rerere]
+    enabled = true
