@@ -6,6 +6,13 @@ export LC_ALL=en_US.UTF-8
 export TZ=Asia/Tokyo
 
 # ------------------------------
+# path setting
+# ------------------------------
+export PATH="/usr/local/bin:${PATH}"
+export PATH="${HOME}/.asdf/bin:${PATH}"
+export PATH="${HOME}/.asdf/shims:${PATH}"
+
+# ------------------------------
 # conda setting
 # ------------------------------
 __conda_setup="$('~/miniconda3/bin/conda' 'shell.zsh' 'hook' 2> /dev/null)"
