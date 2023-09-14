@@ -1,0 +1,15 @@
+{
+  "editor.minimap.enabled": false,
+  "editor.renderControlCharacters": true, 
+  "editor.suggestSelection": "first",
+  "breadcrumbs.enabled": true, 
+  "files.insertFinalNewline": true,
+  "editor.fontLigatures": true, 
+  "editor.fontSize": 18,
+  "editor.renderLineHighlight": "all", 
+  "editor.cursorBlinking": "smooth", 
+  "editor.cursorSmoothCaretAnimation": "on",
+  "files.autoGuessEncoding": true, 
+  "window.zoomLevel": 0, 
+  "editor.bracketPairColorization.enabled": true
+}
