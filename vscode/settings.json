@@ -1,7 +1,6 @@
 {
   "editor.renderControlCharacters": true,
   "editor.suggestSelection": "first",
-  "breadcrumbs.enabled": true,
   "files.insertFinalNewline": true,
   "editor.fontLigatures": true,
   "editor.fontSize": 16,
@@ -17,6 +16,5 @@
   "editor.minimap.enabled": false,
   "breadcrumbs.enabled": false,
   "window.menuBarVisibility": "toggle",
-  "workbench.activityBar.visible": false,
-  
+  "workbench.activityBar.visible": false
 }
