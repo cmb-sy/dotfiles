@@ -1,15 +1,9 @@
-# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
-# Initialization code that may require console input (password prompts, [y/n]
-# confirmations, etc.) must go above this block; everything else may go below.
-if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
-  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
-fi
-
 # ------------------------------
 # Load zplug
 # ------------------------------
 source ~/dotfiles/.zplugs.zsh
-# --------------------------------------------------------------------
+
+# -------------------------------------------------------------------
 # command Settings
 # -------------------------------------------------------------------
 # zsh-syntax-highlighting
@@ -18,3 +12,11 @@ source /usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 
 # brew install zsh-autosuggestions
 # source /usr/local/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+
+# -------------------------------------------------------------------
+# vscode settings
+# -------------------------------------------------------------------
+cp ~/dotfiles/vscode/copy_of_settings.json_with_comments.txt ~/dotfiles/vscode/settings.json
+sed -i '' 's/\/\/.*//' ~/dotfiles/vscode/settings.json # //を含む行を削除して上書き
+rm -rf ~/Library/Application\ Support/Code/User/settings.json
+ln -s ~/dotfiles/vscode/settings.json ~/Library/Application\ Support/Code/User/settings.json
