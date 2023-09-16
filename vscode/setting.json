@@ -12,5 +12,5 @@
   "files.autoGuessEncoding": true, 
   "window.zoomLevel": 0, 
   "editor.bracketPairColorization.enabled": true,
-  "terminal.integrated.fontSize": 16
+  "terminal.integrated.fontSize": 16 
 }
