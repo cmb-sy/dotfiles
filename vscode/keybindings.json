@@ -1,11 +1,55 @@
-[
-  {
-    "key": "shift+enter",
-    "command": "-python.execSelectionInTerminal",
-    "when": "editorTextFocus && !findInputFocussed && !jupyter.ownsSelection && !notebookEditorFocused && !replaceInputFocussed && editorLangId == 'python'"
-  },
-  {
-    "key": "` ctrl+[",
-    "command": "python.execInTerminal"
-  }
-]
+{
+  
+  "editor.renderControlCharacters": true,
+  
+  
+  "editor.suggestSelection": "first",
+  
+  
+  "files.insertFinalNewline": true,
+  
+  
+  "editor.fontLigatures": true,
+  
+  
+  "editor.fontSize": 16,
+  
+  
+  "editor.renderLineHighlight": "all",
+  
+  
+  "editor.cursorBlinking": "smooth",
+  
+  
+  "editor.cursorSmoothCaretAnimation": "on",
+  
+  
+  "files.autoGuessEncoding": true,
+  
+  
+  "window.zoomLevel": 0,
+  
+  
+  "editor.bracketPairColorization.enabled": true,
+  
+  
+  "terminal.integrated.fontSize": 16,
+  
+  
+  "editor.formatOnSave": true,
+  
+  
+  "workbench.colorTheme": "GitHub Dark Default",
+  
+  
+  "editor.minimap.enabled": false,
+  
+  
+  "breadcrumbs.enabled": false,
+  
+  
+  "window.menuBarVisibility": "toggle",
+  
+  
+  "workbench.activityBar.visible": false,
+}
