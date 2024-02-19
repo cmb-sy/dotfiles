@@ -1,0 +1,15 @@
+dbaeumer.vscode-eslint
+github.github-vscode-theme
+github.vscode-pull-request-github
+mechatroner.rainbow-csv
+ms-azuretools.vscode-docker
+ms-ceintl.vscode-language-pack-ja
+ms-python.debugpy
+ms-python.isort
+ms-python.python
+ms-vsliveshare.vsliveshare
+quarto.quarto
+redhat.vscode-xml
+reditorsupport.r
+ritwickdey.liveserver
+vscode-icons-team.vscode-icons
