@@ -11,7 +11,7 @@ source ~/.zplug/init.zsh
 # zplug install
 
 # zplugプラグインがインストールされていない場合に、
-# ユーザーが 'y' を入力するとプラグインをインストールするという動作をします。
+# ユーザーが 'y' を入力するとプラグインをインストールするという動作をする。
 # それ以外の場合、何も行いません。
 if ! zplug check --verbose; then
   printf "Install? [y/N]: "
