@@ -12,7 +12,7 @@
   "editor.fontLigatures": true,
   
   // エディタのフォントサイズを設定
-  "editor.fontSize": 16,
+  "editor.fontSize": 17,
   
   // 選択した行を強調表示する方法を設定
   "editor.renderLineHighlight": "all",
@@ -33,13 +33,13 @@
   "editor.bracketPairColorization.enabled": true,
   
   // 統合ターミナルのフォントサイズを設定
-  "terminal.integrated.fontSize": 16,
+  "terminal.integrated.fontSize": 17,
   
   // ファイルを保存するときに自動的にフォーマットを適用するかどうかを設定
   "editor.formatOnSave": true,
   
   // カラーテーマを設定
-  "workbench.colorTheme": "GitHub Dark Default",
+  "workbench.colorTheme": "Dark（Visual Studio）",
   
   // サイドバーのミニマップを無効にするかどうかを設定
   "editor.minimap.enabled": false,

@@ -12,7 +12,7 @@
   "editor.fontLigatures": true,
   
   
-  "editor.fontSize": 16,
+  "editor.fontSize": 17,
   
   
   "editor.renderLineHighlight": "all",
@@ -33,13 +33,13 @@
   "editor.bracketPairColorization.enabled": true,
   
   
-  "terminal.integrated.fontSize": 16,
+  "terminal.integrated.fontSize": 17,
   
   
   "editor.formatOnSave": true,
   
   
-  "workbench.colorTheme": "GitHub Dark Default",
+  "workbench.colorTheme": "Dark（Visual Studio）",
   
   
   "editor.minimap.enabled": false,

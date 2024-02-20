@@ -6,13 +6,12 @@ fi
 source ~/.zplug/init.zsh
 
 # plugin
-# zplug romkatv/powerlevel10k, as:theme, depth:1
-# zplug load --verbose
-# zplug install
+zplug romkatv/powerlevel10k, as:theme, depth:1
+zplug load --verbose
+zplug install
 
 # zplugプラグインがインストールされていない場合に、
 # ユーザーが 'y' を入力するとプラグインをインストールするという動作をする。
-# それ以外の場合、何も行いません。
 if ! zplug check --verbose; then
   printf "Install? [y/N]: "
   if read -q; then
