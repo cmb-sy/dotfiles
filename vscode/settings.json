@@ -34,7 +34,5 @@
 
   "breadcrumbs.enabled": false,
 
-  "window.menuBarVisibility": "toggle",
-
-  "workbench.activityBar.visible": false
+  "window.menuBarVisibility": "toggle"
 }

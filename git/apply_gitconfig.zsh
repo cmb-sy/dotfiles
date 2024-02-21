@@ -9,3 +9,5 @@ else
 fi
 
 ln -s "${HOME}/dotfiles/git/.gitconfig" "$GITCONFIG_FILE"
+echo "source command complete"
+∏
