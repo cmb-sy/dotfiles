@@ -35,11 +35,16 @@
   // 統合ターミナルのフォントサイズを設定
   "terminal.integrated.fontSize": 17,
   
-  // ファイルを保存するときに自動的にフォーマットを適用するかどうかを設定
-  "editor.formatOnSave": true,
-  
+  // ファイルを保存するときに自動的にフォーマットを適用
+
+	"editor.formatOnSave": true,
+	"editor.defaultFormatter": "esbenp.prettier-vscode",
+
+  // オート保存
+	"files.autoSave": "onFocusChange",
+
   // カラーテーマを設定
-  "workbench.colorTheme": "Dark（Visual Studio）",
+  "workbench.colorTheme": "GitHub Dark",
   
   // サイドバーのミニマップを無効にするかどうかを設定
   "editor.minimap.enabled": false,

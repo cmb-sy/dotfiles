@@ -1,4 +1,3 @@
-adashen.vscode-tomcat
 dbaeumer.vscode-eslint
 dgeibi.alias-tool
 editorconfig.editorconfig

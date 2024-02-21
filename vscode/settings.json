@@ -1,55 +1,40 @@
 {
-  
   "editor.renderControlCharacters": true,
-  
-  
+
   "editor.suggestSelection": "first",
-  
-  
+
   "files.insertFinalNewline": true,
-  
-  
+
   "editor.fontLigatures": true,
-  
-  
+
   "editor.fontSize": 17,
-  
-  
+
   "editor.renderLineHighlight": "all",
-  
-  
+
   "editor.cursorBlinking": "smooth",
-  
-  
+
   "editor.cursorSmoothCaretAnimation": "on",
-  
-  
+
   "files.autoGuessEncoding": true,
-  
-  
+
   "window.zoomLevel": 0,
-  
-  
+
   "editor.bracketPairColorization.enabled": true,
-  
-  
+
   "terminal.integrated.fontSize": 17,
-  
-  
+
   "editor.formatOnSave": true,
-  
-  
-  "workbench.colorTheme": "Dark（Visual Studio）",
-  
-  
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+
+  "files.autoSave": "onFocusChange",
+
+  "workbench.colorTheme": "GitHub Dark",
+
   "editor.minimap.enabled": false,
-  
-  
+
   "breadcrumbs.enabled": false,
-  
-  
+
   "window.menuBarVisibility": "toggle",
-  
-  
-  "workbench.activityBar.visible": false,
+
+  "workbench.activityBar.visible": false
 }
