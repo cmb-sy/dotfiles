@@ -1,9 +1,9 @@
+DOT_DIR="${HOME}/dotfiles/zsh"
 
-if [ -e "${HOME}/.zshrc" ]; then  # whether exist or not exist
-    rm ${HOME}/.zshrc
-    echo "VSCODE_KEYBINDING_FILE deleted."
-else
-    echo "VSCODE_KEYBINDING_FILE does not exist."
-fi
 
-ln -s ${HOME}/dotfiles/.zshrc ${HOME}/.zshrc
+echo  "Create zsh links ..."
+
+ln -snfv "${DOT_DIR}/.zshenv" "${HOME}/.zshenv"
+ln -snfv "${DOT_DIR}/.zshrc" "${HOME}/.zshrc"
+ln -snfv "${DOT_DIR}/.aliases.sh" "${HOME}/.aliases"
+ln -snfv "${DOT_DIR}/.functions.zsh" "${HOME}/.functions.zsh"

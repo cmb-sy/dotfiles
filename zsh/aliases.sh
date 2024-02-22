@@ -1,26 +1,16 @@
 #!/bin/sh
-DOT_DIR="${HOME}/dotfiles"
 
 # --------------------------------------------------------------------
-# Adapting symbolic links
+# terminal command
 # --------------------------------------------------------------------
-echo "Create dotfile links..."
-Source "${DOT_DIR}/git/apply_gitconfig.zsh
-Source "${DOT_DIR}/vscode/apply_vscode.zsh
-Source "${DOT_DIR}/zsh/apply_zsh.zsh
-Source "${DOT_DIR}/macos/apply_macos.zsh
+alias la='ls -a'
+# --------------------------------------------------------------------
+# docker command
+# --------------------------------------------------------------------
+alias dc='docker compose'
 
 # --------------------------------------------------------------------
-# Install modules
+# other
 # --------------------------------------------------------------------
-echo "Install modules..."
-source "${DOT_DIR}/brew_install.zsh"
-
-# --------------------------------------------------------------------
-# zsh
-# --------------------------------------------------------------------
-echo "Loading dotfiles..."
-source "${DOT_DIR}/.zshrc"
-
-
-echo "install.sh all done!"
+alias kusa='curl https://github-contributions-api.deno.dev/$(git config user.name).term'
+alias tenki='wttr'

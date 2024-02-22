@@ -16,43 +16,11 @@ which brew >/dev/null 2>&1 && brew update
 echo "run brew upgrade..."
 brew upgrade
 
-
 formulas=(
-    asciinema
-    bat
-    ctop
-    dat
-    exa
-    ffmpeg
-    fd
-    fish
-    gh
+    fzf
+    sheldon
     git
-    gitui
-    jrnl
-    mas
-    mysql
-    navi
-    nb
-    neovim
-    neofetch
     nodebrew
-    nnn
-    pandoc
-    procs
-    poppler
-    pstree
-    sampler
-    sd
-    sqlite
-    starship
-    taskell
-    thefuck
-    tldr
-    tmux
-    tmuxinator
-    tree
-    warp
     yarn
 )
 

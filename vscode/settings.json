@@ -1,43 +1,62 @@
 {
+  
   "editor.renderControlCharacters": true,
-
+  
+  
   "editor.suggestSelection": "first",
-
+  
+  
   "files.insertFinalNewline": true,
-
+  
+  
   "editor.fontLigatures": true,
-
+  
+  
   "editor.fontSize": 17,
-
+  
+  
   "editor.renderLineHighlight": "all",
-
+  
+  
   "editor.cursorBlinking": "smooth",
-
+  
+  
   "editor.cursorSmoothCaretAnimation": "on",
-
+  
+  
   "files.autoGuessEncoding": true,
-
+  
+  
   "window.zoomLevel": 0,
-
+  
+  
   "editor.bracketPairColorization.enabled": true,
-
+  
+  
   "terminal.integrated.fontSize": 17,
+  
+  
+	"editor.formatOnSave": true,
+	"editor.defaultFormatter": "esbenp.prettier-vscode",
 
-  "editor.formatOnSave": true,
+  
+	"files.autoSave": "onFocusChange",
 
-  "editor.defaultFormatter": "esbenp.prettier-vscode",
-
-  "files.autoSave": "onFocusChange",
-
+  
   "workbench.colorTheme": "GitHub Dark",
-
+  
+  
   "editor.minimap.enabled": false,
-
+  
+  
   "breadcrumbs.enabled": false,
-
+  
+  
   "window.menuBarVisibility": "toggle",
-
+  
+  
   "workbench.activityBar.visible": false,
 
+  
   "explorer.confirmDelete": false
 }
