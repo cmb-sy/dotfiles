@@ -36,7 +36,6 @@
   "terminal.integrated.fontSize": 17,
   
   // ファイルを保存するときに自動的にフォーマットを適用
-
 	"editor.formatOnSave": true,
 	"editor.defaultFormatter": "esbenp.prettier-vscode",
 
@@ -57,4 +56,7 @@
   
   // アクティビティバー（左側のサイドバー）を非表示にするかどうかを設定
   "workbench.activityBar.visible": false,
+
+  // フォルダ、ファイル削除時の確認画面を省略
+  "explorer.confirmDelete": false
 }

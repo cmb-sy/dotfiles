@@ -31,7 +31,7 @@ DOTFILE_VSCODE_SETTING_FILE="${HOME}/dotfiles/vscode/settings.json"
 VSCODE_SETTING_FILE="${HOME}/Library/Application Support/Code/User/settings.json"
 if [ -e $VSCODE_SETTING_FILE ]; then  # whether exist or not exist
     rm $VSCODE_SETTING_FILE
-    echo "VSCODE_SETTING_FILE deleted."
+    echo "VSCODE_SETTING_FILE deleted..."
 else
     echo "VSCODE_SETTING_FILE does not exist."
 fi
@@ -48,7 +48,7 @@ DOTFILE_VSCODE_KEYBINDING_FILE="${HOME}/dotfiles/vscode/keybindings.json"
 
 if [ -e $VSCODE_KEYBINDING_FILE ]; then  # whether exist or not exist
     rm $VSCODE_KEYBINDING_FILE
-    echo "VSCODE_KEYBINDING_FILE deleted."
+    echo "VSCODE_KEYBINDING_FILE delete..."
 else
     echo "VSCODE_KEYBINDING_FILE does not exist."
 fi
