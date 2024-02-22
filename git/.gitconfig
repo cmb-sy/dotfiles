@@ -2,7 +2,7 @@
 	name = cmb-sy
 	email = free.nakashima@gmail.com
 [include]
-    path = ~/gitconfig.local
+    path = ${HOME}/gitconfig.local
 [alias]
     a = add
     aa = add --all
