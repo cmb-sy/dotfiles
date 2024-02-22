@@ -40,5 +40,6 @@
 
   "explorer.confirmDelete": false,
 
-  "redhat.telemetry.enabled": true
+  "redhat.telemetry.enabled": true,
+  "explorer.confirmDragAndDrop": false
 }
