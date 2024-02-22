@@ -2,7 +2,6 @@ dbaeumer.vscode-eslint
 dgeibi.alias-tool
 editorconfig.editorconfig
 esbenp.prettier-vscode
-github.github-vscode-theme
 github.vscode-pull-request-github
 ionutvmi.path-autocomplete
 mechatroner.rainbow-csv
@@ -24,3 +23,4 @@ stylelint.vscode-stylelint
 vscode-icons-team.vscode-icons
 vue.volar
 vue.vscode-typescript-vue-plugin
+zhuangtongfa.material-theme

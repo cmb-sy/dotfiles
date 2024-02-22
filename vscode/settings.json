@@ -28,18 +28,15 @@
 
   "files.autoSave": "onFocusChange",
 
-  "workbench.colorTheme": "GitHub Dark",
-
   "editor.minimap.enabled": false,
 
   "breadcrumbs.enabled": false,
 
   "window.menuBarVisibility": "toggle",
 
-  "workbench.activityBar.visible": false,
-
   "explorer.confirmDelete": false,
 
   "redhat.telemetry.enabled": true,
-  "explorer.confirmDragAndDrop": false
+  "explorer.confirmDragAndDrop": false,
+  "workbench.colorTheme": "One Dark Pro Darker"
 }

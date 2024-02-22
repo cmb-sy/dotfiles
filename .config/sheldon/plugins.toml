@@ -13,7 +13,7 @@
 shell = "zsh"
 
 [templates]
-defer = "{{ hooks | get: \"pre\" | nl }}{% for file in files %}zsh-defer source \"{{ file }}\"\n{% endfor %}{{ hooks | get: \"post\" | nl }}"
+defer = "{% for file in files %}zsh-defer source \"{{ file }}\"\n{% endfor %}"
 
 [plugins.zsh-defer]
 github = "romkatv/zsh-defer"
@@ -26,3 +26,13 @@ apply = ["defer"]
 [plugins.kubectl-completion]
 remote = "https://raw.githubusercontent.com/nnao45/zsh-kubectl-completion/master/_kubectl"
 apply = ["fpath"]
+
+[plugins.zsh-syntax-highlighting]
+github = 'zsh-users/zsh-syntax-highlighting'
+apply = ['defer']
+
+[plugins.ls-coloring]
+inline = 'alias ls="/bin/ls --color=always"'
+
+[plugins.powerlevel10k]
+github = "romkatv/powerlevel10k"

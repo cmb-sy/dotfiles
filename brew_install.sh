@@ -22,6 +22,7 @@ formulas=(
     git
     nodebrew
     yarn
+    gengig
 )
 
 # GUI application install

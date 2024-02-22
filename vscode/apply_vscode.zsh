@@ -4,7 +4,9 @@
 # --------------------------------------------------------------------
 # extensions
 # --------------------------------------------------------------------
-echo  "Download vscode extensions..."
+# code --list-extensions > extensions.zsh
+
+echo  "Downloading vscode extensions..."
 
 extension_list=()
 while IFS= read -r line; do

@@ -1,11 +1,13 @@
-DOT_DIR="${HOME}/dotfiles/zsh"
+DOT_DIR="${HOME}/dotfiles"
 
 echo  "Create zsh links ..."
 
-ln -snfv "${DOT_DIR}/.zshenv" "${HOME}/.zshenv"
-ln -snfv "${DOT_DIR}/.zshrc" "${HOME}/.zshrc"
-# ln -snfv "${DOT_DIR}/.aliases.sh" "${HOME}/.aliases"
-# ln -snfv "${DOT_DIR}/.functions.zsh" "${HOME}/.functions.zsh"
+ln -snfv "${DOT_DIR}/zsh/.zshenv" "${HOME}/.zshenv"
+ln -snfv "${DOT_DIR}/zsh/.zshrc" "${HOME}/.zshrc"
+ln -snfv "${DOT_DIR}/zsh/.aliases.sh" "${HOME}/.aliases"
+ln -snfv "${DOT_DIR}/zsh/.function.zsh" "${HOME}/.function.zsh"
 
 # sheldon init --shell zsh
-ln -snfv "${DOT_DIR}/.config/sheldon/.plugin.toml" "${HOME}/.config/sheldon/plugins.toml"
+# 既存のconfigファイルが存在しているためうまくシンボリックリンクが作成できない。先に消す必要がある。
+rm -rf "${HOME}/.config"
+ln -snfv "${DOT_DIR}/.config" "${HOME}/.config"

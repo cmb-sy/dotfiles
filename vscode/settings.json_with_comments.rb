@@ -43,7 +43,7 @@
 	"files.autoSave": "onFocusChange",
 
   // カラーテーマを設定
-  "workbench.colorTheme": "GitHub Dark",
+  "workbench.colorTheme": "One Dark Pro Darker",
   
   // サイドバーのミニマップを無効にするかどうかを設定
   "editor.minimap.enabled": false,
