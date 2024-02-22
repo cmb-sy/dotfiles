@@ -17,7 +17,7 @@ echo "Install modules..."
 source "${DOT_DIR}/brew_install.zsh"
 
 # --------------------------------------------------------------------
-# zsh
+# Adapting zsh
 # --------------------------------------------------------------------
 echo "Loading dotfiles..."
 source "${DOT_DIR}/.zshrc"
