@@ -7,7 +7,7 @@
 
   "editor.fontLigatures": true,
 
-  "editor.fontSize": 17,
+  "editor.fontSize": 16,
 
   "editor.renderLineHighlight": "all",
 
@@ -28,15 +28,13 @@
 
   "files.autoSave": "onFocusChange",
 
+  "workbench.colorTheme": "One Dark Pro Darker",
+
   "editor.minimap.enabled": false,
 
   "breadcrumbs.enabled": false,
 
   "window.menuBarVisibility": "toggle",
 
-  "explorer.confirmDelete": false,
-
-  "redhat.telemetry.enabled": true,
-  "explorer.confirmDragAndDrop": false,
-  "workbench.colorTheme": "One Dark Pro Darker"
+  "explorer.confirmDelete": false
 }

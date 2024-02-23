@@ -12,7 +12,7 @@
   "editor.fontLigatures": true,
   
   // エディタのフォントサイズを設定
-  "editor.fontSize": 17,
+  "editor.fontSize": 16,
   
   // 選択した行を強調表示する方法を設定
   "editor.renderLineHighlight": "all",
