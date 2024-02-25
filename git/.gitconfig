@@ -5,10 +5,11 @@
 	path = ${HOME}/gitconfig.local
 [alias]
 	a = add
-    	aa = add --all
-    	br = branch
-    	co = checkout
-    	com = commit
+	aa = add --all
+    br = branch
+	brm = branch -m 
+    co = checkout
+    com = commit
 	di = diff
 	ds = diff --staged
 	fe = fetch

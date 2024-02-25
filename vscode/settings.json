@@ -36,5 +36,7 @@
 
   "window.menuBarVisibility": "toggle",
 
-  "explorer.confirmDelete": false
+  "explorer.confirmDelete": false,
+  "explorer.confirmDragAndDrop": false,
+  "git.confirmSync": false
 }
