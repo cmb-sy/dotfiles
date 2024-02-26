@@ -40,5 +40,6 @@
 
   "explorer.confirmDragAndDrop": false,
 
-  "git.confirmSync": false
+  "git.confirmSync": false,
+  "git.autofetch": true
 }
