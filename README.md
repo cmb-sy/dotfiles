@@ -1,5 +1,12 @@
-## Install
-
+# Procedures 
+## First
 Clone onto your laptop:
 
-    git clone git@github.com:thoughtbot/dotfiles.git ~/dotfiles 
+    git clone https://github.com/cmb-sy/dotfiles.git
+
+## Vscode setting
+coming soon
+## Git setting
+coming soon
+## Zsh setting
+coming soon
