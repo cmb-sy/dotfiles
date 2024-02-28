@@ -2,5 +2,7 @@
     "initial_working_directory": "~",
     "font_size_points": 11,
     "editor_theme": "Merbivore",
-    "posix_terminal_shell": "bash"
+    "posix_terminal_shell": "bash",
+    "jobs_tab_visibility": "shown",
+    "default_project_location": "/Users/snakashima/OneDrive - 株式会社アドバンテッジリスクマネジメント/調査研究部"
 }

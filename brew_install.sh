@@ -23,6 +23,7 @@ formulas=(
     nodebrew
     yarn
     gengig
+    tsc
 )
 
 # GUI application install

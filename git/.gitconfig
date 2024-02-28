@@ -23,6 +23,7 @@
 	ls = log --stat
 	pl = pull
 	ps = push
+	psoh = push origin HEAD
 	rr = restore
 	s = status
 	sh = show
