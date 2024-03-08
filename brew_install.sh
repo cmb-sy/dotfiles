@@ -20,6 +20,7 @@ formulas=(
     fzf
     sheldon
     git
+    miniconda
     nodebrew
     yarn
     gengig
