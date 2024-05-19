@@ -36,10 +36,8 @@
 
   "window.menuBarVisibility": "toggle",
 
+  "workbench.activityBar.visible": false,
+
   "explorer.confirmDelete": false,
-
-  "explorer.confirmDragAndDrop": false,
-
-  "git.confirmSync": false,
-  "git.autofetch": true
+  "workbench.iconTheme": "vscode-icons"
 }
