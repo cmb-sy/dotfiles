@@ -26,16 +26,24 @@ casks=(
 )
 
 # Install Homebrew if not installed
-which brew >/dev/null 2>&1 || /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+if ! command -v brew >/dev/null 2>&1; then
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+fi
 
 # Run brew doctor
-which brew >/dev/null 2>&1 && brew doctor
+if command -v brew >/dev/null 2>&1; then
+    brew doctor
+fi
 
 # Run brew update
-which brew >/dev/null 2>&1 && brew update
+if command -v brew >/dev/null 2>&1; then
+    brew update
+fi
 
 # Run brew upgrade
-brew upgrade
+if command -v brew >/dev/null 2>&1; then
+    brew upgrade
+fi
 
 brew update
 brew tap homebrew/cask-fonts
@@ -63,7 +71,8 @@ darwin*)
   sudo ln -snfv "$(brew --prefix gcc)/g++-${GCC_VER}" /usr/local/bin/g++
   ;;
 linux*)
-  brew install docker
+  sudo apt update
+  sudo apt install -y docker.io
   ;;
 esac
 
