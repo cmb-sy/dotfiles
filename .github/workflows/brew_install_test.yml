@@ -15,7 +15,4 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Install dotfiles
-        run: |
-          curl -o brew_install.zsh -L https://raw.githubusercontent.com/cmb-sy/dotfiles/main/brew_install.zsh
-          chmod +x brew_install.zsh
-          ./brew_install.zsh
+        run: sh -c "$(curl -s https://raw.githubusercontent.com/cmb-sy/dotfiles/main/brew_install.zsh)"
