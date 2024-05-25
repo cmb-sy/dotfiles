@@ -1,0 +1,21 @@
+name: dotfile install test
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "0 0 1 * *"
+
+jobs:
+  dotfile-install-test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macOS-latest]
+      fail-fast: false # continue running other OS even if the job fails.
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Install dotfiles
+        run: |
+          curl -o brew_install.zsh -L https://raw.githubusercontent.com/cmb-sy/dotfiles/main/brew_install.zsh
+          chmod +x brew_install.zsh
+          ./brew_install.zsh
