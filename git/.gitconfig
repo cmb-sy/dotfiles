@@ -1,6 +1,6 @@
 [user]
-	name = cmb-sy
-	email = free.nakashima@gmail.com
+	name = kunst
+	email = 63276819+cmb-sy@users.noreply.github.com
 [include]
 	path = ${HOME}/gitconfig.local
 [alias]
@@ -55,3 +55,8 @@
 	user = cmb-sy
 [init]
 	defaultBranch = main
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true

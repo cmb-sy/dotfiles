@@ -1,0 +1,17 @@
+name: CI
+
+on:
+  push:
+  schedule:
+    - cron: "0 0 1,15 * *" # 毎月1日と15日の午前0時に実行
+
+jobs:
+  test:
+    name: Install test
+    timeout-minutes: 60
+    runs-on: macOS-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install dotfiles
+        run: CI=true ./install.sh

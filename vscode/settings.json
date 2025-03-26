@@ -1,43 +1,29 @@
 {
-  "editor.renderControlCharacters": true,
-
-  "editor.suggestSelection": "first",
-
-  "files.insertFinalNewline": true,
-
-  "editor.fontLigatures": true,
-
-  "editor.fontSize": 16,
-
-  "editor.renderLineHighlight": "all",
-
-  "editor.cursorBlinking": "smooth",
-
-  "editor.cursorSmoothCaretAnimation": "on",
-
-  "files.autoGuessEncoding": true,
-
   "window.zoomLevel": 0,
-
-  "editor.bracketPairColorization.enabled": true,
-
-  "terminal.integrated.fontSize": 17,
-
-  "editor.formatOnSave": true,
-  "editor.defaultFormatter": "esbenp.prettier-vscode",
-
-  "files.autoSave": "onFocusChange",
-
-  "workbench.colorTheme": "One Dark Pro Darker",
-
-  "editor.minimap.enabled": false,
-
-  "breadcrumbs.enabled": false,
-
-  "window.menuBarVisibility": "toggle",
-
   "explorer.confirmDelete": false,
   "workbench.iconTheme": "vscode-icons",
   "explorer.confirmDragAndDrop": false,
-  "git.enableSmartCommit": true
+  "git.enableSmartCommit": true,
+  "workbench.colorTheme": "Atom One Dark",
+  "editor.minimap.autohide": true,
+  "jupyter.askForKernelRestart": false,
+  "editor.fontSize": 14,
+  "jupyter.interactiveWindow.creationMode": "perFile",
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "vsicons.dontShowNewVersionMessage": true,
+  "explorer.confirmDragAndDrop": false,
+  "interactiveWindow.executeWithShiftEnter": true,
+  "git.confirmSync": false,
+  "githubPullRequests.pullBranch": "never",
+  "typescript.updateImportsOnFileMove.enabled": "always",
+  "javascript.updateImportsOnFileMove.enabled": "always",
+  "window.confirmSaveUntitledWorkspace": false,
+  "terminal.integrated.inheritEnv": false,
+  "[ignore]": {
+    "editor.defaultFormatter": "foxundermoon.shell-format"
+  },
+  "editor.formatOnSave": true,
+  "[dotenv]": {
+    "editor.defaultFormatter": "foxundermoon.shell-format"
+  }
 }
