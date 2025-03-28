@@ -31,5 +31,15 @@ cd dotfiles
 3. Set up your configurations:
 
 ```bash
-./scripts/install.sh
+./setup/install.sh
+```
+
+4. Restart your terminal to apply all changes
+
+## CI Usage
+
+For continuous integration environments, use:
+
+```bash
+CI=true ./setup/install.sh
 ```
