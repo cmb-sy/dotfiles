@@ -14,4 +14,4 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Install dotfiles
-        run: CI=true ./install.sh
+        run: CI=true ./setup/install.sh
