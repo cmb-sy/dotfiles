@@ -13,5 +13,7 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      - name: Make scripts executable
+        run: chmod +x ./setup/install.sh ./setup/brew_install.sh
       - name: Install dotfiles
         run: CI=true ./setup/install.sh
