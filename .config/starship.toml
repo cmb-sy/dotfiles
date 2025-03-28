@@ -1,0 +1,52 @@
+# Starship設定ファイル - きれいなプロンプト表示
+
+# プロンプト全体のフォーマット
+format = """
+$username\
+$hostname\
+$directory\
+$cmd_duration\
+$line_break\
+$character"""
+
+# コマンド入力前の空行を表示
+add_newline = true
+
+# プロンプトの文字設定
+[character]
+success_symbol = "[❯](green)"
+error_symbol = "[❯](red)"
+vimcmd_symbol = "[❮](green)"
+
+# ディレクトリ表示設定
+[directory]
+style = "blue"
+truncation_length = 3
+truncation_symbol = "…/"
+read_only = " 🔒"
+
+# Gitブランチ表示設定（無効化）
+[git_branch]
+disabled = true
+
+# Gitステータス表示設定（無効化）
+[git_status]
+disabled = true
+
+# コマンド実行時間表示
+[cmd_duration]
+min_time = 500
+format = "[$duration]($style) "
+style = "yellow"
+
+# ホスト名表示
+[hostname]
+ssh_only = false
+format = "[@$hostname]($style) "
+style = "green"
+
+# ユーザー名表示
+[username]
+show_always = true
+format = "[$user]($style_user)"
+style_user = "blue" 

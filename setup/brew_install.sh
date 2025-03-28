@@ -2,20 +2,19 @@
 
 export HOMEBREW_NO_AUTO_UPDATE=1
 
-# command isntall
-formulas=(
+# homebrew install
 echo "installing homebrew..."
 which brew >/dev/null 2>&1 || /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
 
+# brew doctor
 echo "run brew doctor..."
 which brew >/dev/null 2>&1 && brew doctor
 
+# brew update
 echo "run brew update..."
 which brew >/dev/null 2>&1 && brew update
 
-echo "run brew upgrade..."
-brew upgrade
-
+# command install
 formulas=(
     fzf
     sheldon
@@ -33,9 +32,14 @@ casks=(
   github
   google-chrome
   microsoft-teams
+  macrosoft-powerpoint
+  macrosoft-excel
+  macrosoft-word
+  visual-studio-code
   slack
   sourcetree
-  visual-studio-code
+  cursor
+  notion
   zoom
 )
 

@@ -1,0 +1,25 @@
+# sheldon設定ファイル
+
+shell = "zsh"
+
+[plugins]
+
+# zsh-syntax-highlighting - シンタックスハイライト
+[plugins.zsh-syntax-highlighting]
+github = "zsh-users/zsh-syntax-highlighting"
+
+# zsh-autosuggestions - コマンド提案
+[plugins.zsh-autosuggestions]
+github = "zsh-users/zsh-autosuggestions"
+
+# zsh-completions - 追加補完
+[plugins.zsh-completions]
+github = "zsh-users/zsh-completions"
+
+# zsh-history-substring-search - 履歴検索
+[plugins.history-substring-search]
+github = "zsh-users/zsh-history-substring-search"
+
+# fast-syntax-highlighting - より高機能なシンタックスハイライト
+[plugins.fast-syntax-highlighting]
+github = "zdharma-continuum/fast-syntax-highlighting" 
