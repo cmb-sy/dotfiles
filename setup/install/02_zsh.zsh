@@ -70,9 +70,9 @@ util::symlink "${ZSH_DIR}/.function.zsh" "${HOME}/.function.zsh"
 
 # Install Zsh plugins via Sheldon
 util::info "Installing Zsh plugins..."
-sheldon add zsh-users/zsh-autosuggestions
-sheldon add zsh-users/zsh-completions
-sheldon add zsh-users/zsh-syntax-highlighting
+sheldon add --github zsh-users/zsh-autosuggestions zsh-autosuggestions
+sheldon add --github zsh-users/zsh-completions zsh-completions
+sheldon add --github zsh-users/zsh-syntax-highlighting zsh-syntax-highlighting
 
 # Set Zsh as default shell
 if [[ "$SHELL" != "$(which zsh)" ]]; then
