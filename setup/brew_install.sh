@@ -78,7 +78,7 @@ brew upgrade
 
 # Add required taps
 echo -e "${YELLOW}Adding required taps...${NC}"
-brew tap homebrew/cask-fonts
+# brew tap homebrew/cask-fonts  # Deprecated tap, removed
 brew tap ktr0731/evans
 brew tap jesseduffield/lazydocker
 

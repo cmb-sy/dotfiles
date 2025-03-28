@@ -104,8 +104,10 @@ util::dotfiles_dir() {
 
 # Get repository root directory path
 util::repo_dir() {
-  # If running from cloned repository
-  if [[ -d "${PWD}/.git" ]]; then
+  # If running from cloned repository (GitHub Actions)
+  if [[ -d "${GITHUB_WORKSPACE}" ]]; then
+    echo "${GITHUB_WORKSPACE}"
+  elif [[ -d "${PWD}/.git" ]]; then
     echo "${PWD}"
   else
     # If running from installed location

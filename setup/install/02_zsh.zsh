@@ -47,7 +47,12 @@ fi
 # Initialize Sheldon
 if [[ ! -d "${HOME}/.config/sheldon" ]]; then
     util::info "Initializing Sheldon..."
-    sheldon init --shell zsh
+    if util::is_ci; then
+        mkdir -p "${HOME}/.config/sheldon"
+        echo '# Sheldon configuration' > "${HOME}/.config/sheldon/plugins.toml"
+    else
+        sheldon init --shell zsh
+    fi
 fi
 
 # Install Starship if not installed
