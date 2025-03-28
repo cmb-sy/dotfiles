@@ -77,7 +77,11 @@ sheldon add --github zsh-users/zsh-syntax-highlighting zsh-syntax-highlighting
 # Set Zsh as default shell
 if [[ "$SHELL" != "$(which zsh)" ]]; then
     util::info "Setting Zsh as default shell..."
-    chsh -s "$(which zsh)"
+    if util::is_ci; then
+        util::info "Skipping chsh in CI environment"
+    else
+        chsh -s "$(which zsh)"
+    fi
 fi
 
 util::info "Zsh setup completed successfully!" 
