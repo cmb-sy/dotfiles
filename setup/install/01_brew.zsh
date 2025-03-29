@@ -1,18 +1,17 @@
 #!/bin/zsh
-# Homebrew installation and package setup
 
-# Source utility functions
+# ユーティリティ関数の読み込み
 SCRIPT_DIR="$(cd "$(dirname "${0}")" && pwd)"
 source "${SCRIPT_DIR}/../util.zsh"
 
-util::info "Setting up Homebrew..."
+util::info "Homebrewのセットアップを開始します..."
 
-# Disable auto-update during installation
+# インストール中の自動更新を無効化
 export HOMEBREW_NO_AUTO_UPDATE=1
 
-# Command line tools to install
+# インストールするコマンドラインツール
 formulas=(
-    # Shell utilities
+    # シェルユーティリティ
     fzf
     ripgrep
     fd
@@ -22,53 +21,53 @@ formulas=(
     yq
     tldr
     
-    # Version control
+    # バージョン管理
     git
     gh
     hub
     git-delta
     
-    # Shell enhancements
+    # シェル拡張
     zsh
     starship
     sheldon
     tmux
     zoxide
     
-    # Development tools
+    # 開発ツール
     neovim
     nodebrew
     yarn
 )
 
-# GUI applications to install
+# インストールするGUIアプリケーション
 casks=(
-    # Browsers
+    # ブラウザ
     google-chrome
     
-    # Development tools
+    # 開発ツール
     visual-studio-code
     cursor
     iterm2
     docker
     postman
     
-    # Communication
+    # コミュニケーション
     slack
     zoom
     
-    # Productivity
+    # その他
     notion
     rectangle
     alfred
 )
 
-# Install Homebrew if not installed
+# Homebrewがインストールされていない場合はインストール
 if ! util::has brew; then
-    util::info "Installing Homebrew..."
+    util::info "Homebrewをインストールしています..."
     /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
     
-    # Add Homebrew to PATH
+    # HomebrewをPATHに追加
     if [[ -f /opt/homebrew/bin/brew ]]; then
         eval "$(/opt/homebrew/bin/brew shellenv)"
     elif [[ -f /usr/local/bin/brew ]]; then
@@ -76,34 +75,34 @@ if ! util::has brew; then
     fi
 fi
 
-# Run brew doctor and update
-util::info "Running brew doctor..."
+# brew doctorと更新を実行
+util::info "brew doctorを実行しています..."
 brew doctor
 
-util::info "Running brew update..."
+util::info "brew updateを実行しています..."
 brew update
 
-# Add required taps
-util::info "Adding required taps..."
-# brew tap homebrew/cask-fonts  # Deprecated tap, removed
+# 必要なtapを追加
+util::info "必要なtapを追加しています..."
+# brew tap homebrew/cask-fonts  # 非推奨のtap、削除されました
 brew tap ktr0731/evans
 brew tap jesseduffield/lazydocker
 
-# Install formulas
-util::info "Installing command line tools..."
+# コマンドラインツールのインストール
+util::info "コマンドラインツールをインストールしています..."
 for formula in "${formulas[@]}"; do
-    util::info "Installing ${formula}..."
+    util::info "${formula}をインストールしています..."
     brew install "${formula}" || true
 done
 
-# Install casks
-util::info "Installing GUI applications..."
+# GUIアプリケーションのインストール
+util::info "GUIアプリケーションをインストールしています..."
 for cask in "${casks[@]}"; do
-    util::info "Installing ${cask}..."
+    util::info "${cask}をインストールしています..."
     brew install --cask "${cask}" || true
 done
 
-# Clean up
+# クリーンアップ
 unset HOMEBREW_NO_AUTO_UPDATE
 
-util::info "Homebrew setup completed successfully!" 
+util::info "Homebrewのセットアップが完了しました！" 
