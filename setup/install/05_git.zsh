@@ -1,51 +1,50 @@
 #!/bin/zsh
-# Git installation and configuration
 
-# Source utility functions
+# ユーティリティ関数の読み込み
 SCRIPT_DIR="$(cd "$(dirname "${0}")" && pwd)"
 source "${SCRIPT_DIR}/../util.zsh"
 
-# Define dotfiles directory
+# dotfilesディレクトリの定義
 DOTFILES_DIR="$(util::repo_dir)"
 GIT_DIR="${DOTFILES_DIR}/git"
 
-util::info "Setting up Git..."
+util::info "Gitのセットアップを開始します..."
 
-# Check if directory exists
+# ディレクトリの存在確認
 if [[ ! -d "${GIT_DIR}" ]]; then
-    util::error "Git directory not found: ${GIT_DIR}"
+    util::error "Gitディレクトリが見つかりません: ${GIT_DIR}"
     exit 1
 fi
 
-# Install Git if not installed
+# Gitがインストールされていない場合はインストール
 if ! util::has git; then
-    util::info "Installing Git..."
+    util::info "Gitをインストールしています..."
     brew install git
 fi
 
-# Create symlinks for Git configuration
-util::info "Creating Git configuration symlinks..."
+# Git設定のシンボリックリンク作成
+util::info "Git設定のシンボリックリンクを作成しています..."
 util::symlink "${GIT_DIR}/.gitconfig" "${HOME}/.gitconfig"
 
-# Configure Git user if not already set
+# Gitユーザーが設定されていない場合は設定
 if ! git config --global user.name &>/dev/null; then
     if ! util::is_ci; then
-        util::info "Configuring Git user..."
-        read "?Enter your Git username: " username
-        read "?Enter your Git email: " email
+        util::info "Gitユーザーを設定しています..."
+        read "?Gitユーザー名を入力してください: " username
+        read "?Gitメールアドレスを入力してください: " email
         git config --global user.name "$username"
         git config --global user.email "$email"
     else
-        util::info "Running in CI environment, setting default Git user..."
+        util::info "CI環境で実行中、デフォルトのGitユーザーを設定しています..."
         git config --global user.name "CI User"
         git config --global user.email "ci-user@example.com"
     fi
 fi
 
-# Configure Git defaults
-util::info "Configuring Git defaults..."
+# Gitのデフォルト設定
+util::info "Gitのデフォルト設定を構成しています..."
 git config --global init.defaultBranch main
 git config --global pull.rebase false
 git config --global core.editor "vim"
 
-util::info "Git setup completed successfully!" 
+util::info "Gitのセットアップが完了しました！" 

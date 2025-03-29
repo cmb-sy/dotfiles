@@ -1,53 +1,51 @@
 #!/bin/bash
-# Main installation script for dotfiles
 
-# Exit on error
 set -e
 
-# Source utility functions
+# ユーティリティ関数の読み込み
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/util.zsh"
 
-util::info "Starting dotfiles installation..."
+util::info "dotfilesのインストールを開始します..."
 
-# Check if running on macOS
+# macOS上で実行されているか確認
 if ! util::is_mac; then
-    util::error "This script is only for macOS"
+    util::error "このスクリプトはmacOS専用です"
     exit 1
 fi
 
-# Create necessary directories
-util::info "Creating necessary directories..."
+# ディレクトリを作成
+util::info "ディレクトリを作成しています..."
 util::mkdir "${HOME}/.config"
 util::mkdir "${HOME}/.config/cursor/rules"
 util::mkdir "${HOME}/Library/Application Support/Code/User"
 util::mkdir "${HOME}/Library/LaunchAgents"
 
-# Define dotfiles directory
+# dotfilesディレクトリの定義
 DOTFILES_DIR="$(util::repo_dir)"
 
-# Run all installation scripts or ask for confirmation
+# すべてのインストールスクリプトを実行または確認を要求
 if [[ ${FORCE} = 1 ]] || util::is_ci; then
-    util::info "Running all installation scripts in force mode..."
+    util::info "強制モードですべてのインストールスクリプトを実行しています..."
     for script in "${SCRIPT_DIR}/install"/*.zsh; do
         script_name="$(basename "${script}")"
-        util::info "Running ${script_name}..."
+        util::info "${script_name}を実行しています..."
         zsh "${script}"
     done
 else
-    # Ask for each installation script
+    # 各インストールスクリプトについて確認
     for script in "${SCRIPT_DIR}/install"/*.zsh; do
         script_name="$(basename "${script}")"
-        util::confirm "Run ${script_name}?"
+        util::confirm "${script_name}を実行しますか？"
         if [[ $? = 0 ]]; then
-            util::info "Running ${script_name}..."
+            util::info "${script_name}を実行しています..."
             zsh "${script}"
         else
-            util::warning "Skipping ${script_name}..."
+            util::warning "${script_name}をスキップしています..."
         fi
     done
 fi
 
-util::info "Installation completed successfully!"
-util::info "Please restart your terminal to apply all changes."
+util::info "インストールが正常に完了しました！"
+util::info "変更を適用するためにターミナルを再起動してください。"
 

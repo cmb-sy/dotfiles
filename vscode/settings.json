@@ -1,29 +1,64 @@
 {
-  "window.zoomLevel": 0,
-  "explorer.confirmDelete": false,
-  "workbench.iconTheme": "vscode-icons",
-  "explorer.confirmDragAndDrop": false,
-  "git.enableSmartCommit": true,
-  "workbench.colorTheme": "Atom One Dark",
-  "editor.minimap.autohide": true,
-  "jupyter.askForKernelRestart": false,
-  "editor.fontSize": 14,
-  "jupyter.interactiveWindow.creationMode": "perFile",
-  "editor.defaultFormatter": "esbenp.prettier-vscode",
-  "vsicons.dontShowNewVersionMessage": true,
-  "explorer.confirmDragAndDrop": false,
-  "interactiveWindow.executeWithShiftEnter": true,
-  "git.confirmSync": false,
-  "githubPullRequests.pullBranch": "never",
-  "typescript.updateImportsOnFileMove.enabled": "always",
-  "javascript.updateImportsOnFileMove.enabled": "always",
-  "window.confirmSaveUntitledWorkspace": false,
-  "terminal.integrated.inheritEnv": false,
+  //----------------------------------------------------------
+  // ウィンドウ設定
+  //----------------------------------------------------------
+  "window.zoomLevel": 0, // エディタの表示倍率 (0が標準サイズ)
+  "window.confirmSaveUntitledWorkspace": false, // 未保存のワークスペースを閉じる際の確認ダイアログを表示しない
+
+  //----------------------------------------------------------
+  // エクスプローラー設定
+  //----------------------------------------------------------
+  "explorer.confirmDelete": false, // ファイル削除時の確認ダイアログを表示しない
+  "explorer.confirmDragAndDrop": false, // ドラッグ＆ドロップ時の確認ダイアログを表示しない
+
+  //----------------------------------------------------------
+  // ワークベンチ設定
+  //----------------------------------------------------------
+  "workbench.iconTheme": "vscode-icons", // ファイルアイコンテーマをvscode-iconsに設定
+  "workbench.colorTheme": "Atom One Dark", // カラーテーマをAtom One Darkに設定
+
+  //----------------------------------------------------------
+  // Git設定
+  //----------------------------------------------------------
+  "git.confirmSync": false, // Gitの同期時に確認ダイアログを表示しない
+  "githubPullRequests.pullBranch": "never", // PRのブランチを自動的にプルしない
+
+  // エディタ設定
+  "editor.minimap.autohide": true, // 使用していない時にミニマップを自動的に隠す
+  "editor.fontSize": 14, // フォントサイズを14pxに設定
+  "editor.defaultFormatter": "esbenp.prettier-vscode", // デフォルトフォーマッタをPrettierに設定
+  "editor.formatOnSave": true, // 保存時に自動的にフォーマットする
+
+  //----------------------------------------------------------
+  // Jupyter設定
+  //----------------------------------------------------------
+  "jupyter.askForKernelRestart": false, // カーネルの再起動時に確認ダイアログを表示しない
+  "jupyter.interactiveWindow.creationMode": "perFile", // ファイルごとにインタラクティブウィンドウを作成
+  "interactiveWindow.executeWithShiftEnter": true, // Shift+Enterでコードを実行する
+
+  //----------------------------------------------------------
+  // その他のUI設定
+  //----------------------------------------------------------
+  "vsicons.dontShowNewVersionMessage": true, // VSCode Iconsの新バージョンメッセージを表示しない
+
+  //----------------------------------------------------------
+  // 言語固有の設定
+  //----------------------------------------------------------
+  "typescript.updateImportsOnFileMove.enabled": "always", // TypeScriptファイル移動時に自動的にインポートパスを更新
+  "javascript.updateImportsOnFileMove.enabled": "always", // JavaScriptファイル移動時に自動的にインポートパスを更新
+
+  //----------------------------------------------------------
+  // ターミナル設定
+  //----------------------------------------------------------
+  "terminal.integrated.inheritEnv": false, // 統合ターミナルが環境変数を継承しない
+
+  //----------------------------------------------------------
+  // 言語別フォーマッタ設定
+  //----------------------------------------------------------
   "[ignore]": {
-    "editor.defaultFormatter": "foxundermoon.shell-format"
+    "editor.defaultFormatter": "foxundermoon.shell-format" // .ignoreファイル用のフォーマッタ
   },
-  "editor.formatOnSave": true,
   "[dotenv]": {
-    "editor.defaultFormatter": "foxundermoon.shell-format"
+    "editor.defaultFormatter": "foxundermoon.shell-format" // .envファイル用のフォーマッタ
   }
 }

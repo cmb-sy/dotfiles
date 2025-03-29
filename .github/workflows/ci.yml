@@ -3,7 +3,7 @@ name: CI
 on:
   push:
   schedule:
-    - cron: "0 0 1,15 * *" # 毎月1日と15日の午前0時に実行
+    - cron: "0 0 1,15 * *"
 
 jobs:
   test:

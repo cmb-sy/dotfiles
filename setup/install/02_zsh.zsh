@@ -1,52 +1,45 @@
 #!/bin/zsh
-#!/bin/bash
 
-# Exit on error
+# エラー時に終了
 set -e
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
-
-echo -e "${YELLOW}Setting up Zsh...${NC}"
-
-# Source utility functions
+# ユーティリティ関数の読み込み
 SCRIPT_DIR="$(cd "$(dirname "${0}")" && pwd)"
 source "${SCRIPT_DIR}/../util.zsh"
 
-# Define dotfiles directory
+echo -e "${YELLOW}Zshのセットアップを開始します...${NC}"
+
+# dotfilesディレクトリの定義
 DOTFILES_DIR="$(util::repo_dir)"
 ZSH_DIR="${DOTFILES_DIR}/zsh"
 
-# Check if directory exists
+# ディレクトリの存在確認
 if [[ ! -d "${ZSH_DIR}" ]]; then
-    util::error "Zsh directory not found: ${ZSH_DIR}"
+    util::error "Zshディレクトリが見つかりません: ${ZSH_DIR}"
     exit 1
 fi
 
-# Install Zsh if not installed
+# Zshのインストール確認
 if ! util::has zsh; then
-    util::info "Installing Zsh..."
+    util::info "Zshをインストールしています..."
     brew install zsh
 fi
 
-# Install Oh My Zsh if not installed
+# Oh My Zshのインストール確認
 if [[ ! -d "${HOME}/.oh-my-zsh" ]]; then
-    util::info "Installing Oh My Zsh..."
+    util::info "Oh My Zshをインストールしています..."
     sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
 fi
 
-# Install Sheldon if not installed
+# Sheldonのインストール確認
 if ! util::has sheldon; then
-    util::info "Installing Sheldon..."
+    util::info "Sheldonをインストールしています..."
     brew install sheldon
 fi
 
-# Initialize Sheldon
+# Sheldonの初期化
 if [[ ! -d "${HOME}/.config/sheldon" ]]; then
-    util::info "Initializing Sheldon..."
+    util::info "Sheldonを初期化しています..."
     if util::is_ci; then
         mkdir -p "${HOME}/.config/sheldon"
         echo '# Sheldon configuration' > "${HOME}/.config/sheldon/plugins.toml"
@@ -55,33 +48,33 @@ if [[ ! -d "${HOME}/.config/sheldon" ]]; then
     fi
 fi
 
-# Install Starship if not installed
+# Starshipのインストール確認
 if ! util::has starship; then
-    util::info "Installing Starship..."
+    util::info "Starshipをインストールしています..."
     brew install starship
 fi
 
-# Create symlinks for Zsh configuration files
-util::info "Creating symlinks for Zsh configuration files..."
+# Zsh設定ファイルのシンボリックリンク作成
+util::info "Zsh設定ファイルのシンボリックリンクを作成しています..."
 util::symlink "${ZSH_DIR}/.zshrc" "${HOME}/.zshrc"
 util::symlink "${ZSH_DIR}/.zshenv" "${HOME}/.zshenv"
 util::symlink "${ZSH_DIR}/.aliases.sh" "${HOME}/.aliases.sh"
 util::symlink "${ZSH_DIR}/.function.zsh" "${HOME}/.function.zsh"
 
-# Install Zsh plugins via Sheldon
-util::info "Installing Zsh plugins..."
+# Zshプラグインのインストール
+util::info "Zshプラグインをインストールしています..."
 sheldon add --github zsh-users/zsh-autosuggestions zsh-autosuggestions
 sheldon add --github zsh-users/zsh-completions zsh-completions
 sheldon add --github zsh-users/zsh-syntax-highlighting zsh-syntax-highlighting
 
-# Set Zsh as default shell
+# Zshをデフォルトシェルに設定
 if [[ "$SHELL" != "$(which zsh)" ]]; then
-    util::info "Setting Zsh as default shell..."
+    util::info "Zshをデフォルトシェルに設定しています..."
     if util::is_ci; then
-        util::info "Skipping chsh in CI environment"
+        util::info "CI環境ではchshをスキップします"
     else
         chsh -s "$(which zsh)"
     fi
 fi
 
-util::info "Zsh setup completed successfully!" 
+util::info "Zshのセットアップが完了しました！" 
