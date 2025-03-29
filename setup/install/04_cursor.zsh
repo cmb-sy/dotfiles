@@ -1,5 +1,4 @@
 #!/bin/zsh
-# Cursor installation and configuration
 
 # Source utility functions
 SCRIPT_DIR="$(cd "$(dirname "${0}")" && pwd)"

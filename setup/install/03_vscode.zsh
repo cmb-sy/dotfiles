@@ -1,5 +1,4 @@
 #!/bin/zsh
-#!/bin/bash
 
 # Exit on error
 set -e
@@ -20,72 +19,64 @@ source "${SCRIPT_DIR}/../util.zsh"
 DOTFILES_DIR="$(util::repo_dir)"
 VSCODE_DIR="${DOTFILES_DIR}/vscode"
 
-# Check if directory exists
+# ファイル構造の確認
+util::info "VSCodeの設定ディレクトリを確認しています..."
 if [[ ! -d "${VSCODE_DIR}" ]]; then
-    util::error "VSCode directory not found: ${VSCODE_DIR}"
+    util::error "VSCode設定ディレクトリが見つかりません: ${VSCODE_DIR}"
     exit 1
 fi
 
-# Install VSCode if not installed
+# VSCodeのインストール確認
 if ! util::has code; then
-    util::info "Installing VSCode..."
+    util::info "VSCodeをインストールしています..."
     brew install --cask visual-studio-code
 fi
 
-# Create VSCode configuration directory
-util::info "Creating VSCode configuration directory..."
+# VSCode設定ディレクトリの作成
+util::info "VSCode設定ディレクトリを作成しています..."
 util::mkdir "${HOME}/Library/Application Support/Code/User"
 
-# Read extensions from vscode/extensions.zsh
-util::info "Reading extensions from extensions.zsh..."
+# 拡張機能のインストール
+util::info "extensions.zshからVSCode拡張機能リストを読み込んでいます..."
 if [[ -f "${VSCODE_DIR}/extensions.zsh" ]]; then
+    # 拡張機能の読み込み - コメント行と空行をスキップ
     extensions=()
     while IFS= read -r line; do
-        # Skip empty lines and comments
+        # 空行とコメント行をスキップ
         if [[ -n "$line" && ! "$line" =~ ^# ]]; then
-            extensions+=("$line")
+            # コメント部分を削除して拡張機能IDだけを取得
+            extension_id=$(echo "$line" | awk '{print $1}')
+            extensions+=("$extension_id")
         fi
     done < "${VSCODE_DIR}/extensions.zsh"
     
-    # Install extensions
-    util::info "Installing VSCode extensions..."
+    # 拡張機能のインストール
+    util::info "VSCode拡張機能をインストールしています..."
     for extension in "${extensions[@]}"; do
-        util::info "Installing extension: ${extension}..."
+        util::info "拡張機能をインストール中: ${extension}..."
         code --install-extension "${extension}" || true
     done
 else
-    util::warning "extensions.zsh not found at: ${VSCODE_DIR}/extensions.zsh"
+    util::warning "extensions.zshファイルが見つかりません: ${VSCODE_DIR}/extensions.zsh"
 fi
 
-# Process settings and keybindings
-util::info "Processing VSCode configuration files..."
+# 設定ファイルの処理
+util::info "VSCode設定ファイルをセットアップしています..."
 
-# Process settings.json
-if [[ -f "${VSCODE_DIR}/settings.json_with_comments.rb" ]]; then
-    util::info "Processing settings.json from settings.json_with_comments.rb..."
-    cp "${VSCODE_DIR}/settings.json_with_comments.rb" "${VSCODE_DIR}/settings.json"
-    sed -i '' 's/\/\/.*//' "${VSCODE_DIR}/settings.json" # Remove comment lines
-elif [[ ! -f "${VSCODE_DIR}/settings.json" ]]; then
-    util::warning "settings.json not found at: ${VSCODE_DIR}/settings.json"
-fi
-
-# Process keybindings.json
-if [[ -f "${VSCODE_DIR}/keybindings.json_with_comment.rb" ]]; then
-    util::info "Processing keybindings.json from keybindings.json_with_comment.rb..."
-    cp "${VSCODE_DIR}/keybindings.json_with_comment.rb" "${VSCODE_DIR}/keybindings.json"
-    sed -i '' 's/\/\/.*//' "${VSCODE_DIR}/keybindings.json" # Remove comment lines
-elif [[ ! -f "${VSCODE_DIR}/keybindings.json" ]]; then
-    util::warning "keybindings.json not found at: ${VSCODE_DIR}/keybindings.json"
-fi
-
-# Create symlinks
-util::info "Creating VSCode configuration symlinks..."
+# settings.jsonの処理
 if [[ -f "${VSCODE_DIR}/settings.json" ]]; then
+    util::info "settings.jsonを適用しています..."
     util::symlink "${VSCODE_DIR}/settings.json" "${HOME}/Library/Application Support/Code/User/settings.json"
+else
+    util::warning "settings.jsonが見つかりません: ${VSCODE_DIR}/settings.json"
 fi
 
+# keybindings.jsonの処理
 if [[ -f "${VSCODE_DIR}/keybindings.json" ]]; then
+    util::info "keybindings.jsonを適用中..."
     util::symlink "${VSCODE_DIR}/keybindings.json" "${HOME}/Library/Application Support/Code/User/keybindings.json"
+else
+    util::warning "keybindings.jsonが見つかりません: ${VSCODE_DIR}/keybindings.json"
 fi
 
-util::info "VSCode setup completed successfully!" 
+util::info "VSCodeのセットアップが完了しました！" 
