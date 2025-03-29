@@ -46,5 +46,7 @@ util::info "Gitのデフォルト設定を構成しています..."
 git config --global init.defaultBranch main
 git config --global pull.rebase false
 git config --global core.editor "vim"
+git config --global core.excludesfile ~/.gitignore_global
+git config --global github.user cmb-sy
 
 util::info "Gitのセットアップが完了しました！" 
