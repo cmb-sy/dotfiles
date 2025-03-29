@@ -13,5 +13,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      - name: Make scripts executable
+        run: |
+          find ./setup -name "*.sh" -exec chmod +x {} \;
+          find ./setup -name "*.zsh" -exec chmod +x {} \;
+          chmod +x ./install.sh
       - name: Install dotfiles
-        run: CI=true ./install.sh
+        run: CI=true ./setup/install.sh

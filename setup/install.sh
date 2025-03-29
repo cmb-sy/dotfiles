@@ -1,26 +1,53 @@
-#!/bin/sh
-DOT_DIR="${HOME}/dotfiles"
+#!/bin/bash
+# Main installation script for dotfiles
 
-# --------------------------------------------------------------------
-# Adapting symbolic links
-# --------------------------------------------------------------------
-echo "Create dotfile links..."
-Source "${DOT_DIR}/git/apply_gitconfig.zsh
-Source "${DOT_DIR}/vscode/apply_vscode.zsh
-Source "${DOT_DIR}/zsh/apply_zsh.zsh
-Source "${DOT_DIR}/macos/apply_macos.zsh
+# Exit on error
+set -e
 
-# --------------------------------------------------------------------
-# Install modules
-# --------------------------------------------------------------------
-echo "Install modules..."
-source "${DOT_DIR}/brew_install.zsh"
+# Source utility functions
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/util.zsh"
 
-# --------------------------------------------------------------------
-# Adapting zsh
-# --------------------------------------------------------------------
-echo "Loading dotfiles..."
-source "${DOT_DIR}/.zshrc"
+util::info "Starting dotfiles installation..."
 
+# Check if running on macOS
+if ! util::is_mac; then
+    util::error "This script is only for macOS"
+    exit 1
+fi
 
-echo "install.sh all done!"
+# Create necessary directories
+util::info "Creating necessary directories..."
+util::mkdir "${HOME}/.config"
+util::mkdir "${HOME}/.config/cursor/rules"
+util::mkdir "${HOME}/Library/Application Support/Code/User"
+util::mkdir "${HOME}/Library/LaunchAgents"
+
+# Define dotfiles directory
+DOTFILES_DIR="$(util::repo_dir)"
+
+# Run all installation scripts or ask for confirmation
+if [[ ${FORCE} = 1 ]] || util::is_ci; then
+    util::info "Running all installation scripts in force mode..."
+    for script in "${SCRIPT_DIR}/install"/*.zsh; do
+        script_name="$(basename "${script}")"
+        util::info "Running ${script_name}..."
+        zsh "${script}"
+    done
+else
+    # Ask for each installation script
+    for script in "${SCRIPT_DIR}/install"/*.zsh; do
+        script_name="$(basename "${script}")"
+        util::confirm "Run ${script_name}?"
+        if [[ $? = 0 ]]; then
+            util::info "Running ${script_name}..."
+            zsh "${script}"
+        else
+            util::warning "Skipping ${script_name}..."
+        fi
+    done
+fi
+
+util::info "Installation completed successfully!"
+util::info "Please restart your terminal to apply all changes."
+
