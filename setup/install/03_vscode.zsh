@@ -1,21 +1,15 @@
 #!/bin/zsh
 
-# Exit on error
+# エラー時に終了
 set -e
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
-
-echo -e "${YELLOW}Setting up VSCode...${NC}"
-
-# Source utility functions
+# ユーティリティ関数の読み込み
 SCRIPT_DIR="$(cd "$(dirname "${0}")" && pwd)"
 source "${SCRIPT_DIR}/../util.zsh"
 
-# Define dotfiles directory
+echo -e "${YELLOW}VSCodeのセットアップを開始します...${NC}"
+
+# dotfilesディレクトリの定義
 DOTFILES_DIR="$(util::repo_dir)"
 VSCODE_DIR="${DOTFILES_DIR}/vscode"
 
@@ -50,7 +44,6 @@ if [[ -f "${VSCODE_DIR}/extensions.zsh" ]]; then
         fi
     done < "${VSCODE_DIR}/extensions.zsh"
     
-    # 拡張機能のインストール
     util::info "VSCode拡張機能をインストールしています..."
     for extension in "${extensions[@]}"; do
         util::info "拡張機能をインストール中: ${extension}..."
@@ -73,7 +66,7 @@ fi
 
 # keybindings.jsonの処理
 if [[ -f "${VSCODE_DIR}/keybindings.json" ]]; then
-    util::info "keybindings.jsonを適用中..."
+    util::info "keybindings.jsonを適用しています..."
     util::symlink "${VSCODE_DIR}/keybindings.json" "${HOME}/Library/Application Support/Code/User/keybindings.json"
 else
     util::warning "keybindings.jsonが見つかりません: ${VSCODE_DIR}/keybindings.json"

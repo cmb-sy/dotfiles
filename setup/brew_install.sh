@@ -1,20 +1,18 @@
 #!/bin/bash
 
-# Exit on error
+# エラー時に終了
 set -e
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
+# ユーティリティ関数の読み込み
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/util.zsh"
 
-# Disable auto-update during installation
+# インストール中の自動更新を無効化
 export HOMEBREW_NO_AUTO_UPDATE=1
 
-echo -e "${YELLOW}Setting up Homebrew packages...${NC}"
+echo -e "${YELLOW}Homebrewパッケージのセットアップを開始します...${NC}"
 
-# Command line tools to install
+# インストールするコマンドラインツール
 formulas=(
     fzf
     sheldon
@@ -37,7 +35,7 @@ formulas=(
     yarn
 )
 
-# GUI applications to install
+# インストールするGUIアプリケーション
 casks=(
     docker
     github
@@ -60,57 +58,57 @@ casks=(
     spotify
 )
 
-# Install Homebrew if not installed
+# Homebrewがインストールされていない場合はインストール
 if ! command -v brew &> /dev/null; then
-    echo -e "${YELLOW}Installing Homebrew...${NC}"
+    echo -e "${YELLOW}Homebrewをインストールしています...${NC}"
     /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 fi
 
-# Run brew doctor and update
-echo -e "${YELLOW}Running brew doctor...${NC}"
+# brew doctorを実行
+echo -e "${YELLOW}brew doctorを実行しています...${NC}"
 brew doctor
 
-echo -e "${YELLOW}Running brew update...${NC}"
+echo -e "${YELLOW}brew updateを実行しています...${NC}"
 brew update
 
-echo -e "${YELLOW}Running brew upgrade...${NC}"
+echo -e "${YELLOW}brew upgradeを実行しています...${NC}"
 brew upgrade
 
-# Add required taps
-echo -e "${YELLOW}Adding required taps...${NC}"
-# brew tap homebrew/cask-fonts  # Deprecated tap, removed
+# 必要なtapを追加
+echo -e "${YELLOW}必要なtapを追加しています...${NC}"
+# brew tap homebrew/cask-fonts  # 非推奨のtap、削除されました
 brew tap ktr0731/evans
 brew tap jesseduffield/lazydocker
 
-# Install formulas
-echo -e "${YELLOW}Installing command line tools...${NC}"
+# コマンドラインツールのインストール
+echo -e "${YELLOW}コマンドラインツールをインストールしています...${NC}"
 for formula in "${formulas[@]}"; do
-    echo -e "${YELLOW}Installing ${formula}...${NC}"
+    echo -e "${YELLOW}${formula}をインストールしています...${NC}"
     brew install "$formula"
 done
 
-# Install casks
-echo -e "${YELLOW}Installing GUI applications...${NC}"
+# GUIアプリケーションのインストール
+echo -e "${YELLOW}GUIアプリケーションをインストールしています...${NC}"
 for cask in "${casks[@]}"; do
-    echo -e "${YELLOW}Installing ${cask}...${NC}"
+    echo -e "${YELLOW}${cask}をインストールしています...${NC}"
     brew install --cask "$cask"
 done
 
-# Set up GCC symlinks on macOS
+# macOSでGCCシンボリックリンクのセットアップ
 if [[ "$(uname)" == "Darwin" ]]; then
-    echo -e "${YELLOW}Setting up GCC symlinks...${NC}"
+    echo -e "${YELLOW}GCCシンボリックリンクをセットアップしています...${NC}"
     GCC_VER=$(ls $(brew --prefix)/bin | grep -E "^g\+\+\-(\d+) \->" | awk '{print $1}' | sed -e "s/g++-//g")
     sudo ln -snfv "$(brew --prefix gcc)/gcc-${GCC_VER}" /usr/local/bin/gcc
     sudo ln -snfv "$(brew --prefix gcc)/g++-${GCC_VER}" /usr/local/bin/g++
 fi
 
-# Initialize starship if installed
+# starshipがインストールされている場合は初期化
 if command -v starship &> /dev/null; then
-    echo -e "${YELLOW}Initializing starship...${NC}"
+    echo -e "${YELLOW}starshipを初期化しています...${NC}"
     eval "$(starship init bash)"
 fi
 
-# Clean up
+# クリーンアップ
 unset HOMEBREW_NO_AUTO_UPDATE
 
-echo -e "${GREEN}Homebrew packages installation completed successfully!${NC}"
+echo -e "${GREEN}Homebrewパッケージのインストールが正常に完了しました！${NC}"

@@ -1,29 +1,33 @@
 #!/bin/zsh
-# Setup utility functions
 
-# Display error message in red
+RED='\033[0;31m'     # 赤色
+GREEN='\033[0;32m'   # 緑色
+YELLOW='\033[1;33m'  # 黄色
+NC='\033[0m'         # 色のリセット
+
+# エラーメッセージを赤色で表示
 util::error() {
   local message="$1"
   echo -e "\e[31m${message}\e[m"
 }
 
-# Display warning message in yellow
+# 警告メッセージを黄色で表示
 util::warning() {
   local message="$1"
   echo -e "\e[33m${message}\e[m"
 }
 
-# Display info message in green
+# 情報メッセージを緑色で表示
 util::info() {
   local message="$1"
   echo -e "\e[32m${message}\e[m"
 }
 
-# Ask for confirmation
+# 確認を要求
 util::confirm() {
   local message="$1"
 
-  # Auto-confirm if FORCE is set to 1 or in CI environment
+  # FORCEが1に設定されている場合、またはCI環境の場合は自動確認
   if [[ ${FORCE} = 1 ]] || util::is_ci; then
     return 0
   fi
@@ -37,7 +41,7 @@ util::confirm() {
   return 1
 }
 
-# Check if running in CI environment
+# CI環境で実行されているかどうかを確認
 util::is_ci() {
   if [[ -n "${CI}" && "${CI}" == "true" ]]; then
     return 0
@@ -46,71 +50,71 @@ util::is_ci() {
   return 1
 }
 
-# Check if command exists
+# コマンドが存在するかどうかを確認
 util::has() {
   type "$1" > /dev/null 2>&1
   return $?
 }
 
-# Check if running on macOS
+# macOSで実行されているかどうかを確認
 util::is_mac() {
   [[ "$(uname)" == "Darwin" ]]
   return $?
 }
 
-# Check if file exists
+# ファイルが存在するかどうかを確認
 util::file_exists() {
   [[ -f "$1" ]]
   return $?
 }
 
-# Check if directory exists
+# ディレクトリが存在するかどうかを確認
 util::dir_exists() {
   [[ -d "$1" ]]
   return $?
 }
 
-# Check if link exists
+# シンボリックリンクが存在するかどうかを確認
 util::link_exists() {
   [[ -L "$1" ]]
   return $?
 }
 
-# Create directory if it doesn't exist
+# ディレクトリが存在しない場合は作成
 util::mkdir() {
   if [[ ! -d "$1" ]]; then
     mkdir -p "$1"
   fi
 }
 
-# Create symlink
+# シンボリックリンクを作成
 util::symlink() {
   local src="$1"
   local dst="$2"
   
-  # Remove existing symlink
+  # 既存のシンボリックリンクを削除
   if [[ -L "$dst" ]]; then
     unlink "$dst"
   fi
   
-  # Create new symlink
+  # 新しいシンボリックリンクを作成
   ln -sfv "$src" "$dst"
 }
 
-# Get absolute dotfiles directory path
+# 絶対dotfilesディレクトリパスを取得
 util::dotfiles_dir() {
   echo "${HOME}/.dotfiles"
 }
 
-# Get repository root directory path
+# リポジトリのルートディレクトリパスを取得
 util::repo_dir() {
-  # If running from cloned repository (GitHub Actions)
+  # クローンされたリポジトリから実行されている場合（GitHub Actions）
   if [[ -d "${GITHUB_WORKSPACE}" ]]; then
     echo "${GITHUB_WORKSPACE}"
   elif [[ -d "${PWD}/.git" ]]; then
     echo "${PWD}"
   else
-    # If running from installed location
+    # インストールされた場所から実行されている場合
     echo "$(util::dotfiles_dir)"
   fi
 } 
