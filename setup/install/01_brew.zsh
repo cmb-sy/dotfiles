@@ -9,7 +9,7 @@ util::info "Homebrewのセットアップを開始します..."
 # インストール中の自動更新を無効化
 export HOMEBREW_NO_AUTO_UPDATE=1
 
-# インストールするコマンドラインツール
+# コマンドラインツール
 formulas=(
     # シェルユーティリティ
     fzf
@@ -40,7 +40,7 @@ formulas=(
     yarn
 )
 
-# インストールするGUIアプリケーション
+# GUIアプリケーション
 casks=(
     # ブラウザ
     google-chrome
@@ -84,7 +84,7 @@ brew update
 
 # 必要なtapを追加
 util::info "必要なtapを追加しています..."
-# brew tap homebrew/cask-fonts  # 非推奨のtap、削除されました
+# brew tap homebrew/cask-fonts  # 非推奨のtap
 brew tap ktr0731/evans
 brew tap jesseduffield/lazydocker
 
@@ -102,7 +102,6 @@ for cask in "${casks[@]}"; do
     brew install --cask "${cask}" || true
 done
 
-# クリーンアップ
 unset HOMEBREW_NO_AUTO_UPDATE
 
 util::info "Homebrewのセットアップが完了しました！" 
