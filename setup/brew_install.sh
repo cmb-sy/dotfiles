@@ -12,7 +12,7 @@ export HOMEBREW_NO_AUTO_UPDATE=1
 
 echo -e "${YELLOW}Homebrewパッケージのセットアップを開始します...${NC}"
 
-# インストールするコマンドラインツール
+# コマンドラインツール
 formulas=(
     fzf
     sheldon
@@ -35,7 +35,7 @@ formulas=(
     yarn
 )
 
-# インストールするGUIアプリケーション
+# GUIアプリケーション
 casks=(
     docker
     github
@@ -45,17 +45,11 @@ casks=(
     sourcetree
     visual-studio-code
     zoom
+    claude
     cursor
     notion
-    rectangle
-    alfred
-    iterm2
-    postman
-    dbeaver-community
     figma
     1password
-    dropbox
-    spotify
 )
 
 # Homebrewがインストールされていない場合はインストール
