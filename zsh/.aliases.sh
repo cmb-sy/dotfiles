@@ -1,50 +1,26 @@
 #!/bin/sh
 # =========================================================
-# Zshエイリアス設定 - よく使うコマンドの短縮形
+# Zshエイリアス設定
 # =========================================================
-
 # ----------------------------------------------------------
-# ファイル操作関連
+# ディレクトリ移動
 # ----------------------------------------------------------
-alias l='ls -CF'                # ファイル一覧（カラム表示）
-alias la='ls -A'                # 隠しファイルを含む一覧
-alias ll='ls -alF'              # 詳細なファイル一覧
-alias ls='ls -G'                # カラー表示
-alias lt='ls -lt'               # 更新日時順
-alias cp='cp -i'                # 上書き確認
-alias mv='mv -i'                # 上書き確認
-alias rm='rm -i'                # 削除確認
-
-# ----------------------------------------------------------
-# ディレクトリ移動関連
-# ----------------------------------------------------------
-alias ..='cd ..'                # 親ディレクトリへ
-alias ...='cd ../..'            # 2つ上のディレクトリへ
-alias ....='cd ../../..'        # 3つ上のディレクトリへ
-
+alias cd='f() { local dir; dir=$(find . -type d -maxdepth 1 | fzf --reverse); if [ -n "$dir" ]; then command cd "$dir"; fi; }; f'
+alias ..='cd ..'
+alias ...='cd ../..'
+alias ....='cd ../../..'
 # ----------------------------------------------------------
 # Docker関連
 # ----------------------------------------------------------
-alias d='docker'                # dockerコマンド
-alias dc='docker compose'       # docker composeコマンド
-alias dps='docker ps'           # コンテナ一覧
-alias dimg='docker images'      # イメージ一覧
+alias d='docker'
+alias dc='docker compose'
+alias dps='docker ps'
+alias dimg='docker images'
 
 # ----------------------------------------------------------
-# Git関連
-# ----------------------------------------------------------
-alias g='git'                   # gitコマンド
-alias ga='git add'              # 変更をステージング
-alias gc='git commit'           # コミット
-alias gs='git status'           # 状態確認
-alias gl='git log'              # ログ表示
-alias gd='git diff'             # 差分表示
-alias gb='git branch'           # ブランチ操作
-
-# ----------------------------------------------------------
-# その他の便利なコマンド
+# その他
 # ----------------------------------------------------------
 alias kusa='curl https://github-contributions-api.deno.dev/$(git config user.name).term'
-alias tenki='wttr'               # 天気予報
-alias h='history'                # コマンド履歴
-alias grep='grep --color=auto'   # grepの結果をカラー表示
+alias tenki='wttr'
+alias h='history'
+alias grep='grep --color=auto'
