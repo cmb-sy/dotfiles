@@ -32,7 +32,7 @@ setopt auto_cd              # ディレクトリ名のみでcdする
 setopt auto_pushd           # cd時にディレクトリスタックに追加
 setopt pushd_ignore_dups    # 重複したディレクトリをスタックに追加しない
 
-# その他の便利なオプション
+# その他
 setopt correct              # コマンドのスペルミスを修正する
 setopt no_beep              # ビープ音を鳴らさない
 setopt interactive_comments # コマンドラインでコメントを使用できる
@@ -63,14 +63,9 @@ eval "$(starship init zsh)"
 # ----------------------------------------------------------
 # 各種設定ファイルの読み込み
 # ----------------------------------------------------------
-# 関数の読み込み
 source ${HOME}/.function.zsh
-
-# エイリアスの読み込み
 source ${HOME}/.aliases
-
-# Powerlevel10k設定（使用している場合）
-[[ -f ~/.p10k.zsh ]] && source ~/.p10k.zsh
+[[ -f ~/.p10k.zsh ]] && source ~/.p10k.zsh # Powerlevel10kの設定
 
 # ----------------------------------------------------------
 # Node.js環境設定 (NVM)
