@@ -4,7 +4,7 @@
 SCRIPT_DIR="$(cd "$(dirname "${0}")" && pwd)"
 source "${SCRIPT_DIR}/../util.zsh"
 
-# dotfilesディレクトリの定義
+# ディレクトリの設定
 DOTFILES_DIR="$(util::repo_dir)"
 GIT_DIR="${DOTFILES_DIR}/git"
 
@@ -25,6 +25,10 @@ fi
 # Git設定のシンボリックリンク作成
 util::info "Git設定のシンボリックリンクを作成しています..."
 util::symlink "${GIT_DIR}/.gitconfig" "${HOME}/.gitconfig"
+
+# グローバルgitignoreのシンボリックリンク作成
+util::info "グローバルgitignoreのシンボリックリンクを作成しています..."
+util::symlink "${DOTFILES_DIR}/.gitignore_global" "${HOME}/.gitignore_global"
 
 # Gitユーザーが設定されていない場合は設定
 if ! git config --global user.name &>/dev/null; then
