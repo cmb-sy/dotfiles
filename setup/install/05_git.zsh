@@ -1,6 +1,5 @@
 #!/bin/zsh
 
-# ユーティリティ関数の読み込み
 SCRIPT_DIR="$(cd "$(dirname "${0}")" && pwd)"
 source "${SCRIPT_DIR}/../util.zsh"
 
@@ -8,7 +7,7 @@ source "${SCRIPT_DIR}/../util.zsh"
 DOTFILES_DIR="$(util::repo_dir)"
 GIT_DIR="${DOTFILES_DIR}/git"
 
-util::info "Gitのセットアップを開始します..."
+util::info "${YELLOW}Gitのセットアップを開始します...${NC}"
 
 # ディレクトリの存在確認
 if [[ ! -d "${GIT_DIR}" ]]; then
@@ -53,4 +52,4 @@ git config --global core.editor "vim"
 git config --global core.excludesfile ~/.gitignore_global
 git config --global github.user cmb-sy
 
-util::info "Gitのセットアップが完了しました！" 
+util::info "${GREEN}Gitのセットアップが完了しました！${NC}" 

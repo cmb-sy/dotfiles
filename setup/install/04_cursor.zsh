@@ -1,6 +1,5 @@
 #!/bin/zsh
 
-# ユーティリティ関数の読み込み
 SCRIPT_DIR="$(cd "$(dirname "${0}")" && pwd)"
 source "${SCRIPT_DIR}/../util.zsh"
 
@@ -8,7 +7,7 @@ source "${SCRIPT_DIR}/../util.zsh"
 DOTFILES_DIR="$(util::repo_dir)"
 CONFIG_DIR="${DOTFILES_DIR}/.config"
 
-util::info "Cursorのセットアップを開始します..."
+util::info "${YELLOW}Cursorのセットアップを開始します...${NC}"
 
 # 設定ディレクトリの存在確認
 if [[ ! -d "${CONFIG_DIR}" ]]; then
@@ -61,4 +60,4 @@ fi
 # assistant.mdcのシンボリックリンク作成
 util::symlink "${CURSOR_RULES_DIR}/assistant.mdc" "${HOME}/.config/cursor/rules/assistant.mdc"
 
-util::info "Cursorのセットアップが完了しました！" 
+util::info "${GREEN}Cursorのセットアップが完了しました！${NC}" 

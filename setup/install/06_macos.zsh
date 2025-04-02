@@ -8,7 +8,7 @@ source "${SCRIPT_DIR}/../util.zsh"
 DOTFILES_DIR="$(util::repo_dir)"
 MACOS_DIR="${DOTFILES_DIR}/macos"
 
-util::info "macOS設定のセットアップを開始します..."
+util::info "${YELLOW}macOS設定のセットアップを開始します...${NC}"
 
 # macOS上で実行されているか確認
 if ! util::is_mac; then
@@ -33,4 +33,4 @@ else
     util::warning "macOS設定ファイルが見つかりません: ${MACOS_DIR}/macos.sh"
 fi
 
-util::info "macOS設定のセットアップが完了しました！" 
+util::info "${GREEN}macOS設定のセットアップが完了しました！${NC}" 

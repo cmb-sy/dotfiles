@@ -9,12 +9,6 @@ util::info "${YELLOW}Zshのセットアップを開始します...${NC}"
 DOTFILES_DIR="$(util::repo_dir)"
 ZSH_DIR="${DOTFILES_DIR}/zsh"
 
-# Zshのインストール確認
-if ! util::has zsh; then
-    util::info "Zshをインストールしています..."
-    brew install zsh
-fi
-
 # Oh My Zshのインストール確認
 if [[ ! -d "${HOME}/.oh-my-zsh" ]]; then
     util::info "Oh My Zshをインストールしています..."
@@ -38,20 +32,12 @@ if [[ ! -d "${HOME}/.config/sheldon" ]]; then
     fi
 fi
 
-# Starshipのインストール確認
-if ! util::has starship; then
-    util::info "Starshipをインストールしています..."
-    brew install starship
-fi
-
-# Zsh設定ファイルのシンボリックリンク作成
 util::info "Zsh設定ファイルのシンボリックリンクを作成しています..."
 util::symlink "${ZSH_DIR}/.zshrc" "${HOME}/.zshrc"
 util::symlink "${ZSH_DIR}/.zshenv" "${HOME}/.zshenv"
 util::symlink "${ZSH_DIR}/.aliases.sh" "${HOME}/.aliases.sh"
 util::symlink "${ZSH_DIR}/.function.zsh" "${HOME}/.function.zsh"
 
-# Zshプラグインのインストール
 util::info "Zshプラグインをインストールしています..."
 sheldon add --github zsh-users/zsh-autosuggestions zsh-autosuggestions
 sheldon add --github zsh-users/zsh-completions zsh-completions
@@ -67,4 +53,4 @@ if [[ "$SHELL" != "$(which zsh)" ]]; then
     fi
 fi
 
-util::info "Zshのセットアップが完了しました！" 
+util::info "${GREEN}Zshのセットアップが完了しました！${NC}" 
