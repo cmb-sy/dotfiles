@@ -57,4 +57,4 @@ else
     util::warning "keybindings.jsonが見つかりません: ${VSCODE_DIR}/keybindings.json"
 fi
 
-util::info "VSCodeのセットアップが完了しました！" 
+util::info "${GREEN}VSCodeのセットアップが完了しました！${NC}" 
