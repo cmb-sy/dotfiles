@@ -15,7 +15,9 @@ alias l='ls'
 alias d='docker'
 alias dc='docker compose'
 alias dps='docker ps'
+alias dpsa='docker ps -a'
 alias dimg='docker images'
+
 
 # ----------------------------------------------------------
 # その他
