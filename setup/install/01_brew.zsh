@@ -18,12 +18,13 @@ formulas=(
     tldr
     git
     zsh
-    sheldon
     tmux
     zoxide
     neovim
     nodebrew
     yarn
+    sheldon
+    Powerlevel10k 
 )
 
 brew upgrade

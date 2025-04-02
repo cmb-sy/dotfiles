@@ -1,0 +1,14 @@
+# Sheldon configuration
+shell = "zsh"
+
+[plugins.zsh-autosuggestions]
+github = "zsh-users/zsh-autosuggestions"
+apply = ["source"]
+
+[plugins.zsh-completions]
+github = "zsh-users/zsh-completions"
+apply = ["source", "fpath"]
+
+[plugins.zsh-syntax-highlighting]
+github = "zsh-users/zsh-syntax-highlighting"
+apply = ["source"] 
