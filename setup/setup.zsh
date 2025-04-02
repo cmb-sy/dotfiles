@@ -54,4 +54,4 @@ ln -sf $DOTFILES_DIR/vscode/settings.json "$HOME/Library/Application Support/Cod
 FORCE=1
 . $DOTFILES_DIR/setup/install.zsh
 
-util::info "インストールが完了しました！ターミナルを再起動してください。" 
+echo -e "\033[32mインストールが完了しました！ターミナルを再起動してください。\033[m" 
