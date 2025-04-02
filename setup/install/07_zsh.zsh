@@ -3,17 +3,11 @@
 SCRIPT_DIR="$(cd "$(dirname "${0}")" && pwd)"
 source "${SCRIPT_DIR}/../util.zsh"
 
-echo -e "${YELLOW}Zshのセットアップを開始します...${NC}"
+util::info "${YELLOW}Zshのセットアップを開始します...${NC}"
 
 # dotfilesディレクトリの定義
 DOTFILES_DIR="$(util::repo_dir)"
 ZSH_DIR="${DOTFILES_DIR}/zsh"
-
-# ディレクトリの存在確認
-if [[ ! -d "${ZSH_DIR}" ]]; then
-    util::error "Zshディレクトリが見つかりません: ${ZSH_DIR}"
-    exit 1
-fi
 
 # Zshのインストール確認
 if ! util::has zsh; then

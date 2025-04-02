@@ -1,34 +1,19 @@
 #!/bin/zsh
 
-# エラー時に終了
-set -e
-
-# ユーティリティ関数の読み込み
 SCRIPT_DIR="$(cd "$(dirname "${0}")" && pwd)"
 source "${SCRIPT_DIR}/../util.zsh"
 
-echo -e "${YELLOW}VSCodeのセットアップを開始します...${NC}"
+util::info "${YELLOW}VSCodeのセットアップを開始します...${NC}"
 
 # dotfilesディレクトリの定義
 DOTFILES_DIR="$(util::repo_dir)"
 VSCODE_DIR="${DOTFILES_DIR}/vscode"
-
-# ファイル構造の確認
-util::info "VSCodeの設定ディレクトリを確認しています..."
-if [[ ! -d "${VSCODE_DIR}" ]]; then
-    util::error "VSCode設定ディレクトリが見つかりません: ${VSCODE_DIR}"
-    exit 1
-fi
 
 # VSCodeのインストール確認
 if ! util::has code; then
     util::info "VSCodeをインストールしています..."
     brew install --cask visual-studio-code
 fi
-
-# VSCode設定ディレクトリの作成
-util::info "VSCode設定ディレクトリを作成しています..."
-util::mkdir "${HOME}/Library/Application Support/Code/User"
 
 # 拡張機能のインストール
 util::info "extensions.zshからVSCode拡張機能リストを読み込んでいます..."

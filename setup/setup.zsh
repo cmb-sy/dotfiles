@@ -14,31 +14,33 @@ fi
 cd $DOTFILES_DIR
 
 #----------------------------------------------------------
-# 必要なディレクトリを作成
-#----------------------------------------------------------
-mkdir -p "$HOME/.config" "$HOME/Library/Application Support/Code/User"
-
-#----------------------------------------------------------
 # dotfilesのシンボリックリンク作成
 #----------------------------------------------------------
-echo "各種設定ファイルのシンボリックリンクを作成中..."
+if [[ ! -d ${HOME}/.config ]]; then
+  mkdir ${HOME}/.config
+fi
 
-# ドットファイルのリンク
+cd config
+
 for name in *; do
   if [[ ! $name =~ ^(setup|config|vscode|README\.md|git)$ ]]; then
     ln -sf $DOTFILES_DIR/$name $HOME/.$name
   fi
 done
 
-# Gitの設定ファイル
-ln -sf $DOTFILES_DIR/git/.gitconfig $HOME/.gitconfig
-
-# configディレクトリのファイル
 for config_file in config/*; do
   ln -sf $DOTFILES_DIR/$config_file $HOME/.config/$(basename $config_file)
 done
 
+cd ..
+
+#----------------------------------------------------------
 # VSCode設定
+#----------------------------------------------------------
+if [[ ! -d ${HOME}/Library/Application\ Support/Code/User ]]; then
+  mkdir -p ${HOME}/Library/Application\ Support/Code/User
+fi
+
 ln -sf $DOTFILES_DIR/vscode/settings.json "$HOME/Library/Application Support/Code/User/settings.json"
 
 #----------------------------------------------------------
@@ -47,4 +49,4 @@ ln -sf $DOTFILES_DIR/vscode/settings.json "$HOME/Library/Application Support/Cod
 FORCE=1
 . $DOTFILES_DIR/setup/install.zsh
 
-echo "インストールが完了しました！ターミナルを再起動してください。" 
+util::info "インストールが完了しました！ターミナルを再起動してください。" 

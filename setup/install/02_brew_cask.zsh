@@ -3,7 +3,7 @@
 SCRIPT_DIR="$(cd "$(dirname "${0}")" && pwd)"
 source "${SCRIPT_DIR}/../util.zsh"
 
-util::info "brew caskのセットアップを開始します..."
+util::info "${YELLOW}brew caskのセットアップを開始します...${NC}"
 
 # GUIアプリケーション
 casks=(
