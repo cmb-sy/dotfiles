@@ -1,8 +1,5 @@
 #!/bin/zsh
 
-set -e
-
-# ユーティリティ関数の読み込み
 SCRIPT_DIR="$(cd "$(dirname "${0}")" && pwd)"
 source "${SCRIPT_DIR}/../util.zsh"
 

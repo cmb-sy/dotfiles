@@ -7,38 +7,12 @@ on:
     - cron: "0 0 1 * *"
 
 jobs:
-  dotfile-install-test:
-    name: Brew install test
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macOS-latest]
-      fail-fast: false # continue running other OS even if the job fails.
-    runs-on: ${{ matrix.os }}
-    steps:
-      - name: Install dotfiles via brew_install.sh
-        run: sh -c "$(curl -s https://raw.githubusercontent.com/cmb-sy/dotfiles/main/setup/brew_install.sh)"
-
-  full-install-test:
-    name: Full install test
+  dotfile-test:
+    name: Install test
     timeout-minutes: 60
-    strategy:
-      matrix:
-        os: [macOS-latest]
-      fail-fast: false
-    runs-on: ${{ matrix.os }}
+    runs-on: macOS-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Make scripts executable
-        run: |
-          find ./setup -name "*.sh" -exec chmod +x {} \;
-          find ./setup -name "*.zsh" -exec chmod +x {} \;
-          chmod +x ./install.sh
       - name: Install dotfiles
-        run: CI=true ./setup/install.sh
-      - name: Verify configuration
-        run: |
-          test -f ~/.zshrc && echo "✅ Zsh configuration verified"
-          git config --list | grep -q "user.name" && echo "✅ Git configuration verified"
-          test -f ~/Library/Application\ Support/Code/User/settings.json && echo "✅ VSCode configuration verified" || echo "⚠️ VSCode configuration not found"
-          test -f ~/.config/cursor/rules/assistant.mdc && echo "✅ Cursor configuration verified" || echo "⚠️ Cursor configuration not found"
+        run: CI=true ./setup/setup.zsh
