@@ -9,19 +9,8 @@ export HOMEBREW_NO_AUTO_UPDATE=1
 
 formulas=(
     fzf
-    ripgrep
-    fd
-    bat
-    exa
-    jq
-    yq
-    tldr
     git
     zsh
-    tmux
-    zoxide
-    neovim
-    nodebrew
     yarn
     sheldon
     Powerlevel10k 
