@@ -3,7 +3,7 @@
 SCRIPT_DIR="$(cd "$(dirname "${0}")" && pwd)"
 source "${SCRIPT_DIR}/../util.zsh"
 
-util::info "brewのセットアップを開始します..."
+util::info "${YELLOW}brewのセットアップを開始します...${NC}"
 
 export HOMEBREW_NO_AUTO_UPDATE=1
 
@@ -16,14 +16,11 @@ formulas=(
     jq
     yq
     tldr
-    
     git
-    
     zsh
     sheldon
     tmux
     zoxide
-    
     neovim
     nodebrew
     yarn
@@ -35,4 +32,4 @@ for formula in "${formulas[@]}"; do
     brew install "${formula}"
 done
 
-util::info "Homebrewのセットアップが完了しました！" 
+util::info "${GREEN}Homebrewのセットアップが完了しました！${NC}" 

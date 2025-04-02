@@ -1,6 +1,7 @@
 #!/bin/zsh
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# スクリプトのあるディレクトリを取得する
+SCRIPT_DIR="${HOME}/.dotfiles/setup"
 source "${SCRIPT_DIR}/util.zsh"
 
 util::info "dotfilesのインストールを開始します..."

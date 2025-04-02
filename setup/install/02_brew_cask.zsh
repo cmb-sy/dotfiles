@@ -33,4 +33,4 @@ for cask in "${casks[@]}"; do
     brew install --cask "${cask}" || true
 done
 
-util::info "Homebrewのセットアップが完了しました！" 
+util::info "${GREEN}Homebrewのセットアップが完了しました！${NC}" 
