@@ -43,9 +43,3 @@ For continuous integration environments, use:
 ```bash
 CI=true ./setup/install.sh
 ```
-
-## zsh
-
-```bash
-source ~/dotfiles/zsh/.zshrc
-```
