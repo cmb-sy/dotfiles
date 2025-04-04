@@ -51,20 +51,5 @@ eval "$(starship init zsh)"
 # ----------------------------------------------------------
 # 設定ファイル
 # ----------------------------------------------------------
-source ${HOME}/.function.zsh
-source ${HOME}/.aliases
-
-# ----------------------------------------------------------
-# Node.js
-# ----------------------------------------------------------
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
-
-# ----------------------------------------------------------
-# conda
-# ----------------------------------------------------------
-if [ -f "${HOME}/miniconda3/etc/profile.d/conda.sh" ]; then
-    source "${HOME}/miniconda3/etc/profile.d/conda.sh"
-    conda config --set auto_activate_base false
-fi
+source ${PWD}/.function.zsh
+source ${PWD}/.aliases.sh
