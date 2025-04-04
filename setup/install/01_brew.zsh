@@ -14,6 +14,7 @@ formulas=(
     yarn
     sheldon
     starship
+    uv
 )
 
 brew upgrade
