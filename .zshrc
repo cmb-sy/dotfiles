@@ -51,5 +51,5 @@ eval "$(starship init zsh)"
 # ----------------------------------------------------------
 # 設定ファイル
 # ----------------------------------------------------------
-source ${PWD}/.function.zsh
-source ${PWD}/.aliases.sh
+source ${HOME}/dotfiles/.function.zsh
+source ${HOME}/dotfiles/.aliases.sh
