@@ -8,8 +8,8 @@ $nodejs\
 $golang\
 $time\
 $cmd_duration\
-\n$character"""
-
+$character"""
+# \n$character"""　改行
 add_newline = false
 
 [character]
