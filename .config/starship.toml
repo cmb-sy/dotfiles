@@ -6,11 +6,13 @@ $git_branch\
 $git_status\
 $nodejs\
 $golang\
-$time\
 $cmd_duration\
 $character"""
 # \n$character""" ##改行
 add_newline = false
+
+right_format = """
+$time"""
 
 [cmd_duration]
 min_time = 0
@@ -19,7 +21,7 @@ format = "[$duration]($style)"
 [directory]
 truncation_length = 1 #ディレクトリ表示をカレントディレクトリのみに制限
 truncate_to_repo = false
-truncation_symbol = ""
+truncation_symbol = "../"
 style = "fg:#e3e5e5 bg:#769ff0"
 format = "[ $path ]($style)"
 
