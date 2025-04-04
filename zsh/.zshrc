@@ -1,11 +1,10 @@
-# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
-# Initialization code that may require console input (password prompts, [y/n]
-# confirmations, etc.) must go above this block; everything else may go below.
-if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
-  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
-fi
-
 #!/bin/zsh
+
+# ----------------------------------------------------------
+# 基本設定
+# ----------------------------------------------------------
+# コマンドのハイライト表示を有効
+ZSH_HIGHLIGHT_HIGHLIGHTERS=(main brackets pattern cursor)
 
 # ----------------------------------------------------------
 # Zsh
@@ -47,7 +46,7 @@ zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"   # 補完候補を色�
 # zshプラグイン管理 (sheldon)とテーマ
 # ----------------------------------------------------------
 eval "$(sheldon source)"
-cp .config/.p10k.zsh ~/ && source ${HOME}/.p10k.zsh
+eval "$(starship init zsh)"
 
 # ----------------------------------------------------------
 # 設定ファイル
@@ -65,5 +64,7 @@ export NVM_DIR="$HOME/.nvm"
 # ----------------------------------------------------------
 # conda
 # ----------------------------------------------------------
-source ${HOME}/miniconda3/etc/profile.d/conda.sh
-conda config --set auto_activate_base false
+if [ -f "${HOME}/miniconda3/etc/profile.d/conda.sh" ]; then
+    source "${HOME}/miniconda3/etc/profile.d/conda.sh"
+    conda config --set auto_activate_base false
+fi
