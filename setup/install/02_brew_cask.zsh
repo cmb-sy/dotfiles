@@ -13,6 +13,7 @@ casks=(
     slack
     zoom
     notion
+    miniconda
 )
 
 brew upgrade

@@ -13,7 +13,7 @@ formulas=(
     zsh
     yarn
     sheldon
-    Powerlevel10k 
+    starship
 )
 
 brew upgrade

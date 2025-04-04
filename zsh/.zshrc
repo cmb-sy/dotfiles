@@ -1,5 +1,10 @@
 #!/bin/zsh
 
+# ----------------------------------------------------------
+# 基本設定
+# ----------------------------------------------------------
+# コマンドのハイライト表示を有効
+ZSH_HIGHLIGHT_HIGHLIGHTERS=(main brackets pattern cursor)
 
 # ----------------------------------------------------------
 # Zsh
@@ -41,12 +46,7 @@ zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"   # 補完候補を色�
 # zshプラグイン管理 (sheldon)とテーマ
 # ----------------------------------------------------------
 eval "$(sheldon source)"
-[[ -f ~/.p10k.zsh ]] && source ~/.p10k.zsh
-
-# ----------------------------------------------------------
-# fzf
-# ----------------------------------------------------------
-[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+eval "$(starship init zsh)"
 
 # ----------------------------------------------------------
 # 設定ファイル
@@ -64,19 +64,7 @@ export NVM_DIR="$HOME/.nvm"
 # ----------------------------------------------------------
 # conda
 # ----------------------------------------------------------
-# condaのプロンプト表示を無効化
-export CONDA_CHANGEPS1=false
-
-# >>> conda initialize >>>
-# !! Contents within this block are managed by 'conda init' !!
-__conda_setup="$('/opt/anaconda3/bin/conda' 'shell.zsh' 'hook' 2> /dev/null)"
-if [ $? -eq 0 ]; then
-    eval "$__conda_setup"
-else
-    if [ -f "/opt/anaconda3/etc/profile.d/conda.sh" ]; then
-        . "/opt/anaconda3/etc/profile.d/conda.sh"
-    else
-        export PATH="/opt/anaconda3/bin:$PATH"
-    fi
+if [ -f "${HOME}/miniconda3/etc/profile.d/conda.sh" ]; then
+    source "${HOME}/miniconda3/etc/profile.d/conda.sh"
+    conda config --set auto_activate_base false
 fi
-unset __conda_setup

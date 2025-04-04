@@ -33,7 +33,7 @@ cd config
 
 for name in *; do
   if [[ ! $name =~ ^(setup|.config|vscode|README\.md|git)$ ]]; then
-    ln -sf $DOTFILES_DIR/$name $HOME/.$name
+    ln -sf ${PWD}/$name ${HOME}/.$name
   fi
 done
 
