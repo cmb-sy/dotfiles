@@ -43,6 +43,7 @@
 	ui = auto
 [core]
 	editor = vim
+	excludesfile = /Users/snakashima/dotfiles/.gitignore_global
 [merge]
 	ff = false
 [pull]

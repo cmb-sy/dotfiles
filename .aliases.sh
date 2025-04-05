@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # ----------------------------------------------------------
-# シェルコマンド
+# Shell Commands
 # ----------------------------------------------------------
 alias ..='cd ..'
 alias ...='cd ../..'
@@ -18,7 +18,7 @@ alias dpsa='docker ps -a'
 alias dimg='docker images'
 
 # ----------------------------------------------------------
-# その他
+# Others
 # ----------------------------------------------------------
 alias kusa='curl https://github-contributions-api.deno.dev/$(git config user.name).term'
 alias tenki='wttr'

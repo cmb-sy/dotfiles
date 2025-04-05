@@ -1,10 +1,10 @@
 #!/bin/zsh
 
-# スクリプトのあるディレクトリを取得する
+# Get directory where script is located
 SCRIPT_DIR="${HOME}/.dotfiles/setup"
 source "${SCRIPT_DIR}/util.zsh"
 
-util::info "dotfilesのインストールを開始します..."
+util::info "Starting dotfiles installation..."
 
 for script in $(\ls ${HOME}/.dotfiles/setup/install); do   
   util::confirm "install ${script}?"
@@ -13,5 +13,5 @@ for script in $(\ls ${HOME}/.dotfiles/setup/install); do
   fi
 done
 
-util::info "インストールが正常に完了しました！"
-util::info "変更を適用するためにターミナルを再起動してください。"
+util::info "Installation completed successfully!"
+util::info "Please restart your terminal to apply changes."

@@ -3,7 +3,7 @@
 DOTFILES_DIR="$HOME/.dotfiles"
 
 #----------------------------------------------------------
-# dotfilesのクローンまたは更新
+# Clone or update dotfiles
 #----------------------------------------------------------
 if [[ ! -e $DOTFILES_DIR ]]; then
   git clone --recursive https://github.com/cmb-sy/dotfiles.git $DOTFILES_DIR
@@ -14,7 +14,7 @@ fi
 cd $DOTFILES_DIR
 
 #----------------------------------------------------------
-# dotfilesのシンボリックリンク作成
+# Create symbolic links for dotfiles
 #----------------------------------------------------------
 for name in *; do
   if [[ ${name} != 'setup' ]] && [[ ${name} != 'config' ]] && [[ ${name} != 'vscode' ]] && [[ ${name} != 'README.md' ]]; then
@@ -40,7 +40,7 @@ done
 cd ..
 
 #----------------------------------------------------------
-# VSCode設定
+# VSCode Settings
 #----------------------------------------------------------
 if [[ ! -d ${HOME}/Library/Application\ Support/Code/User ]]; then
   mkdir -p ${HOME}/Library/Application\ Support/Code/User
@@ -48,10 +48,19 @@ fi
 
 ln -sf $DOTFILES_DIR/vscode/settings.json "$HOME/Library/Application Support/Code/User/settings.json"
 
+
 #----------------------------------------------------------
-# インストールスクリプトの実行
+# Run installation scripts
 #----------------------------------------------------------
 FORCE=1
 . $DOTFILES_DIR/setup/install.zsh
 
-echo -e "\033[32mインストールが完了しました！ターミナルを再起動してください。\033[m" 
+
+
+#----------------------------------------------------------
+# Other
+#----------------------------------------------------------
+cp ${HOME}/dotfiles/.config/alacritty/alacritty.toml ${HOME}/.config/alacritty/alacritty.toml   
+git config --global core.excludesfile ~/dotfiles/.gitignore_global
+
+echo -e "\033[32mInstallation completed! Please restart your terminal.\033[m" 

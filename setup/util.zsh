@@ -1,33 +1,33 @@
 #!/bin/zsh
 
-RED='\033[0;31m'     # 赤色
-GREEN='\033[0;32m'   # 緑色
-YELLOW='\033[1;33m'  # 黄色
-NC='\033[0m'         # 色のリセット
+RED='\033[0;31m'     # Red
+GREEN='\033[0;32m'   # Green
+YELLOW='\033[1;33m'  # Yellow
+NC='\033[0m'         # Reset color
 
-# エラーメッセージを赤色で表示
+# Display error message in red
 util::error() {
   local message="$1"
   echo -e "\e[31m${message}\e[m"
 }
 
-# 警告メッセージを黄色で表示
+# Display warning message in yellow
 util::warning() {
   local message="$1"
   echo -e "\e[33m${message}\e[m"
 }
 
-# 情報メッセージを緑色で表示
+# Display info message in green
 util::info() {
   local message="$1"
   echo -e "\e[32m${message}\e[m"
 }
 
-# 確認を要求
+# Request confirmation
 util::confirm() {
   local message="$1"
 
-  # FORCEが1に設定されている場合、またはCI環境の場合は自動確認
+  # Auto-confirm if FORCE is set to 1 or in CI environment
   if [[ ${FORCE} = 1 ]] || util::is_ci; then
     return 0
   fi
@@ -41,7 +41,7 @@ util::confirm() {
   return 1
 }
 
-# CI環境で実行されているかどうかを確認
+# Check if running in CI environment
 util::is_ci() {
   if [[ -n "${CI}" && "${CI}" == "true" ]]; then
     return 0
@@ -50,71 +50,71 @@ util::is_ci() {
   return 1
 }
 
-# コマンドが存在するかどうかを確認
+# Check if command exists
 util::has() {
   type "$1" > /dev/null 2>&1
   return $?
 }
 
-# macOSで実行されているかどうかを確認
+# Check if running on macOS
 util::is_mac() {
   [[ "$(uname)" == "Darwin" ]]
   return $?
 }
 
-# ファイルが存在するかどうかを確認
+# Check if file exists
 util::file_exists() {
   [[ -f "$1" ]]
   return $?
 }
 
-# ディレクトリが存在するかどうかを確認
+# Check if directory exists
 util::dir_exists() {
   [[ -d "$1" ]]
   return $?
 }
 
-# シンボリックリンクが存在するかどうかを確認
+# Check if symbolic link exists
 util::link_exists() {
   [[ -L "$1" ]]
   return $?
 }
 
-# ディレクトリが存在しない場合は作成
+# Create directory if it doesn't exist
 util::mkdir() {
   if [[ ! -d "$1" ]]; then
     mkdir -p "$1"
   fi
 }
 
-# シンボリックリンクを作成
+# Create symbolic link
 util::symlink() {
   local src="$1"
   local dst="$2"
   
-  # 既存のシンボリックリンクを削除
+  # Remove existing symbolic link
   if [[ -L "$dst" ]]; then
     unlink "$dst"
   fi
   
-  # 新しいシンボリックリンクを作成
+  # Create new symbolic link
   ln -sfv "$src" "$dst"
 }
 
-# 絶対dotfilesディレクトリパスを取得
+# Get absolute dotfiles directory path
 util::dotfiles_dir() {
   echo "${HOME}/.dotfiles"
 }
 
-# リポジトリのルートディレクトリパスを取得
+# Get repository root directory path
 util::repo_dir() {
-  # クローンされたリポジトリから実行されている場合（GitHub Actions）
+  # If running from cloned repository (GitHub Actions)
   if [[ -d "${GITHUB_WORKSPACE}" ]]; then
     echo "${GITHUB_WORKSPACE}"
   elif [[ -d "${PWD}/.git" ]]; then
     echo "${PWD}"
   else
-    # インストールされた場所から実行されている場合
+    # If running from installed location
     echo "$(util::dotfiles_dir)"
   fi
 } 

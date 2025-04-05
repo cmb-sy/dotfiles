@@ -3,7 +3,7 @@
 SCRIPT_DIR="$(cd "$(dirname "${0}")" && pwd)"
 source "${SCRIPT_DIR}/../util.zsh"
 
-util::info "${YELLOW}brew caskのセットアップを開始します...${NC}"
+util::info "${YELLOW}Starting brew cask setup...${NC}"
 
 casks=(
     google-chrome
@@ -13,7 +13,7 @@ casks=(
     slack
     zoom
     notion
-    miniconda
+    alacritty
 )
 
 brew upgrade
@@ -22,4 +22,4 @@ for cask in "${casks[@]}"; do
     brew install --cask "${cask}" || true
 done
 
-util::info "${GREEN}Homebrewのセットアップが完了しました！${NC}" 
+util::info "${GREEN}Homebrew cask setup completed!${NC}" 

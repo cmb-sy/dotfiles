@@ -1,7 +1,7 @@
 #!/bin/zsh
 
 # ----------------------------------------------------------
-# 基本設定
+# Basic Settings
 # ----------------------------------------------------------
 export LANG=en_US.UTF-8 
 export LC_ALL=en_US.UTF-8
@@ -15,14 +15,14 @@ export XDG_DATA_HOME=${HOME}/.local/share
 export XDG_STATE_HOME=${HOME}/.local/state
 
 # ----------------------------------------------------------
-# 履歴の設定
+# History Settings
 # ----------------------------------------------------------
 export HISTFILE="${HOME}/.zsh-history"
 export HISTSIZE=1000000
 export SAVEHIST=1000000
 
 # ----------------------------------------------------------
-# PATHの設定
+# PATH Settings
 # ----------------------------------------------------------
 export PATH="/usr/local/bin:${PATH}"
 export PATH="${HOME}/.asdf/bin:${PATH}"

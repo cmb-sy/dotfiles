@@ -1,55 +1,57 @@
 #!/bin/zsh
 
 # ----------------------------------------------------------
-# 基本設定
+# Basic Configuration
 # ----------------------------------------------------------
-# コマンドのハイライト表示を有効
+# Enable command highlighting
 ZSH_HIGHLIGHT_HIGHLIGHTERS=(main brackets pattern cursor)
 
 # ----------------------------------------------------------
 # Zsh
 # ----------------------------------------------------------
-# 履歴関連の設定
-setopt hist_ignore_dups     # 直前と同じコマンドを履歴に残さない
-setopt hist_no_store        # historyコマンドを履歴に残さない
-setopt share_history        # 履歴を共有する
-setopt hist_reduce_blanks   # 余分な空白を削除
-setopt hist_ignore_space    # スペースで始まるコマンドは履歴に残さない
+# History related settings
+setopt hist_ignore_dups     # Don't keep duplicated commands in history
+setopt hist_no_store        # Don't store history command in history
+setopt share_history        # Share history between sessions
+setopt hist_reduce_blanks   # Remove extra spaces
+setopt hist_ignore_space    # Don't store commands starting with space
 
-# 補完関連の設定
-setopt auto_list            # 補完候補を一覧表示
-setopt auto_menu            # 補完キー連打で補完候補を順に表示
-setopt auto_param_slash     # ディレクトリ名の補完で末尾にスラッシュを追加
-setopt auto_param_keys      # カッコの対応などを自動的に補完
-setopt list_packed          # 補完候補をできるだけ詰めて表示
-setopt list_types           # 補完候補にファイルの種類も表示
+# Completion related settings
+setopt auto_list            # Show completion candidates
+setopt auto_menu            # Cycle through completion candidates with tab
+setopt auto_param_slash     # Add slash at the end of directory completion
+setopt auto_param_keys      # Auto complete brackets and quotes
+setopt list_packed          # Display completion candidates compactly
+setopt list_types           # Show file types in completion candidates
 
-# ディレクトリ移動関連
-setopt auto_cd              # ディレクトリ名のみでcdする
-setopt auto_pushd           # cd時にディレクトリスタックに追加
-setopt pushd_ignore_dups    # 重複したディレクトリをスタックに追加しない
+# Directory movement
+setopt auto_cd              # cd to directory by just typing its name
+setopt auto_pushd           # Add directories to stack when cd
+setopt pushd_ignore_dups    # Don't add duplicate directories to stack
 
-# その他
-setopt correct              # コマンドのスペルミスを修正する
-setopt no_beep              # ビープ音を鳴らさない
-setopt interactive_comments # コマンドラインでコメントを使用できる
+# Others
+setopt correct              # Correct command spelling
+setopt no_beep              # No beep sound
+setopt interactive_comments # Enable comments on command line
 
 # ----------------------------------------------------------
-# 補完の設定
+# Completion Settings
 # ----------------------------------------------------------
 autoload -Uz compinit && compinit
-zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'       # 大文字小文字を区別しない
-zstyle ':completion:*:default' menu select=2              # 補完候補をカーソルで選択可能に
-zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"   # 補完候補を色分け
+zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'       # Case insensitive completion
+zstyle ':completion:*:default' menu select=2              # Select completion candidates with cursor
+zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"   # Colorize completion candidates
 
 # ----------------------------------------------------------
-# zshプラグイン管理 (sheldon)とテーマ
+# Zsh Plugin Management (sheldon) and Theme
 # ----------------------------------------------------------
 eval "$(sheldon source)"
 eval "$(starship init zsh)"
 
 # ----------------------------------------------------------
-# 設定ファイル
+# Configuration Files
 # ----------------------------------------------------------
 source ${HOME}/dotfiles/.function.zsh
 source ${HOME}/dotfiles/.aliases.sh
+
+cp ${HOME}/dotfiles/.config/alacritty/alacritty.toml ${HOME}/.config/alacritty/alacritty.toml

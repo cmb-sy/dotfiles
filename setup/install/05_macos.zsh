@@ -1,36 +1,36 @@
 #!/bin/zsh
-# macOS設定のセットアップ
+# macOS configuration setup
 
 SCRIPT_DIR="$(cd "$(dirname "${0}")" && pwd)"
 source "${SCRIPT_DIR}/../util.zsh"
 
-# dotfilesディレクトリの定義
+# Define dotfiles directory
 DOTFILES_DIR="$(util::repo_dir)"
 MACOS_DIR="${DOTFILES_DIR}/macos"
 
-util::info "${YELLOW}macOS設定のセットアップを開始します...${NC}"
+util::info "${YELLOW}Starting macOS configuration setup...${NC}"
 
-# macOS上で実行されているか確認
+# Check if running on macOS
 if ! util::is_mac; then
-    util::error "このスクリプトはmacOS専用です"
+    util::error "This script is for macOS only"
     exit 1
 fi
 
-# 必要なディレクトリを作成
+# Create necessary directories
 util::mkdir "${HOME}/Library/LaunchAgents"
 
-# macOS設定のシンボリックリンク作成
-util::info "macOS設定のシンボリックリンクを作成しています..."
+# Create symbolic links for macOS configuration
+util::info "Creating symbolic links for macOS configuration..."
 if [[ -f "${MACOS_DIR}/system.enviroment.plist" ]]; then
     util::symlink "${MACOS_DIR}/system.enviroment.plist" "${HOME}/Library/LaunchAgents/system.enviroment.plist"
 fi
 
-# macOS設定の適用
-util::info "macOS設定を適用しています..."
+# Apply macOS configuration
+util::info "Applying macOS configuration..."
 if [[ -f "${MACOS_DIR}/macos.sh" ]]; then
     source "${MACOS_DIR}/macos.sh"
 else
-    util::warning "macOS設定ファイルが見つかりません: ${MACOS_DIR}/macos.sh"
+    util::warning "macOS configuration file not found: ${MACOS_DIR}/macos.sh"
 fi
 
-util::info "${GREEN}macOS設定のセットアップが完了しました！${NC}" 
+util::info "${GREEN}macOS configuration setup completed!${NC}" 
