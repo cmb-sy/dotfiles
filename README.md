@@ -43,3 +43,14 @@ For continuous integration environments, use:
 ```bash
 CI=true ./setup/install.sh
 ```
+
+## Environment and Tools
+
+| Category             | Name           |
+| -------------------- | -------------- |
+| Shell                | Zsh            |
+| Zsh Plugin Manager   | Sheldon        |
+| Prompt               | Starship       |
+| Terminal Emulator    | Alacritty      |
+| Terminal Multiplexer | tmux           |
+| Font                 | Hack Nerd Font |

@@ -49,9 +49,25 @@ eval "$(sheldon source)"
 eval "$(starship init zsh)"
 
 # ----------------------------------------------------------
+# Tmuxキーバインド (Tmux Key Bindings)
+# ----------------------------------------------------------
+# Ctrl+T: tmuxをセッションに接続（なければ新規作成）
+# tmux attach コマンドを実行し、既存のセッションがなければ新しいセッションを作成
+bindkey -s '^T' 'tmux attach || tmux new-session\n'
+
+# Ctrl+B: tmuxの新しいセッションを強制的に作成
+# tmux new-session コマンドを実行し、常に新しいセッションを開始
+bindkey -s '^B' 'tmux new-session\n'
+
+# ----------------------------------------------------------
 # Configuration Files
 # ----------------------------------------------------------
 source ${HOME}/dotfiles/.function.zsh
 source ${HOME}/dotfiles/.aliases.sh
 
 cp ${HOME}/dotfiles/.config/alacritty/alacritty.toml ${HOME}/.config/alacritty/alacritty.toml
+
+# tmux設定の読み込み (tmuxセッション内にいる場合のみ)
+if [ -n "$TMUX" ]; then
+    tmux source-file ~/.tmux.conf 2>/dev/null
+fi
