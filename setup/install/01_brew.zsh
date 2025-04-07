@@ -15,6 +15,7 @@ formulas=(
     sheldon
     starship
     uv
+    tmux
 )
 
 brew upgrade
