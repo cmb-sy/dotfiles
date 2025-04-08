@@ -1,9 +1,8 @@
 #!/bin/zsh
 
-SCRIPT_DIR="$(cd "$(dirname "${0}")" && pwd)"
-source "${SCRIPT_DIR}/../util.zsh"
+source "${HOME}/dotfiles/setup/util.zsh"
 
-util::info "${YELLOW}Starting brew cask setup...${NC}"
+util::info "Starting brew cask setup..."
 
 casks=(
     google-chrome

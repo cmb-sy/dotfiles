@@ -1,20 +1,11 @@
 #!/bin/zsh
-# macOS configuration setup
 
-SCRIPT_DIR="$(cd "$(dirname "${0}")" && pwd)"
-source "${SCRIPT_DIR}/../util.zsh"
+source "${HOME}/dotfiles/setup/util.zsh"
 
-# Define dotfiles directory
-DOTFILES_DIR="$(util::repo_dir)"
-MACOS_DIR="${DOTFILES_DIR}/macos"
+MACOS_DIR="$(util::repo_dir)/macos"
 
-util::info "${YELLOW}Starting macOS configuration setup...${NC}"
+util::info "Starting macOS configuration setup..."
 
-# Check if running on macOS
-if ! util::is_mac; then
-    util::error "This script is for macOS only"
-    exit 1
-fi
 
 # Create necessary directories
 util::mkdir "${HOME}/Library/LaunchAgents"
@@ -33,4 +24,4 @@ else
     util::warning "macOS configuration file not found: ${MACOS_DIR}/macos.sh"
 fi
 
-util::info "${GREEN}macOS configuration setup completed!${NC}" 
+util::info "macOS configuration setup completed!" 

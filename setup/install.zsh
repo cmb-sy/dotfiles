@@ -1,8 +1,6 @@
 #!/bin/zsh
 
-# Get directory where script is located
-SCRIPT_DIR="${HOME}/.dotfiles/setup"
-source "${SCRIPT_DIR}/util.zsh"
+source "${HOME}/dotfiles/setup/util.zsh"
 
 util::info "Starting dotfiles installation..."
 
