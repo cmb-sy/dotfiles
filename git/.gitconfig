@@ -42,7 +42,7 @@
 	ui = auto
 [core]
 	editor = vim
-	excludesfile = ~/.gitignore_global
+	excludesfile = /Users/snakashima/.gitignore_global
 [merge]
 	ff = false
 [pull]
