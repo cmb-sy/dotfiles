@@ -6,21 +6,22 @@ $directory\
 $git_branch\
 $git_status\
 $nodejs\
-$golang\
 $cmd_duration\
-$character"""
-# \n$character""" ##改行
-add_newline = false
+# \n$character""" #　Line breaks
+#  $character"""
 
-right_format = """
-$time"""
+# Get editor completions based on your configuration schema
+"$schema" = 'https://starship.rs/config-schema.json'
+
+# Insert a blank line between shell prompts    
+add_newline = false
 
 [cmd_duration]
 min_time = 0
 format = "[$duration]($style)"
 
 [directory]
-truncation_length = 1 # limit directory display to the current directory
+truncation_length = 1 #　Limit directory display to current directory only
 truncate_to_repo = false
 truncation_symbol = "../"
 style = "fg:#e3e5e5 bg:#769ff0"
