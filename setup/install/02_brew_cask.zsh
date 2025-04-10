@@ -15,6 +15,7 @@ casks=(
     alacritty
     1password
     claude
+    flux
 )
 
 brew upgrade
