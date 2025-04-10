@@ -1,5 +1,6 @@
 # based on https://starship.rs/ja-jp/presets/tokyo-night.html
 # based on https://starship.rs/ja-JP/presets/no-nerd-font.html
+
 format = """
 $directory\
 $git_branch\
@@ -19,7 +20,7 @@ min_time = 0
 format = "[$duration]($style)"
 
 [directory]
-truncation_length = 1 #ディレクトリ表示をカレントディレクトリのみに制限
+truncation_length = 1 # limit directory display to the current directory
 truncate_to_repo = false
 truncation_symbol = "../"
 style = "fg:#e3e5e5 bg:#769ff0"

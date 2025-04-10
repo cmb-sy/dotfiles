@@ -1,27 +1,27 @@
 #!/bin/sh
 
-# macOS環境確認
+# check macOS environment
 if [ "$(uname)" != "Darwin" ]; then
   echo 'Not macOS!'
   exit
 fi
 
 # ----------------------------------------------------------
-# システム設定
+# system settings
 # ----------------------------------------------------------
-sudo nvram SystemAudioVolume=" " # 起動音を無効化
-sudo systemsetup -setrestartfreeze on # 再起動時にフリーズしたアプリを自動的に終了しない
+sudo nvram SystemAudioVolume=" " # disable startup sound
+sudo systemsetup -setrestartfreeze on # do not automatically terminate frozen apps on restart
 
 # ----------------------------------------------------------
-# ファイル表示設定
+# file display settings
 # ----------------------------------------------------------
-chflags nohidden ~/Library # ~/Library ディレクトリを見えるようにする 
-sudo chflags nohidden /Volumes # /Volumes ディレクトリを見えるようにする 
+chflags nohidden ~/Library # make ~/Library directory visible
+sudo chflags nohidden /Volumes # make /Volumes directory visible
 
 # ----------------------------------------------------------
-# Finder設定
+# Finder settings
 # ----------------------------------------------------------
-# デスクトップにアイテムを表示
+# display items on desktop
 defaults write com.apple.finder ShowExternalHardDrivesOnDesktop -bool true
 defaults write com.apple.finder ShowHardDrivesOnDesktop -bool true
  # Finderのステータスバー、サイドバー、パスバーを表示
@@ -30,62 +30,62 @@ defaults write com.apple.finder ShowStatusBar -bool true
 defaults write com.apple.finder ShowSidebar -bool true
 defaults write com.apple.finder ShowPathbar -bool true
 
-defaults write com.apple.finder FXEnableExtensionChangeWarning -bool false # 拡張子変更時の警告を無効化
+defaults write com.apple.finder FXEnableExtensionChangeWarning -bool false # disable extension change warning
 
-defaults write com.apple.finder AppleShowAllFiles TRUE # 隠しファイルを表示
+defaults write com.apple.finder AppleShowAllFiles TRUE # show hidden files
 
-defaults write com.apple.finder WarnOnEmptyTrash -bool false # ゴミ箱を空にする前の警告の無効化
+defaults write com.apple.finder WarnOnEmptyTrash -bool false # disable warning before emptying trash
 
-defaults write NSGlobalDomain AppleShowAllExtensions -bool true # すべての拡張子を表示
+defaults write NSGlobalDomain AppleShowAllExtensions -bool true # show all extensions
 
-defaults write com.apple.desktopservices DSDontWriteNetworkStores -bool true # ネットワークおよびUSBストレージに.DS_Storeファイルを作成しない
-defaults write com.apple.desktopservices DSDontWriteUSBStores -bool true # ネットワークおよびUSBストレージに.DS_Storeファイルを作成しない
-sudo chflags nohidden /Volumes # /Volumesディレクトリを非表示にしない
+defaults write com.apple.desktopservices DSDontWriteNetworkStores -bool true # do not create .DS_Store files on network and USB storage
+defaults write com.apple.desktopservices DSDontWriteUSBStores -bool true # do not create .DS_Store files on network and USB storage
+sudo chflags nohidden /Volumes # do not hide /Volumes directory
 
-defaults write -g 'NSRecentDocumentsLimit' -int 0 # 最近使った項目を記録しない
-
-# ----------------------------------------------------------
-# Dock設定
-# ----------------------------------------------------------
-defaults write com.apple.dock show-recents -bool false # メニュー内の最近使ったアプリを非表示
+defaults write -g 'NSRecentDocumentsLimit' -int 0 # do not record recently used items
 
 # ----------------------------------------------------------
-# スクロール設定
+# Dock settings
 # ----------------------------------------------------------
-defaults write -g AppleShowScrollBars -string "Always" # スクロールバーを常時表示
+defaults write com.apple.dock show-recents -bool false # hide recently used apps in menu
 
 # ----------------------------------------------------------
-# キーボードと入力設定
+# scroll settings
 # ----------------------------------------------------------
-defaults write -g NSAutomaticSpellingCorrectionEnabled -bool false # スペルの訂正を無効化
-
-defaults write com.apple.inputmethod.Kotoeri JIMPrefLiveConversionKey -bool false # ライブ変換を無効化
+defaults write -g AppleShowScrollBars -string "Always" # show scroll bars always
 
 # ----------------------------------------------------------
-# システムダイアログ設定
+# keyboard and input settings
 # ----------------------------------------------------------
-defaults write com.apple.CrashReporter DialogType -string "none" # クラッシュレポートを無効化
-defaults write com.apple.LaunchServices LSQuarantine -bool false # 未確認のアプリケーションを実行する際のダイアログを無効化
-defaults write com.apple.LaunchServices LSQuarantine -bool false # ダウンロードしたファイルを開くときの警告ダイアログをなくす
+defaults write -g NSAutomaticSpellingCorrectionEnabled -bool false # disable spelling correction
+
+defaults write com.apple.inputmethod.Kotoeri JIMPrefLiveConversionKey -bool false # disable live conversion
 
 # ----------------------------------------------------------
-# スクリーンショット設定
+# system dialog settings
 # ----------------------------------------------------------
-defaults write com.apple.screencapture name "SS" # スクリーンショットのファイル名を変更
+defaults write com.apple.CrashReporter DialogType -string "none" # disable crash report
+defaults write com.apple.LaunchServices LSQuarantine -bool false # disable dialog when running unknown apps
+defaults write com.apple.LaunchServices LSQuarantine -bool false # disable dialog when opening downloaded files
 
 # ----------------------------------------------------------
-# アプリケーション設定
+# screenshot settings
 # ----------------------------------------------------------
-defaults write com.apple.TextEdit RichText -int 0 # テキストエディットをプレーンテキストで使う
+defaults write com.apple.screencapture name "SS" # change screenshot file name
 
 # ----------------------------------------------------------
-# マウスとトラックパッド設定
+# application settings
 # ----------------------------------------------------------
-defaults write -g com.apple.mouse.scaling 5.0 # マウスの速度設定
-defaults write -g com.apple.trackpad.scaling 5.0 # トラックパッドの速度設定
+defaults write com.apple.TextEdit RichText -int 0 # use TextEdit as plain text
 
 # ----------------------------------------------------------
-# ホットコーナーを全て無効化
+# mouse and trackpad settings
+# ----------------------------------------------------------
+defaults write -g com.apple.mouse.scaling 5.0 # set mouse speed
+defaults write -g com.apple.trackpad.scaling 5.0 # set trackpad speed
+
+# ----------------------------------------------------------
+# disable hot corners
 # ----------------------------------------------------------
 defaults write com.apple.dock wvous-bl-corner -int 0
 defaults write com.apple.dock wvous-bl-modifier -int 0
@@ -97,7 +97,7 @@ defaults write com.apple.dock wvous-tr-corner -int 0
 defaults write com.apple.dock wvous-tr-modifier -int 0
 
 # ----------------------------------------------------------
-# 再起動
+# restart
 # ----------------------------------------------------------
 killall Finder
 killall Dock

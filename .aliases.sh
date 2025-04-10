@@ -29,7 +29,6 @@ alias tkill='tmux kill-session -t'
 # ----------------------------------------------------------
 # Others
 # ----------------------------------------------------------
-alias kusa='curl https://github-contributions-api.deno.dev/$(git config user.name).term'
 alias tenki='wttr'
 alias h='history'
 alias grep='grep --color=auto'

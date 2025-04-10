@@ -30,4 +30,3 @@ export PATH="${HOME}/.asdf/shims:${PATH}"
 export PATH="/opt/homebrew/bin:$PATH"
 
 export PATH="/usr/bin/python:$PATH"
-export PATH="${HOME}/miniconda3/bin:$PATH"
