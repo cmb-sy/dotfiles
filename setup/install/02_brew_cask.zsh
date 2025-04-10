@@ -13,6 +13,8 @@ casks=(
     zoom
     notion
     alacritty
+    1password
+    claude
 )
 
 brew upgrade
