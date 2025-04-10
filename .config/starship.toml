@@ -1,53 +1,51 @@
-# based on https://starship.rs/ja-jp/presets/tokyo-night.html
-# based on https://starship.rs/ja-JP/presets/no-nerd-font.html
-
 format = """
 $directory\
 $git_branch\
 $git_status\
 $nodejs\
 $cmd_duration\
-# \n$character""" #　Line breaks
-#  $character"""
+$line_break\
+$character
+"""
+right_format = """$time"""
 
-# Get editor completions based on your configuration schema
 "$schema" = 'https://starship.rs/config-schema.json'
-
-# Insert a blank line between shell prompts    
 add_newline = false
 
 [cmd_duration]
 min_time = 0
 format = "[$duration]($style)"
+style = "bold yellow"
 
 [directory]
-truncation_length = 1 #　Limit directory display to current directory only
+truncation_length = 1  # カレントディレクトリのみ表示
 truncate_to_repo = false
 truncation_symbol = "../"
-style = "fg:#e3e5e5 bg:#769ff0"
-format = "[ $path ]($style)"
+style = "fg:#000000 bg:#50fa7b"
+format = "[  $path ]($style)"
 
 [git_branch]
-symbol = "⎇"
-style = "bg:#394260"
-format = '[[ $symbol $branch ](fg:#769ff0 bg:#394260)]($style)'
+symbol = "" 
+style = "bg:#ff79c6"
+format = '[[ $symbol $branch ](fg:#000000 bg:#ff79c6)]($style)'
 
 [git_status]
 disabled = true
 
 [nodejs]
-symbol = "[⬢](bold green)"
-style = "bg:#212736"
-format = '[[ $symbol ($version) ](fg:#769ff0 bg:#212736)]($style)'
-
-[golang]
-format = '[[ $symbol ($version) ](fg:#769ff0 bg:#212736)]($style)'
+symbol = "[⬢](bold green) "
+style = "bg:#bd93f9"
+format = '[[ $symbol($version) ](fg:#000000 bg:#bd93f9)]($style)'
 
 [package]
 disabled = true
 
 [time]
 disabled = false
-time_format = "%R"                                    # Hour:Minute Format
-style = "bg:#1d2230"
-format = '[[ $time ](fg:#a0a9cb bg:#1d2230)]($style)'
+time_format = "%R"  # 時:分 フォーマット
+style = "bg:#f1fa8c"
+format = '[[$time ](fg:#000000 bg:#f1fa8c)]($style)'
+
+[character]
+success_symbol = "[❯](bold green)"
+error_symbol = "[❯](bold red)"

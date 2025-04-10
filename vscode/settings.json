@@ -51,6 +51,9 @@
   // ターミナル設定
   //----------------------------------------------------------
   "terminal.integrated.inheritEnv": false, // 統合ターミナルが環境変数を継承しない
+  "terminal.integrated.fontSize": 16, // ターミナルのフォントサイズ
+  // "terminal.integrated.background": "#1e1e1e",
+  // "terminal.integrated.foreground": "#ffffff",
 
   //----------------------------------------------------------
   // 言語別フォーマッタ設定

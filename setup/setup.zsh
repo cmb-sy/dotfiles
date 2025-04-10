@@ -55,8 +55,6 @@ ln -sf $DOTFILES_DIR/vscode/settings.json "$HOME/Library/Application Support/Cod
 FORCE=1
 . $DOTFILES_DIR/setup/install.zsh
 
-
-
 #----------------------------------------------------------
 # Other
 #----------------------------------------------------------
