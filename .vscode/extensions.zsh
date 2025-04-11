@@ -54,7 +54,6 @@ sibiraj-s.vscode-scss-formatter    # SCSSファイルを整形するフォーマ
 # ----------------------------------------------------------
 akamud.vscode-theme-onedark        # Atom One Dark
 zhuangtongfa.material-theme        # マテリアルデザインテーマ（Atom One Dark）
-pkief.material-icon-theme          # マテリアルデザインベースのファイルアイコンテーマ
 vscode-icons-team.vscode-icons     # vscodeのアイコンテーマセット
 
 # ----------------------------------------------------------
