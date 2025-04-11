@@ -16,6 +16,7 @@ casks=(
     1password
     claude
     flux
+    font-hack-nerd-font
 )
 
 brew upgrade
