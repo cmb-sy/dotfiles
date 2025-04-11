@@ -7,13 +7,13 @@ source ${DOTFILES_DIR}/setup/util.zsh
 #----------------------------------------------------------
 # Clone or update dotfiles
 #----------------------------------------------------------
-if [[ ! -e $DOTFILES_DIR ]]; then
-  git clone --recursive https://github.com/cmb-sy/dotfiles.git $DOTFILES_DIR
+if [[ ! -e ${DOTFILES_DIR} ]]; then
+  git clone --recursive https://github.com/cmb-sy/dotfiles.git ${DOTFILES_DIR}
 else
-  (cd $DOTFILES_DIR && git pull)
+  (cd ${DOTFILES_DIR} && git pull)
 fi
 
-cd $DOTFILES_DIR
+cd ${DOTFILES_DIR}
 
 #----------------------------------------------------------
 # Create symbolic links for dotfiles
@@ -59,7 +59,6 @@ FORCE=1
 # Other
 #----------------------------------------------------------
 cp ${HOME}/dotfiles/.config/alacritty/alacritty.toml ${HOME}/.config/alacritty/alacritty.toml   
-
 
 #----------------------------------------------------------
 # last message
