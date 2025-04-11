@@ -1,51 +1,106 @@
+# ref:
+# starship configuration reference: https://starship.rs/config/
+# nerd font cheat sheet: https://www.nerdfonts.com/cheat-sheet
+
 format = """
-$directory\
-$git_branch\
-$git_status\
-$nodejs\
-$cmd_duration\
+$os$username[ in](bold fg:#FFFFFF)\
+$directory[on ](bold fg:#FFFFFF)\
+$git_branch$git_commit$git_state$git_status$hg_branch\
+$docker_context\
 $line_break\
 $character
 """
-right_format = """$time"""
 
-"$schema" = 'https://starship.rs/config-schema.json'
+right_format = """
+$cmd_duration
+"""
 add_newline = false
+
+[os]
+disabled = false
+style = "fg:yellow"
+
+[os.symbols]
+Windows = "󰍲"
+Ubuntu = "󰕈"
+Macos = ""
+Linux = "󰌽"
+CentOS = ""
+
+[username]
+show_always = true
+style_user = "bold fg:yellow"
+style_root = "bold fg:yellow"
+format = '[ $user]($style)'
+
+[directory]
+style = "bold fg:green"
+read_only = "\uf023"
+read_only_style = "bold fg:green"
+format = "[$read_only]($read_only_style) [$path]($style) "
+truncate_to_repo = true
+truncation_length = 1
+truncation_symbol = "…/"
+
+[git_branch]
+always_show_remote = false
+format = "[$symbol$branch(:$remote_branch)]($style) "
+symbol = "\uf418 "
+style = "bold fg:blue"
+only_attached = false
+ignore_branches = []
+disabled = false
+
+[git_commit]
+commit_hash_length = 7
+format = '[\($tag$hash\)]($style) '
+only_detached = true
+tag_disabled = true
+tag_max_candidates = 0
+tag_symbol = "\uf412 "
+disabled = false
+style = "bold fg:blue"
+
+[git_state]
+rebase = "REBASING"
+merge = "MERGING"
+revert = "REVERTING"
+cherry_pick = "CHERRY-PICKING"
+bisect = "BISECTING"
+am = "AM"
+am_or_rebase = "AM/REBASE"
+style = "bold fg:blue"
+format = '[\($state( $progress_current/$progress_total)\) ]($style)'
+disabled = false
+
+[git_status]
+format = '([\[$all_status$ahead_behind\]]($style) )'
+conflicted = "= "
+ahead = "⇡"
+behind = "⇣"
+diverged = "⇕ "
+up_to_date = "\uf021 "
+untracked = "? "
+stashed = "% "
+modified = "* "
+staged = "+ "
+renamed = "» "
+deleted = "✘ "
+style = "bold fg:blue"
+ignore_submodules = false
+disabled = false
+
+[docker_context]
+symbol = "\uf308"
+style = "fg:#73D0FF"
+format = '[$symbol $context]($style)$path'
 
 [cmd_duration]
 min_time = 0
 format = "[$duration]($style)"
-style = "bold yellow"
-
-[directory]
-truncation_length = 1  # カレントディレクトリのみ表示
-truncate_to_repo = false
-truncation_symbol = "../"
-style = "fg:#000000 bg:#50fa7b"
-format = "[  $path ]($style)"
-
-[git_branch]
-symbol = "" 
-style = "bg:#ff79c6"
-format = '[[ $symbol $branch ](fg:#000000 bg:#ff79c6)]($style)'
-
-[git_status]
-disabled = true
-
-[nodejs]
-symbol = "[⬢](bold green) "
-style = "bg:#bd93f9"
-format = '[[ $symbol($version) ](fg:#000000 bg:#bd93f9)]($style)'
-
-[package]
-disabled = true
-
-[time]
-disabled = false
-time_format = "%R"  # 時:分 フォーマット
-style = "bg:#f1fa8c"
-format = '[[$time ](fg:#000000 bg:#f1fa8c)]($style)'
+style = "bold white"
 
 [character]
-success_symbol = "[❯](bold green)"
-error_symbol = "[❯](bold red)"
+success_symbol = "[❯](purple)"
+error_symbol = "[❯](red)"
+vimcmd_symbol = "[❮](green)"

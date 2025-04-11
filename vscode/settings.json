@@ -25,7 +25,7 @@
 
   // エディタ設定
   "editor.minimap.autohide": true, // 使用していない時にミニマップを自動的に隠す
-  "editor.fontSize": 14, // フォントサイズを14pxに設定
+  "editor.fontSize": 14,
   "editor.defaultFormatter": "esbenp.prettier-vscode", // デフォルトフォーマッタをPrettierに設定
   "editor.formatOnSave": true, // 保存時に自動的にフォーマットする
 
@@ -37,24 +37,18 @@
   "interactiveWindow.executeWithShiftEnter": true, // Shift+Enterでコードを実行する
 
   //----------------------------------------------------------
-  // その他のUI設定
-  //----------------------------------------------------------
-  "vsicons.dontShowNewVersionMessage": true, // VSCode Iconsの新バージョンメッセージを表示しない
-
-  //----------------------------------------------------------
   // 言語固有の設定
   //----------------------------------------------------------
   "typescript.updateImportsOnFileMove.enabled": "always", // TypeScriptファイル移動時に自動的にインポートパスを更新
-  "javascript.updateImportsOnFileMove.enabled": "always", // JavaScriptファイル移動時に自動的にインポートパスを更新
+  "javascript.updateImportsOnFileMove.enabled": "always",
 
   //----------------------------------------------------------
   // ターミナル設定
   //----------------------------------------------------------
-  "terminal.integrated.inheritEnv": false, // 統合ターミナルが環境変数を継承しない
-  "terminal.integrated.fontSize": 16, // ターミナルのフォントサイズ
-  // "terminal.integrated.background": "#1e1e1e",
-  // "terminal.integrated.foreground": "#ffffff",
-
+  // brew cask install font-source-han-code-jp
+  // brew install font-Hack-nerd-font
+  // "terminal.integrated.fontFamily": "Source Han Code JP, Hack Nerd Font",
+  "terminal.integrated.fontSize": 18,
   //----------------------------------------------------------
   // 言語別フォーマッタ設定
   //----------------------------------------------------------

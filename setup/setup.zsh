@@ -1,6 +1,8 @@
 #!/bin/zsh
 
-DOTFILES_DIR="$HOME/.dotfiles"
+source ${HOME}/dotfiles/setup/util.zsh
+
+DOTFILES_DIR=${HOME}/dotfiles
 
 #----------------------------------------------------------
 # Clone or update dotfiles
@@ -29,7 +31,7 @@ if [[ ! -d ${HOME}/.config ]]; then
   mkdir ${HOME}/.config
 fi
 
-cd config
+cd .config
 
 for name in *; do
   if [[ ! $name =~ ^(setup|.config|vscode|README\.md|git)$ ]]; then
@@ -45,20 +47,21 @@ cd ..
 if [[ ! -d ${HOME}/Library/Application\ Support/Code/User ]]; then
   mkdir -p ${HOME}/Library/Application\ Support/Code/User
 fi
-
-ln -sf $DOTFILES_DIR/vscode/settings.json "$HOME/Library/Application Support/Code/User/settings.json"
-
+ln -sfv ${PWD}/vscode/settings.json ${HOME}/Library/Application\ Support/Code/User/settings.json
 
 #----------------------------------------------------------
 # Run installation scripts
 #----------------------------------------------------------
-FORCE=1
-. $DOTFILES_DIR/setup/install.zsh
+# FORCE=1
+# . ${DOTFILES_DIR}/setup/install.zsh
 
 #----------------------------------------------------------
 # Other
 #----------------------------------------------------------
 cp ${HOME}/dotfiles/.config/alacritty/alacritty.toml ${HOME}/.config/alacritty/alacritty.toml   
-git config --global core.excludesfile ~/dotfiles/.gitignore_global
 
-echo -e "\033[32mInstallation completed! Please restart your terminal.\033[m" 
+
+#----------------------------------------------------------
+# last message
+#----------------------------------------------------------
+util::info "Installation completed! Please restart terminal." 
