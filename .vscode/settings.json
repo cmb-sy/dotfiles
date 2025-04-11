@@ -15,7 +15,8 @@
   // ワークベンチ設定
   //----------------------------------------------------------
   "workbench.iconTheme": "vscode-icons",
-  "workbench.colorTheme": "Atom One Dark Theme",
+  "workbench.colorTheme": "Atom One Dark",
+  "workbench.activityBar.orientation": "vertical",
 
   //----------------------------------------------------------
   // Git設定
@@ -46,14 +47,5 @@
   // ターミナル設定
   //----------------------------------------------------------
   "terminal.integrated.fontFamily": "Hack Nerd Font",
-  "terminal.integrated.fontSize": 12,
-  //----------------------------------------------------------
-  // 言語別フォーマッタ設定
-  //----------------------------------------------------------
-  "[ignore]": {
-    "editor.defaultFormatter": "foxundermoon.shell-format" // .ignoreファイル用のフォーマッタ
-  },
-  "[dotenv]": {
-    "editor.defaultFormatter": "foxundermoon.shell-format" // .envファイル用のフォーマッタ
-  }
+  "terminal.integrated.fontSize": 12
 }

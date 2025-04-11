@@ -1,8 +1,8 @@
 #!/bin/zsh
 
-source ${HOME}/dotfiles/setup/util.zsh
-
 DOTFILES_DIR=${HOME}/dotfiles
+
+source ${DOTFILES_DIR}/setup/util.zsh
 
 #----------------------------------------------------------
 # Clone or update dotfiles
@@ -52,8 +52,8 @@ ln -sfv ${PWD}/.vscode/settings.json ${HOME}/Library/Application\ Support/Code/U
 #----------------------------------------------------------
 # Run installation scripts
 #----------------------------------------------------------
-# FORCE=1
-# . ${DOTFILES_DIR}/setup/install.zsh
+FORCE=1
+. ${DOTFILES_DIR}/setup/install.zsh
 
 #----------------------------------------------------------
 # Other
