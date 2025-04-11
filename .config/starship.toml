@@ -1,8 +1,20 @@
+# ref:
+# starship configuration reference: https://starship.rs/config/
+# nerd font cheat sheet: https://www.nerdfonts.com/cheat-sheet
 
 format = """
 $directory\
 $git_branch$git_commit$git_state$git_status$hg_branch\
 $docker_context\
+$python\
+$nodejs\
+$aws\
+$fill\
+[](fg:#1d2230 bg:#212736)\
+$time\
+[](fg:#88C0D0 bg:#1d2230)\
+$os\
+[](fg:#88C0D0)\
 $line_break\
 $character
 """
@@ -10,7 +22,6 @@ $character
 right_format = """
 $cmd_duration
 """
-
 add_newline = false
 
 [cmd_duration]
@@ -18,9 +29,8 @@ min_time = 0
 format = "[$duration]($style)"
 style = "bold white"
 
-
-[aws]
-symbol = " "
+[fill]
+symbol = ' '
 
 [directory]
 style = "bold fg:#FEBA17"
@@ -36,12 +46,12 @@ symbol = " "
 [git_branch]
 symbol = " "
 always_show_remote = false
-style = "bold fg:#C68EFD"
+style = "bold fg:#A5158C"
 
 [git_commit]
 tag_symbol = '  '
 format = "[$symbol$branch(:$remote_branch)]($style) "
-style = "bold fg:#C68EFD"
+style = "bold fg:#A5158C"
 
 [git_status]
 format = '([\[$all_status$ahead_behind\]]($style) )'
@@ -56,22 +66,36 @@ modified = "* "
 staged = "+ "
 renamed = "» "
 deleted = "✘ "
-style = "bold fg:#C68EFD"
+style = "bold fg:#A5158C"
 ignore_submodules = false
 disabled = false
 
 [nodejs]
 symbol = " "
 
-[os.symbols]
-CachyOS = " "
-CentOS = " "
-Macos = " "
-Ubuntu = " "
-Windows = "󰍲 "
-
-[package]
-symbol = "󰏗 "
-
 [python]
 symbol = " "
+
+[aws]
+symbol = " "
+
+[time]
+disabled = false
+time_format = "%R" # Hour:Minute Format
+style = "bg:#1d2230"
+format = '[[   $time ](fg:#a0a9cb bg:#1d2230)]($style)'
+
+[os]
+format = "[$symbol]($style)"
+style = "fg:#2E3440 bg:#88C0D0 bold"
+disabled = false
+
+[os.symbols]
+Macos = "  " # nf-fa-apple
+Ubuntu = "  " # nf-linux-ubuntu
+Debian = "  " # nf-linux-debian
+
+[character]
+success_symbol = "[>](bold green)"
+error_symbol   = "[X](bold red)"
+vicmd_symbol   = "[V](bold green)"

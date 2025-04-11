@@ -15,8 +15,8 @@
   // ワークベンチ設定
   //----------------------------------------------------------
   "workbench.iconTheme": "vscode-icons",
-  "workbench.colorTheme": "Atom One Dark",
   "workbench.activityBar.orientation": "vertical",
+  "workbench.colorTheme": "Atom One Dark",
 
   //----------------------------------------------------------
   // Git設定
