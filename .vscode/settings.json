@@ -45,7 +45,7 @@
   //----------------------------------------------------------
   // ターミナル設定
   //----------------------------------------------------------
-  "terminal.integrated.fontFamily": "Source Han Code JP, Hack Nerd Font",
+  "terminal.integrated.fontFamily": "'Source Han Code JP', 'Hack Nerd Font Mono'",
   "terminal.integrated.fontSize": 12,
   //----------------------------------------------------------
   // 言語別フォーマッタ設定

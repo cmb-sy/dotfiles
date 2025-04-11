@@ -47,7 +47,7 @@ cd ..
 if [[ ! -d ${HOME}/Library/Application\ Support/Code/User ]]; then
   mkdir -p ${HOME}/Library/Application\ Support/Code/User
 fi
-ln -sfv ${PWD}/vscode/settings.json ${HOME}/Library/Application\ Support/Code/User/settings.json
+ln -sfv ${PWD}/.vscode/settings.json ${HOME}/Library/Application\ Support/Code/User/settings.json
 
 #----------------------------------------------------------
 # Run installation scripts

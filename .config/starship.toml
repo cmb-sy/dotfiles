@@ -31,7 +31,7 @@ CentOS = ""
 show_always = true
 style_user = "bold fg:yellow"
 style_root = "bold fg:yellow"
-format = '[ $user]($style)'
+format = '[$user]($style)'
 
 [directory]
 style = "bold fg:green"
@@ -40,12 +40,12 @@ read_only_style = "bold fg:green"
 format = "[$read_only]($read_only_style) [$path]($style) "
 truncate_to_repo = true
 truncation_length = 1
-truncation_symbol = "…/"
+truncation_symbol = "../"
 
 [git_branch]
 always_show_remote = false
 format = "[$symbol$branch(:$remote_branch)]($style) "
-symbol = "\uf418 "
+symbol = "\uf418"
 style = "bold fg:blue"
 only_attached = false
 ignore_branches = []
@@ -101,6 +101,6 @@ format = "[$duration]($style)"
 style = "bold white"
 
 [character]
-success_symbol = "[❯](purple)"
+success_symbol = "[❯](white)"
 error_symbol = "[❯](red)"
 vimcmd_symbol = "[❮](green)"
