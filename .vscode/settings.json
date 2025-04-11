@@ -14,8 +14,8 @@
   //----------------------------------------------------------
   // ワークベンチ設定
   //----------------------------------------------------------
-  "workbench.iconTheme": "vscode-icons", // ファイルアイコンテーマをvscode-iconsに設定
-  "workbench.colorTheme": "Atom One Dark", // カラーテーマをAtom One Darkに設定
+  "workbench.iconTheme": "vscode-icons",
+  "workbench.colorTheme": "Atom One Dark Theme",
 
   //----------------------------------------------------------
   // Git設定
@@ -45,7 +45,7 @@
   //----------------------------------------------------------
   // ターミナル設定
   //----------------------------------------------------------
-  "terminal.integrated.fontFamily": "'Source Han Code JP', 'Hack Nerd Font Mono'",
+  "terminal.integrated.fontFamily": "Hack Nerd Font",
   "terminal.integrated.fontSize": 12,
   //----------------------------------------------------------
   // 言語別フォーマッタ設定

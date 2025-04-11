@@ -1,10 +1,6 @@
-# ref:
-# starship configuration reference: https://starship.rs/config/
-# nerd font cheat sheet: https://www.nerdfonts.com/cheat-sheet
 
 format = """
-$os$username[ in](bold fg:#FFFFFF)\
-$directory[on ](bold fg:#FFFFFF)\
+$directory\
 $git_branch$git_commit$git_state$git_status$hg_branch\
 $docker_context\
 $line_break\
@@ -14,64 +10,38 @@ $character
 right_format = """
 $cmd_duration
 """
+
 add_newline = false
 
-[os]
-disabled = false
-style = "fg:yellow"
+[cmd_duration]
+min_time = 0
+format = "[$duration]($style)"
+style = "bold white"
 
-[os.symbols]
-Windows = "󰍲"
-Ubuntu = "󰕈"
-Macos = ""
-Linux = "󰌽"
-CentOS = ""
 
-[username]
-show_always = true
-style_user = "bold fg:yellow"
-style_root = "bold fg:yellow"
-format = '[$user]($style)'
+[aws]
+symbol = "  "
 
 [directory]
-style = "bold fg:green"
-read_only = "\uf023"
-read_only_style = "bold fg:green"
+style = "bold fg:#FEBA17"
+read_only = " 󰌾"
 format = "[$read_only]($read_only_style) [$path]($style) "
 truncate_to_repo = true
 truncation_length = 1
 truncation_symbol = "../"
 
+[docker_context]
+symbol = " "
+
 [git_branch]
+symbol = " "
 always_show_remote = false
-format = "[$symbol$branch(:$remote_branch)]($style) "
-symbol = "\uf418"
-style = "bold fg:blue"
-only_attached = false
-ignore_branches = []
-disabled = false
+style = "bold fg:#169976"
 
 [git_commit]
-commit_hash_length = 7
-format = '[\($tag$hash\)]($style) '
-only_detached = true
-tag_disabled = true
-tag_max_candidates = 0
-tag_symbol = "\uf412 "
-disabled = false
-style = "bold fg:blue"
-
-[git_state]
-rebase = "REBASING"
-merge = "MERGING"
-revert = "REVERTING"
-cherry_pick = "CHERRY-PICKING"
-bisect = "BISECTING"
-am = "AM"
-am_or_rebase = "AM/REBASE"
-style = "bold fg:blue"
-format = '[\($state( $progress_current/$progress_total)\) ]($style)'
-disabled = false
+tag_symbol = '  '
+format = "[$symbol$branch(:$remote_branch)]($style) "
+style = "bold fg:#169976"
 
 [git_status]
 format = '([\[$all_status$ahead_behind\]]($style) )'
@@ -86,21 +56,22 @@ modified = "* "
 staged = "+ "
 renamed = "» "
 deleted = "✘ "
-style = "bold fg:blue"
+style = "bold fg:#169976"
 ignore_submodules = false
 disabled = false
 
-[docker_context]
-symbol = "\uf308"
-style = "fg:#73D0FF"
-format = '[$symbol $context]($style)$path'
+[nodejs]
+symbol = " "
 
-[cmd_duration]
-min_time = 0
-format = "[$duration]($style)"
-style = "bold white"
+[os.symbols]
+CachyOS = " "
+CentOS = " "
+Macos = " "
+Ubuntu = " "
+Windows = "󰍲 "
 
-[character]
-success_symbol = "[❯](white)"
-error_symbol = "[❯](red)"
-vimcmd_symbol = "[❮](green)"
+[package]
+symbol = "󰏗 "
+
+[python]
+symbol = " "
