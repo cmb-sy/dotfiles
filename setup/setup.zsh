@@ -19,7 +19,7 @@ cd ${DOTFILES_DIR}
 # Create symbolic links for dotfiles
 #----------------------------------------------------------
 for name in *; do
-  if [[ ${name} != 'setup' ]] && [[ ${name} != 'config' ]] && [[ ${name} != 'vscode' ]] && [[ ${name} != 'README.md' ]]; then
+  if [[ ${name} != 'setup' ]] && [[ ${name} != '.config' ]] && [[ ${name} != '.vscode' ]] && [[ ${name} != 'README.md' ]]; then
     if [[ -L ${HOME}/.${name} ]]; then
       unlink ${HOME}/.${name}
     fi
@@ -34,7 +34,7 @@ fi
 cd .config
 
 for name in *; do
-  if [[ ! $name =~ ^(setup|.config|vscode|README\.md|git)$ ]]; then
+  if [[ ! $name =~ ^(setup|.config|.vscode|README\.md|git)$ ]]; then
     ln -sf ${PWD}/$name ${HOME}/.$name
   fi
 done
