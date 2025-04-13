@@ -1,40 +1,23 @@
--- 基本設定
-vim.g.mapleader = " "
-vim.g.maplocalleader = " "
-
--- 基本オプション
+-- バックアップ・スワップファイルを作らない
+vim.opt.backup = false
+vim.opt.swapfile = false
+-- 行番号の表示
 vim.opt.number = true
-vim.opt.tabstop = 2
-vim.opt.shiftwidth = 2
-vim.opt.expandtab = true
-vim.opt.autoindent = true
+-- 検索を使いやすくする
+vim.opt.incsearch = true
 vim.opt.ignorecase = true
 vim.opt.smartcase = true
 vim.opt.hlsearch = true
+-- クリップボードを他のアプリと共有
 vim.opt.clipboard = "unnamedplus"
-vim.opt.termguicolors = true
+-- マウス対応
 vim.opt.mouse = "a"
-vim.opt.wrap = false
+-- 行末で→で次の行へ行ける、など
+vim.opt.whichwrap = "b,s,h,l,<,>,[,],~"
+-- 行末にiで入れるよう、一文字だけはみ出して移動できるようにする
+vim.opt.virtualtext = "onemore"
 
--- キーマッピング
--- ウィンドウ操作
-vim.keymap.set("n", "<leader>w", "<C-w>")
-vim.keymap.set("n", "<C-h>", "<C-w>h")
-vim.keymap.set("n", "<C-j>", "<C-w>j")
-vim.keymap.set("n", "<C-k>", "<C-w>k")
-vim.keymap.set("n", "<C-l>", "<C-w>l")
-
--- ファイル操作
-vim.keymap.set("n", "<leader>s", ":w<CR>")
-vim.keymap.set("n", "<leader>q", ":q<CR>")
-vim.keymap.set("n", "<Esc><Esc>", ":nohl<CR>")
-
--- バッファ操作
-vim.keymap.set("n", "<leader>bn", ":bnext<CR>")
-vim.keymap.set("n", "<leader>bp", ":bprevious<CR>")
-vim.keymap.set("n", "<leader>bd", ":bdelete<CR>")
-
--- lazy.nvimのブートストラップ
+-- lazy.nvim
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 if not vim.loop.fs_stat(lazypath) then
   vim.fn.system({
