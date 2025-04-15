@@ -26,7 +26,7 @@
 
   // エディタ設定
   "editor.minimap.autohide": true, // 使用していない時にミニマップを自動的に隠す
-  "editor.fontSize": 14,
+  "editor.fontSize": 15,
   "editor.defaultFormatter": "esbenp.prettier-vscode", // デフォルトフォーマッタをPrettierに設定
   "editor.formatOnSave": true, // 保存時に自動的にフォーマットする
 
