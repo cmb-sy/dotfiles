@@ -9,8 +9,6 @@ $docker_context\
 $python\
 $nodejs\
 $aws\
-$fill\
-[](fg:#1d2230 bg:#212736)\
 $time\
 [](fg:#88C0D0 bg:#1d2230)\
 $os\
@@ -29,8 +27,8 @@ min_time = 0
 format = "[$duration]($style)"
 style = "bold white"
 
-[fill]
-symbol = ' '
+# [fill]
+# symbol = ' '
 
 [directory]
 style = "bold fg:#FEBA17"
