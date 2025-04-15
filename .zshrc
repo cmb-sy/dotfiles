@@ -64,4 +64,3 @@ fi
 source ${HOME}/dotfiles/.function.zsh
 source ${HOME}/dotfiles/.aliases.sh
 cp ${HOME}/dotfiles/.config/alacritty/alacritty.toml ${HOME}/.config/alacritty/alacritty.toml
-git config --global core.excludesfile ~/.gitignore_global
