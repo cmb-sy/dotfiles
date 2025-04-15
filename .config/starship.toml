@@ -9,10 +9,6 @@ $docker_context\
 $python\
 $nodejs\
 $aws\
-$time\
-[](fg:#88C0D0 bg:#1d2230)\
-$os\
-[](fg:#88C0D0)\
 $line_break\
 $character
 """
@@ -77,21 +73,21 @@ symbol = " "
 [aws]
 symbol = " "
 
-[time]
-disabled = false
-time_format = "%R" # Hour:Minute Format
-style = "bg:#1d2230"
-format = '[[   $time ](fg:#a0a9cb bg:#1d2230)]($style)'
+# [time]
+# disabled = false
+# time_format = "%R" # Hour:Minute Format
+# style = "bg:#1d2230"
+# format = '[[   $time ](fg:#a0a9cb bg:#1d2230)]($style)'
 
-[os]
-format = "[$symbol]($style)"
-style = "fg:#2E3440 bg:#88C0D0 bold"
-disabled = false
+# [os]
+# format = "[$symbol]($style)"
+# style = "fg:#2E3440 bg:#88C0D0 bold"
+# disabled = false
 
-[os.symbols]
-Macos = "  " # nf-fa-apple
-Ubuntu = "  " # nf-linux-ubuntu
-Debian = "  " # nf-linux-debian
+# [os.symbols]
+# Macos = "  " # nf-fa-apple
+# Ubuntu = "  " # nf-linux-ubuntu
+# Debian = "  " # nf-linux-debian
 
 [character]
 success_symbol = "[>](bold green)"
