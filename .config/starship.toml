@@ -5,7 +5,6 @@ $docker_context\
 $nodejs\
 $python\
 $aws\
-$docker_context\
 $line_break\
 $character
 """
@@ -72,16 +71,13 @@ Ubuntu = " "
 Windows = "󰍲 "
 
 [nodejs]
-symbol = " "
+symbol = " "
 
 [aws]
-symbol = " "
+symbol = " "
 
 [python]
-symbol = " "
-
-[aws]
-symbol = " "
+symbol = " "
 
 # [time]
 # disabled = false
