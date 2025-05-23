@@ -63,4 +63,17 @@ fi
 # ----------------------------------------------------------
 source ${HOME}/dotfiles/.function.zsh
 source ${HOME}/dotfiles/.aliases.sh
+
+# ----------------------------------------------------------
+# Unalias pip restrictions (恒久的にpipの制限を解除)
+# ----------------------------------------------------------
+unalias pip 2>/dev/null || true
+unalias pip3 2>/dev/null || true
+
+# ----------------------------------------------------------
+# Setup proper Python and pip PATH
+# ----------------------------------------------------------
+export PATH="/opt/homebrew/bin:$PATH"
+export PATH="/usr/local/bin:$PATH"
+
 cp ${HOME}/dotfiles/.config/alacritty/alacritty.toml ${HOME}/.config/alacritty/alacritty.toml
