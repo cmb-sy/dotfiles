@@ -15,6 +15,7 @@ formulas=(
     starship
     uv
     tmux
+    awscli
 )
 
 brew upgrade
