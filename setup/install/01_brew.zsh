@@ -15,6 +15,7 @@ formulas=(
     starship
     uv
     tmux
+    gh
     awscli
 )
 
