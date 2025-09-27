@@ -50,12 +50,29 @@ fi
 ln -sfv ${PWD}/.vscode/settings.json ${HOME}/Library/Application\ Support/Code/User/settings.json
 
 #----------------------------------------------------------
-# Claude AI Agent Settings
+# AI Agent Settings
 #----------------------------------------------------------
-if [[ ! -d ${HOME}/.claude ]]; then
-  mkdir -p ${HOME}/.claude
-fi
-ln -sfv ${PWD}/AGENTS.md ${HOME}/.claude/CLAUDE.md
+dotfiles=(
+  "AGENTS.md:$HOME/.claude/CLAUDE.md"
+  "AGENTS.md:$HOME/.codex/AGENTS.md"
+  "AGENTS.md:$HOME/.gemini/GEMINI.md"
+)
+
+# 既存ファイルの削除とシンボリックリンクの作成
+for dotfile in "${dotfiles[@]}"; do
+  src="${dotfile%%:*}"
+  dest="${dotfile##*:}"
+  # ディレクトリが存在しない場合は作成
+  dest_dir=$(dirname "$dest")
+  if [[ ! -d "$dest_dir" ]]; then
+    mkdir -p "$dest_dir"
+  fi
+  # 既存のファイル/リンクを削除
+  rm -f "$dest"
+  # シンボリックリンクを作成
+  ln -s "$(pwd)/$src" "$dest"
+  echo "Created: $dest -> $(pwd)/$src"
+done
 
 #----------------------------------------------------------
 # Run installation scripts
