@@ -50,6 +50,14 @@ fi
 ln -sfv ${PWD}/.vscode/settings.json ${HOME}/Library/Application\ Support/Code/User/settings.json
 
 #----------------------------------------------------------
+# Claude AI Agent Settings
+#----------------------------------------------------------
+if [[ ! -d ${HOME}/.claude ]]; then
+  mkdir -p ${HOME}/.claude
+fi
+ln -sfv ${PWD}/AGENTS.md ${HOME}/.claude/CLAUDE.md
+
+#----------------------------------------------------------
 # Run installation scripts
 #----------------------------------------------------------
 FORCE=1
