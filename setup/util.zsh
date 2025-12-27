@@ -103,7 +103,7 @@ util::symlink() {
 
 # Get absolute dotfiles directory path
 util::dotfiles_dir() {
-  echo "${HOME}/.dotfiles"
+  echo "${HOME}/dotfiles"
 }
 
 # Get repository root directory path
@@ -111,10 +111,25 @@ util::repo_dir() {
   # If running from cloned repository (GitHub Actions)
   if [[ -d "${GITHUB_WORKSPACE}" ]]; then
     echo "${GITHUB_WORKSPACE}"
-  elif [[ -d "${PWD}/.git" ]]; then
-    echo "${PWD}"
   else
-    # If running from installed location
+    # Find .git directory from current directory or script directory
+    local search_dir="${PWD}"
+    # If called from a script, try to find repo from script's directory
+    if [[ -n "${SCRIPT_DIR}" ]]; then
+      search_dir="${SCRIPT_DIR}/.."
+    fi
+    
+    # Walk up the directory tree to find .git
+    local current_dir="${search_dir}"
+    while [[ "${current_dir}" != "/" ]]; do
+      if [[ -d "${current_dir}/.git" ]]; then
+        echo "${current_dir}"
+        return 0
+      fi
+      current_dir="$(dirname "${current_dir}")"
+    done
+    
+    # If not found, use default dotfiles directory
     echo "$(util::dotfiles_dir)"
   fi
 } 

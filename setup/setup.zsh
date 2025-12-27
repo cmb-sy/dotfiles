@@ -1,16 +1,22 @@
 #!/bin/zsh
 
-DOTFILES_DIR=${HOME}/dotfiles
+# Load the path relative to the directory where the script is being executed
+SCRIPT_DIR="$(cd "$(dirname "${0}")" && pwd)"
+source "${SCRIPT_DIR}/util.zsh"
 
-source ${DOTFILES_DIR}/setup/util.zsh
+# Get the path using util::repo_dir()
+export SCRIPT_DIR
+DOTFILES_DIR="$(util::repo_dir)"
 
 #----------------------------------------------------------
 # Clone or update dotfiles
 #----------------------------------------------------------
-if [[ ! -e ${DOTFILES_DIR} ]]; then
-  git clone --recursive https://github.com/cmb-sy/dotfiles.git ${DOTFILES_DIR}
-else
-  (cd ${DOTFILES_DIR} && git pull)
+if [[ -z "${CI}" || "${CI}" != "true" ]]; then
+  if [[ ! -e ${DOTFILES_DIR} ]]; then
+    git clone --recursive https://github.com/cmb-sy/dotfiles.git ${DOTFILES_DIR}
+  else
+    (cd ${DOTFILES_DIR} && git pull)
+  fi
 fi
 
 cd ${DOTFILES_DIR}
@@ -83,7 +89,10 @@ FORCE=1
 #----------------------------------------------------------
 # Other
 #----------------------------------------------------------
-cp ${HOME}/dotfiles/.config/alacritty/alacritty.toml ${HOME}/.config/alacritty/alacritty.toml   
+if [[ -f ${DOTFILES_DIR}/.config/alacritty/alacritty.toml ]]; then
+  mkdir -p ${HOME}/.config/alacritty
+  cp ${DOTFILES_DIR}/.config/alacritty/alacritty.toml ${HOME}/.config/alacritty/alacritty.toml
+fi   
 
 #----------------------------------------------------------
 # last message
