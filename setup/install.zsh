@@ -20,11 +20,7 @@ fi
 #----------------------------------------------------------
 util::confirm "Install VSCode extensions?"
 if [[ $? = 0 ]]; then
-  util::info "Installing VSCode extensions..."
-  while IFS= read -r line; do
-    [[ -z "$line" || "$line" =~ ^# ]] && continue
-    code --install-extension "${line%% *}" 2>/dev/null || true
-  done < "${REPO_DIR}/.vscode/extensions.zsh"
+  source "${REPO_DIR}/.vscode/install.zsh"
 fi
 
 #----------------------------------------------------------
@@ -32,13 +28,9 @@ fi
 #----------------------------------------------------------
 util::confirm "Apply macOS settings?"
 if [[ $? = 0 ]]; then
-  util::info "Applying macOS settings..."
   source "${REPO_DIR}/macos/install.zsh"
 fi
 
-#----------------------------------------------------------
-# Finalize
-#----------------------------------------------------------
 util::info "Cleanup..."
 brew cleanup
 util::info "Done!"
