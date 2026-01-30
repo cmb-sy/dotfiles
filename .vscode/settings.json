@@ -1,51 +1,37 @@
 {
-  //----------------------------------------------------------
   // ウィンドウ設定
-  //----------------------------------------------------------
   "window.zoomLevel": 0, // エディタの表示倍率 (0が標準サイズ)
   "window.confirmSaveUntitledWorkspace": false, // 未保存のワークスペースを閉じる際の確認ダイアログを表示しない
 
-  //----------------------------------------------------------
   // エクスプローラー設定
-  //----------------------------------------------------------
   "explorer.confirmDelete": false, // ファイル削除時の確認ダイアログを表示しない
   "explorer.confirmDragAndDrop": false, // ドラッグ＆ドロップ時の確認ダイアログを表示しない
 
-  //----------------------------------------------------------
   // ワークベンチ設定
-  //----------------------------------------------------------
   "workbench.iconTheme": "vscode-icons",
   "workbench.activityBar.orientation": "vertical",
   "workbench.colorTheme": "Atom One Dark",
 
-  //----------------------------------------------------------
   // Git設定
-  //----------------------------------------------------------
   "git.confirmSync": false, // Gitの同期時に確認ダイアログを表示しない
   "githubPullRequests.pullBranch": "never", // PRのブランチを自動的にプルしない
 
   // エディタ設定
-  "editor.minimap.autohide": "mouseover", // 使用していない時にミニマップを自動的に隠す
+  "editor.minimap.autohide": true, // 使用していない時にミニマップを自動的に隠す
   "editor.fontSize": 15,
   "editor.defaultFormatter": "esbenp.prettier-vscode", // デフォルトフォーマッタをPrettierに設定
   "editor.formatOnSave": true, // 保存時に自動的にフォーマットする
 
-  //----------------------------------------------------------
   // Jupyter設定
-  //----------------------------------------------------------
   "jupyter.askForKernelRestart": false, // カーネルの再起動時に確認ダイアログを表示しない
   "jupyter.interactiveWindow.creationMode": "perFile", // ファイルごとにインタラクティブウィンドウを作成
   "interactiveWindow.executeWithShiftEnter": true, // Shift+Enterでコードを実行する
 
-  //----------------------------------------------------------
   // 言語固有の設定
-  //----------------------------------------------------------
   "typescript.updateImportsOnFileMove.enabled": "always", // TypeScriptファイル移動時に自動的にインポートパスを更新
   "javascript.updateImportsOnFileMove.enabled": "always",
 
-  //----------------------------------------------------------
   // ターミナル設定
-  //----------------------------------------------------------
   "terminal.integrated.fontFamily": "Hack Nerd Font",
   "terminal.integrated.fontSize": 13,
   "git.enableSmartCommit": true,
