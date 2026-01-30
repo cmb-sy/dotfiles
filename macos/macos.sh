@@ -21,28 +21,20 @@ sudo chflags nohidden /Volumes # make /Volumes directory visible
 # ----------------------------------------------------------
 # Finder settings
 # ----------------------------------------------------------
-# display items on desktop
 defaults write com.apple.finder ShowExternalHardDrivesOnDesktop -bool true
 defaults write com.apple.finder ShowHardDrivesOnDesktop -bool true
- # Finderのステータスバー、サイドバー、パスバーを表示
-defaults write com.apple.finder ShowMountedServersOnDesktop -bool true
+defaults write com.apple.finder ShowMountedServersOnDesktop -bool true # Finder status bar, sidebar, path bar
 defaults write com.apple.finder ShowStatusBar -bool true
 defaults write com.apple.finder ShowSidebar -bool true
 defaults write com.apple.finder ShowPathbar -bool true
-
 defaults write com.apple.finder FXEnableExtensionChangeWarning -bool false # disable extension change warning
-
 defaults write com.apple.finder AppleShowAllFiles TRUE # show hidden files
-
 defaults write com.apple.finder WarnOnEmptyTrash -bool false # disable warning before emptying trash
-
 defaults write NSGlobalDomain AppleShowAllExtensions -bool true # show all extensions
-
 defaults write com.apple.desktopservices DSDontWriteNetworkStores -bool true # do not create .DS_Store files on network and USB storage
 defaults write com.apple.desktopservices DSDontWriteUSBStores -bool true # do not create .DS_Store files on network and USB storage
-sudo chflags nohidden /Volumes # do not hide /Volumes directory
-
 defaults write -g 'NSRecentDocumentsLimit' -int 0 # do not record recently used items
+sudo chflags nohidden /Volumes # do not hide /Volumes directory
 
 # ----------------------------------------------------------
 # Dock settings
@@ -58,7 +50,6 @@ defaults write -g AppleShowScrollBars -string "Always" # show scroll bars always
 # keyboard and input settings
 # ----------------------------------------------------------
 defaults write -g NSAutomaticSpellingCorrectionEnabled -bool false # disable spelling correction
-
 defaults write com.apple.inputmethod.Kotoeri JIMPrefLiveConversionKey -bool false # disable live conversion
 
 # ----------------------------------------------------------

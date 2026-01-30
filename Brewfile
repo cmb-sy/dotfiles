@@ -1,0 +1,33 @@
+# -----------------------------------------------------------
+# Taps
+# -----------------------------------------------------------
+tap 'homebrew/cask-fonts'
+
+# -----------------------------------------------------------
+# Formula
+# -----------------------------------------------------------
+brew 'fzf'
+brew 'sheldon'
+brew 'starship'
+brew 'tmux'
+brew 'zsh'
+brew 'uv'
+brew 'yarn'
+brew 'git'
+
+# -----------------------------------------------------------
+# Cask
+# -----------------------------------------------------------
+cask 'google-chrome'
+cask 'alacritty'
+cask 'cursor'
+cask 'docker'
+cask 'visual-studio-code'
+cask 'slack'
+cask 'zoom'
+cask 'notion'
+cask '1password'
+cask 'claude'
+cask 'flux'
+cask 'font-hack-nerd-font'
+cask 'wireshark'

@@ -61,14 +61,13 @@ fi
 # ----------------------------------------------------------
 # Configuration Files
 # ----------------------------------------------------------
-source ${HOME}/dotfiles/.function.zsh
-source ${HOME}/dotfiles/.aliases.sh
+if [[ -f "${DOTFILES:-${HOME}/dotfiles}/.function.zsh" ]]; then
+  source "${DOTFILES:-${HOME}/dotfiles}/.function.zsh"
+fi
 
-# ----------------------------------------------------------
-# Unalias pip restrictions (恒久的にpipの制限を解除)
-# ----------------------------------------------------------
-unalias pip 2>/dev/null || true
-unalias pip3 2>/dev/null || true
+if [[ -f "${DOTFILES:-${HOME}/dotfiles}/.aliases.sh" ]]; then
+  source "${DOTFILES:-${HOME}/dotfiles}/.aliases.sh"
+fi
 
 # ----------------------------------------------------------
 # Setup proper Python and pip PATH

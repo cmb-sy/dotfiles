@@ -1,27 +1,44 @@
 #!/bin/zsh
 
-# util.zshを読み込む
-SCRIPT_DIR="$(cd "$(dirname "${0}")" && pwd)"
+SCRIPT_DIR="${0:A:h}"
+REPO_DIR="${SCRIPT_DIR:h}"
 source "${SCRIPT_DIR}/util.zsh"
-
-# util::repo_dir()を使ってパスを取得（SCRIPT_DIRをexportしてutil::repo_dir()で使えるようにする）
-export SCRIPT_DIR
-DOTFILES_DIR="$(util::repo_dir)"
 
 util::info "Starting dotfiles installation..."
 
-for script in ${DOTFILES_DIR}/setup/install/*.zsh; do
-  if [[ -f "${script}" ]]; then
-    if [[ ${FORCE} = 1 ]] || util::is_ci; then
-      . "${script}"
-    else
-      util::confirm "install $(basename ${script})?"
-      if [[ $? = 0 ]]; then
-        . "${script}"
-      fi
-    fi
-  fi
-done
+#----------------------------------------------------------
+# Homebrew (Brewfile)
+#----------------------------------------------------------
+util::confirm "Install packages from Brewfile?"
+if [[ $? = 0 ]]; then
+  export HOMEBREW_NO_AUTO_UPDATE=1
+  brew bundle --file="${REPO_DIR}/Brewfile"
+fi
 
-util::info "Installation completed successfully!"
-util::info "Please restart your terminal to apply changes."
+#----------------------------------------------------------
+# VSCode Extensions
+#----------------------------------------------------------
+util::confirm "Install VSCode extensions?"
+if [[ $? = 0 ]]; then
+  util::info "Installing VSCode extensions..."
+  while IFS= read -r line; do
+    [[ -z "$line" || "$line" =~ ^# ]] && continue
+    code --install-extension "${line%% *}" 2>/dev/null || true
+  done < "${REPO_DIR}/.vscode/extensions.zsh"
+fi
+
+#----------------------------------------------------------
+# macOS settings
+#----------------------------------------------------------
+util::confirm "Apply macOS settings?"
+if [[ $? = 0 ]]; then
+  util::info "Applying macOS settings..."
+  source "${REPO_DIR}/macos/install.zsh"
+fi
+
+#----------------------------------------------------------
+# Finalize
+#----------------------------------------------------------
+util::info "Cleanup..."
+brew cleanup
+util::info "Done!"
