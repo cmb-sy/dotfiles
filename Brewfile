@@ -1,11 +1,11 @@
 # -----------------------------------------------------------
 # Formula
 # -----------------------------------------------------------
-brew 'coreutils'  # gls: ls に色付け（GNU ls）
+brew 'coreutils'
 brew 'fzf'
 brew 'sheldon'
 brew 'starship'
-brew 'tmux'
+brew 'gh'
 brew 'zsh'
 brew 'uv'
 brew 'yarn'
