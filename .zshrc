@@ -1,6 +1,13 @@
 #!/bin/zsh
 
 # ----------------------------------------------------------
+# WezTerm shell integration (for ScrollToPrompt etc.)
+# ----------------------------------------------------------
+if [[ "$TERM_PROGRAM" == "WezTerm" ]]; then
+  source "/Applications/WezTerm.app/Contents/Resources/wezterm.sh" 2>/dev/null
+fi
+
+# ----------------------------------------------------------
 # Basic Configuration
 # ----------------------------------------------------------
 # Enable command highlighting
@@ -48,15 +55,6 @@ zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"   # Colorize completion 
 eval "$(sheldon source)"
 eval "$(starship init zsh)"
 
-# ----------------------------------------------------------
-# Tmux settings
-# ----------------------------------------------------------
-bindkey -s '^T' 'tmux attach || tmux new-session\n'
-bindkey -s '^B' 'tmux new-session\n'
-
-if [ -n "$TMUX" ]; then
-    tmux source-file ~/.tmux.conf 2>/dev/null
-fi
 
 # ----------------------------------------------------------
 # Configuration Files
@@ -74,5 +72,3 @@ fi
 # ----------------------------------------------------------
 export PATH="/opt/homebrew/bin:$PATH"
 export PATH="/usr/local/bin:$PATH"
-
-cp ${HOME}/dotfiles/.config/alacritty/alacritty.toml ${HOME}/.config/alacritty/alacritty.toml

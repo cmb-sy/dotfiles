@@ -25,7 +25,7 @@ cd ${DOTFILES_DIR}
 # Create symbolic links for dotfiles
 #----------------------------------------------------------
 for name in *; do
-  if [[ ${name} != 'setup' ]] && [[ ${name} != 'config' ]] && [[ ${name} != 'vscode' ]] && [[ ${name} != 'README.md' ]]; then
+  if [[ ${name} != 'setup' ]] && [[ ${name} != 'config' ]] && [[ ${name} != 'vscode' ]] && [[ ${name} != 'README.md' ]] && [[ ${name} != 'wezterm' ]]; then
     if [[ -L ${HOME}/.${name} ]]; then
       unlink ${HOME}/.${name}
     fi
@@ -55,30 +55,6 @@ if [[ ! -d ${HOME}/Library/Application\ Support/Code/User ]]; then
 fi
 ln -sfv ${PWD}/.vscode/settings.json ${HOME}/Library/Application\ Support/Code/User/settings.json
 
-#----------------------------------------------------------
-# AI Agent Settings
-#----------------------------------------------------------
-dotfiles=(
-  "AGENTS.md:$HOME/.claude/CLAUDE.md"
-  "AGENTS.md:$HOME/.codex/AGENTS.md"
-  "AGENTS.md:$HOME/.gemini/GEMINI.md"
-)
-
-# 既存ファイルの削除とシンボリックリンクの作成
-for dotfile in "${dotfiles[@]}"; do
-  src="${dotfile%%:*}"
-  dest="${dotfile##*:}"
-  # ディレクトリが存在しない場合は作成
-  dest_dir=$(dirname "$dest")
-  if [[ ! -d "$dest_dir" ]]; then
-    mkdir -p "$dest_dir"
-  fi
-  # 既存のファイル/リンクを削除
-  rm -f "$dest"
-  # シンボリックリンクを作成
-  ln -s "$(pwd)/$src" "$dest"
-  echo "Created: $dest -> $(pwd)/$src"
-done
 
 #----------------------------------------------------------
 # Run installation scripts
@@ -87,14 +63,18 @@ FORCE=1
 . ${DOTFILES_DIR}/setup/install.zsh
 
 #----------------------------------------------------------
-# Other
+# Wezterm
 #----------------------------------------------------------
-if [[ -f ${DOTFILES_DIR}/.config/alacritty/alacritty.toml ]]; then
-  mkdir -p ${HOME}/.config/alacritty
-  cp ${DOTFILES_DIR}/.config/alacritty/alacritty.toml ${HOME}/.config/alacritty/alacritty.toml
-fi   
+if [[ -d ${DOTFILES_DIR}/wezterm ]] && [[ -f ${DOTFILES_DIR}/wezterm/wezterm.lua ]]; then
+  mkdir -p ${HOME}/.config
+  if [[ -L ${HOME}/.config/wezterm ]]; then
+    unlink ${HOME}/.config/wezterm
+  elif [[ -d ${HOME}/.config/wezterm ]]; then
+    rm -rf ${HOME}/.config/wezterm
+  fi
+  ln -sfn ${DOTFILES_DIR}/wezterm ${HOME}/.config/wezterm
+  echo "Created: ${HOME}/.config/wezterm -> ${DOTFILES_DIR}/wezterm"
+fi
 
-#----------------------------------------------------------
-# last message
 #----------------------------------------------------------
 util::info "Installation completed! Please restart terminal." 

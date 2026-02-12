@@ -1,11 +1,7 @@
 # -----------------------------------------------------------
-# Taps
-# -----------------------------------------------------------
-tap 'homebrew/cask-fonts'
-
-# -----------------------------------------------------------
 # Formula
 # -----------------------------------------------------------
+brew 'coreutils'  # gls: ls に色付け（GNU ls）
 brew 'fzf'
 brew 'sheldon'
 brew 'starship'
@@ -19,15 +15,14 @@ brew 'git'
 # Cask
 # -----------------------------------------------------------
 cask 'google-chrome'
-cask 'alacritty'
+cask 'wezterm'
 cask 'cursor'
-cask 'docker'
+cask 'docker-desktop'
 cask 'visual-studio-code'
 cask 'slack'
 cask 'zoom'
 cask 'notion'
 cask '1password'
 cask 'claude'
-cask 'flux'
-cask 'font-hack-nerd-font'
+cask 'flux-app'
 cask 'wireshark'

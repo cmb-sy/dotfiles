@@ -1,0 +1,111 @@
+{
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "MISE_YES": "1",
+    "DIRENV_LOG_FORMAT": "",
+    "NO_COLOR": "0"
+  },
+  "autoUpdater": true,
+  "theme": "dark",
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(wc:*)",
+      "Bash(git:*)",
+      "Bash(gh:*)",
+      "Bash(npm:*)",
+      "Bash(node:*)",
+      "Bash(npx:*)",
+      "Bash(yarn:*)",
+      "Bash(pnpm:*)",
+      "Bash(bun:*)",
+      "Bash(go:*)",
+      "Bash(cargo:*)",
+      "Bash(rustc:*)",
+      "Bash(python:*)",
+      "Bash(pip:*)",
+      "Bash(uv:*)",
+      "Bash(docker:*)",
+      "Bash(docker-compose:*)",
+      "Bash(kubectl:*)",
+      "Bash(terraform:*)",
+      "Bash(aws:*)",
+      "Bash(gcloud:*)",
+      "Bash(make:*)",
+      "Bash(jq:*)",
+      "Bash(curl:*)",
+      "Bash(mkdir:*)",
+      "Bash(touch:*)",
+      "Bash(cp:*)",
+      "Bash(mv:*)",
+      "Bash(rm:*)",
+      "Bash(cursor:*)",
+      "Bash(code:*)"
+    ],
+    "deny": [
+      "Bash(vim:*)",
+      "Bash(nano:*)",
+      "Bash(less:*)",
+      "Bash(man:*)",
+      "Bash(ssh:*)",
+      "Bash(scp:*)",
+      "Bash(sops:*)",
+      "Bash(op:*)",
+      "Bash(shutdown:*)",
+      "Bash(reboot:*)",
+      "Bash(init:*)"
+    ]
+  },
+  "ignorePatterns": [
+    "**/node_modules/**",
+    "**/.git/**",
+    "**/.DS_Store",
+    "**/dist/**",
+    "**/build/**",
+    "**/*.lock",
+    "**/package-lock.json",
+    "**/yarn.lock",
+    "**/pnpm-lock.yaml",
+    "**/*.pyc",
+    "**/__pycache__/**",
+    "**/.env*",
+    "**/coverage/**"
+  ],
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if echo \"$CLAUDE_TOOL_INPUT\" | grep -qE '(rm\\s+-rf\\s+(/|~|\\$HOME|/usr|/etc)|mkfs|dd\\s+if=)'; then echo '❌ BLOCKED: Destructive command detected.' >&2; exit 1; fi"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "idle_prompt",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "osascript -e 'display notification \"Claude has finished the task.\" with title \"Claude Code\" sound name \"Glass\"'"
+          }
+        ]
+      },
+      {
+        "matcher": "permission_prompt",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "osascript -e 'display notification \"Approval required.\" with title \"Claude Code\"'"
+          }
+        ]
+      }
+    ]
+  },
+  "preferredEditor": "code"
+}
