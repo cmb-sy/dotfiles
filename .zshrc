@@ -68,7 +68,8 @@ if [[ -f "${DOTFILES:-${HOME}/dotfiles}/.aliases.sh" ]]; then
 fi
 
 # ----------------------------------------------------------
-# Setup proper Python and pip PATH
+# PATH Settings
 # ----------------------------------------------------------
+export PATH="${HOME}/.claude/local:$PATH"
 export PATH="/opt/homebrew/bin:$PATH"
 export PATH="/usr/local/bin:$PATH"

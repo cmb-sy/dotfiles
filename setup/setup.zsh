@@ -84,6 +84,19 @@ if [[ -d ${DOTFILES_DIR}/claude ]]; then
 fi
 
 #----------------------------------------------------------
+# Cursor
+#----------------------------------------------------------
+mkdir -p ${HOME}/.cursor
+if [[ -L ${HOME}/.cursor/skills ]]; then
+  unlink ${HOME}/.cursor/skills
+fi
+if [[ -d ${DOTFILES_DIR}/claude/skills ]] || [[ -d ${DOTFILES_DIR}/claude ]]; then
+  mkdir -p ${DOTFILES_DIR}/claude/skills
+  ln -sfn ${DOTFILES_DIR}/claude/skills ${HOME}/.cursor/skills
+  echo "Created: ~/.cursor/skills -> ${DOTFILES_DIR}/claude/skills (shared with Claude)"
+fi
+
+#----------------------------------------------------------
 # Wezterm
 #----------------------------------------------------------
 if [[ -d ${DOTFILES_DIR}/wezterm ]] && [[ -f ${DOTFILES_DIR}/wezterm/wezterm.lua ]]; then

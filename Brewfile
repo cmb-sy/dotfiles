@@ -10,6 +10,7 @@ brew 'zsh'
 brew 'uv'
 brew 'yarn'
 brew 'git'
+brew 'mise'
 
 # -----------------------------------------------------------
 # Cask
@@ -24,5 +25,6 @@ cask 'zoom'
 cask 'notion'
 cask '1password'
 cask 'claude'
+cask 'claude-code'
 cask 'flux-app'
-cask 'wireshark'
+cask 'wireshark-app'

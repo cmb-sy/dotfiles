@@ -12,7 +12,8 @@ util::info "Starting dotfiles installation..."
 util::confirm "Install packages from Brewfile?"
 if [[ $? = 0 ]]; then
   export HOMEBREW_NO_AUTO_UPDATE=1
-  brew bundle --file="${REPO_DIR}/Brewfile"
+  export HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1
+  brew bundle --file="${REPO_DIR}/Brewfile" --quiet
 fi
 
 #----------------------------------------------------------
@@ -32,21 +33,27 @@ if [[ $? = 0 ]]; then
 fi
 
 #----------------------------------------------------------
-# LLM Skills (Claude Code リモートスキル)
+# LLM Agent Skills
 #----------------------------------------------------------
 util::confirm "Install LLM remote skills?"
 if [[ $? = 0 ]]; then
+  for dir in "${HOME}/.claude" "${HOME}/.cursor"; do
+    mkdir -p "${dir}"
+    [[ -L "${dir}/skills" ]] && unlink "${dir}/skills"
+    [[ ! -d "${dir}/skills" ]] && mkdir -p "${dir}/skills"
+  done
   source "${REPO_DIR}/claude/install-llm-skills.zsh"
+  rm -rf "${HOME}/.cursor/skills"
+  ln -sfn "${HOME}/.claude/skills" "${HOME}/.cursor/skills"
 fi
 
 #----------------------------------------------------------
-# macOS settings
+# macOS settings (skip password prompt when FORCE=1)
 #----------------------------------------------------------
-util::confirm "Apply macOS settings?"
-if [[ $? = 0 ]]; then
+if [[ ${FORCE} != 1 ]] && util::confirm "Apply macOS settings?"; then
   source "${REPO_DIR}/macos/install.zsh"
 fi
 
 util::info "Cleanup..."
-brew cleanup
+brew cleanup 2>/dev/null || true
 util::info "Done!"

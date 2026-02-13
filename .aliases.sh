@@ -7,7 +7,7 @@ alias ..='cd ..'
 alias ...='cd ../..'
 alias ....='cd ../../..'
 if command -v gls >/dev/null 2>&1; then
-  export LS_COLORS='di=34:fi=0'
+  export LS_COLORS='di=34:fi=37'
   alias ls='gls --color=auto'
   alias l='gls --color=auto'
   alias la='gls -a --color=auto'
@@ -52,6 +52,7 @@ if command -v claude >/dev/null 2>&1; then
     [ -z "$q" ] && q="$_claude_commit_default"
     claude --append-system-prompt "$(cat "$_claude_commit_prompt" 2>/dev/null || true)" "$q"
   }
+  alias cl='claude'
   alias claude-review='clr'
   alias claude-doc='cld'
   alias claude-commit='clc'
