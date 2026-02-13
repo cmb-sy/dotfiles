@@ -22,6 +22,9 @@ return {
     colors = { "#000000" },
   },
 
+  -- Bell
+  audible_bell = "Disabled",
+
   -- Tab Bar
   show_new_tab_button_in_tab_bar = false,
 }

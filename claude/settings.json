@@ -5,8 +5,6 @@
     "DIRENV_LOG_FORMAT": "",
     "NO_COLOR": "0"
   },
-  "autoUpdater": true,
-  "theme": "dark",
   "permissions": {
     "allow": [
       "Bash(ls:*)",
@@ -59,21 +57,6 @@
       "Bash(init:*)"
     ]
   },
-  "ignorePatterns": [
-    "**/node_modules/**",
-    "**/.git/**",
-    "**/.DS_Store",
-    "**/dist/**",
-    "**/build/**",
-    "**/*.lock",
-    "**/package-lock.json",
-    "**/yarn.lock",
-    "**/pnpm-lock.yaml",
-    "**/*.pyc",
-    "**/__pycache__/**",
-    "**/.env*",
-    "**/coverage/**"
-  ],
   "hooks": {
     "PreToolUse": [
       {
@@ -92,7 +75,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "osascript -e 'display notification \"Claude has finished the task.\" with title \"Claude Code\" sound name \"Glass\"'"
+            "command": "osascript -e 'display notification \"Claude has finished the task.\" with title \"Claude Code\" '; printf '\\a'"
           }
         ]
       },
@@ -101,11 +84,28 @@
         "hooks": [
           {
             "type": "command",
-            "command": "osascript -e 'display notification \"Approval required.\" with title \"Claude Code\"'"
+            "command": "osascript -e 'display notification \"Approval required.\" with title \"Claude Code\"'; printf '\\a'"
           }
         ]
       }
     ]
   },
+  "autoUpdater": true,
+  "theme": "dark",
+  "ignorePatterns": [
+    "**/node_modules/**",
+    "**/.git/**",
+    "**/.DS_Store",
+    "**/dist/**",
+    "**/build/**",
+    "**/*.lock",
+    "**/package-lock.json",
+    "**/yarn.lock",
+    "**/pnpm-lock.yaml",
+    "**/*.pyc",
+    "**/__pycache__/**",
+    "**/.env*",
+    "**/coverage/**"
+  ],
   "preferredEditor": "code"
 }

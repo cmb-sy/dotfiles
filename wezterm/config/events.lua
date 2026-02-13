@@ -1,10 +1,15 @@
--- イベント: 起動時フルスクリーン・タブタイトル
+-- イベント: 起動時フルスクリーン・タブタイトル・ベル通知
 local wezterm = require("wezterm")
 
 -- 起動時にフルスクリーン
 wezterm.on("gui-startup", function()
   local tab, pane, window = wezterm.mux.spawn_window({})
   window:gui_window():toggle_fullscreen()
+end)
+
+-- ベル通知（Claude Code 完了時など）
+wezterm.on("bell", function(window, pane)
+  window:toast_notification("Claude Code", "Task completed", nil, 4000)
 end)
 
 -- タブタイトルの見た目

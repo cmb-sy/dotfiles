@@ -35,5 +35,6 @@
   "terminal.integrated.fontFamily": "Hack Nerd Font",
   "terminal.integrated.fontSize": 13,
   "git.enableSmartCommit": true,
-  "editor.largeFileOptimizations": false
+  "editor.largeFileOptimizations": false,
+  "claudeCode.useTerminal": true,
 }
