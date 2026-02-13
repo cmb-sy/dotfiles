@@ -7,23 +7,18 @@
 	a = add
 	aa = add --all
     br = branch
-	brm = branch -m 
     co = checkout
     com = commit
 	di = diff
-	ds = diff --staged
 	fe = fetch
 	g = log --graph --date=short --decorate=short --pretty=format:'%Cgreen%h %Creset%cd %Cblue%cn %Cred%d %Creset%s'
 	ga = log --graph --decorate --oneline --all
 	gg = log --all --graph --date=short --decorate=short --pretty=format:'%Cgreen%h %Creset%cd %Cblue%cn %Cred%d %Creset%s'
 	l = log
-	ld = git log --diff-filter=D --summary
-	lo = log --oneline
-	lp = log -p
-	ls = log --stat
 	pl = pull
 	ps = push
 	s = status
+	w = worktree
 	sh = show
 	st = stash
 	cp = cherry-pick
