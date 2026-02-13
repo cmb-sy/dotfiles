@@ -1,10 +1,8 @@
 #!/bin/zsh
 
-# Load the path relative to the directory where the script is being executed
 SCRIPT_DIR="$(cd "$(dirname "${0}")" && pwd)"
 source "${SCRIPT_DIR}/util.zsh"
 
-# Get the path using util::repo_dir()
 export SCRIPT_DIR
 DOTFILES_DIR="$(util::repo_dir)"
 
@@ -25,7 +23,7 @@ cd ${DOTFILES_DIR}
 # Create symbolic links for dotfiles
 #----------------------------------------------------------
 for name in *; do
-  if [[ ${name} != 'setup' ]] && [[ ${name} != 'config' ]] && [[ ${name} != 'vscode' ]] && [[ ${name} != 'README.md' ]] && [[ ${name} != 'wezterm' ]]; then
+  if [[ ${name} != 'setup' ]] && [[ ${name} != 'config' ]] && [[ ${name} != 'vscode' ]] && [[ ${name} != 'README.md' ]] && [[ ${name} != 'wezterm' ]] && [[ ${name} != 'claude' ]]; then
     if [[ -L ${HOME}/.${name} ]]; then
       unlink ${HOME}/.${name}
     fi
@@ -55,12 +53,35 @@ if [[ ! -d ${HOME}/Library/Application\ Support/Code/User ]]; then
 fi
 ln -sfv ${PWD}/.vscode/settings.json ${HOME}/Library/Application\ Support/Code/User/settings.json
 
+#----------------------------------------------------------
+# Cursor Settings（VSCode と同じ settings.json を参照）
+#----------------------------------------------------------
+if [[ ! -d ${HOME}/Library/Application\ Support/Cursor/User ]]; then
+  mkdir -p ${HOME}/Library/Application\ Support/Cursor/User
+fi
+ln -sfv ${PWD}/.vscode/settings.json ${HOME}/Library/Application\ Support/Cursor/User/settings.json
 
 #----------------------------------------------------------
 # Run installation scripts
 #----------------------------------------------------------
 FORCE=1
 . ${DOTFILES_DIR}/setup/install.zsh
+
+#----------------------------------------------------------
+# Claude
+#----------------------------------------------------------
+if [[ -d ${DOTFILES_DIR}/claude ]]; then
+  mkdir -p ${HOME}/.claude
+  # settings.json
+  ln -sf ${DOTFILES_DIR}/claude/settings.json ${HOME}/.claude/settings.json
+  # CLAUDE.md
+  ln -sf ${DOTFILES_DIR}/claude/CLAUDE.md ${HOME}/.claude/CLAUDE.md
+  # prompts
+  if [[ -d ${DOTFILES_DIR}/claude/prompts ]]; then
+    ln -sfn ${DOTFILES_DIR}/claude/prompts ${HOME}/.claude/prompts
+  fi
+  echo "Created: ~/.claude/{settings.json,CLAUDE.md,skills,prompts} -> ${DOTFILES_DIR}/claude/"
+fi
 
 #----------------------------------------------------------
 # Wezterm

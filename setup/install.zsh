@@ -24,6 +24,22 @@ if [[ $? = 0 ]]; then
 fi
 
 #----------------------------------------------------------
+# Cursor Extensions
+#----------------------------------------------------------
+util::confirm "Install Cursor extensions?"
+if [[ $? = 0 ]]; then
+  source "${REPO_DIR}/.cursor/install.zsh"
+fi
+
+#----------------------------------------------------------
+# LLM Skills (Claude Code リモートスキル)
+#----------------------------------------------------------
+util::confirm "Install LLM remote skills?"
+if [[ $? = 0 ]]; then
+  source "${REPO_DIR}/claude/install-llm-skills.zsh"
+fi
+
+#----------------------------------------------------------
 # macOS settings
 #----------------------------------------------------------
 util::confirm "Apply macOS settings?"
