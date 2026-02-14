@@ -56,6 +56,14 @@ if command -v claude >/dev/null 2>&1; then
   alias claude-review='clr'
   alias claude-doc='cld'
   alias claude-commit='clc'
+
+  # 自律実行モード（テスト→修正→再テストを自動で回す）
+  cla () {
+    local q="$*"
+    [ -z "$q" ] && q="Implement the requested changes. Run tests, fix failures, and repeat until all tests pass."
+    claude --dangerously-skip-permissions "$q"
+  }
+  alias claude-auto='cla'
 fi
 
 # ----------------------------------------------------------

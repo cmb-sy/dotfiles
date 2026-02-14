@@ -76,11 +76,15 @@ if [[ -d ${DOTFILES_DIR}/claude ]]; then
   ln -sf ${DOTFILES_DIR}/claude/settings.json ${HOME}/.claude/settings.json
   # CLAUDE.md
   ln -sf ${DOTFILES_DIR}/claude/CLAUDE.md ${HOME}/.claude/CLAUDE.md
+  # mcp.json
+  if [[ -f ${DOTFILES_DIR}/claude/mcp.json ]]; then
+    ln -sf ${DOTFILES_DIR}/claude/mcp.json ${HOME}/.claude/mcp.json
+  fi
   # prompts
   if [[ -d ${DOTFILES_DIR}/claude/prompts ]]; then
     ln -sfn ${DOTFILES_DIR}/claude/prompts ${HOME}/.claude/prompts
   fi
-  echo "Created: ~/.claude/{settings.json,CLAUDE.md,skills,prompts} -> ${DOTFILES_DIR}/claude/"
+  echo "Created: ~/.claude/{settings.json,CLAUDE.md,mcp.json,skills,prompts} -> ${DOTFILES_DIR}/claude/"
 fi
 
 #----------------------------------------------------------
