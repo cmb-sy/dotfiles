@@ -25,8 +25,4 @@ export SAVEHIST=1000000
 # PATH Settings
 # ----------------------------------------------------------
 export PATH="/usr/local/bin:${PATH}"
-export PATH="${HOME}/.asdf/bin:${PATH}"
-export PATH="${HOME}/.asdf/shims:${PATH}"
 export PATH="/opt/homebrew/bin:$PATH"
-
-export PATH="/usr/bin/python:$PATH"
