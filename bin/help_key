@@ -1,0 +1,129 @@
+#!/bin/bash
+# Display all custom keybindings across tools
+# Usage: keybindings [wezterm|nvim|all]
+
+DOTFILES_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+
+BOLD='\033[1m'
+CYAN='\033[36m'
+GREEN='\033[32m'
+YELLOW='\033[33m'
+DIM='\033[2m'
+RESET='\033[0m'
+
+show_wezterm() {
+  echo -e "\n${BOLD}${CYAN}━━━ WezTerm ━━━${RESET}\n"
+
+  echo -e "  ${YELLOW}Tabs${RESET}"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+T"              "New tab"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+W"              "Close tab"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+1-9"            "Switch to tab N"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+Shift+[ / ]"    "Previous / Next tab"
+
+  echo -e "  ${YELLOW}Panes${RESET}"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+Shift+\\"       "Split vertical (down)"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+Shift+-"        "Split horizontal (right)"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+Alt+Arrow"      "Move between panes"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+Shift+Arrow"   "Resize pane"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+Shift+Enter"    "Zoom pane (toggle)"
+
+  echo -e "  ${YELLOW}Font${RESET}"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+Shift+- / ="   "Font size down / up"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+0"              "Reset font size"
+
+  echo -e "  ${YELLOW}Tools${RESET}"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+Shift+P"        "Command palette"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+Shift+O"       "Project sessionizer (dev)"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+Shift+X"       "Copy mode"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+Shift+Space"   "Quick select (URLs, paths)"
+}
+
+show_nvim() {
+  echo -e "\n${BOLD}${CYAN}━━━ Neovim (Custom) ━━━${RESET}\n"
+
+  echo -e "  ${YELLOW}File${RESET}"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+S"             "Save file"
+
+  echo -e "  ${YELLOW}Edit${RESET}"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+Z"             "Undo"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+Shift+Z"       "Redo"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+A"             "Select all"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+C (visual)"    "Copy"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+X (visual)"    "Cut"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+/"             "Toggle comment"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Alt+Up/Down"        "Move line"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+Shift+D"       "Duplicate line"
+
+  echo -e "  ${YELLOW}Search / Navigation${RESET}"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+P"             "Find files"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+Shift+P"       "Command palette"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+F"             "Search in file"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+Shift+F"       "Search in project"
+
+  echo -e "  ${YELLOW}UI${RESET}"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+B"             "Toggle file explorer"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+\`"            "Toggle terminal"
+
+  echo -e "  ${YELLOW}Buffers (Tabs)${RESET}"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+Tab"           "Next buffer"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+Shift+Tab"     "Previous buffer"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Space b d"          "Close buffer"
+
+  echo -e "  ${YELLOW}Claude${RESET}"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Space a c"          "Toggle Claude"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Space a f"          "Focus Claude"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Space a r"          "Resume Claude"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Space a C"          "Continue Claude"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Space a s (visual)" "Send selection to Claude"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Space a b"          "Add buffer to Claude"
+
+  echo -e "\n  ${DIM}Tip: Press Space and wait to see all leader key bindings (which-key)${RESET}"
+}
+
+show_shell() {
+  echo -e "\n${BOLD}${CYAN}━━━ Shell Aliases ━━━${RESET}\n"
+
+  echo -e "  ${YELLOW}Navigation${RESET}"
+  printf "    ${GREEN}%-24s${RESET} %s\n" ".."                  "cd .."
+  printf "    ${GREEN}%-24s${RESET} %s\n" "..."                 "cd ../.."
+  printf "    ${GREEN}%-24s${RESET} %s\n" "...."                "cd ../../.."
+
+  echo -e "  ${YELLOW}Docker${RESET}"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "d"                   "docker"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "dc"                  "docker compose"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "dps"                 "docker ps"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "dpsa"                "docker ps -a"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "dimg"                "docker images"
+
+  echo -e "  ${YELLOW}Claude${RESET}"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "cl"                  "claude"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "clr / claude-review" "Code review"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "cld / claude-doc"    "Documentation"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "clc / claude-commit" "Commit with message"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "cla / claude-auto"   "Autonomous mode"
+
+  echo -e "  ${YELLOW}Dev Tools${RESET}"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "dev"                  "Project sessionizer (fzf + nvim)"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "help_key"             "Show this keybindings list"
+
+  echo -e "  ${YELLOW}Others${RESET}"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "la"                  "ls -a"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "h"                   "history"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "tenki"               "weather"
+}
+
+case "${1:-all}" in
+  wezterm)  show_wezterm ;;
+  nvim|vim) show_nvim ;;
+  shell|sh) show_shell ;;
+  all)
+    show_wezterm
+    show_nvim
+    show_shell
+    echo ""
+    ;;
+  *)
+    echo "Usage: help_key [wezterm|nvim|shell|all]"
+    exit 1
+    ;;
+esac

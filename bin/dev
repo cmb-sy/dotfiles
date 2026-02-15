@@ -1,0 +1,70 @@
+#!/bin/bash
+# Project sessionizer: fzf でプロジェクトを選び、Neovim で開く
+# WezTerm workspace として新しいタブ/ウィンドウで起動
+#
+# Usage:
+#   dev              # fzf でプロジェクトを選択
+#   dev <query>      # クエリ付きで fzf を起動
+#   dev <path>       # パスを直接指定して開く
+
+set -euo pipefail
+
+# ── 検索対象ディレクトリ（存在するもののみ使用） ──
+SEARCH_DIRS=(
+  "$HOME/develop"
+  "$HOME/projects"
+  "$HOME/dev"
+  "$HOME/repos"
+  "$HOME/dotfiles"
+)
+
+# ── fzf が無ければ終了 ──
+if ! command -v fzf &>/dev/null; then
+  echo "fzf is required. Install with: brew install fzf" >&2
+  exit 1
+fi
+
+# ── 引数が既存ディレクトリならそのまま開く ──
+if [[ $# -eq 1 ]] && [[ -d "$1" ]]; then
+  selected="$1"
+else
+  # 検索対象を収集（depth 1 のサブディレクトリ）
+  dirs=()
+  for base in "${SEARCH_DIRS[@]}"; do
+    [[ -d "$base" ]] || continue
+    while IFS= read -r d; do
+      dirs+=("$d")
+    done < <(find "$base" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort)
+  done
+
+  if [[ ${#dirs[@]} -eq 0 ]]; then
+    echo "No project directories found in: ${SEARCH_DIRS[*]}" >&2
+    exit 1
+  fi
+
+  # fzf で選択
+  selected=$(printf '%s\n' "${dirs[@]}" | \
+    sed "s|^$HOME|~|" | \
+    fzf --height=40% --reverse --border \
+        --prompt=" Project > " \
+        --header="Select a project to open" \
+        --preview="ls -la {}" \
+        --query="${1:-}" | \
+    sed "s|^~|$HOME|")
+
+  if [[ -z "$selected" ]]; then
+    exit 0
+  fi
+fi
+
+project_name=$(basename "$selected")
+
+# ── WezTerm 内なら新しいワークスペースで開く ──
+if [[ "$TERM_PROGRAM" == "WezTerm" ]] && command -v wezterm &>/dev/null; then
+  # 新しいタブで nvim を起動
+  wezterm cli spawn --cwd "$selected" -- nvim
+else
+  # WezTerm 以外のターミナルではそのまま cd + nvim
+  cd "$selected"
+  nvim
+fi

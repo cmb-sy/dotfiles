@@ -23,7 +23,7 @@ cd ${DOTFILES_DIR}
 # Create symbolic links for dotfiles
 #----------------------------------------------------------
 for name in *; do
-  if [[ ${name} != 'setup' ]] && [[ ${name} != 'config' ]] && [[ ${name} != 'vscode' ]] && [[ ${name} != 'README.md' ]] && [[ ${name} != 'wezterm' ]] && [[ ${name} != 'claude' ]]; then
+  if [[ ${name} != 'setup' ]] && [[ ${name} != 'config' ]] && [[ ${name} != 'vscode' ]] && [[ ${name} != 'README.md' ]] && [[ ${name} != 'wezterm' ]] && [[ ${name} != 'claude' ]] && [[ ${name} != 'nvim' ]]; then
     if [[ -L ${HOME}/.${name} ]]; then
       unlink ${HOME}/.${name}
     fi
@@ -98,6 +98,20 @@ if [[ -d ${DOTFILES_DIR}/claude/skills ]] || [[ -d ${DOTFILES_DIR}/claude ]]; th
   mkdir -p ${DOTFILES_DIR}/claude/skills
   ln -sfn ${DOTFILES_DIR}/claude/skills ${HOME}/.cursor/skills
   echo "Created: ~/.cursor/skills -> ${DOTFILES_DIR}/claude/skills (shared with Claude)"
+fi
+
+#----------------------------------------------------------
+# Neovim
+#----------------------------------------------------------
+if [[ -d ${DOTFILES_DIR}/nvim ]]; then
+  mkdir -p ${HOME}/.config
+  if [[ -L ${HOME}/.config/nvim ]]; then
+    unlink ${HOME}/.config/nvim
+  elif [[ -d ${HOME}/.config/nvim ]]; then
+    rm -rf ${HOME}/.config/nvim
+  fi
+  ln -sfn ${DOTFILES_DIR}/nvim ${HOME}/.config/nvim
+  echo "Created: ${HOME}/.config/nvim -> ${DOTFILES_DIR}/nvim"
 fi
 
 #----------------------------------------------------------
