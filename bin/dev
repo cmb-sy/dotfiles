@@ -61,10 +61,10 @@ project_name=$(basename "$selected")
 
 # ── WezTerm 内なら新しいワークスペースで開く ──
 if [[ "$TERM_PROGRAM" == "WezTerm" ]] && command -v wezterm &>/dev/null; then
-  # 新しいタブで nvim を起動
-  wezterm cli spawn --cwd "$selected" -- nvim
+  # 新しいタブで nvim を起動（Neo-tree を自動表示）
+  wezterm cli spawn --cwd "$selected" -- nvim "+Neotree reveal"
 else
   # WezTerm 以外のターミナルではそのまま cd + nvim
   cd "$selected"
-  nvim
+  nvim "+Neotree reveal"
 fi

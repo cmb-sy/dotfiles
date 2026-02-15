@@ -25,13 +25,15 @@ return {
   { key = "9", mods = "SUPER", action = act.ActivateTab(-1) },
 
   -- ══════════════════════════════════════════════════════════
-  -- ペイン操作（VSCode風ターミナル分割）
+  -- ペイン操作
   -- ══════════════════════════════════════════════════════════
-  -- 縦分割: 下に新しいペイン（Cmd+Shift+\）
+  -- 縦分割: Cmd+\
+  { key = "\\", mods = "SUPER", action = act.SplitVertical { domain = "CurrentPaneDomain" } },
+  -- 縦分割: Cmd+Shift+|
   { key = "|", mods = "SUPER|SHIFT", action = act.SplitVertical { domain = "CurrentPaneDomain" } },
-  -- 横分割: 右に新しいペイン（Cmd+Shift+-）
-  { key = "-", mods = "SUPER|SHIFT", action = act.SplitHorizontal { domain = "CurrentPaneDomain" } },
-  -- ペイン間移動（Cmd+Alt+矢印）
+  -- 横分割: Cmd+Shift+- (WezTermはShift+-を"_"として認識する)
+  { key = "_", mods = "SUPER|SHIFT", action = act.SplitHorizontal { domain = "CurrentPaneDomain" } },
+  -- ペイン間移動
   { key = "LeftArrow", mods = "SUPER|ALT", action = act.ActivatePaneDirection("Left") },
   { key = "RightArrow", mods = "SUPER|ALT", action = act.ActivatePaneDirection("Right") },
   { key = "UpArrow", mods = "SUPER|ALT", action = act.ActivatePaneDirection("Up") },

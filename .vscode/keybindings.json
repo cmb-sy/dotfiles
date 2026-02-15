@@ -1,0 +1,26 @@
+[
+  // Keybindings aligned with WezTerm config
+  // Note: JIS keyboard requires scan code or alternate key representations
+
+  // Disable default zoom bindings
+  { "key": "cmd+shift+=", "command": "-workbench.action.zoomIn" },
+  { "key": "cmd+=", "command": "-workbench.action.zoomIn" },
+  { "key": "cmd+-", "command": "-workbench.action.zoomOut" },
+  { "key": "cmd+shift+-", "command": "-workbench.action.zoomOut" },
+
+  // Zoom in: Cmd+Shift+; (JIS "+" key, scan code required)
+  { "key": "cmd+shift+[Semicolon]", "command": "workbench.action.zoomIn" },
+
+  // Zoom out: Cmd+; (JIS ";" key without Shift)
+  { "key": "cmd+;", "command": "workbench.action.zoomOut" },
+
+  // Vertical split: Cmd+Shift+- (JIS resolves as Cmd+=)
+  { "key": "cmd+=", "command": "workbench.action.splitEditor" },
+  { "key": "cmd+shift+-", "command": "workbench.action.splitEditor" },
+  { "key": "cmd+shift+_", "command": "workbench.action.splitEditor" },
+
+  // Horizontal split: Cmd+Shift+| (JIS may resolve as Cmd+|)
+  { "key": "cmd+shift+|", "command": "workbench.action.splitEditorDown" },
+  { "key": "cmd+|", "command": "workbench.action.splitEditorDown" },
+  { "key": "cmd+shift+\\", "command": "workbench.action.splitEditorDown" }
+]
