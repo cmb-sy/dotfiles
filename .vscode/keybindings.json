@@ -2,6 +2,11 @@
   // Keybindings aligned with WezTerm config
   // Note: JIS keyboard requires scan code or alternate key representations
 
+  // Cmd+B: ツリー（サイドバー）の開閉のみ。太字は無効化
+  { "key": "cmd+b", "command": "-editor.action.fontWeight.bold" },
+  { "key": "cmd+b", "command": "-markdown.extension.editing.toggleBold" },
+  { "key": "cmd+b", "command": "workbench.action.toggleSidebarVisibility" },
+
   // Disable default zoom bindings
   { "key": "cmd+shift+=", "command": "-workbench.action.zoomIn" },
   { "key": "cmd+=", "command": "-workbench.action.zoomIn" },
