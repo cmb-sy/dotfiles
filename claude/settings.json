@@ -6,6 +6,7 @@
     "NO_COLOR": "0"
   },
   "permissions": {
+    "defaultMode": "bypassPermissions",
     "allow": [
       "Bash(ls:*)",
       "Bash(cat:*)",
