@@ -3,6 +3,9 @@ local wezterm = require("wezterm")
 return {
   automatically_reload_config = true,
 
+  -- Leader key (e.g. Ctrl+b then s = workspace launcher)
+  leader = { key = "b", mods = "CTRL" },
+
   -- Font
   font = wezterm.font("JetBrains Mono"),
   font_size = 16,

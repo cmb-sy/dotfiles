@@ -50,8 +50,9 @@ fi
 model=""
 [ -n "$MODEL_NAME" ] && [ "$MODEL_NAME" != "null" ] && model="${D}Model :${R} ${P}${MODEL_NAME}${R}"
 
-# Mode Architect
 mode_display=""
-[ -n "$MODE" ] && [ "$MODE" != "null" ] && mode_display="${sep}${D}Mode :${R} ${P}${MODE}${R}"
+if [ -n "$MODE" ] && [ "$MODE" != "null" ] && [ "$MODE" != "true" ] && [ "$MODE" != "false" ]; then
+  mode_display="${sep}${D}Mode :${R} ${P}${MODE}${R}"
+fi
 
 echo "${model}${ctx}${mode_display}${repo}${sep}${R}"

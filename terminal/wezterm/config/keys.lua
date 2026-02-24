@@ -1,11 +1,15 @@
--- キーバインド: VSCode風ショートカット + ペイン操作
+-- Key bindings: VSCode-style shortcuts, panes, workspaces
 local wezterm = require("wezterm")
 local act = wezterm.action
 
 return {
-  -- タブ操作（VSCode風）
+  -- Cmd+Shift+S: workspace launcher
+  { key = "s", mods = "SUPER|SHIFT", action = act.ShowLauncherArgs { flags = "WORKSPACES", title = "Select workspace" } },
+  -- Leader + s: same (optional)
+  { key = "s", mods = "LEADER", action = act.ShowLauncherArgs { flags = "WORKSPACES", title = "Select workspace" } },
+  -- Tab operations (VSCode style)
   { key = "t", mods = "SUPER", action = act.SpawnTab("CurrentPaneDomain") },
-  { key = "w", mods = "SUPER", action = act.CloseCurrentTab { confirm = true } },
+  { key = "w", mods = "SUPER", action = act.CloseCurrentTab },
   { key = "[", mods = "SUPER|SHIFT", action = act.ActivateTabRelative(-1) },
   { key = "]", mods = "SUPER|SHIFT", action = act.ActivateTabRelative(1) },
   { key = "1", mods = "SUPER", action = act.ActivateTab(0) },
@@ -17,7 +21,7 @@ return {
   { key = "7", mods = "SUPER", action = act.ActivateTab(6) },
   { key = "8", mods = "SUPER", action = act.ActivateTab(7) },
   { key = "9", mods = "SUPER", action = act.ActivateTab(-1) },
-  -- ペイン操作
+  -- Panes
   { key = "\\", mods = "SUPER", action = act.SplitVertical { domain = "CurrentPaneDomain" } },
   { key = "|", mods = "SUPER|SHIFT", action = act.SplitVertical { domain = "CurrentPaneDomain" } },
   { key = "_", mods = "SUPER|SHIFT", action = act.SplitHorizontal { domain = "CurrentPaneDomain" } },
@@ -30,16 +34,18 @@ return {
   { key = "UpArrow", mods = "CTRL|SHIFT", action = act.AdjustPaneSize { "Up", 3 } },
   { key = "DownArrow", mods = "CTRL|SHIFT", action = act.AdjustPaneSize { "Down", 3 } },
   { key = "Enter", mods = "SUPER|SHIFT", action = act.TogglePaneZoomState },
-  -- フォントサイズ
+  -- Window: toggle fullscreen (expand workspace window)
+  { key = "f", mods = "SUPER|CTRL", action = act.ToggleFullScreen },
+  -- Font size
   { key = "-", mods = "CTRL|SHIFT", action = act.DecreaseFontSize },
   { key = "=", mods = "CTRL|SHIFT", action = act.IncreaseFontSize },
   { key = "0", mods = "SUPER", action = act.ResetFontSize },
-  -- コマンドパレット & セッショナイザー
+  -- Command palette & session launcher
   { key = "p", mods = "SUPER|SHIFT", action = act.ActivateCommandPalette },
   { key = "o", mods = "CTRL|SHIFT", action = act.SpawnCommandInNewTab { args = { "/bin/zsh", "-ic", os.getenv("HOME") .. "/dotfiles/bin/dev" } } },
-  -- コピーモード / Quick Select
+  -- Copy mode / Quick Select
   { key = "x", mods = "CTRL|SHIFT", action = act.ActivateCopyMode },
   { key = "Space", mods = "CTRL|SHIFT", action = act.QuickSelect },
-  -- Claude Code 改行（Shift+Return → \n 送信）
+  -- Claude Code: Shift+Return sends newline
   { key = "Return", mods = "SHIFT", action = act.SendString("\n") },
 }
