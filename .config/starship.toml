@@ -1,101 +1,63 @@
-format = """
-$directory\
-$git_branch$git_commit$git_state$git_status$hg_branch\
-$docker_context\
-$nodejs\
-$python\
-$aws\
-$line_break\
-$character
-"""
-
-right_format = """
-$cmd_duration
-"""
 add_newline = false
 
-[cmd_duration]
-min_time = 0
-format = "[$duration]($style)"
-style = "bold white"
-
-[time]
-disabled = false
-format = "[$time]($style)"
-style = "bold fg:white"
-time_format = "%H:%M:%S"
-
-[directory]
-style = "bold fg:#70CA80"
-read_only = " 󰌾"
-format = "[$read_only]($read_only_style) [$path]($style) "
-truncate_to_repo = true
-truncation_length = 1
-truncation_symbol = "../"
-
-[docker_context]
-symbol = " "
-
-[git_branch]
-symbol = " "
-always_show_remote = false
-style = "bold fg:#70CA80"
-
-[git_commit]
-tag_symbol = '  '
-format = "[$symbol$branch(:$remote_branch)]($style) "
-style = "bold fg:#70CA80"
-
-[git_status]
-format = '([\[$all_status$ahead_behind\]]($style) )'
-conflicted = "= "
-ahead = "⇡"
-behind = "⇣"
-diverged = "⇕ "
-up_to_date = "\uf021 "
-untracked = "? "
-stashed = "% "
-modified = "* "
-staged = "+ "
-renamed = "» "
-deleted = "✘ "
-style = "bold fg:#70CA80"
-ignore_submodules = false
-disabled = false
-
-[os.symbols]
-CachyOS = " "
-CentOS = " "
-Macos = " "
-Ubuntu = " "
-Windows = "󰍲 "
-
-[nodejs]
-symbol = " "
-
-[aws]
-symbol = " "
-
-[python]
-symbol = " "
-
-# [time]
-# disabled = false
-# time_format = "%R" # Hour:Minute Format
-# style = "bg:#1d2230"
-# format = '[[   $time ](fg:#a0a9cb bg:#1d2230)]($style)'
-
-# [os]
-# format = "[$symbol]($style)"
-# style = "fg:#2E3440 bg:#88C0D0 bold"
-# disabled = false
-
-# [os.symbols]
-# Macos = "  " # nf-fa-apple
-# Ubuntu = "  " # nf-linux-ubuntu
-# Debian = "  " # nf-linux-debian
+format = """
+$username\
+$hostname\
+$localip\
+$shlvl\
+$singularity\
+$directory\
+$git_branch\
+$git_commit\
+$git_state\
+$git_metrics\
+$git_status\
+$python\
+$aws\
+$gcloud\
+$kubernetes\
+$docker_context\
+$sudo\
+$time\
+$cmd_duration\
+$line_break\
+$jobs\
+$battery\
+$status\
+$os\
+$container\
+$shell\
+$character"""
 
 [character]
-success_symbol = "[>](bold green)"
-error_symbol   = "[X](bold red)"
-vicmd_symbol   = "[V](bold green)"
+error_symbol = "[❯](bold red)"
+success_symbol = "[❯](bold green)"
+
+[directory]
+truncation_length = 100
+truncate_to_repo = false
+truncation_symbol = "…/"
+
+[python]
+format = '/ [${symbol}${pyenv_prefix}(${version} )(\($virtualenv\) )]($style)'
+
+[aws]
+format = '/ [$symbol ($profile) (\($region\) )]($style) '
+symbol = "󰸏"
+disabled = false
+
+[gcloud]
+format = '/ [$symbol $account(@$domain) (\($project\))]($style) '
+symbol = "󱇶"
+disabled = false
+
+[kubernetes]
+format = '/ [$symbol $cluster \($namespace\)](dimmed green) '
+symbol = "󱃾 "
+disabled = false
+
+[docker_context]
+format = "/ [$symbol$context]($style) "
+
+[git_branch]
+symbol = " "

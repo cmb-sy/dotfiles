@@ -20,10 +20,10 @@ fi
 cd ${DOTFILES_DIR}
 
 #----------------------------------------------------------
-# Create symbolic links for dotfiles
+# Create symbolic links for dotfiles (dot-prefixed files)
 #----------------------------------------------------------
 for name in *; do
-  if [[ ${name} != 'setup' ]] && [[ ${name} != 'config' ]] && [[ ${name} != 'vscode' ]] && [[ ${name} != 'README.md' ]] && [[ ${name} != 'wezterm' ]] && [[ ${name} != 'claude' ]] && [[ ${name} != 'terminal' ]] && [[ ${name} != 'tmux' ]] && [[ ${name} != 'nvim' ]]; then
+  if [[ ${name} != 'setup' ]] && [[ ${name} != 'README.md' ]] && [[ ${name} != 'terminal' ]] && [[ ${name} != 'tmux' ]]; then
     if [[ -L ${HOME}/.${name} ]]; then
       unlink ${HOME}/.${name}
     fi
@@ -31,35 +31,44 @@ for name in *; do
   fi
 done
 
-if [[ ! -d ${HOME}/.config ]]; then
-  mkdir ${HOME}/.config
-fi
+#----------------------------------------------------------
+# .config symlinks
+#----------------------------------------------------------
+mkdir -p ${HOME}/.config
 
-cd .config
-
-for name in *; do
-  if [[ ! $name =~ ^(setup|.config|vscode|README\.md|git)$ ]]; then
-    ln -sf ${PWD}/$name ${HOME}/.$name
+for name in ${DOTFILES_DIR}/.config/*; do
+  name="$(basename ${name})"
+  if [[ -L ${HOME}/.config/${name} ]]; then
+    unlink ${HOME}/.config/${name}
   fi
+  ln -sfv ${DOTFILES_DIR}/.config/${name} ${HOME}/.config/${name}
 done
 
-cd ..
+
+chmod +x ${DOTFILES_DIR}/claude/statusline.sh 2>/dev/null
+
+#----------------------------------------------------------
+# WezTerm
+#----------------------------------------------------------
+for name in ${DOTFILES_DIR}/terminal/*; do
+  name="$(basename ${name})"
+  if [[ -L ${HOME}/.config/${name} ]]; then
+    unlink ${HOME}/.config/${name}
+  fi
+  ln -sfv ${DOTFILES_DIR}/terminal/${name} ${HOME}/.config/${name}
+done
 
 #----------------------------------------------------------
 # VSCode Settings
 #----------------------------------------------------------
-if [[ ! -d ${HOME}/Library/Application\ Support/Code/User ]]; then
-  mkdir -p ${HOME}/Library/Application\ Support/Code/User
-fi
-ln -sfv ${PWD}/.vscode/settings.json ${HOME}/Library/Application\ Support/Code/User/settings.json
+mkdir -p "${HOME}/Library/Application Support/Code/User"
+ln -sfv ${DOTFILES_DIR}/.vscode/settings.json "${HOME}/Library/Application Support/Code/User/settings.json"
 
 #----------------------------------------------------------
-# Cursor Settings（VSCode と同じ settings.json を参照）
+# Cursor Settings
 #----------------------------------------------------------
-if [[ ! -d ${HOME}/Library/Application\ Support/Cursor/User ]]; then
-  mkdir -p ${HOME}/Library/Application\ Support/Cursor/User
-fi
-ln -sfv ${PWD}/.vscode/settings.json ${HOME}/Library/Application\ Support/Cursor/User/settings.json
+mkdir -p "${HOME}/Library/Application Support/Cursor/User"
+ln -sfv ${DOTFILES_DIR}/.vscode/settings.json "${HOME}/Library/Application Support/Cursor/User/settings.json"
 
 #----------------------------------------------------------
 # Run installation scripts
@@ -68,84 +77,4 @@ FORCE=1
 . ${DOTFILES_DIR}/setup/install.zsh
 
 #----------------------------------------------------------
-# Claude
-#----------------------------------------------------------
-if [[ -d ${DOTFILES_DIR}/claude ]]; then
-  mkdir -p ${HOME}/.claude
-  # settings.json
-  ln -sf ${DOTFILES_DIR}/claude/settings.json ${HOME}/.claude/settings.json
-  # CLAUDE.md
-  ln -sf ${DOTFILES_DIR}/claude/CLAUDE.md ${HOME}/.claude/CLAUDE.md
-  # mcp.json
-  if [[ -f ${DOTFILES_DIR}/claude/mcp.json ]]; then
-    ln -sf ${DOTFILES_DIR}/claude/mcp.json ${HOME}/.claude/mcp.json
-  fi
-  # statusline.sh
-  if [[ -f ${DOTFILES_DIR}/claude/statusline.sh ]]; then
-    ln -sf ${DOTFILES_DIR}/claude/statusline.sh ${HOME}/.claude/statusline.sh
-    chmod +x ${DOTFILES_DIR}/claude/statusline.sh
-  fi
-  # prompts
-  if [[ -d ${DOTFILES_DIR}/claude/prompts ]]; then
-    ln -sfn ${DOTFILES_DIR}/claude/prompts ${HOME}/.claude/prompts
-  fi
-  echo "Created: ~/.claude/{settings.json,CLAUDE.md,mcp.json,statusline.sh,prompts} -> ${DOTFILES_DIR}/claude/"
-fi
-
-#----------------------------------------------------------
-# Cursor
-#----------------------------------------------------------
-mkdir -p ${HOME}/.cursor
-if [[ -L ${HOME}/.cursor/skills ]]; then
-  unlink ${HOME}/.cursor/skills
-fi
-if [[ -d ${DOTFILES_DIR}/claude/skills ]] || [[ -d ${DOTFILES_DIR}/claude ]]; then
-  mkdir -p ${DOTFILES_DIR}/claude/skills
-  ln -sfn ${DOTFILES_DIR}/claude/skills ${HOME}/.cursor/skills
-  echo "Created: ~/.cursor/skills -> ${DOTFILES_DIR}/claude/skills (shared with Claude)"
-fi
-
-#----------------------------------------------------------
-# Neovim
-#----------------------------------------------------------
-if [[ -d ${DOTFILES_DIR}/nvim ]]; then
-  mkdir -p ${HOME}/.config
-  if [[ -L ${HOME}/.config/nvim ]]; then
-    unlink ${HOME}/.config/nvim
-  elif [[ -d ${HOME}/.config/nvim ]]; then
-    rm -rf ${HOME}/.config/nvim
-  fi
-  ln -sfn ${DOTFILES_DIR}/nvim ${HOME}/.config/nvim
-  echo "Created: ${HOME}/.config/nvim -> ${DOTFILES_DIR}/nvim"
-fi
-
-#----------------------------------------------------------
-# Wezterm
-#----------------------------------------------------------
-if [[ -d ${DOTFILES_DIR}/wezterm ]] && [[ -f ${DOTFILES_DIR}/wezterm/wezterm.lua ]]; then
-  mkdir -p ${HOME}/.config
-  if [[ -L ${HOME}/.config/wezterm ]]; then
-    unlink ${HOME}/.config/wezterm
-  elif [[ -d ${HOME}/.config/wezterm ]]; then
-    rm -rf ${HOME}/.config/wezterm
-  fi
-  ln -sfn ${DOTFILES_DIR}/wezterm ${HOME}/.config/wezterm
-  echo "Created: ${HOME}/.config/wezterm -> ${DOTFILES_DIR}/wezterm"
-fi
-
-#----------------------------------------------------------
-# Ghostty
-#----------------------------------------------------------
-if [[ -d ${DOTFILES_DIR}/ghostty ]]; then
-  mkdir -p ${HOME}/.config
-  if [[ -L ${HOME}/.config/ghostty ]]; then
-    unlink ${HOME}/.config/ghostty
-  elif [[ -d ${HOME}/.config/ghostty ]]; then
-    rm -rf ${HOME}/.config/ghostty
-  fi
-  ln -sfn ${DOTFILES_DIR}/ghostty ${HOME}/.config/ghostty
-  echo "Created: ${HOME}/.config/ghostty -> ${DOTFILES_DIR}/ghostty"
-fi
-
-#----------------------------------------------------------
-util::info "Installation completed! Please restart terminal." 
+util::info "Installation completed! Please restart terminal."

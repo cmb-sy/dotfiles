@@ -1,37 +1,35 @@
 {
-  // ウィンドウ設定
-  "window.zoomLevel": 0, // エディタの表示倍率 (0が標準サイズ)
-  "window.confirmSaveUntitledWorkspace": false, // 未保存のワークスペースを閉じる際の確認ダイアログを表示しない
+  // Window
+  "window.zoomLevel": 0,
+  "window.confirmSaveUntitledWorkspace": false,
 
-  // エクスプローラー設定
-  "explorer.confirmDelete": false, // ファイル削除時の確認ダイアログを表示しない
-  "explorer.confirmDragAndDrop": false, // ドラッグ＆ドロップ時の確認ダイアログを表示しない
+  // Explorer
+  "explorer.confirmDelete": false,
+  "explorer.confirmDragAndDrop": false,
 
-  // ワークベンチ設定
+  // Workbench
   "workbench.iconTheme": "vscode-icons",
   "workbench.activityBar.orientation": "vertical",
-  "workbench.colorTheme": "Atom One Dark",
+  "workbench.colorTheme": "One Dark Pro Darker",
 
-  // Git設定
-  "git.confirmSync": false, // Gitの同期時に確認ダイアログを表示しない
-  "githubPullRequests.pullBranch": "never", // PRのブランチを自動的にプルしない
+  // Git
+  "git.confirmSync": false,
+  "githubPullRequests.pullBranch": "never",
 
-  // エディタ設定
-  "editor.minimap.autohide": true, // 使用していない時にミニマップを自動的に隠す
-  "editor.fontSize": 15,
-  "editor.defaultFormatter": "esbenp.prettier-vscode", // デフォルトフォーマッタをPrettierに設定
-  "editor.formatOnSave": true, // 保存時に自動的にフォーマットする
+  // Editor
+  "editor.minimap.autohide": true,
+  "editor.fontSize": 14,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
 
-  // Jupyter設定
-  "jupyter.askForKernelRestart": false, // カーネルの再起動時に確認ダイアログを表示しない
-  "jupyter.interactiveWindow.creationMode": "perFile", // ファイルごとにインタラクティブウィンドウを作成
-  "interactiveWindow.executeWithShiftEnter": true, // Shift+Enterでコードを実行する
+  // Jupyter / Interactive
+  "interactiveWindow.executeWithShiftEnter": true,
 
-  // 言語固有の設定
-  "typescript.updateImportsOnFileMove.enabled": "always", // TypeScriptファイル移動時に自動的にインポートパスを更新
+  // Language
+  "typescript.updateImportsOnFileMove.enabled": "always",
   "javascript.updateImportsOnFileMove.enabled": "always",
 
-  // ターミナル設定
+  // Terminal
   "terminal.integrated.fontFamily": "Hack Nerd Font",
   "terminal.integrated.fontSize": 13,
   "git.enableSmartCommit": true,

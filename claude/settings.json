@@ -5,9 +5,6 @@
     "DIRENV_LOG_FORMAT": "",
     "NO_COLOR": "0"
   },
-  "autoUpdater": true,
-  "theme": "dark",
-  "language": "japanese",
   "permissions": {
     "defaultMode": "bypassPermissions",
     "allow": [
@@ -62,22 +59,6 @@
     ],
     "defaultMode": "bypassPermissions"
   },
-  "skipDangerousModePermissionPrompt": true,
-  "ignorePatterns": [
-    "**/node_modules/**",
-    "**/.git/**",
-    "**/.DS_Store",
-    "**/dist/**",
-    "**/build/**",
-    "**/*.lock",
-    "**/package-lock.json",
-    "**/yarn.lock",
-    "**/pnpm-lock.yaml",
-    "**/*.pyc",
-    "**/__pycache__/**",
-    "**/.env*",
-    "**/coverage/**"
-  ],
   "hooks": {
     "PreToolUse": [
       {
@@ -111,7 +92,25 @@
       }
     ]
   },
+  "autoUpdater": true,
+  "theme": "dark",
+  "ignorePatterns": [
+    "**/node_modules/**",
+    "**/.git/**",
+    "**/.DS_Store",
+    "**/dist/**",
+    "**/build/**",
+    "**/*.lock",
+    "**/package-lock.json",
+    "**/yarn.lock",
+    "**/pnpm-lock.yaml",
+    "**/*.pyc",
+    "**/__pycache__/**",
+    "**/.env*",
+    "**/coverage/**"
+  ],
   "preferredEditor": "code",
+  "skipDangerousModePermissionPrompt": true,
   "statusLine": {
     "type": "command",
     "command": "~/.claude/statusline.sh",

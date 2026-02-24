@@ -33,25 +33,35 @@ if [[ $? = 0 ]]; then
 fi
 
 #----------------------------------------------------------
-# LLM Agent Skills
-#----------------------------------------------------------
-util::confirm "Install LLM remote skills?"
-if [[ $? = 0 ]]; then
-  for dir in "${HOME}/.claude" "${HOME}/.cursor"; do
-    mkdir -p "${dir}"
-    [[ -L "${dir}/skills" ]] && unlink "${dir}/skills"
-    [[ ! -d "${dir}/skills" ]] && mkdir -p "${dir}/skills"
-  done
-  source "${REPO_DIR}/claude/install-llm-skills.zsh"
-  rm -rf "${HOME}/.cursor/skills"
-  ln -sfn "${HOME}/.claude/skills" "${HOME}/.cursor/skills"
-fi
-
-#----------------------------------------------------------
 # macOS settings (skip password prompt when FORCE=1)
 #----------------------------------------------------------
 if [[ ${FORCE} != 1 ]] && util::confirm "Apply macOS settings?"; then
   source "${REPO_DIR}/macos/install.zsh"
+fi
+
+#----------------------------------------------------------
+# tmux
+#----------------------------------------------------------
+util::confirm "Set up tmux config?"
+if [[ $? = 0 ]]; then
+  mkdir -p "$HOME/.config/tmux"
+  ln -sf "${REPO_DIR}/tmux/tmux.conf" "$HOME/.config/tmux/tmux.conf"
+  mkdir -p "$HOME/.local/bin"
+  ln -sf "${REPO_DIR}/tmux/sessionizer.sh" "$HOME/.local/bin/tmux-sessionizer"
+  chmod +x "${REPO_DIR}/tmux/sessionizer.sh"
+  util::info "tmux config and sessionizer linked."
+fi
+
+#----------------------------------------------------------
+# Cursor (skills shared with Claude)
+#----------------------------------------------------------
+util::confirm "Set up Cursor config?"
+if [[ $? = 0 ]]; then
+  mkdir -p "$HOME/.cursor"
+  if [[ -d "${REPO_DIR}/claude/skills" ]]; then
+    ln -sfn "${REPO_DIR}/claude/skills" "$HOME/.cursor/skills"
+    util::info "Cursor skills linked (shared with Claude)."
+  fi
 fi
 
 util::info "Cleanup..."

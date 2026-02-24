@@ -1,14 +1,34 @@
-# Sheldon configuration
 shell = "zsh"
+
+[plugins.zsh-256color]
+github = "chrissicool/zsh-256color"
+
+[plugins.dircolors-solarized]
+github = "seebi/dircolors-solarized"
 
 [plugins.zsh-autosuggestions]
 github = "zsh-users/zsh-autosuggestions"
-apply = ["source"]
 
 [plugins.zsh-completions]
 github = "zsh-users/zsh-completions"
-apply = ["source", "fpath"]
 
 [plugins.zsh-syntax-highlighting]
 github = "zsh-users/zsh-syntax-highlighting"
-apply = ["source"] 
+
+[plugins.zsh-history-substring-search]
+github = "zsh-users/zsh-history-substring-search"
+
+[plugins.extract]
+github = "ohmyzsh/ohmyzsh"
+dir = "plugins/extract"
+
+[plugins.prezto-editor]
+github = "sorin-ionescu/prezto"
+dir = "modules/editor"
+
+[plugins.prezto-directory]
+github = "sorin-ionescu/prezto"
+dir = "modules/directory"
+
+[plugins.k-super]
+github = "supercrabtree/k"

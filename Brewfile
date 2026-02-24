@@ -11,6 +11,7 @@ brew 'uv'
 brew 'yarn'
 brew 'git'
 brew 'mise'
+brew 'tmux'
 
 # -----------------------------------------------------------
 # Cask
