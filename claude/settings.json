@@ -5,6 +5,9 @@
     "DIRENV_LOG_FORMAT": "",
     "NO_COLOR": "0"
   },
+  "autoUpdater": true,
+  "theme": "dark",
+  "language": "japanese",
   "permissions": {
     "defaultMode": "bypassPermissions",
     "allow": [
@@ -56,8 +59,25 @@
       "Bash(shutdown:*)",
       "Bash(reboot:*)",
       "Bash(init:*)"
-    ]
+    ],
+    "defaultMode": "bypassPermissions"
   },
+  "skipDangerousModePermissionPrompt": true,
+  "ignorePatterns": [
+    "**/node_modules/**",
+    "**/.git/**",
+    "**/.DS_Store",
+    "**/dist/**",
+    "**/build/**",
+    "**/*.lock",
+    "**/package-lock.json",
+    "**/yarn.lock",
+    "**/pnpm-lock.yaml",
+    "**/*.pyc",
+    "**/__pycache__/**",
+    "**/.env*",
+    "**/coverage/**"
+  ],
   "hooks": {
     "PreToolUse": [
       {
@@ -91,22 +111,36 @@
       }
     ]
   },
-  "autoUpdater": true,
-  "theme": "dark",
-  "ignorePatterns": [
-    "**/node_modules/**",
-    "**/.git/**",
-    "**/.DS_Store",
-    "**/dist/**",
-    "**/build/**",
-    "**/*.lock",
-    "**/package-lock.json",
-    "**/yarn.lock",
-    "**/pnpm-lock.yaml",
-    "**/*.pyc",
-    "**/__pycache__/**",
-    "**/.env*",
-    "**/coverage/**"
-  ],
-  "preferredEditor": "code"
+  "preferredEditor": "code",
+  "statusLine": {
+    "type": "command",
+    "command": "~/.claude/statusline.sh",
+    "padding": 0
+  },
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest"]
+    },
+    "obsidian": {
+      "command": "npx",
+      "args": ["-y", "obsidian-mcp-server"],
+      "env": {
+        "OBSIDIAN_BASE_URL": "https://127.0.0.1:27124",
+        "OBSIDIAN_VERIFY_SSL": "false"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "context7@claude-plugins-official": true,
+    "superpowers@claude-plugins-official": true,
+    "document-skills@anthropic-agent-skills": true,
+    "postgres-best-practices@supabase-agent-skills": true,
+    "compound-engineering@every-marketplace": true,
+    "database-design@claude-code-workflows": true,
+    "security-guidance@claude-plugins-official": true,
+    "ast-grep@ast-grep-marketplace": true,
+    "quantitative-trading@claude-code-workflows": true,
+    "claude-md-management@claude-plugins-official": true
+  }
 }

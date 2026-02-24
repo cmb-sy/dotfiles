@@ -23,7 +23,7 @@ cd ${DOTFILES_DIR}
 # Create symbolic links for dotfiles
 #----------------------------------------------------------
 for name in *; do
-  if [[ ${name} != 'setup' ]] && [[ ${name} != 'config' ]] && [[ ${name} != 'vscode' ]] && [[ ${name} != 'README.md' ]] && [[ ${name} != 'wezterm' ]] && [[ ${name} != 'claude' ]] && [[ ${name} != 'nvim' ]]; then
+  if [[ ${name} != 'setup' ]] && [[ ${name} != 'config' ]] && [[ ${name} != 'vscode' ]] && [[ ${name} != 'README.md' ]] && [[ ${name} != 'wezterm' ]] && [[ ${name} != 'claude' ]] && [[ ${name} != 'terminal' ]] && [[ ${name} != 'tmux' ]] && [[ ${name} != 'nvim' ]]; then
     if [[ -L ${HOME}/.${name} ]]; then
       unlink ${HOME}/.${name}
     fi
@@ -80,11 +80,16 @@ if [[ -d ${DOTFILES_DIR}/claude ]]; then
   if [[ -f ${DOTFILES_DIR}/claude/mcp.json ]]; then
     ln -sf ${DOTFILES_DIR}/claude/mcp.json ${HOME}/.claude/mcp.json
   fi
+  # statusline.sh
+  if [[ -f ${DOTFILES_DIR}/claude/statusline.sh ]]; then
+    ln -sf ${DOTFILES_DIR}/claude/statusline.sh ${HOME}/.claude/statusline.sh
+    chmod +x ${DOTFILES_DIR}/claude/statusline.sh
+  fi
   # prompts
   if [[ -d ${DOTFILES_DIR}/claude/prompts ]]; then
     ln -sfn ${DOTFILES_DIR}/claude/prompts ${HOME}/.claude/prompts
   fi
-  echo "Created: ~/.claude/{settings.json,CLAUDE.md,mcp.json,skills,prompts} -> ${DOTFILES_DIR}/claude/"
+  echo "Created: ~/.claude/{settings.json,CLAUDE.md,mcp.json,statusline.sh,prompts} -> ${DOTFILES_DIR}/claude/"
 fi
 
 #----------------------------------------------------------
@@ -126,6 +131,20 @@ if [[ -d ${DOTFILES_DIR}/wezterm ]] && [[ -f ${DOTFILES_DIR}/wezterm/wezterm.lua
   fi
   ln -sfn ${DOTFILES_DIR}/wezterm ${HOME}/.config/wezterm
   echo "Created: ${HOME}/.config/wezterm -> ${DOTFILES_DIR}/wezterm"
+fi
+
+#----------------------------------------------------------
+# Ghostty
+#----------------------------------------------------------
+if [[ -d ${DOTFILES_DIR}/ghostty ]]; then
+  mkdir -p ${HOME}/.config
+  if [[ -L ${HOME}/.config/ghostty ]]; then
+    unlink ${HOME}/.config/ghostty
+  elif [[ -d ${HOME}/.config/ghostty ]]; then
+    rm -rf ${HOME}/.config/ghostty
+  fi
+  ln -sfn ${DOTFILES_DIR}/ghostty ${HOME}/.config/ghostty
+  echo "Created: ${HOME}/.config/ghostty -> ${DOTFILES_DIR}/ghostty"
 fi
 
 #----------------------------------------------------------
