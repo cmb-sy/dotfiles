@@ -3,13 +3,24 @@ local wezterm = require("wezterm")
 local act = wezterm.action
 
 return {
-  -- Cmd+Shift+S: workspace launcher
+  -- Cmd+Shift+S / Leader+s: workspace list
   { key = "s", mods = "SUPER|SHIFT", action = act.ShowLauncherArgs { flags = "WORKSPACES", title = "Select workspace" } },
-  -- Leader + s: same (optional)
-  { key = "s", mods = "LEADER", action = act.ShowLauncherArgs { flags = "WORKSPACES", title = "Select workspace" } },
+  -- Cmd+Shift+C: create/switch workspace by name (prompt)
+  {
+    key = "c",
+    mods = "SUPER|SHIFT",
+    action = act.PromptInputLine {
+      description = "(wezterm) Create new workspace:",
+      action = wezterm.action_callback(function(window, pane, line)
+        if line and #line > 0 then
+          window:perform_action(act.SwitchToWorkspace { name = line }, pane)
+        end
+      end),
+    },
+  },
   -- Tab operations (VSCode style)
   { key = "t", mods = "SUPER", action = act.SpawnTab("CurrentPaneDomain") },
-  { key = "w", mods = "SUPER", action = act.CloseCurrentTab },
+  { key = "w", mods = "SUPER", action = act.CloseCurrentTab { confirm = false } },
   { key = "[", mods = "SUPER|SHIFT", action = act.ActivateTabRelative(-1) },
   { key = "]", mods = "SUPER|SHIFT", action = act.ActivateTabRelative(1) },
   { key = "1", mods = "SUPER", action = act.ActivateTab(0) },
