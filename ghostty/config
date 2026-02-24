@@ -2,6 +2,8 @@ config-file = font.conf
 config-file = theme.conf
 config-file = keybindings.conf
 
+term = xterm-256color
+
 # ----------------------------------------------------------
 # Behavior
 # ----------------------------------------------------------
