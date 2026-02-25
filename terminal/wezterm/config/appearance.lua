@@ -28,7 +28,7 @@ return {
   },
 
   -- macOS: 独立Desktopを作らずに現在のデスクトップ上でフルスクリーン
-  native_macos_fullscreen_mode = false,
+  native_macos_fullscreen_mode = true,
 
   -- Bell
   audible_bell = "Disabled",
