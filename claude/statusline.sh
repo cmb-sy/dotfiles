@@ -55,4 +55,4 @@ if [ -n "$MODE" ] && [ "$MODE" != "null" ] && [ "$MODE" != "true" ] && [ "$MODE"
   mode_display="${sep}${D}Mode :${R} ${P}${MODE}${R}"
 fi
 
-echo "${model}${ctx}${mode_display}${repo}${sep}${R}"
+echo "${model}${ctx}${mode_display}${repo}${R}"

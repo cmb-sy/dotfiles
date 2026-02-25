@@ -4,7 +4,8 @@
 # WezTerm shell integration (for ScrollToPrompt etc.)
 # ----------------------------------------------------------
 if [[ "$TERM_PROGRAM" == "WezTerm" ]]; then
-  source "/Applications/WezTerm.app/Contents/Resources/wezterm.sh" 2>/dev/null
+  # Source the wezterm shell integration script, but exclude the trailing "true" to prevent it from being output
+  source <(sed '/^true$/d' "/Applications/WezTerm.app/Contents/Resources/wezterm.sh") 2>/dev/null
 fi
 
 # ----------------------------------------------------------
