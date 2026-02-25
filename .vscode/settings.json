@@ -10,7 +10,7 @@
   // Workbench
   "workbench.iconTheme": "vscode-icons",
   "workbench.activityBar.orientation": "vertical",
-  "workbench.colorTheme": "One Dark Pro Darker",
+  "workbench.colorTheme": "Cursor Dark",
 
   // Git
   "git.confirmSync": false,
@@ -34,5 +34,5 @@
   "terminal.integrated.fontSize": 13,
   "git.enableSmartCommit": true,
   "editor.largeFileOptimizations": false,
-  "claudeCode.useTerminal": true,
+  "claudeCode.useTerminal": true
 }

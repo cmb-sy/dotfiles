@@ -54,6 +54,9 @@ return {
   -- Command palette & session launcher
   { key = "p", mods = "SUPER|SHIFT", action = act.ActivateCommandPalette },
   { key = "o", mods = "CTRL|SHIFT", action = act.SpawnCommandInNewTab { args = { "/bin/zsh", "-ic", os.getenv("HOME") .. "/dotfiles/bin/dev" } } },
+  -- Search scrollback (Find in buffer)
+  { key = "f", mods = "SUPER", action = act.Search("CurrentSelectionOrEmptyString") },
+  { key = "f", mods = "CTRL|SHIFT", action = act.Search("CurrentSelectionOrEmptyString") },
   -- Copy mode / Quick Select
   { key = "x", mods = "CTRL|SHIFT", action = act.ActivateCopyMode },
   { key = "Space", mods = "CTRL|SHIFT", action = act.QuickSelect },
