@@ -20,7 +20,7 @@ sep=$' | '
 
 # Repo · branch
 repo=""
-if [ -n "$CURRENT_DIR" ] && git -C "$CURRENT_DIR" rev-parse --is-inside-work-tree 2>/dev/null; then
+if [ -n "$CURRENT_DIR" ] && git -C "$CURRENT_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   name=$(basename "$(git -C "$CURRENT_DIR" rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null)
   branch=$(git -C "$CURRENT_DIR" --no-optional-locks symbolic-ref --short HEAD 2>/dev/null)
   [ -n "$name" ] && repo="${sep}${B}${C}${name}${R}"

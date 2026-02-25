@@ -2,6 +2,7 @@
 # Formula
 # -----------------------------------------------------------
 brew 'coreutils'
+brew 'fd'
 brew 'fzf'
 brew 'sheldon'
 brew 'starship'

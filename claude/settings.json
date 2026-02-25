@@ -2,82 +2,177 @@
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
     "MISE_YES": "1",
-    "DIRENV_LOG_FORMAT": "",
-    "NO_COLOR": "0"
+    "DIRENV_LOG_FORMAT": ""
   },
   "permissions": {
-    "defaultMode": "bypassPermissions",
     "allow": [
       "Bash(ls:*)",
-      "Bash(cat:*)",
-      "Bash(grep:*)",
-      "Bash(find:*)",
-      "Bash(wc:*)",
       "Bash(git:*)",
       "Bash(gh:*)",
-      "Bash(npm:*)",
-      "Bash(node:*)",
-      "Bash(npx:*)",
-      "Bash(yarn:*)",
-      "Bash(pnpm:*)",
-      "Bash(bun:*)",
-      "Bash(go:*)",
-      "Bash(cargo:*)",
-      "Bash(rustc:*)",
-      "Bash(python:*)",
-      "Bash(pip:*)",
-      "Bash(uv:*)",
-      "Bash(docker:*)",
-      "Bash(docker-compose:*)",
-      "Bash(kubectl:*)",
-      "Bash(terraform:*)",
-      "Bash(aws:*)",
-      "Bash(gcloud:*)",
       "Bash(make:*)",
-      "Bash(jq:*)",
-      "Bash(curl:*)",
+      "Bash(cmake:*)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(wc:*)",
+      "Bash(sort:*)",
+      "Bash(uniq:*)",
+      "Bash(diff:*)",
+      "Bash(tee:*)",
+      "Bash(xargs:*)",
+      "Bash(tr:*)",
+      "Bash(cut:*)",
+      "Bash(awk:*)",
+      "Bash(date:*)",
+      "Bash(env:*)",
+      "Bash(which:*)",
+      "Bash(whoami:*)",
+      "Bash(pwd:*)",
+      "Bash(dirname:*)",
+      "Bash(basename:*)",
+      "Bash(realpath:*)",
+      "Bash(test:*)",
+      "Bash([[:*)",
+      "Bash(true:*)",
+      "Bash(false:*)",
       "Bash(mkdir:*)",
       "Bash(touch:*)",
       "Bash(cp:*)",
       "Bash(mv:*)",
       "Bash(rm:*)",
-      "Bash(cursor:*)",
-      "Bash(code:*)"
+      "Bash(chmod:*)",
+      "Bash(ln:*)",
+      "Bash(grep:*)",
+      "Bash(rg:*)",
+      "Bash(find:*)",
+      "Bash(sed:*)",
+      "Bash(tree:*)",
+      "Bash(bat:*)",
+      "Bash(jq:*)",
+      "Bash(curl:*)",
+      "Bash(wget:*)",
+      "Bash(go:*)",
+      "Bash(dart:*)",
+      "Bash(fvm flutter:*)",
+      "Bash(fvm flutter test:*)",
+      "Bash(node:*)",
+      "Bash(npm:*)",
+      "Bash(npx:*)",
+      "Bash(pnpm:*)",
+      "Bash(yarn:*)",
+      "Bash(bun:*)",
+      "Bash(bunx:*)",
+      "Bash(python:*)",
+      "Bash(python3:*)",
+      "Bash(pip:*)",
+      "Bash(pip3:*)",
+      "Bash(uv:*)",
+      "Bash(ruby:*)",
+      "Bash(gem:*)",
+      "Bash(bundle:*)",
+      "Bash(rake:*)",
+      "Bash(rails:*)",
+      "Bash(rspec:*)",
+      "Bash(rubocop:*)",
+      "Bash(cargo:*)",
+      "Bash(rustc:*)",
+      "Bash(rustup:*)",
+      "Bash(java:*)",
+      "Bash(javac:*)",
+      "Bash(gradle:*)",
+      "Bash(mvn:*)",
+      "Bash(gcc:*)",
+      "Bash(g++:*)",
+      "Bash(protoc:*)",
+      "Bash(golangci-lint:*)",
+      "Bash(shellcheck:*)",
+      "Bash(hadolint:*)",
+      "Bash(tflint:*)",
+      "Bash(ast-grep:*)",
+      "Bash(eslint:*)",
+      "Bash(prettier:*)",
+      "Bash(ruff:*)",
+      "Bash(docker:*)",
+      "Bash(docker compose:*)",
+      "Bash(kubectl get:*)",
+      "Bash(kubectl describe:*)",
+      "Bash(kubectl logs:*)",
+      "Bash(kubectl top:*)",
+      "Bash(kubectl config:*)",
+      "Bash(kubectl explain:*)",
+      "Bash(kubectl api-resources:*)",
+      "Bash(kubectl api-versions:*)",
+      "Bash(kubectl version:*)",
+      "Bash(kubectl diff:*)",
+      "Bash(kubectx:*)",
+      "Bash(kubens:*)",
+      "Bash(helm list:*)",
+      "Bash(helm status:*)",
+      "Bash(helm get:*)",
+      "Bash(helm show:*)",
+      "Bash(helm search:*)",
+      "Bash(helm template:*)",
+      "Bash(helm lint:*)",
+      "Bash(helm diff:*)",
+      "Bash(helm repo:*)",
+      "Bash(terraform init:*)",
+      "Bash(terraform plan:*)",
+      "Bash(terraform validate:*)",
+      "Bash(terraform fmt:*)",
+      "Bash(terraform show:*)",
+      "Bash(terraform state list:*)",
+      "Bash(terraform state show:*)",
+      "Bash(terraform output:*)",
+      "Bash(terraform providers:*)",
+      "Bash(terraform version:*)",
+      "Bash(terraform workspace list:*)",
+      "Bash(terraform workspace show:*)",
+      "Bash(aws sts:*)",
+      "Bash(aws s3 ls:*)",
+      "Bash(aws s3 cp:*)",
+      "Bash(aws ecr get-login-password:*)",
+      "Bash(gcloud config:*)",
+      "Bash(gcloud projects list:*)",
+      "Bash(gcloud auth:*)",
+      "Bash(gcloud container clusters list:*)",
+      "Bash(az account show:*)",
+      "Bash(az account list:*)",
+      "Bash(psql:*)",
+      "Bash(mysql:*)",
+      "Bash(sqlite3:*)",
+      "Bash(mise:*)",
+      "Bash(direnv:*)",
+      "Bash(timeout:*)",
+      "Bash(openssl:*)",
+      "Bash(base64:*)",
+      "Bash(sha256:*)",
+      "Bash(epoch:*)",
+      "Bash(nkf:*)",
+      "Bash(file:*)",
+      "Bash(stat:*)",
+      "Bash(du:*)",
+      "Bash(df:*)",
+      "Bash(ghq:*)",
+      "Bash(delta:*)",
+      "Bash(gibo:*)",
+      "WebFetch(domain:*)"
     ],
     "deny": [
-      "Bash(vim:*)",
-      "Bash(nano:*)",
-      "Bash(less:*)",
-      "Bash(man:*)",
-      "Bash(ssh:*)",
-      "Bash(scp:*)",
       "Bash(sops:*)",
       "Bash(op:*)",
-      "Bash(shutdown:*)",
-      "Bash(reboot:*)",
-      "Bash(init:*)"
-    ],
-    "defaultMode": "bypassPermissions"
+      "Bash(ssh:*)",
+      "Bash(scp:*)"
+    ]
   },
+  "model": "opus",
   "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "if echo \"$CLAUDE_TOOL_INPUT\" | grep -qE '(rm\\s+-rf\\s+(/|~|\\$HOME|/usr|/etc)|mkfs|dd\\s+if=)'; then echo '❌ BLOCKED: Destructive command detected.' >&2; exit 1; fi"
-          }
-        ]
-      }
-    ],
     "Notification": [
       {
         "matcher": "idle_prompt",
         "hooks": [
           {
             "type": "command",
-            "command": "osascript -e 'display notification \"Claude has finished the task.\" with title \"Claude Code\" '; printf '\\a'"
+            "command": "osascript -e 'display notification \"Task completed\" with title \"Claude Code\"'"
           }
         ]
       },
@@ -86,49 +181,48 @@
         "hooks": [
           {
             "type": "command",
-            "command": "osascript -e 'display notification \"Approval required.\" with title \"Claude Code\"'; printf '\\a'"
+            "command": "osascript -e 'display notification \"Waiting for approval\" with title \"Claude Code\"'"
+          }
+        ]
+      },
+      {
+        "matcher": "elicitation_dialog",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "osascript -e 'display notification \"Waiting for your answer\" with title \"Claude Code\"'"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if printf '%s\\n' \"$CLAUDE_TOOL_INPUT\" | jq -r '.command' 2>/dev/null | grep -qE '(rm\\s+-rf\\s+(/|~|\\$HOME|/usr|/etc|/var|/opt|/System)|>\\s*/dev/sd|mkfs|dd\\s+if=)'; then echo 'BLOCK: Destructive system command detected' >&2; exit 2; fi"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if printf '%s\\n' \"$CLAUDE_TOOL_INPUT\" | jq -r '.command' 2>/dev/null | grep -qE 'git commit'; then \"${HOME}/.dotfiles/claude/hooks/post-commit.sh\"; fi",
+            "timeout": 30
           }
         ]
       }
     ]
   },
-  "autoUpdater": true,
-  "theme": "dark",
-  "ignorePatterns": [
-    "**/node_modules/**",
-    "**/.git/**",
-    "**/.DS_Store",
-    "**/dist/**",
-    "**/build/**",
-    "**/*.lock",
-    "**/package-lock.json",
-    "**/yarn.lock",
-    "**/pnpm-lock.yaml",
-    "**/*.pyc",
-    "**/__pycache__/**",
-    "**/.env*",
-    "**/coverage/**"
-  ],
-  "preferredEditor": "code",
-  "skipDangerousModePermissionPrompt": true,
   "statusLine": {
     "type": "command",
     "command": "~/.claude/statusline.sh",
     "padding": 0
-  },
-  "mcpServers": {
-    "playwright": {
-      "command": "npx",
-      "args": ["-y", "@playwright/mcp@latest"]
-    },
-    "obsidian": {
-      "command": "npx",
-      "args": ["-y", "obsidian-mcp-server"],
-      "env": {
-        "OBSIDIAN_BASE_URL": "https://127.0.0.1:27124",
-        "OBSIDIAN_VERIFY_SSL": "false"
-      }
-    }
   },
   "enabledPlugins": {
     "context7@claude-plugins-official": true,
@@ -141,5 +235,7 @@
     "ast-grep@ast-grep-marketplace": true,
     "quantitative-trading@claude-code-workflows": true,
     "claude-md-management@claude-plugins-official": true
-  }
+  },
+  "language": "japanese",
+  "skipDangerousModePermissionPrompt": true
 }

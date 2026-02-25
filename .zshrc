@@ -51,12 +51,15 @@ zstyle ':completion:*:default' menu select=2              # Select completion ca
 zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"   # Colorize completion candidates
 
 # ----------------------------------------------------------
-# fzf: fuzzy find (directory search, history, file find)
+# fzf: fuzzy find (directory search, history, file find) — fd で高速化
 # ----------------------------------------------------------
 if command -v fzf &>/dev/null; then
-  # Alt+C: カレント以下のディレクトリをあいまい検索して cd
-  # Ctrl+R: コマンド履歴のあいまい検索
-  # Ctrl+T: カレント以下のファイルをあいまい検索してパスを挿入
+  # fd があれば Alt+C / Ctrl+T を fd に差し替え（find より高速）
+  if command -v fd &>/dev/null; then
+    export FZF_ALT_C_COMMAND='fd --type d --hidden --follow -E .git -E node_modules .'
+    export FZF_CTRL_T_COMMAND='fd --type f --hidden --follow -E .git -E node_modules .'
+  fi
+  # Alt+C: ディレクトリあいまい検索して cd / Ctrl+R: 履歴 / Ctrl+T: ファイルパス挿入
   if [[ -f "${HOMEBREW_PREFIX:=$(brew --prefix 2>/dev/null)}/opt/fzf/shell/key-bindings.zsh" ]]; then
     source "${HOMEBREW_PREFIX}/opt/fzf/shell/key-bindings.zsh"
   fi

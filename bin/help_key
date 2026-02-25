@@ -35,7 +35,8 @@ show_wezterm() {
   printf "    ${GREEN}%-24s${RESET} %s\n" "Alt+Cmd+H"          "Show this keybindings list"
   printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+Shift+P"        "Command palette"
   printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+F"              "Search scrollback"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Alt+Cmd+F"          "Directory fuzzy search (fzf cd)"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+Shift+F"        "Directory: fuzzy cd (whole scope)"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Alt+Cmd+F"          "Directory: fuzzy cd (whole scope)"
   printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+Shift+O"       "Project sessionizer (dev)"
   printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+Shift+X"       "Copy mode"
   printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+Shift+Space"   "Quick select (URLs, paths)"
@@ -110,8 +111,8 @@ show_shell() {
   printf "    ${GREEN}%-24s${RESET} %s\n" "help_key / Alt+Cmd+H" "Show this keybindings list"
 
   echo -e "  ${YELLOW}Fuzzy search (fzf)${RESET}"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Alt+Cmd+F"            "Directory: fuzzy cd (current tree)"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Alt+C"                "Directory: fuzzy cd (same)"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+Shift+F / cdg"     "Directory: fuzzy cd (whole scope)"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Alt+C"                "Directory: fuzzy cd (current tree only)"
   printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+R"               "History: fuzzy search"
   printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+T"               "File: fuzzy insert path"
 
