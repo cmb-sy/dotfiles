@@ -57,6 +57,10 @@ return {
   -- Search scrollback (Find in buffer)
   { key = "f", mods = "SUPER", action = act.Search("CurrentSelectionOrEmptyString") },
   { key = "f", mods = "CTRL|SHIFT", action = act.Search("CurrentSelectionOrEmptyString") },
+  -- Directory fuzzy search (fzf): send Alt+C to shell
+  { key = "f", mods = "SUPER|ALT", action = act.SendString("\x1bc") },
+  -- Show shortcut key list (help_key)
+  { key = "h", mods = "SUPER|ALT", action = act.SendString("help_key\n") },
   -- Copy mode / Quick Select
   { key = "x", mods = "CTRL|SHIFT", action = act.ActivateCopyMode },
   { key = "Space", mods = "CTRL|SHIFT", action = act.QuickSelect },

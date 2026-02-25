@@ -10,7 +10,7 @@
   // Workbench
   "workbench.iconTheme": "vscode-icons",
   "workbench.activityBar.orientation": "vertical",
-  "workbench.colorTheme": "Cursor Dark",
+  "workbench.colorTheme": "Atom One Dark",
 
   // Git
   "git.confirmSync": false,

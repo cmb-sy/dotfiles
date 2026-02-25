@@ -50,6 +50,18 @@ zstyle ':completion:*:default' menu select=2              # Select completion ca
 zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"   # Colorize completion candidates
 
 # ----------------------------------------------------------
+# fzf: fuzzy find (directory search, history, file find)
+# ----------------------------------------------------------
+if command -v fzf &>/dev/null; then
+  # Alt+C: カレント以下のディレクトリをあいまい検索して cd
+  # Ctrl+R: コマンド履歴のあいまい検索
+  # Ctrl+T: カレント以下のファイルをあいまい検索してパスを挿入
+  if [[ -f "${HOMEBREW_PREFIX:=$(brew --prefix 2>/dev/null)}/opt/fzf/shell/key-bindings.zsh" ]]; then
+    source "${HOMEBREW_PREFIX}/opt/fzf/shell/key-bindings.zsh"
+  fi
+fi
+
+# ----------------------------------------------------------
 # Zsh Plugin Management (sheldon) and Theme
 # ----------------------------------------------------------
 eval "$(sheldon source)"
