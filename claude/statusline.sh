@@ -28,21 +28,25 @@ if [ -n "$CURRENT_DIR" ] && git -C "$CURRENT_DIR" rev-parse --is-inside-work-tre
 fi
 [ -z "$repo" ] && repo="${sep}${B}${C}$(echo "${CURRENT_DIR/#$HOME/~}" | rev | cut -d'/' -f1-3 | rev)${R}"
 
-# Context: 残り%・残りトークン
+# Context: 残り%・残りトークン（jq が true/null を出す場合はスキップ）
 ctx=""
-if [ -n "$USED_PCT" ] && [ "$USED_PCT" != "null" ]; then
+if [ -n "$USED_PCT" ] && [ "$USED_PCT" != "null" ] && [ "$USED_PCT" != "true" ] && [ "$USED_PCT" != "false" ]; then
   u=$(echo "$USED_PCT" | cut -d. -f1)
   rem=${REMAINING_PCT:-$((100 - u))}; rem=$(echo "$rem" | cut -d. -f1)
-  if   [ "$u" -lt 30 ]; then col=$'\e[92m'
-  elif [ "$u" -lt 50 ]; then col=$'\e[93m'
-  elif [ "$u" -lt 60 ]; then col=$'\e[91m'
-  else col=$'\e[1;31m'; fi
-  remaining_tokens=$((CONTEXT_SIZE - TOTAL_INPUT))
-  if [ "$remaining_tokens" -ge 1000 ] 2>/dev/null; then
-    left_k=$((remaining_tokens / 1000))
-    ctx="${sep}${D}Ctx :${R} ${col}${rem}%${R} ${D}(${left_k}k left)${R}"
-  else
-    ctx="${sep}${D}Ctx :${R} ${col}${rem}%${R} ${D}(${remaining_tokens} left)${R}"
+  # u と rem が数値のときだけ ctx を組む（jq の true/null で "true" が出ないように）
+  is_num() { case "$1" in ''|*[!0-9]*) return 1;; *) return 0;; esac; }
+  if [ -n "$u" ] && [ -n "$rem" ] && is_num "$u" && is_num "$rem"; then
+    if   [ "$u" -lt 30 ]; then col=$'\e[92m'
+    elif [ "$u" -lt 50 ]; then col=$'\e[93m'
+    elif [ "$u" -lt 60 ]; then col=$'\e[91m'
+    else col=$'\e[1;31m'; fi
+    remaining_tokens=$((CONTEXT_SIZE - TOTAL_INPUT))
+    if [ "$remaining_tokens" -ge 1000 ] 2>/dev/null; then
+      left_k=$((remaining_tokens / 1000))
+      ctx="${sep}${D}Ctx :${R} ${col}${rem}%${R} ${D}(${left_k}k left)${R}"
+    else
+      ctx="${sep}${D}Ctx :${R} ${col}${rem}%${R} ${D}(${remaining_tokens} left)${R}"
+    fi
   fi
 fi
 

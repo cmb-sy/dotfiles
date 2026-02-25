@@ -13,8 +13,8 @@ return {
   -- Color Scheme (VSCode Dark+ 風)
   color_scheme = "One Dark (Gogh)",
 
-  -- Window
-  window_decorations = "NONE",
+  -- Window（TITLE | RESIZE で閉じる・最小化・最大化ボタンとタブバーを表示）
+  window_decorations = "TITLE | RESIZE",
   window_background_opacity = 0.80,
   macos_window_background_blur = 10,
   window_background_gradient = {
@@ -35,6 +35,7 @@ return {
   tab_bar_at_bottom = false,
   hide_tab_bar_if_only_one_tab = false,
   show_new_tab_button_in_tab_bar = true,
+  show_close_tab_button_in_tabs = true,  -- 各タブに閉じるボタン（nightly のみ。stable では無視される）
   tab_max_width = 32,
   window_frame = {
     font = wezterm.font("JetBrains Mono", { weight = "Medium" }),
