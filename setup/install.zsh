@@ -40,6 +40,20 @@ if [[ ${FORCE} != 1 ]] && util::confirm "Apply macOS settings?"; then
 fi
 
 #----------------------------------------------------------
+# WezTerm
+#----------------------------------------------------------
+util::confirm "Set up WezTerm config?"
+if [[ $? = 0 ]]; then
+  mkdir -p "$HOME/.config"
+  if [[ -d "${REPO_DIR}/terminal/wezterm" ]]; then
+    ln -sfn "${REPO_DIR}/terminal/wezterm" "$HOME/.config/wezterm"
+    util::info "WezTerm config linked to ~/.config/wezterm."
+  else
+    util::info "Skip: terminal/wezterm not found."
+  fi
+fi
+
+#----------------------------------------------------------
 # tmux
 #----------------------------------------------------------
 util::confirm "Set up tmux config?"

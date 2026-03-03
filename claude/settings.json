@@ -230,7 +230,9 @@
     "claude-md-management@claude-plugins-official": true,
     "document-skills@anthropic-agent-skills": true,
     "postgres-best-practices@supabase-agent-skills": true,
-    "skill-creator@anthropic-agent-skills": true
+    "skill-creator@anthropic-agent-skills": true,
+    "ui-ux-pro-max@ui-ux-pro-max-skill": true,
+    "remote-control@claude-plugins-official": true
   },
   "language": "japanese",
   "skipDangerousModePermissionPrompt": true
