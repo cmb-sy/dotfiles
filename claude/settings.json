@@ -159,7 +159,7 @@
     ],
     "deny": ["Bash(sops:*)", "Bash(op:*)", "Bash(ssh:*)", "Bash(scp:*)"]
   },
-  "model": "opus",
+  "model": "sonnet",
   "hooks": {
     "Notification": [
       {

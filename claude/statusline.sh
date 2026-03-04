@@ -1,6 +1,5 @@
 #!/bin/bash
 
-# プラン使用制限: Anthropic OAuth usage API をキャッシュ付きで取得
 USAGE_CACHE="${TMPDIR:-/tmp}/claude-statusline-usage.json"
 USAGE_CACHE_AGE=60
 
@@ -146,5 +145,4 @@ if [ -n "$MODE" ] && [ "$MODE" != "null" ] && [ "$MODE" != "true" ] && [ "$MODE"
   mode_display="${sep}${D}Mode:${R} ${P}${MODE}${R}"
 fi
 
-# 順序: Model | Ctx | Mode | repo | 5h | 7d
 echo "${model}${ctx}${mode_display}${repo}${plan_limits}${R}"
