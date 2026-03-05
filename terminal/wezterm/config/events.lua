@@ -1,10 +1,13 @@
--- Events: fullscreen on startup, tab title, status bar, bell
 local wezterm = require("wezterm")
 
--- Fullscreen on startup
+-- With native_macos_fullscreen_mode = false (in appearance.lua), fullscreen uses WezTerm's zoom so transparency is preserved.
+local start_fullscreen = true
+
 wezterm.on("gui-startup", function()
   local tab, pane, window = wezterm.mux.spawn_window({})
-  window:gui_window():toggle_fullscreen()
+  if start_fullscreen then
+    window:gui_window():toggle_fullscreen()
+  end
 end)
 
 -- Bell notification (e.g. Claude Code task completed)

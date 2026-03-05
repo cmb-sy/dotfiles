@@ -13,6 +13,7 @@ brew 'yarn'
 brew 'git'
 brew 'mise'
 brew 'tmux'
+brew 'jq'
 
 # -----------------------------------------------------------
 # Cask
