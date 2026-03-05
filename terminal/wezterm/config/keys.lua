@@ -25,4 +25,9 @@ return {
   -- Panes
   { key = "|", mods = "SUPER|SHIFT", action = act.SplitVertical { domain = "CurrentPaneDomain" } },
   { key = "_", mods = "SUPER|SHIFT", action = act.SplitHorizontal { domain = "CurrentPaneDomain" } },
+
+  -- Search: scrollback
+  { key = "f", mods = "SUPER", action = act.Search("CurrentSelectionOrEmptyString") },
+  { key = "f", mods = "SUPER|SHIFT", action = act.SendString("\x1b[25~") },
+  { key = "f", mods = "SUPER|ALT", action = act.SendString("\x1b[25~") },
 }
