@@ -30,4 +30,7 @@ return {
   { key = "f", mods = "SUPER", action = act.Search("CurrentSelectionOrEmptyString") },
   { key = "f", mods = "SUPER|SHIFT", action = act.SendString("\x1b[25~") },
   { key = "f", mods = "SUPER|ALT", action = act.SendString("\x1b[25~") },
+
+  -- Claude Code: Shift+Enter = new line
+  { key = "Return", mods = "SHIFT", action = act.SendString("\n") },
 }
