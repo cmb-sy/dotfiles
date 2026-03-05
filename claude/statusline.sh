@@ -59,3 +59,4 @@ if [ -n "$MODE" ] && [ "$MODE" != "null" ] && [ "$MODE" != "true" ] && [ "$MODE"
 fi
 
 echo "${model}${ctx}${mode_display}${repo}${R}"
+

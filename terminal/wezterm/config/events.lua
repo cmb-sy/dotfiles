@@ -1,7 +1,7 @@
 local wezterm = require("wezterm")
 
 -- With native_macos_fullscreen_mode = false (in appearance.lua), fullscreen uses WezTerm's zoom so transparency is preserved.
-local start_fullscreen = true
+-- local start_fullscreen = true
 
 wezterm.on("gui-startup", function()
   local tab, pane, window = wezterm.mux.spawn_window({})
