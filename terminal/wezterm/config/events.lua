@@ -1,13 +1,55 @@
 local wezterm = require("wezterm")
+local mux = wezterm.mux
 
--- With native_macos_fullscreen_mode = false (in appearance.lua), fullscreen uses WezTerm's zoom so transparency is preserved.
--- local start_fullscreen = true
-
-wezterm.on("gui-startup", function()
-  local tab, pane, window = wezterm.mux.spawn_window({})
-  if start_fullscreen then
-    window:gui_window():toggle_fullscreen()
+-- Read opacity/blur from appearance.lua (single source of truth; refreshed on config reload)
+local function get_transparency_from_appearance()
+  local config_dir = wezterm.config_dir or (wezterm.config_file and wezterm.config_file:match("(.*)/")) or ""
+  if config_dir == "" then
+    config_dir = (os.getenv("HOME") or "") .. "/.config/wezterm"
+    wezterm.log_error("[events.lua] config_dir unknown, using " .. config_dir)
   end
+  local path = config_dir .. "/config/appearance.lua"
+  local ok, appearance = pcall(dofile, path)
+  if not ok then
+    wezterm.log_error("[events.lua] Failed to load appearance.lua: " .. tostring(appearance))
+    error("[events.lua] appearance.lua load failed: " .. tostring(appearance))
+  end
+  if type(appearance) ~= "table" then
+    wezterm.log_error("[events.lua] appearance.lua did not return a table (got " .. type(appearance) .. ")")
+    error("[events.lua] appearance.lua must return a table")
+  end
+  local opacity = appearance.window_background_opacity
+  local blur = appearance.macos_window_background_blur
+  if opacity == nil or blur == nil then
+    wezterm.log_error("[events.lua] appearance.lua must set window_background_opacity and macos_window_background_blur")
+    error("[events.lua] appearance.lua must set window_background_opacity and macos_window_background_blur")
+  end
+  return opacity, blur
+end
+local opacity_value, blur_value = get_transparency_from_appearance()
+
+-- Re-apply transparency when entering fullscreen (workaround for macOS overriding opacity, wezterm#4925)
+wezterm.on("window-resized", function(window, pane)
+  local dims = window:get_dimensions()
+  local overrides = window:get_config_overrides() or {}
+  if dims.is_full_screen then
+    if overrides.window_background_opacity ~= opacity_value or overrides.macos_window_background_blur ~= blur_value then
+      overrides.window_background_opacity = opacity_value
+      overrides.macos_window_background_blur = blur_value
+      window:set_config_overrides(overrides)
+    end
+  else
+    if overrides.window_background_opacity ~= nil or overrides.macos_window_background_blur ~= nil then
+      overrides.window_background_opacity = nil
+      overrides.macos_window_background_blur = nil
+      window:set_config_overrides(overrides)
+    end
+  end
+end)
+
+wezterm.on("gui-startup", function(cmd)
+  local tab, pane, window = mux.spawn_window(cmd or {})
+  window:gui_window():toggle_fullscreen()
 end)
 
 -- Bell notification (e.g. Claude Code task completed)
