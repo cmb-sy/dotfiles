@@ -218,7 +218,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${HOME}/.dotfiles/claude/hooks/collect-stats.sh",
+            "command": "collect-stats",
             "timeout": 30,
             "async": true
           }
