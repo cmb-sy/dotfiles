@@ -212,6 +212,18 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${HOME}/.dotfiles/claude/hooks/collect-stats.sh",
+            "timeout": 30,
+            "async": true
+          }
+        ]
+      }
     ]
   },
   "statusLine": {
