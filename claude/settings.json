@@ -157,9 +157,13 @@
       "Bash(gibo:*)",
       "WebFetch(domain:*)"
     ],
-    "deny": ["Bash(sops:*)", "Bash(op:*)", "Bash(ssh:*)", "Bash(scp:*)"]
+    "deny": [
+      "Bash(sops:*)",
+      "Bash(op:*)",
+      "Bash(ssh:*)",
+      "Bash(scp:*)"
+    ]
   },
-  "model": "sonnet",
   "hooks": {
     "Notification": [
       {
@@ -218,7 +222,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "collect-stats",
+            "command": "$HOME/.claude/claude/hooks/stop.sh",
             "timeout": 30,
             "async": true
           }
