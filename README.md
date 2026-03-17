@@ -2,15 +2,6 @@
 
 This repository contains configuration files to automatically set up a development environment on macOS.
 
-## Features
-
-- Zsh configuration (including Starship prompt)
-- Git configuration
-- VSCode configuration
-- Cursor configuration
-- Installation of necessary software (via Homebrew)
-- Installation of applications (via Homebrew)
-
 ## Setup Instructions
 
 Follow these steps to set up your environment from scratch:

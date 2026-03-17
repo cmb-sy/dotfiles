@@ -10,10 +10,8 @@ return {
   -- Color Scheme 
   color_scheme = "One Dark (Gogh)",
 
-  front_end = "OpenGL",
-
   -- Window
-  window_decorations = "INTEGRATED_BUTTONS|RESIZE",
+  window_decorations = "TITLE|RESIZE",
   -- Transparency: use native_macos_fullscreen_mode = false so these apply in fullscreen too.
   window_background_opacity = 0.80,
   macos_window_background_blur = 10,

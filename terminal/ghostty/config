@@ -1,0 +1,79 @@
+# Ghostty config
+# 場所: ~/.config/ghostty/config にシンボリックリンクするか、
+#       config-file でこのファイルを読み込む
+
+# ---------------------------------------------------------------------------
+# Theme（システムの light/dark に連動）
+# ---------------------------------------------------------------------------
+theme = light:Catppuccin Latte,dark:Catppuccin Mocha
+
+# ---------------------------------------------------------------------------
+# Font（Primary: Monaspace Neon / 日本語: HackGen）
+# ---------------------------------------------------------------------------
+font-family = Monaspace Neon
+font-feature = calt
+font-feature = liga
+font-feature = dlig
+font-size = 12
+
+# 日本語 — HackGen（等幅、全角:半角 = 2:1）
+font-family = HackGen
+font-codepoint-map = U+3000-U+303F,U+3040-U+309F,U+30A0-U+30FF,U+4E00-U+9FFF,U+FF00-U+FFEF=HackGen
+font-codepoint-map = U+3400-U+4DBF,U+20000-U+2A6DF=HackGen
+
+# ---------------------------------------------------------------------------
+# Window
+# ---------------------------------------------------------------------------
+window-padding-y = 2,8
+window-padding-balance = true
+window-padding-color = extend
+fullscreen = false
+macos-titlebar-style = tabs
+macos-non-native-fullscreen = true
+
+# ---------------------------------------------------------------------------
+# Terminal
+# ---------------------------------------------------------------------------
+scrollback-limit = 10000
+shell-integration = zsh
+mouse-shift-capture = true
+
+# ---------------------------------------------------------------------------
+# Bell（system: dock bounce + badge, audio: 再生, attention: フォーカス要求）
+# ---------------------------------------------------------------------------
+bell-features = system,audio,attention
+
+# ---------------------------------------------------------------------------
+# Link / Notifications
+# ---------------------------------------------------------------------------
+link-url = true
+notify-on-command-finish = unfocused
+
+# ---------------------------------------------------------------------------
+# Quick Terminal
+# ---------------------------------------------------------------------------
+keybind = global:super+grave_accent=toggle_quick_terminal
+quick-terminal-position = top
+quick-terminal-autohide = true
+
+# ---------------------------------------------------------------------------
+# Keybindings（macOS: super = Cmd）
+# ---------------------------------------------------------------------------
+# タブ
+keybind = super+left=previous_tab
+keybind = super+right=next_tab
+keybind = super+t=new_tab
+
+# ペイン分割（WezTerm 風: Cmd+Shift+| / Cmd+Shift+_）
+keybind = super+shift+Backslash=new_split:right
+keybind = super+shift+Minus=new_split:down
+
+# 検索
+keybind = super+f=start_search
+
+# 改行送信（Claude Code 等）
+keybind = shift+enter=text:\n
+
+# プロンプト間ジャンプ
+keybind = super+shift+up=jump_to_prompt:-1
+keybind = super+shift+down=jump_to_prompt:1

@@ -1,5 +1,4 @@
 #!/bin/zsh
-# Cursor 拡張機能をインストール（VSCode と同じ .vscode/extensions.zsh を参照）
 CURSOR_DIR="${0:A:h}"
 REPO_DIR="${CURSOR_DIR:h}"
 source "${REPO_DIR}/setup/util.zsh"
