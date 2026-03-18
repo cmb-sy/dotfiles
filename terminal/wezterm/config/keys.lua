@@ -26,7 +26,7 @@ return {
   { key = "|", mods = "SUPER|SHIFT", action = act.SplitVertical { domain = "CurrentPaneDomain" } },
   { key = "_", mods = "SUPER|SHIFT", action = act.SplitHorizontal { domain = "CurrentPaneDomain" } },
 
-  -- Search: scrollback
+  -- Search: scrollback（Cmd+F / Cmd+Shift+F — Ghostty と共通）
   { key = "f", mods = "SUPER", action = act.Search("CurrentSelectionOrEmptyString") },
   { key = "f", mods = "SUPER|SHIFT", action = act.SendString("\x1b[25~") },
   { key = "f", mods = "SUPER|ALT", action = act.SendString("\x1b[25~") },

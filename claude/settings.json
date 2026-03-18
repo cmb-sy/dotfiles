@@ -155,7 +155,8 @@
       "Bash(ghq:*)",
       "Bash(delta:*)",
       "Bash(gibo:*)",
-      "WebFetch(domain:*)"
+      "WebFetch(domain:*)",
+      "mcp__pencil"
     ],
     "deny": [
       "Bash(sops:*)",

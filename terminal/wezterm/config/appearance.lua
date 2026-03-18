@@ -13,7 +13,7 @@ return {
   -- Window
   window_decorations = "TITLE|RESIZE",
   -- Transparency: use native_macos_fullscreen_mode = false so these apply in fullscreen too.
-  window_background_opacity = 0.80,
+  window_background_opacity = 0.90,
   macos_window_background_blur = 10,
   -- No window_background_gradient: it can prevent opacity/blur from applying.
   window_padding = {
