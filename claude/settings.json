@@ -252,5 +252,6 @@
     "remote-control@claude-plugins-official": true
   },
   "language": "japanese",
-  "skipDangerousModePermissionPrompt": true
+  "skipDangerousModePermissionPrompt": true,
+  "model": "opus"
 }
