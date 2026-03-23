@@ -1,20 +1,4 @@
 #!/bin/bash
-# ==============================================================================
-# Claude Code Statusline
-#
-# Color-coded status bar for the Claude Code terminal.
-#
-# Layout:
-#   Model │ Ctx ████▒▒ 85% (170k) │ 5h 79% (2h41m) | 7d 49% (62h) │ repo | branch
-#
-# Sections:
-#   [1] Model   - Active model name and output mode (if non-default)
-#   [2] Context - Context window usage with progress bar and remaining tokens
-#   [3] Limits  - API usage limits (5h rolling + 7d) with time until reset
-#   [4] Repo    - Git repository name and current branch
-#
-# Dependencies: jq, curl, git, bc, security (macOS Keychain)
-# ==============================================================================
 
 set -o pipefail
 
@@ -33,7 +17,8 @@ USAGE_API="https://api.anthropic.com/api/oauth/usage"
 
 RST=$'\e[0m'                  # Reset all attributes
 WHT=$'\e[1;38;5;255m'         # Bright white  - labels, separators
-GRAY=$'\e[38;5;242m'          # Muted gray    - progress bar empty slots, reset time
+GRAY=$'\e[38;5;242m'          # Muted gray    - progress bar empty slots
+C_RESET_ETA=$'\e[38;5;249m'  # Light gray    - time until reset
 C_MODEL=$'\e[1;38;5;183m'     # Lavender      - model name
 C_CTX=$'\e[38;5;114m'         # Mint green    - context window metrics
 C_LIMIT=$'\e[38;5;216m'       # Peach         - API usage limits
@@ -176,7 +161,7 @@ if [ -s "$CACHE_FILE" ]; then
     [ -n "$parts" ] && parts+=" ${WHT}|${RST} "
     parts+="${WHT}${label}${RST} ${C_LIMIT}${r}%${RST}"
     eta=$(fmt_reset "$reset")
-    [ -n "$eta" ] && parts+=" ${GRAY}(${eta})${RST}"
+    [ -n "$eta" ] && parts+=" ${C_RESET_ETA}(${eta})${RST}"
   done
   sec_limits="$parts"
 fi
