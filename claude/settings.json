@@ -165,6 +165,7 @@
       "Bash(scp:*)"
     ]
   },
+  "model": "opus",
   "hooks": {
     "Notification": [
       {
@@ -252,6 +253,5 @@
     "remote-control@claude-plugins-official": true
   },
   "language": "japanese",
-  "skipDangerousModePermissionPrompt": true,
-  "model": "opus"
+  "skipDangerousModePermissionPrompt": true
 }
