@@ -37,6 +37,11 @@ is_int() { case "$1" in ''|*[!0-9]*) return 1;; esac; }
 # Check if a value is non-empty and not "null"
 has_val() { [ -n "$1" ] && [ "$1" != "null" ]; }
 
+# Return visible length (ANSI escape sequences stripped)
+visible_len() {
+  printf '%s' "$1" | sed -E 's/\x1B\[[0-9;]*[[:alpha:]]//g' | awk '{print length}'
+}
+
 # Render a progress bar: filled blocks (█) in accent color, empty slots (▒) in gray
 # Usage: bar <percent> <width> <color>
 bar() {
@@ -188,4 +193,24 @@ out=""
 for s in "$sec_model" "$sec_ctx" "$sec_limits" "$sec_repo"; do
   [ -n "$s" ] && out="${out:+${out}${SEP}}${s}"
 done
-echo "$out"
+
+# ==============================================================================
+# [5] Right-aligned clock
+# ==============================================================================
+sec_time="${WHT}$(date +%H:%M)${RST}"
+
+cols="${COLUMNS:-}"
+if ! is_int "$cols" || [ "$cols" -lt 20 ]; then
+  cols=$(tput cols 2>/dev/null || echo 120)
+fi
+
+out_len=$(visible_len "$out")
+time_len=$(visible_len "$sec_time")
+gap=$(( cols - out_len - time_len ))
+
+if [ "$gap" -gt 1 ]; then
+  printf '%s%*s%s\n' "$out" "$gap" "" "$sec_time"
+else
+  # Narrow terminals: avoid collapsing by falling back to inline separator.
+  echo "${out}${SEP}${sec_time}"
+fi

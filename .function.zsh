@@ -45,5 +45,7 @@ fzf_cd_global() {
 	_fzf_cd_global_impl "${LBUFFER}" && zle reset-prompt
 }
 zle -N fzf_cd_global
-# Alt+Cmd+F 用（WezTerm が \e[25~ を送る）
-bindkey '\e[25~' fzf_cd_global
+# Ghostty / WezTerm: Cmd+Shift+F または Alt+Cmd+F で ESC [ 25 ~ を送る想定
+for _map in emacs viins vicmd; do
+	bindkey -M "$_map" '\e[25~' fzf_cd_global
+done
