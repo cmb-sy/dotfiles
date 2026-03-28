@@ -158,12 +158,7 @@
       "WebFetch(domain:*)",
       "mcp__pencil"
     ],
-    "deny": [
-      "Bash(sops:*)",
-      "Bash(op:*)",
-      "Bash(ssh:*)",
-      "Bash(scp:*)"
-    ]
+    "deny": ["Bash(sops:*)", "Bash(op:*)", "Bash(ssh:*)", "Bash(scp:*)"]
   },
   "model": "opus",
   "hooks": {

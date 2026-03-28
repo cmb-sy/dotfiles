@@ -15,7 +15,7 @@ else
   alias l='ls'
   alias la='ls -a'
 fi
-# When Claude Code is missing, keep `cl` as clear; otherwise defined below as personal launcher
+# When Claude Code is missing, keep `cl` as clear; otherwise `cl` is the work (company) launcher below
 if ! command -v claude >/dev/null 2>&1; then
   alias cl='clear'
 fi
@@ -30,7 +30,26 @@ alias dpsa='docker ps -a'
 alias dimg='docker images'
 
 # ----------------------------------------------------------
-# Claude Code
+# Claude Code (multi-account via CLAUDE_CONFIG_DIR)
+# ----------------------------------------------------------
+# One-time setup:
+#   1. Create per-account config dirs if missing, e.g.:
+#        ~/.claude-private  (personal)
+#        ~/.claude-work     (company)
+#      Use mkdir, or mv ~/.claude ~/.claude-private if migrating an existing tree.
+#   2. Sign in once per account (either approach):
+#        - Recommended: run `clp` and `clw` once each and complete login in the UI.
+#        - Or: CLAUDE_CONFIG_DIR=~/.claude-private claude
+#              CLAUDE_CONFIG_DIR=~/.claude-work claude
+#   3. Share dotfiles-backed config into both dirs (once), if not already done
+#      (e.g. setup.zsh may run this): `claude-link-shared`, or:
+#        zsh "${DOTFILES:-${HOME}/dotfiles}/claude/link-shared-config.zsh"
+#   4. Make ~/.claude a symlink (not a plain directory), or clp/clw may not behave
+#      as intended. Example default target (pick one):
+#        ln -sfn ~/.claude-private ~/.claude
+# Daily: use `clp` (personal) or `clw` (company) to switch symlink + CLAUDE_CONFIG_DIR
+# for this shell. New terminals do not inherit CLAUDE_CONFIG_DIR; ~/.claude symlink
+# persists until the next clp/clw.
 # ----------------------------------------------------------
 if command -v claude >/dev/null 2>&1; then
   : "${CLAUDE_ACCOUNT_PRIVATE_DIR:=${HOME}/.claude-private}"
@@ -63,7 +82,7 @@ if command -v claude >/dev/null 2>&1; then
 
   _claude_autonomous_default_prompt='Implement the requested changes. Run tests, fix failures, and repeat until all tests pass.'
 
-  # Short: clp/clw = normal, clpa/clwa = autonomous
+  # Short: cl/clw = work (default), clp = personal; clwa/clpa = autonomous
   clp() {
     claude-private "$@"
   }
@@ -87,10 +106,15 @@ if command -v claude >/dev/null 2>&1; then
   }
 
   cl() {
-    clp "$@"
+    clw "$@"
   }
 
-  alias claude-auto='clpa'
+  alias claude-auto='clwa'
+
+  claude-link-shared() {
+    local d="${DOTFILES:-${HOME}/dotfiles}"
+    zsh "$d/claude/link-shared-config.zsh"
+  }
 fi
 
 # ----------------------------------------------------------

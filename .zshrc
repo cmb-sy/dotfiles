@@ -89,6 +89,11 @@ if [[ -f "${DOTFILES:-${HOME}/dotfiles}/.aliases.sh" ]]; then
   source "${DOTFILES:-${HOME}/dotfiles}/.aliases.sh"
 fi
 
+# Default Claude Code account: company (~/.claude symlink + CLAUDE_CONFIG_DIR for new shells)
+if [[ -o interactive ]] && typeset -f claude-use-work >/dev/null 2>&1; then
+  claude-use-work
+fi
+
 # ----------------------------------------------------------
 # PATH
 # ----------------------------------------------------------
