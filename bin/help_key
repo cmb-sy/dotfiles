@@ -100,11 +100,10 @@ show_shell() {
   printf "    ${GREEN}%-24s${RESET} %s\n" "dimg"                "docker images"
 
   echo -e "  ${YELLOW}Claude${RESET}"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "cl"                  "claude"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "clr / claude-review" "Code review"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "cld / claude-doc"    "Documentation"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "clc / claude-commit" "Commit with message"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "cla / claude-auto"   "Autonomous mode"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "cl / clp"            "claude（個人用）"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "clw"                "claude（会社用）"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "clpa / claude-auto" "自律モード（個人用）"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "clwa"               "自律モード（会社用）"
 
   echo -e "  ${YELLOW}Dev Tools${RESET}"
   printf "    ${GREEN}%-24s${RESET} %s\n" "dev"                  "Project sessionizer (fzf + nvim)"

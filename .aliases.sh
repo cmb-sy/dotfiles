@@ -15,7 +15,10 @@ else
   alias l='ls'
   alias la='ls -a'
 fi
-alias cl='clear'
+# When Claude Code is missing, keep `cl` as clear; otherwise defined below as personal launcher
+if ! command -v claude >/dev/null 2>&1; then
+  alias cl='clear'
+fi
 
 # ----------------------------------------------------------
 # Docker
@@ -27,42 +30,67 @@ alias dpsa='docker ps -a'
 alias dimg='docker images'
 
 # ----------------------------------------------------------
-# Claude
+# Claude Code
 # ----------------------------------------------------------
 if command -v claude >/dev/null 2>&1; then
-  _claude_review_prompt="${HOME}/.claude/prompts/review.txt"
-  _claude_doc_prompt="${HOME}/.claude/prompts/doc.txt"
-  _claude_commit_prompt="${HOME}/.claude/prompts/commit.txt"
-  _claude_review_default="Review the code in the current directory. Point out bugs, style issues, and suggest improvements."
-  _claude_doc_default="Create or improve documentation for the current project (README, API docs, or in-code comments as appropriate)."
-  _claude_commit_default="Check staged changes (git status, git diff --staged), propose a clear commit message, then commit and push."
+  : "${CLAUDE_ACCOUNT_PRIVATE_DIR:=${HOME}/.claude-private}"
+  : "${CLAUDE_ACCOUNT_WORK_DIR:=${HOME}/.claude-work}"
 
-  clr () {
-    local q="$*"
-    [ -z "$q" ] && q="$_claude_review_default"
-    claude --append-system-prompt "$(cat "$_claude_review_prompt" 2>/dev/null || true)" "$q"
+  _claude_account_link() {
+    local target="$1"
+    ln -sfn "$target" "${HOME}/.claude"
   }
-  cld () {
-    local q="$*"
-    [ -z "$q" ] && q="$_claude_doc_default"
-    claude --append-system-prompt "$(cat "$_claude_doc_prompt" 2>/dev/null || true)" "$q"
-  }
-  clc () {
-    local q="$*"
-    [ -z "$q" ] && q="$_claude_commit_default"
-    claude --append-system-prompt "$(cat "$_claude_commit_prompt" 2>/dev/null || true)" "$q"
-  }
-  alias cl='claude'
-  alias claude-review='clr'
-  alias claude-doc='cld'
 
-  # Autonomous execution mode (runs test → fix → re-test cycle automatically)
-  cla () {
-    local q="$*"
-    [ -z "$q" ] && q="Implement the requested changes. Run tests, fix failures, and repeat until all tests pass."
-    claude --dangerously-skip-permissions "$q"
+  claude-use-private() {
+    _claude_account_link "${CLAUDE_ACCOUNT_PRIVATE_DIR}"
+    export CLAUDE_CONFIG_DIR="${CLAUDE_ACCOUNT_PRIVATE_DIR}"
   }
-  alias claude-auto='cla'
+
+  claude-use-work() {
+    _claude_account_link "${CLAUDE_ACCOUNT_WORK_DIR}"
+    export CLAUDE_CONFIG_DIR="${CLAUDE_ACCOUNT_WORK_DIR}"
+  }
+
+  claude-private() {
+    claude-use-private
+    command claude "$@"
+  }
+
+  claude-work() {
+    claude-use-work
+    command claude "$@"
+  }
+
+  _claude_autonomous_default_prompt='Implement the requested changes. Run tests, fix failures, and repeat until all tests pass.'
+
+  # Short: clp/clw = normal, clpa/clwa = autonomous
+  clp() {
+    claude-private "$@"
+  }
+
+  clw() {
+    claude-work "$@"
+  }
+
+  clpa() {
+    claude-use-private
+    local q="$*"
+    [ -z "$q" ] && q="$_claude_autonomous_default_prompt"
+    command claude --dangerously-skip-permissions "$q"
+  }
+
+  clwa() {
+    claude-use-work
+    local q="$*"
+    [ -z "$q" ] && q="$_claude_autonomous_default_prompt"
+    command claude --dangerously-skip-permissions "$q"
+  }
+
+  cl() {
+    clp "$@"
+  }
+
+  alias claude-auto='clpa'
 fi
 
 # ----------------------------------------------------------

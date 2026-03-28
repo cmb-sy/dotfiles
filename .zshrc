@@ -1,79 +1,85 @@
 #!/bin/zsh
 
 # ----------------------------------------------------------
-# WezTerm shell integration (for ScrollToPrompt etc.)
+# WezTerm
 # ----------------------------------------------------------
 if [[ "$TERM_PROGRAM" == "WezTerm" ]]; then
-  # Source the wezterm shell integration script, but exclude the trailing "true" to prevent it from being output
+  # Strip trailing "true" so it is not printed to the terminal
   source <(sed '/^true$/d' "/Applications/WezTerm.app/Contents/Resources/wezterm.sh") 2>/dev/null
 fi
 
 # ----------------------------------------------------------
-# Basic Configuration
+# Ghostty
 # ----------------------------------------------------------
-# Enable command highlighting
+if [[ -n "${GHOSTTY_RESOURCES_DIR}" ]] && [[ -f "${GHOSTTY_RESOURCES_DIR}/shell-integration/zsh/ghostty-integration" ]]; then
+  source "${GHOSTTY_RESOURCES_DIR}/shell-integration/zsh/ghostty-integration"
+fi
+
+# ----------------------------------------------------------
+# Basic configuration
+# ----------------------------------------------------------
 ZSH_HIGHLIGHT_HIGHLIGHTERS=(main brackets pattern cursor)
 
 # ----------------------------------------------------------
-# Zsh
+# Zsh options
 # ----------------------------------------------------------
-# History related settings
-setopt hist_ignore_dups     # Don't keep duplicated commands in history
-setopt hist_no_store        # Don't store history command in history
-setopt share_history        # Share history between sessions
-setopt hist_reduce_blanks   # Remove extra spaces
-setopt hist_ignore_space    # Don't store commands starting with space
+# History
+setopt hist_ignore_dups     # Drop consecutive duplicates
+setopt hist_no_store        # Do not store the `history` command itself
+setopt share_history        # Share history across sessions
+setopt hist_reduce_blanks   # Strip extra spaces before saving
+setopt hist_ignore_space    # Ignore commands that start with a space
 
-# Completion related settings
-setopt auto_list            # Show completion candidates
-setopt auto_menu            # Cycle through completion candidates with tab
-setopt auto_param_slash     # Add slash at the end of directory completion
-setopt auto_param_keys      # Auto complete brackets and quotes
-setopt list_packed          # Display completion candidates compactly
-setopt list_types           # Show file types in completion candidates
+# Completion
+setopt auto_list            # List choices on ambiguous completion
+setopt auto_menu            # Tab cycles through menu completions
+setopt auto_param_slash     # Append / after directory names
+setopt auto_param_keys      # Auto-insert matching brackets/quotes
+setopt list_packed          # Compact completion lists
+setopt list_types           # Show file type suffixes in listings
 
-# Directory movement
-setopt auto_cd              # cd to directory by just typing its name
-setopt auto_pushd           # Add directories to stack when cd
-setopt pushd_ignore_dups    # Don't add duplicate directories to stack
+# Directory navigation
+setopt auto_cd              # `dirname` alone runs `cd dirname`
+setopt auto_pushd           # Make `cd` push the old directory onto the stack
+setopt pushd_ignore_dups    # Do not push duplicate directories
 
-# Others
-setopt correct              # Correct command spelling
-setopt no_beep              # No beep sound
-setopt interactive_comments # Enable comments on command line
+# Misc
+setopt correct              # Offer spelling corrections for commands
+setopt no_beep              # No beep on errors
+setopt interactive_comments # Allow `#` comments on the command line
 
 # ----------------------------------------------------------
-# Completion Settings
+# Completion styling
 # ----------------------------------------------------------
 autoload -Uz compinit && compinit
-zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'       # Case insensitive completion
-zstyle ':completion:*:default' menu select=2              # Select completion candidates with cursor
-zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"   # Colorize completion candidates
+zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'       # Case-insensitive
+zstyle ':completion:*:default' menu select=2              # Arrow-key menu
+zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"   # Colored listings
 
 # ----------------------------------------------------------
-# fzf: fuzzy find (directory search, history, file find) — fd で高速化
+# fzf (fuzzy directory, history, file insert)
 # ----------------------------------------------------------
 if command -v fzf &>/dev/null; then
-  # fd があれば Alt+C / Ctrl+T を fd に差し替え（find より高速）
+  # Prefer fd over find for Alt+C / Ctrl+T when available
   if command -v fd &>/dev/null; then
     export FZF_ALT_C_COMMAND='fd --type d --hidden --follow -E .git -E node_modules .'
     export FZF_CTRL_T_COMMAND='fd --type f --hidden --follow -E .git -E node_modules .'
   fi
-  # Alt+C: ディレクトリあいまい検索して cd / Ctrl+R: 履歴 / Ctrl+T: ファイルパス挿入
+  # Alt+C: fuzzy cd / Ctrl+R: history / Ctrl+T: insert file path
   if [[ -f "${HOMEBREW_PREFIX:=$(brew --prefix 2>/dev/null)}/opt/fzf/shell/key-bindings.zsh" ]]; then
     source "${HOMEBREW_PREFIX}/opt/fzf/shell/key-bindings.zsh"
   fi
 fi
 
 # ----------------------------------------------------------
-# Zsh Plugin Management (sheldon) and Theme
+# Zsh plugins (sheldon) and prompt (starship)
 # ----------------------------------------------------------
 eval "$(sheldon source)"
 eval "$(starship init zsh)"
 
 
 # ----------------------------------------------------------
-# Configuration Files
+# Dotfiles extras (functions first, then aliases — Claude helpers live in .aliases.sh)
 # ----------------------------------------------------------
 if [[ -f "${DOTFILES:-${HOME}/dotfiles}/.function.zsh" ]]; then
   source "${DOTFILES:-${HOME}/dotfiles}/.function.zsh"
@@ -84,7 +90,7 @@ if [[ -f "${DOTFILES:-${HOME}/dotfiles}/.aliases.sh" ]]; then
 fi
 
 # ----------------------------------------------------------
-# PATH Settings
+# PATH
 # ----------------------------------------------------------
 export PATH="${HOME}/.claude/local:$PATH"
 export PATH="/opt/homebrew/bin:$PATH"
