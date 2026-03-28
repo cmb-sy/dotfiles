@@ -77,6 +77,12 @@ fi
 eval "$(sheldon source)"
 eval "$(starship init zsh)"
 
+# ----------------------------------------------------------
+# PATH (before .aliases.sh so `command -v claude` sees the CLI; claude often lives in ~/.claude/local)
+# ----------------------------------------------------------
+export PATH="${HOME}/.claude/local:$PATH"
+export PATH="/opt/homebrew/bin:$PATH"
+export PATH="/usr/local/bin:$PATH"
 
 # ----------------------------------------------------------
 # Dotfiles extras (functions first, then aliases — Claude helpers live in .aliases.sh)
@@ -88,16 +94,3 @@ fi
 if [[ -f "${DOTFILES:-${HOME}/dotfiles}/.aliases.sh" ]]; then
   source "${DOTFILES:-${HOME}/dotfiles}/.aliases.sh"
 fi
-
-# Default Claude Code account: company (~/.claude symlink + CLAUDE_CONFIG_DIR for new shells)
-if [[ -o interactive ]] && typeset -f claude-use-work >/dev/null 2>&1; then
-  claude-use-work
-fi
-
-# ----------------------------------------------------------
-# PATH
-# ----------------------------------------------------------
-export PATH="${HOME}/.claude/local:$PATH"
-export PATH="/opt/homebrew/bin:$PATH"
-export PATH="/usr/local/bin:$PATH"
-. "/Users/snakashima/.deno/env"

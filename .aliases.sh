@@ -15,10 +15,7 @@ else
   alias l='ls'
   alias la='ls -a'
 fi
-# When Claude Code is missing, keep `cl` as clear; otherwise `cl` is the work (company) launcher below
-if ! command -v claude >/dev/null 2>&1; then
-  alias cl='clear'
-fi
+alias cl='clear'
 
 # ----------------------------------------------------------
 # Docker
@@ -51,9 +48,8 @@ alias dimg='docker images'
 # for this shell. New terminals do not inherit CLAUDE_CONFIG_DIR; ~/.claude symlink
 # persists until the next clp/clw.
 # ----------------------------------------------------------
-if command -v claude >/dev/null 2>&1; then
-  : "${CLAUDE_ACCOUNT_PRIVATE_DIR:=${HOME}/.claude-private}"
-  : "${CLAUDE_ACCOUNT_WORK_DIR:=${HOME}/.claude-work}"
+: "${CLAUDE_ACCOUNT_PRIVATE_DIR:=${HOME}/.claude-private}"
+: "${CLAUDE_ACCOUNT_WORK_DIR:=${HOME}/.claude-work}"
 
   _claude_account_link() {
     local target="$1"
@@ -70,52 +66,38 @@ if command -v claude >/dev/null 2>&1; then
     export CLAUDE_CONFIG_DIR="${CLAUDE_ACCOUNT_WORK_DIR}"
   }
 
-  claude-private() {
-    claude-use-private
-    command claude "$@"
-  }
+_claude_require_cli() {
+  if ! command -v claude >/dev/null 2>&1; then
+    echo "claude command not found on PATH." >&2
+    return 127
+  fi
+}
 
-  claude-work() {
-    claude-use-work
-    command claude "$@"
-  }
+claude-private() {
+  _claude_require_cli || return $?
+  claude-use-private
+  command claude "$@"
+}
 
-  _claude_autonomous_default_prompt='Implement the requested changes. Run tests, fix failures, and repeat until all tests pass.'
+claude-work() {
+  _claude_require_cli || return $?
+  claude-use-work
+  command claude "$@"
+}
 
-  # Short: cl/clw = work (default), clp = personal; clwa/clpa = autonomous
-  clp() {
-    claude-private "$@"
-  }
+# Short: clp = personal, clw = work
+clp() {
+  claude-private "$@"
+}
 
-  clw() {
-    claude-work "$@"
-  }
+clw() {
+  claude-work "$@"
+}
 
-  clpa() {
-    claude-use-private
-    local q="$*"
-    [ -z "$q" ] && q="$_claude_autonomous_default_prompt"
-    command claude --dangerously-skip-permissions "$q"
-  }
-
-  clwa() {
-    claude-use-work
-    local q="$*"
-    [ -z "$q" ] && q="$_claude_autonomous_default_prompt"
-    command claude --dangerously-skip-permissions "$q"
-  }
-
-  cl() {
-    clw "$@"
-  }
-
-  alias claude-auto='clwa'
-
-  claude-link-shared() {
-    local d="${DOTFILES:-${HOME}/dotfiles}"
-    zsh "$d/claude/link-shared-config.zsh"
-  }
-fi
+claude-link-shared() {
+  local d="${DOTFILES:-${HOME}/dotfiles}"
+  zsh "$d/claude/link-shared-config.zsh"
+}
 
 # ----------------------------------------------------------
 # Others
