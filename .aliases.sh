@@ -45,8 +45,8 @@ alias dimg='docker images'
 #      as intended. Example default target (pick one):
 #        ln -sfn ~/.claude-private ~/.claude
 # Daily: use `clp` (personal) or `clw` (company) to switch symlink + CLAUDE_CONFIG_DIR
-# for this shell. New terminals do not inherit CLAUDE_CONFIG_DIR; ~/.claude symlink
-# persists until the next clp/clw.
+# for this shell. `cla` launches Claude with the current selection.
+# New terminals do not inherit CLAUDE_CONFIG_DIR; ~/.claude symlink persists.
 # ----------------------------------------------------------
 : "${CLAUDE_ACCOUNT_PRIVATE_DIR:=${HOME}/.claude-private}"
 : "${CLAUDE_ACCOUNT_WORK_DIR:=${HOME}/.claude-work}"
@@ -73,19 +73,32 @@ _claude_require_cli() {
   fi
 }
 
+_claude_sync_shared() {
+  local d="${DOTFILES:-${HOME}/dotfiles}"
+  CLAUDE_LINK_SHARED_QUIET=1 zsh "$d/claude/link-shared-config.zsh" >/dev/null 2>&1
+}
+
 claude-private() {
   _claude_require_cli || return $?
+  _claude_sync_shared
   claude-use-private
   command claude "$@"
 }
 
 claude-work() {
   _claude_require_cli || return $?
+  _claude_sync_shared
   claude-use-work
   command claude "$@"
 }
 
-# Short: clp = personal, clw = work
+# Short: cla = current selection, clp = personal, clw = work
+cla() {
+  _claude_require_cli || return $?
+  _claude_sync_shared
+  command claude "$@"
+}
+
 clp() {
   claude-private "$@"
 }
