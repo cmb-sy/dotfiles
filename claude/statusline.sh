@@ -37,6 +37,11 @@ is_int() { case "$1" in ''|*[!0-9]*) return 1;; esac; }
 # Check if a value is non-empty and not "null"
 has_val() { [ -n "$1" ] && [ "$1" != "null" ]; }
 
+# Drop trailing context-window hint from model label, e.g. " (1M)" or " （1M）"
+strip_model_suffix() {
+  printf '%s' "$1" | sed -E 's/[[:space:]]*(\([^)]*\)|（[^）]*）)$//'
+}
+
 # Return visible length (ANSI escape sequences stripped)
 visible_len() {
   printf '%s' "$1" | sed -E 's/\x1B\[[0-9;]*[[:alpha:]]//g' | awk '{print length}'
@@ -97,7 +102,7 @@ eval "$(echo "$input" | jq -r '
 
 sec_model=""
 if has_val "$MODEL"; then
-  sec_model="${C_MODEL}${MODEL#Claude }${RST}"
+  sec_model="${C_MODEL}$(strip_model_suffix "${MODEL#Claude }")${RST}"
   if has_val "$MODE" && [ "$MODE" != "default" ]; then
     sec_model+=" ${WHT}|${RST} ${C_MODEL}${MODE}${RST}"
   fi

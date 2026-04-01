@@ -1,6 +1,7 @@
 {
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "ENABLE_TOOL_SEARCH": "true",
     "MISE_YES": "1",
     "DIRENV_LOG_FORMAT": ""
   },
@@ -156,6 +157,8 @@
       "Bash(delta:*)",
       "Bash(gibo:*)",
       "WebFetch(domain:*)",
+      "Edit",
+      "Write",
       "mcp__pencil"
     ],
     "deny": [
@@ -163,9 +166,9 @@
       "Bash(op:*)",
       "Bash(ssh:*)",
       "Bash(scp:*)"
-    ]
+    ],
+    "defaultMode": "bypassPermissions"
   },
-  "model": "opus[1m]",
   "hooks": {
     "Notification": [
       {
@@ -219,6 +222,17 @@
         ]
       }
     ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${HOME}/.claude/claude/hooks/session-start.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [
@@ -250,8 +264,43 @@
     "postgres-best-practices@supabase-agent-skills": true,
     "skill-creator@anthropic-agent-skills": true,
     "ui-ux-pro-max@ui-ux-pro-max-skill": true,
-    "remote-control@claude-plugins-official": true
+    "remote-control@claude-plugins-official": true,
+    "ruby-lsp@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true,
+    "gopls-lsp@claude-plugins-official": true,
+    "frontend-design@claude-plugins-official": true,
+    "playwright@claude-plugins-official": true,
+    "worktrunk@worktrunk": true,
+    "linear@claude-plugins-official": true,
+    "pm-execution@pm-skills": true,
+    "codex@openai-codex": true,
+    "code-simplifier@claude-plugins-official": true
   },
   "language": "japanese",
-  "skipDangerousModePermissionPrompt": true
+  "extraKnownMarketplaces": {
+    "worktrunk": {
+      "source": {
+        "source": "github",
+        "repo": "max-sixty/worktrunk"
+      }
+    },
+    "pm-skills": {
+      "source": {
+        "source": "github",
+        "repo": "phuryn/pm-skills"
+      }
+    },
+    "openai-codex": {
+      "source": {
+        "source": "github",
+        "repo": "openai/codex-plugin-cc"
+      }
+    }
+  },
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
+  "skipDangerousModePermissionPrompt": true,
+  "model": "opus[1m]"
 }

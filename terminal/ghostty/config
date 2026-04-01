@@ -52,15 +52,16 @@ font-codepoint-map = U+3400-U+4DBF,U+20000-U+2A6DF=HackGen
 background-opacity = 0.80
 background-opacity-cells = true
 background-blur = 24
-unfocused-split-opacity = 0.95
 window-padding-y = 2,8
 window-padding-x = 8,8
 window-padding-balance = true
 window-padding-color = extend
+# Windowed startup so background-opacity / blur apply (native fullscreen disables opacity on macOS).
 fullscreen = false
 macos-titlebar-style = tabs
 window-theme = dark
 window-title-font-family = Monaspace Neon
+# When you toggle fullscreen manually: non-native + menu visible (tabs + non-native have caveats in Ghostty docs).
 macos-non-native-fullscreen = visible-menu
 
 # ---------------------------------------------------------------------------

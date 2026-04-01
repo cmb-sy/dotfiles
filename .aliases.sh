@@ -15,7 +15,6 @@ else
   alias l='ls'
   alias la='ls -a'
 fi
-alias cl='clear'
 
 # ----------------------------------------------------------
 # Docker
@@ -44,8 +43,7 @@ alias dimg='docker images'
 #   4. Make ~/.claude a symlink (not a plain directory), or clp/clw may not behave
 #      as intended. Example default target (pick one):
 #        ln -sfn ~/.claude-private ~/.claude
-# Daily: use `clp` (personal) or `clw` (company) to switch symlink + CLAUDE_CONFIG_DIR
-# for this shell. `cla` launches Claude with the current selection.
+# Daily: `clp` / `clw` switch account + launch; `clpa` / `clwa` same + autonomous mode.
 # New terminals do not inherit CLAUDE_CONFIG_DIR; ~/.claude symlink persists.
 # ----------------------------------------------------------
 : "${CLAUDE_ACCOUNT_PRIVATE_DIR:=${HOME}/.claude-private}"
@@ -92,13 +90,7 @@ claude-work() {
   command claude "$@"
 }
 
-# Short: cla = current selection, clp = personal, clw = work
-cla() {
-  _claude_require_cli || return $?
-  _claude_sync_shared
-  command claude "$@"
-}
-
+# Short: clp / clw / clpa / clwa
 clp() {
   claude-private "$@"
 }
@@ -107,10 +99,37 @@ clw() {
   claude-work "$@"
 }
 
+_claude_autonomous_default_prompt='Implement the requested changes. Run tests, fix failures, and repeat until all tests pass.'
+
+clpa() {
+  _claude_require_cli || return $?
+  _claude_sync_shared
+  claude-use-private
+  local q="$*"
+  [ -z "$q" ] && q="$_claude_autonomous_default_prompt"
+  command claude --dangerously-skip-permissions "$q"
+}
+
+clwa() {
+  _claude_require_cli || return $?
+  _claude_sync_shared
+  claude-use-work
+  local q="$*"
+  [ -z "$q" ] && q="$_claude_autonomous_default_prompt"
+  command claude --dangerously-skip-permissions "$q"
+}
+
+alias claude-auto='clwa'
+
 claude-link-shared() {
   local d="${DOTFILES:-${HOME}/dotfiles}"
   zsh "$d/claude/link-shared-config.zsh"
 }
+
+if [ -n "${ZSH_VERSION-}" ]; then
+  builtin unfunction cla 2>/dev/null
+  unalias cla cl 2>/dev/null
+fi
 
 # ----------------------------------------------------------
 # Others

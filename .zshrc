@@ -84,6 +84,9 @@ export PATH="${HOME}/.claude/local:$PATH"
 export PATH="/opt/homebrew/bin:$PATH"
 export PATH="/usr/local/bin:$PATH"
 
+# mise (runtime version manager) — must come after PATH so mise shims take priority
+eval "$(mise activate zsh)"
+
 # ----------------------------------------------------------
 # Dotfiles extras (functions first, then aliases — Claude helpers live in .aliases.sh)
 # ----------------------------------------------------------
