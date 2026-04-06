@@ -73,7 +73,8 @@ fmt_reset() {
   local ts="$1"
   has_val "$ts" || return
   local reset_s diff
-  reset_s=$(TZ=UTC date -jf "%Y-%m-%dT%H:%M:%S" "${ts%.*}" +%s 2>/dev/null) || return
+  local clean="${ts%%[.+Z]*}"   # strip fractional seconds, tz offset, and trailing Z
+  reset_s=$(TZ=UTC date -jf "%Y-%m-%dT%H:%M:%S" "$clean" +%s 2>/dev/null) || return
   diff=$(( reset_s - NOW ))
   [ "$diff" -le 0 ] && return
   printf '%dh%dm' "$(( diff / 3600 ))" "$(( (diff % 3600) / 60 ))"
@@ -163,8 +164,8 @@ if [ -s "$CACHE_FILE" ]; then
   ' "$CACHE_FILE" 2>/dev/null)"
 
   parts=""
-  for entry in "5h:$U5:$R5" "7d:$U7:$R7"; do
-    IFS=':' read -r label util reset <<< "$entry"
+  for entry in "5h|$U5|$R5" "7d|$U7|$R7"; do
+    IFS='|' read -r label util reset <<< "$entry"
     has_val "$util" || continue
     r=$(echo "100 - $util" | bc 2>/dev/null); r="${r%%.*}"
     [ -z "$r" ] && continue
