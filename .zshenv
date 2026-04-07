@@ -27,3 +27,4 @@ export SAVEHIST=1000000
 export PATH="/usr/local/bin:${PATH}"
 export PATH="/opt/homebrew/bin:$PATH"
 export PATH="${HOME}/dotfiles/bin:${PATH}"
+export PATH="${HOME}/.local/bin:${PATH}"

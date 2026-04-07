@@ -78,6 +78,26 @@ if [[ $? = 0 ]]; then
   fi
 fi
 
+#----------------------------------------------------------
+# slackcli (not available via Homebrew)
+#----------------------------------------------------------
+util::confirm "Install slackcli?"
+if [[ $? = 0 ]]; then
+  local arch=$(uname -m)
+  local suffix="macos"
+  [[ "$arch" = "arm64" ]] && suffix="macos-arm64"
+  mkdir -p "$HOME/.local/bin"
+  local dest="$HOME/.local/bin/slackcli"
+  if command -v slackcli &>/dev/null; then
+    util::info "slackcli already installed: $(slackcli --version)"
+  else
+    curl -fSL "https://github.com/shaharia-lab/slackcli/releases/latest/download/slackcli-${suffix}" -o /tmp/slackcli
+    chmod +x /tmp/slackcli
+    mv /tmp/slackcli "$dest"
+    util::info "slackcli installed to $dest"
+  fi
+fi
+
 util::info "Cleanup..."
 brew cleanup 2>/dev/null || true
 util::info "Done!"

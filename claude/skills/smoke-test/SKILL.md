@@ -1,15 +1,16 @@
 ---
 name: smoke-test
 description: >-
-  Playwright ベースのローカルスモークテスト。dev サーバー起動 → アドホックテスト生成・実行 →
+  ローカルスモークテスト。dev サーバー起動 → アドホックテスト生成・実行 →
   VRT 差分チェック → E2E 実行 + フレーキー検出の4ステップを実行する。
   単体でも他のワークフローからの invoke でも利用可能。
+skills: [agent-browser]
 user-invocable: true
 ---
 
 # Smoke Test
 
-ローカル環境で Playwright を使い、実装した機能の動作確認・VRT 差分チェック・E2E フレーキー検出を自律的に実行する。
+起動時に `/agent-browser` をinvokeする。実装した機能の動作確認・VRT 差分チェック・E2E フレーキー検出を自律的に実行する。
 
 **開始時アナウンス:** 「Smoke Test を開始します。Step 1: Environment Setup」
 
@@ -25,12 +26,22 @@ user-invocable: true
 | `--skip-e2e` | Step 4（E2E 実行 + フレーキー検出）をスキップ |
 | `--adhoc-only` | Step 2 のみ実行（`--skip-vrt --skip-e2e` と同等） |
 | `--full-e2e` | 全 E2E テストを2回実行（デフォルトは変更関連のみ） |
+| `--perspectives <list>` | カンマ区切りで追加テスト観点を指定（standalone 用）。値: security, performance, coverage |
 
 ## 出力
 
 - **終了ステータス:** PASS / FAIL / PAUSE
 - **レポート:** smoke-test-report.md（作業ディレクトリ、コミット対象外）
 - **副作用:** VRT ベースライン更新時のみコミット（ユーザー承認後）
+
+## Verification Doctrine
+
+Smoke Test は「たぶん動く」を確認する手順ではない。変更を直接動かし、壊れ方まで含めて検証する独立 verification である。
+
+- browser-use による実操作を必須とし、既存テストスイートを代替にしない
+- happy path だけでなく、少なくとも1件は adversarial probe を含める
+- PASS を出すには、実行したコマンド / 操作内容 / 観測結果をレポートに残す
+- 環境要因で実行不能な場合のみ PAUSE とし、未確認を PASS にしない
 
 ---
 
@@ -57,9 +68,9 @@ Dev サーバーを起動しアクセス可能にする。
 
 ### サーバー起動と確認
 
-サーバー起動には webapp-testing スキルの `with_server.py` パターンを活用する。
+サーバー起動にはバックグラウンドプロセスとして起動する（`run_in_background: true`）。
 
-起動確認: Playwright で `localhost:<port>` にアクセスし、`networkidle` 待機する。30秒タイムアウト → PAUSE。
+起動確認: browser-use CLI でサーバーにアクセスし、ページ読み込みとページ要素の取得を確認する。30秒タイムアウト → PAUSE。
 
 **アナウンス:** 「Step 1 完了。サーバー起動確認済み (port: <N>)。Step 2: Ad-hoc Smoke Test に進みます」
 
@@ -67,7 +78,11 @@ Dev サーバーを起動しアクセス可能にする。
 
 ## Step 2: Ad-hoc Smoke Test
 
-設計書と実装差分からスモークテストシナリオを自動生成・実行する。
+設計書と実装差分からスモークテストシナリオを自動生成し、Browser Use CLI で直接実行する。
+
+### 前提条件チェック
+
+browser-use CLI がインストールされているか確認する。未インストールの場合は PAUSE し、インストール方法を案内する。
 
 ### 差分取得
 
@@ -76,24 +91,88 @@ Dev サーバーを起動しアクセス可能にする。
 | `--diff-base <branch>` 指定 | `git diff <branch>...HEAD` |
 | (なし) | `git diff HEAD~1` |
 
-`--design <path>` 指定時は設計書も Read で読み込み、シナリオ生成の精度を向上させる。
+`--design <path>` 指定時は設計書も Read で読み込み、Impact Analysis セクションを抽出してシナリオ生成の精度と影響範囲テストに活用する。
+
+### テスト観点拡張
+
+基本の5観点に加え、以下の方法でテスト観点を動的に拡張する。
+
+#### パイプライン経由（`--design` 指定時）
+
+設計書から以下を抽出し、シナリオ生成の入力に追加する:
+
+| 抽出対象 | 設計書内の位置 | 用途 |
+|---------|--------------|------|
+| テスト観点セクション | 「テスト観点」or 「Test Perspectives」 | シナリオの網羅性を拡張 |
+| Must-Verify Checklist | Investigation Record 内 | 必須検証項目としてシナリオ化 |
+| Impact Analysis | Reverse Dependencies / Side Effect Risks | 影響波及テスト（観点5）を強化 |
+
+#### スタンドアロン（`--perspectives` 指定時）
+
+各 perspective に対応するエージェントを Agent ツールで並列起動し、diff を渡してスモークテストで検証すべき観点を収集する。
+
+| perspective | エージェント | 収集する観点 |
+|-------------|------------|-------------|
+| security | `subagent_type: "code-review-security"` | XSS, CSRF, 認証バイパス, インジェクション |
+| performance | `subagent_type: "code-review-performance"` | レンダリング速度, 大量データ表示, N+1 |
+| coverage | `subagent_type: "test-review-coverage"` | 境界値, エラーパス, 状態遷移網羅 |
+
+**エージェントへの共通プロンプト構造:**
+
+> 以下の diff に対して、{perspective} の観点からスモークテストで
+> ブラウザ操作を通じて検証すべき項目を列挙してください。
+> コードレベルの指摘ではなく、ユーザー操作で確認可能な項目に限定すること。
+>
+> [diff]
+>
+> 出力: テスト観点のリスト（各項目: 観点名、検証内容、優先度 high/medium）
+
+収集した観点はシナリオ生成の入力に統合する。
+
+#### 両方指定時
+
+設計書の観点 + perspectives エージェントの観点を統合する。同一の検証内容を指す観点が重複した場合、設計書側の記述を採用し、エージェント側は除外する。
 
 ### シナリオ生成
 
-以下の4観点でシナリオを生成する。
+以下の5観点でシナリオを自然言語で生成する。
 
 1. **ナビゲーション確認** — ページ遷移・表示が正常であること
 2. **ユーザーインタラクション** — クリック、入力、フォーム送信が動作すること
 3. **エラー不在確認** — コンソールエラー・ネットワークエラーが発生しないこと
 4. **レスポンシブ確認** — desktop: 1280x720, mobile: 375x667 の両方で表示が崩れないこと
+5. **影響波及テスト** — Impact Analysis の Reverse Dependencies / Side Effect Risks に基づき、変更の波及先が正常に動作すること
+
+加えて、上記から最低1件は adversarial probe を選定または追加する。例:
+- 空入力 / 異常入力
+- 同じ操作の連続実行（idempotency）
+- 存在しない対象への遷移・操作
+- refresh / relaunch 後の状態保持確認
+- 変更箇所以外の依存画面・導線の逆方向確認
 
 ### 実行
 
-Playwright Python スクリプトとして `/tmp/smoke-test-<timestamp>/` に生成する（1シナリオ = 1ファイル）。
+`skills: [browser-use]` により注入された browser-use CLI の知識を使い、各シナリオを検証する。
 
-各ステップでスクリーンショットを取得する。
+各シナリオは **reconnaissance-then-action** で実行する:
+先にページ状態を取得し、要素を確認してから操作する。
+遷移後・操作後は状態が安定するまで待機してから次の検証に進む。
 
-失敗時: スクリプトを修正し再実行する（最大2回）。2回失敗 → FAIL。
+**実行フロー（各シナリオ）:**
+1. 対象ページに遷移
+2. ページ状態を取得（reconnaissance）
+3. 操作を実行（action）
+4. 操作結果を確認
+5. スクリーンショットを `smoke-<scenario_name>.png` として保存
+6. browser-use の実行内容、観測結果、スクリーンショットから PASS/FAIL を判定
+
+各シナリオについて、レポートには少なくとも以下を残す:
+- check 名
+- 実行コマンドまたは browser-use invocation
+- 実際に観測した結果
+- PASS/FAIL 判定
+
+**失敗時:** シナリオを修正し再実行する（最大2回）。2回失敗 → FAIL。
 
 **アナウンス:** 「Step 2 完了。<N>/<M> シナリオ PASS。Step 3: VRT Diff Check に進みます」
 
@@ -197,6 +276,13 @@ Playwright Python スクリプトとして `/tmp/smoke-test-<timestamp>/` に生
 |---------|------|------|-----------------|
 | ... | ... | PASS/FAIL | パス |
 
+### Evidence Log
+
+#### Check: <scenario>
+- Command run: <browser-use invocation or equivalent>
+- Output observed: <state / key observation / console / network summary>
+- Result: PASS / FAIL
+
 ## Step 3: VRT Diff Check
 
 SKIP / PASS / DIFF_DETECTED
@@ -217,6 +303,10 @@ SKIP / PASS / DIFF_DETECTED
 | テスト | エラー | 修正提案 |
 |-------|--------|---------|
 | ... | ... | ... |
+
+### Verification Notes
+- Adversarial probe executed: <yes/no + summary>
+- Environment limitations: <none or details>
 ```
 
 ### Overall Status
@@ -225,9 +315,31 @@ SKIP / PASS / DIFF_DETECTED
 |-----------|--------|
 | 全ステップ PASS（フレーキー許容） | PASS |
 | Step 2 が2回リトライ後も失敗 | FAIL |
+| Step 2 で adversarial probe が未実行 | FAIL |
 | Step 4 で実装起因の失敗（2回とも FAIL） | FAIL |
 | サーバー起動不可 | PAUSE |
 | フレーキーのみ検出（他は PASS） | PASS（レポートに記録） |
+
+---
+
+## Execution Evidence
+
+スモークテストの有効な実行を証明するため、以下のアーティファクトが**必須**で生成されなければならない。
+これらが欠けている場合、監査ゲートは FAIL とする。
+
+| アーティファクト | 説明 | 生成元 |
+|---------------|------|-------|
+| `smoke-test-report.md` | 所定フォーマットのレポート（Step 2 テーブル必須） | Report Generation |
+| `smoke-*.png` (1枚以上) | browser-use screenshot で取得した証跡 | Step 2 実行時 |
+
+### 無効な実行パターン
+
+以下のいずれかに該当する場合、監査ゲートは実行を無効と判定する:
+
+1. `smoke-test-report.md` が存在しない、または所定フォーマット（Step 2 テーブルにシナリオ・観点・結果・スクリーンショット列）に準拠していない
+2. `smoke-*.png` スクリーンショットが1枚も存在しない
+3. レポート内のシナリオ結果が browser-use 以外のツール（rspec, jest, pytest 等）の出力に基づいている
+4. レポートに adversarial probe の記録が存在しない
 
 ---
 
@@ -237,11 +349,11 @@ SKIP / PASS / DIFF_DETECTED
 |------|--------|---------|
 | 1 | サーバー起動コマンド検出不可 | AskUserQuestion → 回答なし → PAUSE |
 | 1 | サーバー起動タイムアウト（30秒） | PAUSE |
-| 2 | Playwright スクリプト実行エラー | 修正 → 再実行（最大2回） |
+| 2 | Browser Use CLI 実行エラー | 修正 → 再実行（最大2回） |
 | 2 | アプリケーションバグ | レポートに記録、FAIL |
 | 3 | VRT コマンド実行エラー | レポートに記録、スキップ |
 | 4 | E2E テスト実行エラー（テスト外の問題） | レポートに記録、スキップ |
-| 全体 | Playwright 未インストール | インストール提案、PAUSE |
+| 全体 | Browser Use CLI 未インストール | `uvx browser-use install` を提案、PAUSE |
 
 ---
 
@@ -253,6 +365,9 @@ SKIP / PASS / DIFF_DETECTED
 - VRT ベースラインをユーザー承認なしに更新する
 - フレーキーテストを実装バグとして FAIL にする
 - feature-dev の内部状態（artifacts, phase 番号等）に直接アクセスする
+- rspec / jest / vitest / pytest 等の既存テストスイートを browser-use ベースのスモークテストの代替として実行する。スモークテストは browser-use CLI による UI 操作検証であり、既存のユニットテスト・統合テストとは別物である
+- 環境問題（Docker 起動失敗、サーバー起動不可等）を理由に smoke-test の手順を独自に変更・簡略化する。環境問題は PAUSE で報告し、ユーザーに解決を委ねること
+- `--smoke` がパイプラインから指定されている場合に Phase をスキップする提案をする。`--smoke` はユーザーの明示的な意思表示であり、スキップ判断はユーザーにのみ許される
 
 ### Always
 

@@ -5,14 +5,13 @@ description: >-
   md ファイルの YAML frontmatter に宣言された depends-on（ファイルパス・glob）と
   本文中の Markdown リンクから依存グラフを構築し、git diff との突合で影響範囲を特定する。
   /doc-check で起動、またはコード変更を含むタスク完了時に実行を検討する。
-user-invocable: true
 ---
 
 コード変更に影響を受ける md ドキュメントを検出し、ユーザー承認後に更新する。
 
 ## フロー
 
-1. スキルディレクトリ内の `scripts/doc-check.sh` を実行する（スクリプトが無い場合はユーザーに報告して終了）
+1. `scripts/doc-check.sh` を実行する
 2. 出力を解釈し、影響ドキュメント一覧をユーザーに提示する
 3. ドキュメントごとにユーザーの判断を確認する
 4. 承認されたドキュメントを更新し、差分を提示する
@@ -21,7 +20,7 @@ user-invocable: true
 
 スキルディレクトリからの相対パスで実行する:
 
-```bash
+````bash
 # デフォルト: staged + unstaged の変更に対してチェック
 bash "$(dirname "$SKILL_PATH")/scripts/doc-check.sh"
 
@@ -30,7 +29,7 @@ bash "$(dirname "$SKILL_PATH")/scripts/doc-check.sh" --range HEAD~3..HEAD
 
 # ファイルを直接指定
 bash "$(dirname "$SKILL_PATH")/scripts/doc-check.sh" --files src/api.ts src/handler.ts
-```
+````
 
 ### 終了コード
 

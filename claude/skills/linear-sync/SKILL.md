@@ -18,13 +18,21 @@ user-invocable: false
 - **ベストエフォート**: Linear API 失敗はワークフローをブロックしない
 - **冪等性**: 同じフェーズを2回 sync しても安全
 
+## 責務の3層構造
+
+| Layer | 責務 | 状態 |
+|-------|------|------|
+| Layer 1 | 進捗可視化（フェーズ開始/完了のコメント投稿） | 既存 |
+| Layer 2 | コンテキストストア（Phase Summary、エビデンス、regate 履歴の記録） | 新規 |
+| Layer 3 | セッション管理（claude resume 用セッション情報、エラー再現性） | 新規 |
+
 ## Activation
 
 `--linear` フラグで有効化。フラグなしの場合、ワークフローはこのスキルを一切参照しない。
 
 有効化時のフロー:
 1. ワークフロー開始時: このスキルファイルを Read
-2. Phase 1 開始前: `resolve_ticket` セクションに従いチケットを特定
+2. 最初のフェーズ開始前: `resolve_ticket` セクションに従いチケットを特定
 3. チケット特定成功: `sync_workflow_start` を実行
 4. 各フェーズ完了後（Audit Gate の後）: `sync_phase` を実行
 5. Handover 実行時: `sync_handover` を実行
@@ -43,8 +51,7 @@ user-invocable: false
    ```
    結果に対して `/([A-Z]+-\d+)/` で Linear チケットIDを抽出。
 
-2. **推定成功時**: Linear API で存在確認:
-   - `mcp__plugin_linear_linear__get_issue(id: 抽出したID)` を実行
+2. **推定成功時**: Linear でチケット存在を確認:
    - 取得成功 → ユーザーに提示:
      ```
      Linear チケット {id}: {title} に紐づけますか？
@@ -53,8 +60,8 @@ user-invocable: false
    - 取得失敗（存在しない）→ 手順3へ
 
 3. **推定失敗時**: 直近のアサイン済みチケットを検索:
-   - `mcp__plugin_linear_linear__get_authenticated_user()` で現在ユーザーを取得
-   - `mcp__plugin_linear_linear__list_issues(assignee: user_id, state: "In Progress", limit: 5)` で候補取得
+   - 現在の認証ユーザーを取得
+   - アサイン済み In Progress チケットを取得（最大5件）
    - ユーザーに一覧を提示し選択を求める:
      ```
      紐づける Linear チケットを選んでください:
@@ -77,20 +84,15 @@ user-invocable: false
 
 ### 手順
 
-1. **チケットステータスを更新**:
-   - `mcp__plugin_linear_linear__get_issue(id: linear_ticket_id)` でチケット情報取得し、チームIDを特定
-   - `mcp__plugin_linear_linear__list_issue_statuses(team: team_id)` でステータス一覧取得
-   - "In Progress" に相当するステータスを特定（type が "started" のもの）
-   - `mcp__plugin_linear_linear__save_issue(id: linear_ticket_id, state: in_progress_status_name)` で更新
+1. **チケットステータスを In Progress に更新**
 
 2. **Workflow Report Document を作成**:
    - `templates/document.md` を Read し、Document 生成仕様を確認
    - 仕様に従い、初期状態の Document コンテンツを生成（全フェーズ Pending）
-   - `mcp__plugin_linear_linear__create_document(title: "Workflow Report — {ticket_id}", content: generated_content, issue: linear_ticket_id, icon: "📋")` で作成
+   - Document を作成し、チケットに紐付ける（タイトル: "Workflow Report — {ticket_id}"、アイコン: 📋）
    - 返却された Document の ID を `linear_document_id` としてワークフローコンテキストに保持
 
 3. **開始コメントを投稿**:
-   - `mcp__plugin_linear_linear__save_comment(issueId: linear_ticket_id, body: start_comment)` で投稿
    - コメント内容:
      ```markdown
      ## Workflow Started
@@ -120,7 +122,7 @@ user-invocable: false
   },
   "audit_observations": [
     {
-      "criteria_id": "D4-03",
+      "criteria_id": "PLR-03",
       "severity": "quality",
       "observation": "共通バリデーション抽出を検討",
       "recommendation": "次スプリントで対応"
@@ -141,23 +143,30 @@ user-invocable: false
 ### 手順
 
 1. **エビデンスファイルのアップロード**（evidence_files がある場合）:
-   - 各ファイルについて:
-     - ファイルを Read で読み込む
-     - Bash で base64 エンコード: `base64 -i {path}`
-     - `mcp__plugin_linear_linear__create_attachment(issue: linear_ticket_id, base64Content: encoded, filename: basename, contentType: content_type, title: label)` でアップロード
-     - **失敗時**: warn ログを出力し、エビデンスリストに「(アップロード失敗。ローカル: {path})」を記載。ワークフローは続行。
+   - 各エビデンスファイルをチケットに添付する
+   - **失敗時**: warn ログを出力し、エビデンスリストに「(アップロード失敗。ローカル: {path})」を記載。ワークフローは続行。
 
-2. **フェーズ完了コメントを投稿**:
+2. **Phase Summary の記録（Layer 2）**:
+
+   phase_result に加えて Phase Summary を Linear コメントに含める:
+   - `artifacts`: 成果物の場所（ファイルパス、ブランチ、コミット範囲）
+   - `decisions`: このフェーズで下した設計判断
+   - `concerns`: 懸念事項（target_phase 付き）
+   - `directives`: 次フェーズへの明示的な指示
+
+   evidence フィールドに基づきエビデンス処理:
+   - `linear_sync: inline` → コメント本文に埋め込み
+   - `linear_sync: attached` → ファイルをチケットに添付アップロード
+   - `linear_sync: reference_only` → ローカルパスのみ記載
+
+3. **フェーズ完了コメントを投稿**:
    - `templates/comment.md` を Read し、コメント生成仕様を確認
    - 仕様に従い、phase_result からコメント本文を生成
-   - **冪等性チェック**: `mcp__plugin_linear_linear__list_comments(issueId: linear_ticket_id, limit: 10)` で直近コメントを取得
-     - `## Phase {N}:` で始まるコメントが存在 → `mcp__plugin_linear_linear__save_comment(id: existing_comment_id, body: new_body)` で更新
-     - 存在しない → `mcp__plugin_linear_linear__save_comment(issueId: linear_ticket_id, body: new_body)` で新規投稿
+   - **冪等性チェック**: 直近コメントを取得し、`## Phase {N}:` で始まるコメントが存在すれば更新、なければ新規投稿
 
-3. **Document を更新**:
+4. **Document を更新**:
    - `templates/document.md` を Read し、Document 生成仕様を確認
-   - これまでの全フェーズ結果を反映した Document コンテンツを再生成
-   - `mcp__plugin_linear_linear__update_document(id: linear_document_id, content: regenerated_content)` で上書き更新
+   - これまでの全フェーズ結果を反映した Document コンテンツを再生成し、上書き更新
 
 ## sync_handover
 
@@ -167,26 +176,37 @@ user-invocable: false
 ### 手順
 
 1. **project-state.json をアップロード**:
-   - Handover で生成された `project-state.json` を Read
-   - Bash で base64 エンコード: `base64 -i {path_to_project_state_json}`
-   - `mcp__plugin_linear_linear__create_attachment(issue: linear_ticket_id, base64Content: encoded, filename: "project-state.json", contentType: "application/json", title: "Handover State ({timestamp})")` でアップロード
+   - project-state.json をチケットに添付する（タイトル: "Handover State ({timestamp})"）
 
 2. **中断コメントを投稿**:
    - `templates/handover-comment.md` を Read し、コメント生成仕様を確認
-   - 仕様に従い、コメント本文を生成
-   - `mcp__plugin_linear_linear__save_comment(issueId: linear_ticket_id, body: handover_comment)` で投稿
+   - 仕様に従い、コメント本文を生成して投稿
 
-3. **Document を更新**:
-   - 現在の状態（Handover 中）を反映した Document コンテンツを再生成
-   - `mcp__plugin_linear_linear__update_document(id: linear_document_id, content: regenerated_content)` で更新
+3. **セッション情報の記録（Layer 3）**:
+
+   handover 時に以下のセッション情報をコメントに含める:
+
+   ```yaml
+   session:
+     session_id: "<CLAUDE_SESSION_ID>"
+     started_at: "<ISO8601>"
+     ended_at: "<ISO8601>"
+     context_usage: "<N%>"
+     handover_reason: "policy:always | context:threshold | user:manual"
+     resume_command: "claude resume <session_id>"
+     phase_at_exit: N
+     pending_action: "<次のアクション>"
+   ```
+
+4. **Document を更新**:
+   - 現在の状態（Handover 中）を反映した Document コンテンツを再生成して更新
 
 ## sync_complete
 
 ### 手順
 
 1. **Document を最終更新**:
-   - 全フェーズ完了状態の Document コンテンツを再生成（Status: Complete）
-   - `mcp__plugin_linear_linear__update_document(id: linear_document_id, content: final_content)` で更新
+   - 全フェーズ完了状態の Document コンテンツを再生成して更新（Status: Complete）
 
 2. **完了コメントを投稿**:
    ```markdown
@@ -197,12 +217,86 @@ user-invocable: false
    **Duration:** {start_time} → {end_time}
    **Result:** 全 {total_phases} フェーズ完了
    ```
-   - `mcp__plugin_linear_linear__save_comment(issueId: linear_ticket_id, body: complete_comment)` で投稿
+3. **チケットステータスを Done に更新**
 
-3. **チケットステータスを更新**:
-   - `mcp__plugin_linear_linear__list_issue_statuses(team: team_id)` でステータス一覧取得
-   - "Done" に相当するステータスを特定（type が "completed" のもの）
-   - `mcp__plugin_linear_linear__save_issue(id: linear_ticket_id, state: done_status_name)` で更新
+## sync_phase_summary
+
+**目的**: Phase Summary を Linear コメントに書き込む（Layer 2）。
+
+**入力**: Phase Summary YAML（phase-summaries/phase-XX-*.yml の内容）
+
+**手順**:
+1. Phase Summary を構造化コメントとして投稿
+2. `templates/comment.md` のフォーマットに従い、artifacts/decisions/concerns/directives/evidence を含める
+3. 冪等性チェック: 同一フェーズのコメントが既存の場合は更新
+
+**出力**: Linear コメント ID
+
+## sync_session
+
+**目的**: セッション情報を Linear に記録する（Layer 3）。
+
+**入力**:
+```yaml
+session:
+  session_id: "<ID>"
+  started_at: "<ISO8601>"
+  ended_at: "<ISO8601>"
+  context_usage: "<N%>"
+  handover_reason: "policy:always | context:threshold | user:manual"
+  resume_command: "claude resume <session_id>"
+  phase_at_exit: N
+  pending_action: "<次のアクション>"
+```
+
+**手順**:
+1. セッション情報をコメントに含めて投稿
+2. Document にセッション履歴を追記
+
+## sync_regate
+
+**目的**: Regate イベントを Linear に記録する（Layer 2）。
+
+**入力**:
+```yaml
+regate:
+  trigger: review_findings | test_failure | audit_failure
+  source_phase: <phase_name>
+  rewind_to: <phase_name>
+  rerun: [<phase_ids>]
+  attempt: N
+  fix_summary: "<修正内容の要約>"
+```
+
+**手順**:
+1. Regate イベントをコメントとして投稿（ステータス絵文字付き）
+2. Document のフェーズ状態を更新（regate 中表示）
+
+## sync_evidence
+
+**目的**: エビデンスを Linear に記録する（Layer 2）。
+
+**入力**: evidence 配列（Phase Summary の evidence フィールド）
+
+**手順**:
+1. `linear_sync: inline` → コメント本文に含める
+2. `linear_sync: attached` → ファイルをチケットに添付アップロード、`linear_attachment_id` を返却
+3. `linear_sync: reference_only` → ローカルパスのみ記載
+4. アップロード失敗時: warn ログ、ローカルパス記載、続行
+
+## read_phase_summary
+
+**目的**: Linear から Phase Summary を読み出す（Layer 2、復元用）。
+
+**入力**: `linear_ticket_id`, `phase_number`
+
+**手順**:
+1. チケットのコメント履歴を走査
+2. `## Phase {N}:` で始まるコメントを検索
+3. コメント内容から Phase Summary YAML を再構成
+4. 返却
+
+**用途**: ローカルの phase-summaries/ が不在時のフォールバック復元（continue スキルから呼び出し）。
 
 ## Error Handling
 

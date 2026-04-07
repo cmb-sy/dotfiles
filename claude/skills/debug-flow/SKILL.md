@@ -34,7 +34,7 @@ user-invocable: true
 ## Resume Gate（最優先で評価）
 
 起動時に以下を確認:
-1. `.claude/handover/` 配下に現在ブランチの READY セッションが存在するか
+1. `.agents/handover/` 配下に現在ブランチの READY セッションが存在するか
 2. 複数 READY セッションがある場合、タイムスタンプ（fingerprint）が最新のものを選択
 3. 存在する場合、`project-state.json` の `pipeline` が `"debug-flow"` と一致するか
 
@@ -206,49 +206,6 @@ Phase 6/7 でコード変更がある場合、Phase 6/7 の Audit Gate の前に
 5. findings があれば修正 → Step 2 に戻る
 6. findings がなければ Phase 6/7 Audit Gate へ
 詳細は `./references/audit-gate-protocol.md` セクション 8 を参照。
-
-## Trace 記録（フェーズ遷移）
-
-各 Phase の開始時と終了時に trace を記録する。handover セッションディレクトリが存在する場合のみ実行する。
-
-### 初期化（Phase 1 開始前）
-
-1. Bash で handover ディレクトリを解決し、TRACE_FILE を設定する:
-   ```bash
-   source ~/.dotfiles/claude/skills/handover/scripts/trace-lib.sh
-   source ~/.dotfiles/claude/skills/handover/scripts/handover-lib.sh
-   TRACE_FILE=$(_trace_resolve_path "$(resolve_handover_dir 2>/dev/null || echo '')")
-   echo "$TRACE_FILE"
-   ```
-
-2. ディレクトリが空文字の場合、このセッション中の trace 記録をすべてスキップする。
-
-### 各 Phase 遷移時
-
-Phase をアナウンスする際に、以下を Bash で実行する:
-
-**Phase 開始時:**
-```bash
-source ~/.dotfiles/claude/skills/handover/scripts/trace-lib.sh
-TRACE_SESSION_ID="${SESSION_ID:-unknown}"
-phase_start_time=$(date +%s%3N)
-trace_phase_start "$TRACE_FILE" "debug-flow" <phase_number> "<phase_name>"
-```
-
-**Phase 終了時（次の Phase に遷移する直前、または pipeline 終了時）:**
-```bash
-source ~/.dotfiles/claude/skills/handover/scripts/trace-lib.sh
-TRACE_SESSION_ID="${SESSION_ID:-unknown}"
-duration_ms=$(( $(date +%s%3N) - phase_start_time ))
-trace_phase_end "$TRACE_FILE" "debug-flow" <phase_number> "<phase_name>" $duration_ms
-```
-
-### リトライ時
-
-レビュー不合格→修正→再レビューが発生した場合:
-```bash
-trace_retry "$TRACE_FILE" "debug-flow" <phase_number> <attempt> "<reason>"
-```
 
 ### Linear Sync 初期化（`--linear` 有効時のみ）
 

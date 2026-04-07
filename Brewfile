@@ -14,6 +14,8 @@ brew 'git'
 brew 'mise'
 brew 'tmux'
 brew 'jq'
+tap 'schpet/tap'
+brew 'schpet/tap/linear'
 
 # -----------------------------------------------------------
 # Cask
