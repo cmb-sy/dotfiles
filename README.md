@@ -1,46 +1,46 @@
 # Dotfiles
 
-This repository contains configuration files to automatically set up a development environment on macOS.
+macOS 開発環境の設定ファイルを管理するリポジトリ。
 
-## Setup Instructions
+## 構成
 
-Follow these steps to set up your environment from scratch:
+```
+.aliases.sh          # シェルエイリアス (docker, terraform, claude 等)
+.function.zsh        # カスタムシェル関数
+.zshrc / .zshenv     # Zsh 設定
+.gitignore_global    # グローバル gitignore
+Brewfile             # Homebrew パッケージ・Cask 定義
+git/                 # .gitconfig
+terminal/            # Ghostty, WezTerm 設定
+macos/               # macOS システム設定スクリプト
+claude/              # Claude Code 設定 (skills, agents, hooks, tools)
+bin/                 # カスタムスクリプト
+setup/               # セットアップスクリプト
+```
 
-1. Clone the repository:
+## セットアップ
 
 ```bash
-git clone https://github.com/yourusername/dotfiles.git
+git clone https://github.com/cmb-sy/dotfiles.git
 cd dotfiles
 ```
 
-2. Install Homebrew packages and applications:
+シンボリックリンク作成・基本設定:
 
 ```bash
-./setup/brew_install.sh
+zsh setup/setup.zsh
 ```
 
-3. Set up your configurations:
+Homebrew パッケージ・VSCode/Cursor 拡張・macOS 設定の適用:
 
 ```bash
-./setup/install.sh
+zsh setup/install.zsh
 ```
 
-4. Restart your terminal to apply all changes
+ターミナルを再起動して反映。
 
-## CI Usage
-
-For continuous integration environments, use:
+## CI
 
 ```bash
-CI=true ./setup/install.sh
+CI=true zsh setup/install.zsh
 ```
-
-cat ~/.claude/stats-cache.json 2>/dev/null | jq . | head -50
-ls ~/.claude/.credentials.json 2>/dev/null && echo "exists" || echo "not found"
-security find-generic-password -s 'Claude Code-credentials' -w 2>/dev/null | jq -r '.claudeAiOauth.accessToken // empty' 2>/dev/null | head -c 20
-ls -la ~/.claude/.credentials.json 2>/dev/null | head -3
-ln -sf /Users/snakashima/dotfiles/claude/com.snakashima.claude-usage-refresh.plist ~/Library/LaunchAgents/com.snakashima.claude-usage-refresh.plist && launchctl load ~/Library/LaunchAgents/com.snakashima.claude-usage-refresh.plist 2>&1
-sleep 3 && cat ~/.cache/claude-statusline-usage.json 2>/dev/null | jq 'keys' 2>/dev/null || echo "キャッシュ未生成"
-cat /tmp/claude-usage-refresh.log 2>/dev/null || echo "ログなし"
-launchctl list | grep claude
-token=$(security find-generic-password -s 'Claude Code-credentials' -w 2>/dev/null | jq -r '.claudeAiOauth.accessToken // empty') && curl -s --max-time 10 "https://api.anthropic.com/api/oauth/usage" -H "Authorization: Bearer $token" -H "anthropic-beta: oauth-2025-04-20" -H "Content-Type: application/json" | jq .
