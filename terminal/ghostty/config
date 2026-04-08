@@ -8,7 +8,7 @@ theme = light:Catppuccin Latte,dark:Catppuccin Frappe
 # ---------------------------------------------------------------------------
 # Vivid colors
 # ---------------------------------------------------------------------------
-background = #0B1020
+background = #1A1428
 foreground = #F0F6FF
 cursor-color = #8FDBFF
 cursor-text = #0B1020
