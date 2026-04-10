@@ -169,7 +169,7 @@ if [ -s "$CACHE_FILE" ]; then
     has_val "$util" || continue
     r=$(echo "100 - $util" | bc 2>/dev/null); r="${r%%.*}"
     [ -z "$r" ] && continue
-    [ -n "$parts" ] && parts+=" ${WHT}|${RST} "
+    [ -n "$parts" ] && parts+=" ${WHT}·${RST} "
     parts+="${WHT}${label}${RST} ${C_LIMIT}${r}%${RST}"
     eta=$(fmt_reset "$reset")
     [ -n "$eta" ] && parts+=" ${C_RESET_ETA}(${eta})${RST}"
@@ -185,11 +185,19 @@ sec_repo=""
 if [ -n "$DIR" ] && git -C "$DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   repo_name=$(basename "$(git -C "$DIR" rev-parse --show-toplevel 2>/dev/null)")
   branch=$(git -C "$DIR" --no-optional-locks symbolic-ref --short HEAD 2>/dev/null)
-  [ -n "$repo_name" ] && sec_repo="${C_REPO}${repo_name}${RST}"
-  [ -n "$branch" ]    && sec_repo+=" ${WHT}|${RST} ${C_BRANCH}${branch}${RST}"
+  if [ -n "$repo_name" ]; then
+    rel_path=$(git -C "$DIR" rev-parse --show-prefix 2>/dev/null)
+    rel_path="${rel_path%/}"
+    if [ -n "$rel_path" ]; then
+      sec_repo="${C_REPO}$(printf '\xef\x81\xbc') ../${repo_name}/${rel_path}${RST}"
+    else
+      sec_repo="${C_REPO}$(printf '\xef\x81\xbc') ../${repo_name}${RST}"
+    fi
+  fi
+  [ -n "$branch" ]    && sec_repo+=" ${WHT}│${RST} ${C_BRANCH}$(printf '\xee\x82\xa0') ${branch}${RST}"
 fi
 [ -z "$sec_repo" ] && [ -n "$DIR" ] && \
-  sec_repo="${C_REPO}${DIR/#$HOME/\~}${RST}"
+  sec_repo="${C_REPO}$(printf '\xef\x81\xbc') ${DIR/#$HOME/\~}${RST}"
 
 # ==============================================================================
 # Assemble sections with separator and output
@@ -203,7 +211,7 @@ done
 # ==============================================================================
 # [5] Right-aligned clock
 # ==============================================================================
-sec_time="${WHT}$(date +%H:%M)${RST}"
+sec_time="${WHT}🕐 $(date +%H:%M)${RST}"
 
 cols="${COLUMNS:-}"
 if ! is_int "$cols" || [ "$cols" -lt 20 ]; then

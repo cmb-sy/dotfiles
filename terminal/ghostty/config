@@ -3,31 +3,31 @@
 # ---------------------------------------------------------------------------
 # Theme
 # ---------------------------------------------------------------------------
-theme = light:Catppuccin Latte,dark:Catppuccin Frappe
+theme = light:Catppuccin Latte,dark:Catppuccin Mocha
 
 # ---------------------------------------------------------------------------
-# Vivid colors
+# Vivid colors (disabled — using theme defaults)
 # ---------------------------------------------------------------------------
-background = #1A1428
-foreground = #F0F6FF
-cursor-color = #8FDBFF
-cursor-text = #0B1020
-selection-foreground = #0B1020
-minimum-contrast = 1.2
+# background = #1A1428
+# foreground = #F0F6FF
+# cursor-color = #8FDBFF
+# cursor-text = #0B1020
+# selection-foreground = #0B1020
+# minimum-contrast = 1.2
 
 # ANSI palette
-palette = 1=#FF5C8A
-palette = 2=#5CFFB4
-palette = 3=#FFD45C
-palette = 4=#5CC8FF
-palette = 5=#C18CFF
-palette = 6=#5CFFF2
-palette = 9=#FF8FAF
-palette = 10=#8FFFD4
-palette = 11=#FFE08F
-palette = 12=#8FDBFF
-palette = 13=#D6B3FF
-palette = 14=#8FFFF8
+# palette = 1=#FF5C8A
+# palette = 2=#5CFFB4
+# palette = 3=#FFD45C
+# palette = 4=#5CC8FF
+# palette = 5=#C18CFF
+# palette = 6=#5CFFF2
+# palette = 9=#FF8FAF
+# palette = 10=#8FFFD4
+# palette = 11=#FFE08F
+# palette = 12=#8FDBFF
+# palette = 13=#D6B3FF
+# palette = 14=#8FFFF8
 
 # ---------------------------------------------------------------------------
 # Font
@@ -49,9 +49,9 @@ font-codepoint-map = U+3400-U+4DBF,U+20000-U+2A6DF=HackGen
 # ---------------------------------------------------------------------------
 # Window
 # ---------------------------------------------------------------------------
-background-opacity = 0.80
-background-opacity-cells = true
-background-blur = 24
+# background-opacity = 0.80
+# background-opacity-cells = true
+# background-blur = 24
 window-padding-y = 2,8
 window-padding-x = 8,8
 window-padding-balance = true

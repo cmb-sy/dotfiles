@@ -176,7 +176,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "osascript -e 'display notification \"Task completed\" with title \"Claude Code\"'"
+            "command": "printf '\\033]1;🛎️ Done\\007' > /dev/tty 2>/dev/null; osascript -e 'display notification \"Task completed\" with title \"Claude Code\"'"
           }
         ]
       },
@@ -185,7 +185,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "osascript -e 'display notification \"Waiting for approval\" with title \"Claude Code\"'"
+            "command": "printf '\\033]1;🛎️ Approval\\007' > /dev/tty 2>/dev/null; osascript -e 'display notification \"Waiting for approval\" with title \"Claude Code\"'"
           }
         ]
       },
@@ -194,7 +194,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "osascript -e 'display notification \"Waiting for your answer\" with title \"Claude Code\"'"
+            "command": "printf '\\033]1;🛎️ Question\\007' > /dev/tty 2>/dev/null; osascript -e 'display notification \"Waiting for your answer\" with title \"Claude Code\"'"
           }
         ]
       }
