@@ -50,6 +50,10 @@ lib/
 venv/
 
 # ----------------------------------------------------------
-# Claude
+# Claude Code
 # ----------------------------------------------------------
 docs/learnings/
+claude/slackcli
+claude/package.json
+claude/package-lock.json
+claude/skills/**/.linear-refresh/
