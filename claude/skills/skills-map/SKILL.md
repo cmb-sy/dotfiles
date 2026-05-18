@@ -1,6 +1,8 @@
 ---
 name: skills-map
+description: 保持しているスキルをカテゴリー別・依存関係付きで一覧表示する。
 argument-hint: "[--category <カテゴリ名>] [--deps] [--search <キーワード>]"
+user-invocable: true
 ---
 
 保持しているスキルをカテゴリー別・依存関係付きで一覧表示する。

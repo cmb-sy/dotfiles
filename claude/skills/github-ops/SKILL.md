@@ -5,8 +5,8 @@ description: >-
   セッションコンテキストまたはフリーテキストから PR を構成し、
   ランタイムで選択した Project にアイテムを登録する。
   既存アイテムには対話的にステータス変更・サブタスク追加・DONE 操作を提供する。
-user-invocable: true
 argument-hint: "[--content <text>] [--project <number>] [--draft] [--skip-project]"
+user-invocable: true
 ---
 
 # GitHub Ops

@@ -5,6 +5,7 @@ description: >-
   md ファイルの YAML frontmatter に宣言された depends-on（ファイルパス・glob）と
   本文中の Markdown リンクから依存グラフを構築し、git diff との突合で影響範囲を特定する。
   /doc-check で起動、またはコード変更を含むタスク完了時に実行を検討する。
+user-invocable: true
 ---
 
 コード変更に影響を受ける md ドキュメントを検出し、ユーザー承認後に更新する。

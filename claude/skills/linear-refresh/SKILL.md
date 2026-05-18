@@ -1,10 +1,11 @@
 ---
 name: linear-refresh
 description: >-
-  Linearチームのチケット棚卸し・構造整理・新規検出を一気通貫で実行するスキル。
+  Linear チームのチケット棚卸し・構造整理・新規検出を一気通貫で実行するスキル。
   チケットに紐付いた外部リンクの探索に加え、キーワード検索とチケット逆引きで
   未紐付きの外部ソースも発見する。--add/--done/--list/--update で軽量 CRUD 操作も可能。
 argument-hint: "[--force] [--skip-discovery] [--cleanup-only] [--add-only] [--project-update] [--daily-log] [--add [title]] [--done ID] [--list] [--update ID]"
+user-invocable: true
 ---
 
 # Linear Refresh

@@ -1,6 +1,10 @@
 ---
 name: eod
+description: >-
+  その日の作業を1コマンドで締める。Slack+GitHub 収集 → obsidian-refresh（双方向同期）
+  → daily-log → CloudLog 入力 → generate-problem → 翌日デイリー作成を順次実行する。
 argument-hint: "[--exclude <キーワード>...]"
+user-invocable: true
 ---
 
 その日の作業を1コマンドで締める。**Slack+GitHub収集 → obsidian-refresh（双方向同期）→ daily-log → CloudLog入力 → generate-problem → 翌日デイリー作成** を順次実行する。

@@ -1,6 +1,9 @@
 ---
 name: obsidian-refresh
+description: >-
+  `02_projects/task.md` と GitHub Issues を双方向同期し、`02_projects/` を最新化する。
 argument-hint: "[--no-push] [--force] [テキスト入力]"
+user-invocable: true
 ---
 
 `02_projects/task.md` と GitHub Issues を双方向同期し、`02_projects/` を最新化する。

@@ -1,6 +1,10 @@
 ---
 name: reflect-review
+description: >-
+  reflect_log の累積データを分析し、成長を言語化する。
+  さらに正答率が低い問題を再出題して定着を確認する。
 argument-hint: "[--weekly | --monthly]"
+user-invocable: true
 ---
 
 reflect_log の累積データを分析し、成長を言語化する。さらに正答率が低い問題を再出題して定着を確認する。

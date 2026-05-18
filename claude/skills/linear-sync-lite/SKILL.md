@@ -1,7 +1,8 @@
 ---
 name: linear-sync-lite
-description: Linear を正本として GitHub Project へ片方向同期する（Level 2）
+description: Linear を正本として GitHub Project へ片方向同期する（Level 2）。
 argument-hint: "[--team KUNST] [--owner cmb-sy] [--project 11] [--repo cmb-sy/kunstSite] [--apply]"
+user-invocable: true
 ---
 
 Linear を正本（Single Source of Truth）として、GitHub Project へ**片方向同期**する。

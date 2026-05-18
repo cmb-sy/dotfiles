@@ -4,8 +4,8 @@ description: >-
   ローカルスモークテスト。dev サーバー起動 → アドホックテスト生成・実行 →
   VRT 差分チェック → E2E 実行 + フレーキー検出の4ステップを実行する。
   単体でも他のワークフローからの invoke でも利用可能。
-skills: [agent-browser]
 user-invocable: true
+skills: [agent-browser]
 ---
 
 # Smoke Test

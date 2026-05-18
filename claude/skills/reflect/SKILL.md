@@ -1,6 +1,9 @@
 ---
-name: generate-problem
+name: reflect
+description: >-
+  やったこと・判断したことを問題形式で振り返り、理解のギャップを可視化する。
 argument-hint: "[YYYY-MM-DD | \"今やったことの説明\"] [--quick]"
+user-invocable: true
 ---
 
 やったこと・判断したことを問題形式で振り返り、理解のギャップを可視化する。
