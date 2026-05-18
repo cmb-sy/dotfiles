@@ -34,5 +34,7 @@
   "terminal.integrated.fontSize": 13,
   "git.enableSmartCommit": true,
   "editor.largeFileOptimizations": false,
-  "claudeCode.useTerminal": true
+  "claudeCode.useTerminal": true,
+  "vsicons.dontShowNewVersionMessage": true,
+  "window.autoDetectColorScheme": false,
 }

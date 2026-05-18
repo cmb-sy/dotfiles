@@ -5,6 +5,10 @@
     "MISE_YES": "1",
     "DIRENV_LOG_FORMAT": ""
   },
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
   "permissions": {
     "allow": [
       "Bash(ls:*)",
@@ -167,8 +171,9 @@
       "Bash(ssh:*)",
       "Bash(scp:*)"
     ],
-    "defaultMode": "bypassPermissions"
+    "defaultMode": "default"
   },
+  "model": "opus[1m]",
   "hooks": {
     "Notification": [
       {
@@ -276,7 +281,6 @@
     "codex@openai-codex": true,
     "code-simplifier@claude-plugins-official": true
   },
-  "language": "japanese",
   "extraKnownMarketplaces": {
     "worktrunk": {
       "source": {
@@ -297,10 +301,8 @@
       }
     }
   },
-  "attribution": {
-    "commit": "",
-    "pr": ""
-  },
+  "language": "japanese",
+  "effortLevel": "medium",
   "skipDangerousModePermissionPrompt": true,
-  "model": "opus[1m]"
+  "skipAutoPermissionPrompt": true
 }

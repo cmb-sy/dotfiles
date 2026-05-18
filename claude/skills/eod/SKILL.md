@@ -3,7 +3,7 @@ name: eod
 argument-hint: "[--exclude <キーワード>...]"
 ---
 
-その日の作業を1コマンドで締める。**Slack+GitHub収集 -> obsidian-refresh -> daily-log -> CloudLog入力 -> generate-problem** を順次実行する。
+その日の作業を1コマンドで締める。**Slack+GitHub収集 → obsidian-refresh（双方向同期）→ daily-log → CloudLog入力 → generate-problem → 翌日デイリー作成** を順次実行する。
 
 デフォルトで `--exclude siori --exclude generate-video` を適用する。`--exclude` 追加指定があれば合算する。
 
@@ -15,17 +15,28 @@ argument-hint: "[--exclude <キーワード>...]"
 
 以降のステップで使い回すため、最初に一括取得する。
 
-- **Slack**: 本日の自分の発言・関与したスレッドを `/slackcli` で取得
+- **Slack**: 本日の自分の発言・関与したスレッドを取得する。**取得経路は以下の優先順で必ずチェックする**:
+  1. **`claude.ai Slack` MCP（最優先）** — `mcp__claude_ai_Slack__slack_search_public_and_private` を使う。`query="from:<@U07KEPWQAQN> after:{YYYY-MM-DD前日} before:{YYYY-MM-DD翌日}"`（user_id は固定）。スレッド文脈が必要な場合は `slack_read_thread`、チャンネル履歴は `slack_read_channel`
+  2. **`slackcli` CLI（フォールバック）** — MCP が ToolSearch にも `claude mcp list` にも出ない場合のみ
+  - **重要**: MCP ツールはセッション開始時の ToolSearch で必ず存在確認する。ToolSearch クエリ `slack search messages` で `mcp__claude_ai_Slack__*` がヒットすれば MCP は使用可能（CLI 認証が失効していても MCP 経路は別ルートで生きている）
+  - `claude mcp list` で `claude.ai Slack: ✓ Connected` を確認できれば MCP は最優先で使う
+  - `slackcli` が `invalid_auth` を返しても、それは CLI の Slack トークン失効であり、MCP の認証状態とは無関係
 - **GitHub**: 本日のコミット・PR・レビュー・Issue コメント/更新を `gh` で取得
 
 この結果を Step 2・3 で再利用する（二重取得しない）。
 
-### Step 2: Obsidian Refresh
+### Step 2: obsidian-refresh（双方向同期）
 
 `/obsidian-refresh` スキルに従い実行する。Step 1 の Slack + GitHub 情報を入力として渡す。
 
-- GitHub Issues（cmb-sy assigned）を収集し `02_projects/task.md` を最新化する
-- Step 1 の Slack + GitHub 情報をもとに `02_projects/` の「現在の状況」を差分更新する
+**Push（Obsidian → GitHub）:**
+- task.md の `- [x]` + GitHub URL → Issue をクローズ
+- task.md の `- [ ]` + URL なし → 新規 Issue 作成・task.md をリンク付きに書き換え
+- 実行前にユーザーへ計画を提示して確認を取る（0件の場合はスキップ）
+
+**Pull（GitHub → Obsidian）:**
+- GitHub Issues（cmb-sy assigned + sub-issues）を task.md に反映
+- Step 1 の Slack + GitHub 情報をもとに `02_projects/` の「現在の状況」を差分更新
 
 ### Step 3: daily-log（セッション + CloudLog）
 
@@ -43,21 +54,47 @@ argument-hint: "[--exclude <キーワード>...]"
 
 Playwright でブラウザを開き、Step 3 で生成したエントリを自動入力する。
 
--> 詳細は daily-log の「Step CL: CloudLog 入力実行」を参照。
+→ 詳細は daily-log の「Step CL: CloudLog 入力実行」を参照。
 
 ### Step 5: generate-problem（振り返り）
 
 `/generate-problem` スキルに従い、本日の作業を問題形式で振り返る。
 
 - Step 3 の session-digest と daily-log の内容を素材として使う（再収集しない）
-- 結果は日報と `01_quant/reflect_log.md` に記録される
+- 結果は日報と `01_quant/過去問.md` に記録される
+
+### Step 6: 翌日デイリー作成
+
+翌日の日報ファイルを `04_warehouse/daily_template.md` から複製する。
+
+**前提**:
+- テンプレート: `/Users/snakashima/Documents/obsidian/04_warehouse/daily_template.md`
+- 出力先: `/Users/snakashima/Documents/obsidian/00_daily/{YYYY}年/{M}月/{D}日({曜}).md`
+- 命名規則: 月・日はゼロパディングなし（`5月/14日(木).md`）。曜日は日本語1文字（月火水木金土日）
+
+**処理**:
+1. 翌日の日付を計算する（macOS では `date -v+1d` を使う）。年跨ぎ・月跨ぎを正しく扱うこと
+   - 年: `date -v+1d +%Y` → `2026`
+   - 月: `date -v+1d +%-m` → `5`（先頭ゼロ抜き）
+   - 日: `date -v+1d +%-d` → `14`（先頭ゼロ抜き）
+   - 曜日番号: `date -v+1d +%u` → 1=月, 2=火, 3=水, 4=木, 5=金, 6=土, 7=日
+2. 出力先パスを組み立てる: `00_daily/{年}年/{月}月/{日}日({曜}).md`
+3. 出力先ファイルが既に存在する場合は何もせず、完了報告に「既に存在のためスキップ」と記録する（**上書き禁止**）
+4. 親ディレクトリが存在しなければ `mkdir -p` で作成する
+5. `cp` でテンプレートを複製する。テンプレート内容は一切編集しない
+6. 完了報告に作成したファイルのフルパスを記録する
+
+**注意**:
+- 本日の日報内「終わりのジョブ → 明日のデイリーの作成」のチェックボックスは自動で `[x]` にしないこと。手動運用の余地を残す
+- テンプレートの内容（`[[]]` リンク・タグ・色タグ）は1文字も書き換えないこと
 
 ---
 
 ## 完了報告
 
 - 更新した日報ファイルパス
-- obsidian-refresh 結果（新規追加・クローズ更新件数・現在の状況更新件数）
+- obsidian-refresh 結果（Push: クローズN件・作成N件 / Pull: 追加N件・Done移動N件・状況更新N件）
 - CloudLog 入力件数・合計時間
 - 走査したセッション数・除外プロジェクト
 - generate-problem 結果（正解率）
+- 翌日デイリー作成（作成したパス or「既に存在のためスキップ」）

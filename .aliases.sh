@@ -107,7 +107,7 @@ clpa() {
   claude-use-private
   local q="$*"
   [ -z "$q" ] && q="$_claude_autonomous_default_prompt"
-  command claude --dangerously-skip-permissions "$q"
+  command claude --effort xhigh --dangerously-skip-permissions "$q"
 }
 
 clwa() {
@@ -116,7 +116,7 @@ clwa() {
   claude-use-work
   local q="$*"
   [ -z "$q" ] && q="$_claude_autonomous_default_prompt"
-  command claude --dangerously-skip-permissions "$q"
+  command claude --effort xhigh --dangerously-skip-permissions "$q"
 }
 
 alias claude-auto='clwa'

@@ -23,7 +23,9 @@ C_MODEL=$'\e[1;38;5;183m'     # Lavender      - model name
 C_CTX=$'\e[38;5;114m'         # Mint green    - context window metrics
 C_LIMIT=$'\e[38;5;216m'       # Peach         - API usage limits
 C_REPO=$'\e[38;5;117m'        # Sky blue      - repository name
-C_BRANCH=$'\e[38;5;147m'      # Soft violet   - branch name
+C_BRANCH=$'\e[38;5;147m'      # Soft violet   - branch / worktree name
+C_DIRTY=$'\e[1;38;5;215m'     # Amber         - uncommitted changes indicator
+C_EFFORT=$'\e[1;38;5;220m'    # Gold          - reasoning effort level
 
 SEP=" ${WHT}│${RST} "
 
@@ -94,7 +96,9 @@ eval "$(echo "$input" | jq -r '
   @sh "REM=\(.context_window.remaining_percentage // "")",
   @sh "TOKENS_IN=\(.context_window.total_input_tokens // 0)",
   @sh "CTX_SIZE=\(.context_window.context_window_size // 200000)",
-  @sh "MODE=\(.output_style.name // .agent.name // "")"
+  @sh "MODE=\(.output_style.name // .agent.name // "")",
+  @sh "EFFORT=\(.effort.level // "medium")",
+  @sh "WORKTREE=\(.worktree.name // "")"
 ' 2>/dev/null)"
 
 # ==============================================================================
@@ -106,6 +110,11 @@ if has_val "$MODEL"; then
   sec_model="${C_MODEL}$(strip_model_suffix "${MODEL#Claude }")${RST}"
   if has_val "$MODE" && [ "$MODE" != "default" ]; then
     sec_model+=" ${WHT}|${RST} ${C_MODEL}${MODE}${RST}"
+  fi
+  # Reasoning effort level (⚡). Values: low / medium / high / xhigh / max.
+  # Defaults to "medium" when the field is absent (older CLI or unsupported model).
+  if has_val "$EFFORT"; then
+    sec_model+=" ${C_EFFORT}⚡${EFFORT}${RST}"
   fi
 fi
 
@@ -194,7 +203,17 @@ if [ -n "$DIR" ] && git -C "$DIR" rev-parse --is-inside-work-tree >/dev/null 2>&
       sec_repo="${C_REPO}$(printf '\xef\x81\xbc') ../${repo_name}${RST}"
     fi
   fi
-  [ -n "$branch" ]    && sec_repo+=" ${WHT}│${RST} ${C_BRANCH}$(printf '\xee\x82\xa0') ${branch}${RST}"
+  # Prefer worktree name (from Claude Code JSON) over raw branch when present
+  if has_val "$WORKTREE"; then
+    sec_repo+=" ${WHT}│${RST} ${C_BRANCH}$(printf '\xee\x82\xa0') ${WORKTREE}${RST}"
+  elif [ -n "$branch" ]; then
+    sec_repo+=" ${WHT}│${RST} ${C_BRANCH}$(printf '\xee\x82\xa0') ${branch}${RST}"
+  fi
+  # Uncommitted change count (staged + unstaged + untracked)
+  dirty=$(git -C "$DIR" --no-optional-locks status --porcelain 2>/dev/null | wc -l | tr -d ' ')
+  if is_int "$dirty" && [ "$dirty" -gt 0 ]; then
+    sec_repo+=" ${C_DIRTY}●${dirty}${RST}"
+  fi
 fi
 [ -z "$sec_repo" ] && [ -n "$DIR" ] && \
   sec_repo="${C_REPO}$(printf '\xef\x81\xbc') ${DIR/#$HOME/\~}${RST}"

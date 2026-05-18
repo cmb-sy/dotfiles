@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
-# doc-audit.sh: ドキュメント監査スクリプト
-# 5種類の検出機能を持ち、JSON で結果を出力する
-# bash 3.2+ (macOS) 互換
+# doc-audit.sh: Document audit script
+# Has 5 types of detection capabilities and outputs results in JSON
+# Compatible with bash 3.2+ (macOS)
 #
-# 前提:
-#   - doc-utils.sh (parse_depends_on, match_glob, extract_md_links, _relpath) が利用可能
-#   - macOS の date コマンド (-r <timestamp>) を使用
+# Prerequisites:
+#   - doc-utils.sh (parse_depends_on, match_glob, extract_md_links, _relpath) must be available
+#   - Uses macOS date command (-r <timestamp>)
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/../../doc-check/scripts/lib/doc-utils.sh"
 
-# --- JSON ヘルパー ---
-# jq に依存しない JSON エスケープ
+# --- JSON helpers ---
+# JSON escape without jq dependency
 _json_escape() {
   local s="$1"
   s="${s//\\/\\\\}"
@@ -24,9 +24,9 @@ _json_escape() {
 }
 
 # --- 1. check_broken_deps ---
-# depends-on に宣言されたパスが存在するか確認
-# glob パターンの場合は find + match_glob で1件でもマッチするか確認
-# JSON 配列を返す: [{"doc":"path","missing":"path"}]
+# Check if paths declared in depends-on exist
+# For glob patterns, use find + match_glob to check if at least one match exists
+# Returns JSON array: [{"doc":"path","missing":"path"}]
 check_broken_deps() {
   local repo_root="$1"
   local results=""
@@ -43,9 +43,9 @@ check_broken_deps() {
     while IFS= read -r dep; do
       [[ -z "$dep" ]] && continue
 
-      # glob パターンか判定（*, ?, ** を含む）
+      # Determine if it's a glob pattern (contains *, ?, **)
       if [[ "$dep" == *'*'* ]] || [[ "$dep" == *'?'* ]]; then
-        # glob: find でファイルを列挙し match_glob で1件でもマッチするか確認
+        # glob: enumerate files with find and check if at least one matches via match_glob
         local found=false
         while IFS= read -r candidate; do
           local rel_candidate
@@ -60,7 +60,7 @@ check_broken_deps() {
           results="${results}{\"doc\":\"$(_json_escape "$rel_doc")\",\"missing\":\"$(_json_escape "$dep")\"}"
         fi
       else
-        # 具体パス: 存在確認
+        # Concrete path: check existence
         if [[ ! -e "${repo_root}/${dep}" ]]; then
           [[ "$first" == true ]] && first=false || results="${results},"
           results="${results}{\"doc\":\"$(_json_escape "$rel_doc")\",\"missing\":\"$(_json_escape "$dep")\"}"
@@ -73,8 +73,8 @@ check_broken_deps() {
 }
 
 # --- 2. check_dead_links ---
-# 全 md の本文中 markdown リンクの先が存在するか確認
-# JSON 配列: [{"doc":"path","link":"path","line":N}]
+# Check if markdown link targets in all md file bodies exist
+# JSON array: [{"doc":"path","link":"path","line":N}]
 check_dead_links() {
   local repo_root="$1"
   local results=""
@@ -86,7 +86,7 @@ check_dead_links() {
     local dir
     dir="$(dirname "$md_file")"
 
-    # 行番号付きでリンクを抽出（process substitution でサブシェル回避）
+    # Extract links with line numbers (using process substitution to avoid subshell)
     local awk_output
     awk_output=$(awk '
       BEGIN { in_fm=0 }
@@ -114,7 +114,7 @@ check_dead_links() {
 
     while IFS=$'\t' read -r lineno link; do
       [[ -z "$link" ]] && continue
-      # 相対パスをドキュメント基準で解決
+      # Resolve relative path based on document location
       local target_path
       if [[ "$link" == /* ]]; then
         target_path="${repo_root}${link}"
@@ -132,9 +132,9 @@ check_dead_links() {
 }
 
 # --- 3. check_undeclared_deps ---
-# 本文中のバッククォート内ファイルパス言及を抽出し、
-# depends-on に宣言されていない+実在するパスを検出
-# JSON 配列: [{"doc":"path","mentioned":"path","line":N}]
+# Extract file path mentions within backticks in the body text,
+# and detect paths that exist but are not declared in depends-on
+# JSON array: [{"doc":"path","mentioned":"path","line":N}]
 check_undeclared_deps() {
   local repo_root="$1"
   local results=""
@@ -146,7 +146,7 @@ check_undeclared_deps() {
     local rel_doc
     rel_doc=$(_relpath "$md_file" "$repo_root")
 
-    # 本文からバッククォート内のファイルパスっぽいものを抽出（サブシェル回避）
+    # Extract file-path-like strings from backticks in body text (avoiding subshell)
     local awk_output
     awk_output=$(awk '
       BEGIN { in_fm=0 }
@@ -158,7 +158,7 @@ check_undeclared_deps() {
           tick_start = RSTART
           tick_len = RLENGTH
           content = substr(line, tick_start + 1, tick_len - 2)
-          # ファイルパスっぽいもの (src/, lib/, config/, scripts/, docs/ 等で始まり拡張子を持つ)
+          # File-path-like strings (starting with src/, lib/, config/, scripts/, docs/ etc. and having an extension)
           if (content ~ /^(src|lib|config|scripts|docs|test|tests|spec|app|pkg|internal|cmd)\/.*\.[a-zA-Z0-9]+$/) {
             print NR "\t" content
           }
@@ -172,10 +172,10 @@ check_undeclared_deps() {
     while IFS=$'\t' read -r lineno mentioned; do
       [[ -z "$mentioned" ]] && continue
 
-      # 実在するか確認
+      # Check if the file actually exists
       [[ ! -e "${repo_root}/${mentioned}" ]] && continue
 
-      # depends-on で既に宣言済みか確認（exact match または glob match）
+      # Check if already declared in depends-on (exact match or glob match)
       local declared=false
       if [[ -n "$deps" ]]; then
         while IFS= read -r dep; do
@@ -184,7 +184,7 @@ check_undeclared_deps() {
             declared=true
             break
           fi
-          # glob パターンの場合
+          # If it's a glob pattern
           if [[ "$dep" == *'*'* ]] || [[ "$dep" == *'?'* ]]; then
             if match_glob "$dep" "$mentioned"; then
               declared=true
@@ -205,12 +205,12 @@ check_undeclared_deps() {
 }
 
 # --- 4. check_orphaned_docs ---
-# 他の md からリンクされておらず depends-on も持たない md を検出
-# JSON 配列: ["path1","path2"]
+# Detect md files that are not linked from any other md and have no depends-on
+# JSON array: ["path1","path2"]
 check_orphaned_docs() {
   local repo_root="$1"
 
-  # 全 md ファイルを収集
+  # Collect all md files
   local all_docs=()
   while IFS= read -r md_file; do
     local rel
@@ -218,7 +218,7 @@ check_orphaned_docs() {
     all_docs+=("$rel")
   done < <(find "$repo_root" -name '*.md' -not -path '*/.git/*' -not -path '*/node_modules/*' 2>/dev/null)
 
-  # depends-on を持つドキュメントを記録
+  # Record documents that have depends-on
   local docs_with_deps=()
   for doc in "${all_docs[@]}"; do
     local deps
@@ -228,7 +228,7 @@ check_orphaned_docs() {
     fi
   done
 
-  # 全 md からのリンク先を収集
+  # Collect link targets from all md files
   local linked_docs=()
   for doc in "${all_docs[@]}"; do
     local links
@@ -241,11 +241,11 @@ check_orphaned_docs() {
     fi
   done
 
-  # orphaned = depends-on なし AND どこからもリンクされていない
+  # orphaned = no depends-on AND not linked from anywhere
   local results=""
   local first=true
   for doc in "${all_docs[@]}"; do
-    # depends-on を持っている場合はスキップ
+    # Skip if it has depends-on
     local has_deps=false
     for d in "${docs_with_deps[@]+"${docs_with_deps[@]}"}"; do
       if [[ "$d" == "$doc" ]]; then
@@ -255,7 +255,7 @@ check_orphaned_docs() {
     done
     [[ "$has_deps" == true ]] && continue
 
-    # 他のドキュメントからリンクされている場合はスキップ
+    # Skip if linked from other documents
     local is_linked=false
     for l in "${linked_docs[@]+"${linked_docs[@]}"}"; do
       if [[ "$l" == "$doc" ]]; then
@@ -274,16 +274,16 @@ check_orphaned_docs() {
 }
 
 # --- 5. check_stale_signals ---
-# ドキュメント最終更新日と depends-on 先の最終更新日を比較し、
-# 乖離が threshold_days 以上のものを検出
-# JSON 配列: [{"doc":"path","doc_updated":"YYYY-MM-DD","dep_updated":"YYYY-MM-DD","drift_days":N}]
+# Compare document last-updated date with depends-on target last-updated date,
+# and detect cases where the drift is threshold_days or more
+# JSON array: [{"doc":"path","doc_updated":"YYYY-MM-DD","dep_updated":"YYYY-MM-DD","drift_days":N}]
 check_stale_signals() {
   local repo_root="$1"
   local threshold_days="${2:-90}"
   local results=""
   local first=true
 
-  # git が利用可能か確認
+  # Check if git is available
   if ! git -C "$repo_root" rev-parse --git-dir >/dev/null 2>&1; then
     printf '[]'
     return 0
@@ -297,14 +297,14 @@ check_stale_signals() {
     local rel_doc
     rel_doc=$(_relpath "$md_file" "$repo_root")
 
-    # ドキュメントの最終更新日（git log）
+    # Document last-updated date (git log)
     local doc_date
     doc_date=$(git -C "$repo_root" log -1 --format='%at' -- "$rel_doc" 2>/dev/null)
     [[ -z "$doc_date" ]] && continue
 
     while IFS= read -r dep; do
       [[ -z "$dep" ]] && continue
-      # glob パターンはスキップ（具体ファイルのみ対象）
+      # Skip glob patterns (only concrete files are targeted)
       [[ "$dep" == *'*'* ]] || [[ "$dep" == *'?'* ]] && continue
       [[ ! -e "${repo_root}/${dep}" ]] && continue
 
@@ -312,17 +312,17 @@ check_stale_signals() {
       dep_date=$(git -C "$repo_root" log -1 --format='%at' -- "$dep" 2>/dev/null)
       [[ -z "$dep_date" ]] && continue
 
-      # 乖離日数を計算
+      # Calculate drift in days
       local drift_seconds drift_days_val
       if [[ "$dep_date" -gt "$doc_date" ]]; then
         drift_seconds=$((dep_date - doc_date))
       else
-        continue  # dep が doc より古い場合はスキップ
+        continue  # Skip if dep is older than doc
       fi
       drift_days_val=$((drift_seconds / 86400))
 
       if [[ "$drift_days_val" -ge "$threshold_days" ]]; then
-        # macOS 互換の日付フォーマット
+        # macOS-compatible date format
         local doc_date_str dep_date_str
         if date -r 0 >/dev/null 2>&1; then
           # macOS
@@ -342,10 +342,10 @@ check_stale_signals() {
   printf '[%s]' "$results"
 }
 
-# --source-only が指定された場合は関数定義のみで終了
+# If --source-only is specified, exit after function definitions only
 if [[ "${1:-}" == "--source-only" ]]; then return 0 2>/dev/null || exit 0; fi
 
-# --- 引数パース ---
+# --- Argument parsing ---
 AUDIT_MODE="full"
 AUDIT_RANGE=""
 AUDIT_JSON=false
@@ -364,28 +364,28 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# リポジトリルート決定
+# Determine repository root
 if [[ -n "$AUDIT_ROOT" ]]; then
   REPO_ROOT="$AUDIT_ROOT"
 else
   REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 fi
 
-# --- メイン処理 ---
+# --- Main processing ---
 
-# 対象 md ファイルの収集
+# Collect target md files
 target_docs=()
 if [[ "$AUDIT_MODE" == "range" ]] && [[ -n "$AUDIT_RANGE" ]]; then
   while IFS= read -r f; do
     [[ "$f" == *.md ]] && target_docs+=("$f")
   done < <(git -C "$REPO_ROOT" diff --name-only "$AUDIT_RANGE" 2>/dev/null)
-  # range の場合でも全 md をスキャンする（影響を受けた md だけでなく監査全体）
+  # Even for range mode, scan all md files (full audit, not just affected md files)
 fi
 
-# 全 md ファイル数をカウント
+# Count total number of md files
 total_docs=$(find "$REPO_ROOT" -name '*.md' -not -path '*/.git/*' -not -path '*/node_modules/*' 2>/dev/null | wc -l | tr -d ' ')
 
-# チェック実行
+# Execute checks
 if [[ "$AUDIT_CHECK_UNDECLARED" == true ]]; then
   undeclared=$(check_undeclared_deps "$REPO_ROOT")
   if [[ "$AUDIT_JSON" == true ]]; then
@@ -402,7 +402,7 @@ if [[ "$AUDIT_CHECK_UNDECLARED" == true ]]; then
   exit 0
 fi
 
-# --full (default): 全チェック実行
+# --full (default): run all checks
 broken=$(check_broken_deps "$REPO_ROOT")
 dead=$(check_dead_links "$REPO_ROOT")
 undeclared=$(check_undeclared_deps "$REPO_ROOT")

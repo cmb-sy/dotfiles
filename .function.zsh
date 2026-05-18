@@ -16,7 +16,7 @@ wttr() {
 autoload -Uz wttr
 
 # ----------------------------------------------------------
-# Usage: cdg または Cmd+Shift+F / Alt+Cmd+F（ホーム以下全てから検索）
+# Usage: cdg or Cmd+Shift+F / Alt+Cmd+F (search all directories under $HOME)
 # ----------------------------------------------------------
 _fzf_cd_global_impl() {
 	command -v fzf &>/dev/null || return 1
@@ -45,7 +45,7 @@ fzf_cd_global() {
 	_fzf_cd_global_impl "${LBUFFER}" && zle reset-prompt
 }
 zle -N fzf_cd_global
-# Ghostty / WezTerm: Cmd+Shift+F または Alt+Cmd+F で ESC [ 25 ~ を送る想定
+# Ghostty / WezTerm: expects Cmd+Shift+F or Alt+Cmd+F to send ESC [ 25 ~
 for _map in emacs viins vicmd; do
 	bindkey -M "$_map" '\e[25~' fzf_cd_global
 done

@@ -1,41 +1,21 @@
 ---
 name: obsidian-refresh
-argument-hint: "[--force] [テキスト入力]"
+argument-hint: "[--no-push] [--force] [テキスト入力]"
 ---
 
-GitHub Issues と `02_projects/` を最新化し、`02_projects/task.md` のタスクを同期する。
-`project-update` の機能を統合済み。テキスト入力（議事録・メモ等）があれば `現在の状況` 更新にも使う。
+`02_projects/task.md` と GitHub Issues を双方向同期し、`02_projects/` を最新化する。
+
+1. **Push（Obsidian → GitHub）**: task.md の完了タスクをクローズ、URLなし新規タスクを Issue 作成
+2. **Pull（GitHub → Obsidian）**: GitHub Issues を task.md に反映、02_projects/ の現在の状況を更新
 
 **オプション:**
-- `--force`: `02_projects/task.md` の全タスクを再チェック（通常は差分のみ）
+- `--no-push`: Push をスキップし Pull のみ実行
+- `--force`: task.md の全タスクを再チェック（通常は差分のみ）
 - テキスト引数: 議事録・Slack チャット・メモを `現在の状況` 更新の入力として使う
 
 ---
 
-## 処理フロー
-
-### Step 1: GitHub Issues 収集
-
-以下を並列取得する:
-
-**GitHub open issues（cmb-sy assigned）:**
-```bash
-gh api graphql -f query='
-{
-  search(query: "org:Resily assignee:cmb-sy is:open is:issue", type: ISSUE, first: 100) {
-    nodes {
-      ... on Issue { number title repository { nameWithOwner } updatedAt url milestone { dueOn } }
-    }
-  }
-}'
-```
-
-**`02_projects/task.md` の既存タスク（issue 番号の抽出）:**
-```bash
-rg -n "Resily/[^#]+#[0-9]+" 02_projects/task.md
-```
-
-### Step 2: リポジトリ → プロジェクトセクション マッピング
+## リポジトリ ↔ プロジェクトセクション マッピング
 
 | GitHub リポジトリ | 02_projects/task.md セクション | 02_projects/ ファイル |
 |---|---|---|
@@ -47,36 +27,125 @@ rg -n "Resily/[^#]+#[0-9]+" 02_projects/task.md
 | `Resily/ARM-blog` | **スキップ** | — |
 | 上記以外 | `02_projects/_inbox.md` に一時保管 | — |
 
-### Step 3: `02_projects/task.md` のタスク同期
+---
+
+## 処理フロー
+
+### Step 1: Push — Obsidian → GitHub（`--no-push` 時はスキップ）
+
+task.md を読み込み、以下の2種類を検出する。
+
+**クローズ候補（`- [x]` + GitHub URL あり）:**
+- URL から repo・number を抽出し `gh api repos/Resily/{repo}/issues/{number} --jq '.state'` で確認
+- すでに `closed` のものはスキップ
+
+**新規 Issue 候補（`- [ ]` + GitHub URL なし）:**
+- `<!-- BEGIN:tasks -->` 〜 `<!-- END:tasks -->` 内のみ対象
+- **インデント行（行頭がスペース）は対象外** — 手動メモ・解説として保護する
+- `http` を含む行は除外
+- セクション名からリポジトリを逆引き。マッピングなしの場合はスキップ
+
+検出後、実行計画を提示して `AskUserQuestion` で承認を得る:
+
+```
+## obsidian-refresh Push 計画
+
+クローズ（N件）: [タイトル](URL) ...
+新規 Issue 作成（N件）: [セクション] タスク本文 ...
+スキップ（N件）: 理由 ...
+
+実行しますか？
+```
+
+承認後に実行:
+- クローズ: `gh issue close {number} --repo Resily/{repo} --comment "Obsidian task.md で完了済みのためクローズ"`
+- 新規作成: `gh issue create --repo Resily/{repo} --title "{タイトル}" --assignee cmb-sy --body "Obsidian task.md から作成"`
+  → 作成後、task.md の該当行を `- [ ] [{タイトル}]({URL})（期日: 未定）` に書き換える
+
+### Step 2: Pull — GitHub Issues 収集
+
+以下を並列取得する:
+
+**GitHub open issues（cmb-sy assigned）+ sub-issues:**
+```bash
+gh api graphql -f query='
+{
+  search(query: "org:Resily assignee:cmb-sy is:open is:issue", type: ISSUE, first: 100) {
+    nodes {
+      ... on Issue {
+        number title url
+        repository { nameWithOwner }
+        milestone { dueOn }
+        subIssues(first: 50) {
+          nodes {
+            number title url state
+            assignees(first: 5) { nodes { login } }
+            repository { nameWithOwner }
+            milestone { dueOn }
+          }
+        }
+      }
+    }
+  }
+}'
+```
+
+- sub-issues は `state: OPEN` かつ `assignee: cmb-sy` のもののみ追加
+- sub-issues は親 issue と同じプロジェクトセクションに追加
+
+**`02_projects/task.md` の既存タスク（URL で重複チェック）:**
+```bash
+rg -o "https://github\.com/[^)\"']+" 02_projects/task.md
+```
+
+### task.md タスクフォーマット
+
+```markdown
+- [ ] [{親タイトル}](https://github.com/Resily/{repo}/issues/{number})（期日: {milestone.dueOn or 未定}）
+  - [ ] [{サブissueタイトル}](https://github.com/Resily/{repo}/issues/{sub-number})
+  - [{サブissueタイトル}](URL)（state: closed）
+  - メモや解説テキスト（URL なし・自由記述）
+```
+
+- インデント（2スペース）の行はすべて「子要素」として扱い、**自動削除・移動しない**
+- 子要素は sub-issue URL、手動メモ、解説いずれでも可
+
+---
+
+### Step 3: task.md のタスク同期
 
 `<!-- BEGIN:tasks -->` 〜 `<!-- END:tasks -->` の範囲のみ操作する。
 
 **3-1. 新規 Issue の追加:**
 
-`02_projects/task.md` 内に同じ issue 番号（`Resily/repo#number` 形式）が存在しない場合のみ、
-該当プロジェクトセクションの `### Backlog` 直下に追記する:
+task.md 内に同じ URL が存在しない（親・子どちらにも）場合のみ追記する。
 
+親 Issue として追記:
 ```markdown
-- [ ] Resily/{repo}#{number} {タイトル}（期日: {milestone.dueOn or 未定}）
+- [ ] [{タイトル}](https://github.com/Resily/{repo}/issues/{number})（期日: {milestone.dueOn or 未定}）
 ```
 
-- **既存タスクは削除しない**（手動追加タスクも保持）
+その親 Issue に sub-issues（`state: OPEN` かつ `assignee: cmb-sy`）がある場合、直後にインデントで追記:
+```markdown
+  - [ ] [{サブissueタイトル}](https://github.com/Resily/{repo}/issues/{sub-number})
+```
+
+- 既存タスクは削除しない（手動追加タスク・メモも保持）
+- サブセクション（`### 進行中` / `### Backlog` 等）は作成しない
 - セクションが存在しない場合は `02_projects/_inbox.md` にフォールバック
 
 **3-2. クローズ済み Issue の更新:**
 
-`02_projects/task.md` 内に `- [ ] Resily/repo#N` 形式で記載されているものについて、
-GitHub API で state を確認し closed なら `- [x]` に更新する:
-```bash
-gh api repos/Resily/{repo}/issues/{number} --jq '.state'
-```
-
-更新後、`- [x]` になったタスクを `<!-- BEGIN:done -->` 〜 `<!-- END:done -->` に移動する:
+task.md 内の **トップレベル**（行頭が `- [ ]`）の GitHub URL 付きタスクについて state 確認。
+closed なら、そのタスク行とその直下のインデント行（子要素）をまとめて `<!-- BEGIN:done -->` に移動する:
 ```markdown
-- [x] Resily/{repo}#{number} {タイトル} → {YYYY-MM-DD} 完了
+- [x] [{タイトル}](https://github.com/Resily/{repo}/issues/{number}) → {YYYY-MM-DD} 完了
+  - （子要素もそのまま移動）
 ```
 
-**3-3. `02_projects/task.md` の frontmatter `updated` を本日日付に更新**
+- インデント行単体（子要素）の state は確認しない（親の完了に従う）
+
+**3-3. frontmatter `updated` を本日日付に更新**
 
 ### Step 4: `02_projects/` の現在の状況を更新
 
@@ -118,7 +187,6 @@ updated: {YYYY-MM-DD}
 
 **`02_projects/_inbox.md` へのフォールバック:**
 
-マッピング対象外のリポジトリの issue は以下形式で追記:
 ```markdown
 ## {YYYY-MM-DD} 未マッピング
 - [ ] {repo}#{number} {タイトル} → マッピング先を追加してください
@@ -129,30 +197,32 @@ updated: {YYYY-MM-DD}
 ```
 ## obsidian-refresh 完了（{HH:MM}）
 
-02_projects/task.md:
-  新規追加: {N}件
-    - Data Platform: +{n}件
-    - ...
-  クローズ更新（- [ ] → - [x]）: {N}件
-  Done に移動: {N}件
+Push（Obsidian → GitHub）:
+  クローズ: {N}件
+  新規 Issue 作成: {N}件
+  スキップ: {N}件
+
+Pull（GitHub → Obsidian）:
+  新規追加: {N}件（Data Platform: +n件 ...）
+  クローズ更新（→ Done）: {N}件
 
 02_projects/ 更新:
   現在の状況を更新: {N}件
   新規作成: {N}件
-
-スキップ（ARM-blog）: {N}件
-未マッピング（_inbox）: {N}件
 ```
 
 ---
 
 ## ルール
 
-1. **`02_projects/task.md` の既存タスクは削除しない** — 手動追加タスクを保持する
-2. **重複追加しない** — `Resily/repo#number` で照合し、既存行があればスキップ
+1. **既存タスクは削除しない** — 手動追加タスクを保持する
+2. **重複追加しない** — GitHub URL で照合し、既存行があればスキップ
 3. **`<!-- BEGIN:tasks -->` 〜 `<!-- END:tasks -->` の範囲のみ操作する**
 4. **Done 移動は `<!-- BEGIN:done -->` 〜 `<!-- END:done -->` に追記**
-5. **`02_projects/` の `やること` セクションは触らない** — タスク管理は `02_projects/task.md` に一本化
+5. **`02_projects/` の `やること` セクションは触らない**
 6. **ARM-blog は常にスキップ**
 7. **新規ファイル作成は `dxp` と `wellcom` のみ** — それ以外は `_inbox.md` へ
-8. **`gh` コマンドは並列実行可能な部分を並列化してレート制限を回避する**
+8. **Push の実行は必ずユーザー確認後** — 0件の場合は確認をスキップして Pull へ進む
+9. **サブセクションは作成しない**（`### 進行中` / `### Backlog` 等）
+10. **インデント行（2スペース以上で始まる行）は保護対象** — sub-issue URL・手動メモ・解説いずれも自動削除しない。Done 移動時は親タスクと一緒に移動する
+11. **Push の新規 Issue 候補はトップレベル行のみ** — インデント行は候補にしない

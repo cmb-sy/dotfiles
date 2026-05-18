@@ -13,6 +13,48 @@ fi
 # ----------------------------------------------------------
 if [[ -n "${GHOSTTY_RESOURCES_DIR}" ]] && [[ -f "${GHOSTTY_RESOURCES_DIR}/shell-integration/zsh/ghostty-integration" ]]; then
   source "${GHOSTTY_RESOURCES_DIR}/shell-integration/zsh/ghostty-integration"
+
+  # Claude Code tab indicator: ⚡ while running, ✅/❌ on completion
+  typeset -gi _claude_running=0
+  typeset -gi _claude_exit=0
+
+  _claude_tab_preexec() {
+    if [[ "$1" == claude* ]]; then
+      _claude_running=1
+      printf '\e]2;⚡ CLAUDE CODE\a'
+    fi
+  }
+
+  _claude_tab_precmd() {
+    local s=$?
+    (( _claude_running )) && _claude_exit=$s
+    return $s
+  }
+
+  # Deferred setup: runs after Ghostty's deferred init on the first precmd
+  _claude_tab_setup() {
+    preexec_functions+=(_claude_tab_preexec)
+    precmd_functions+=(_claude_tab_precmd)
+
+    # Chain zle-line-init — fires AFTER all precmd hooks, so it overrides
+    # Ghostty's title reset when Claude Code just finished
+    (( $+widgets[zle-line-init] )) && zle -A zle-line-init _orig_zle_line_init_ct
+    _claude_tab_line_init() {
+      (( $+widgets[_orig_zle_line_init_ct] )) && zle _orig_zle_line_init_ct
+      if (( _claude_running )); then
+        if (( _claude_exit == 0 )); then
+          printf '\e]2;✅ CLAUDE CODE\a'
+        else
+          printf '\e]2;❌ CLAUDE CODE\a'
+        fi
+        _claude_running=0
+      fi
+    }
+    zle -N zle-line-init _claude_tab_line_init
+
+    precmd_functions=(${precmd_functions:#_claude_tab_setup})
+  }
+  precmd_functions+=(_claude_tab_setup)
 fi
 
 # ----------------------------------------------------------
