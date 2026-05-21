@@ -1,0 +1,12 @@
+[project]
+name = "pptx-dev-scripts"
+version = "0.1.0"
+description = "python-pptx based slide generator and visual auditor for pptx-dev skill"
+requires-python = ">=3.11"
+dependencies = [
+  "python-pptx>=1.0.2",
+  "pyyaml>=6.0.2",
+]
+
+[tool.uv]
+package = false

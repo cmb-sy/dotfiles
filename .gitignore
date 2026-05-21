@@ -1,1 +1,6 @@
 .linear-refresh/
+
+# pptx-dev: python venv + per-session artifacts
+claude/skills/pptx-dev/scripts/.venv/
+claude/skills/pptx-dev/scripts/uv.lock
+.pptx-dev/
