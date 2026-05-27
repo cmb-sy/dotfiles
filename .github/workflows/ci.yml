@@ -65,6 +65,19 @@ jobs:
           done
           echo "OK: .config symlinks"
 
+      - name: Verify legacy bad symlinks are absent
+        run: |
+          set -e
+          # 旧 setup.zsh が誤って作っていた symlink が再生していないことを確認。
+          # 特に ~/.git は git の動作を壊すので絶対に存在してはならない。
+          for bad in .Brewfile .bin .docs .git .macos; do
+            if [[ -L "$HOME/$bad" ]]; then
+              echo "FAIL: legacy symlink ~/$bad still exists (setup.zsh should not create this)"
+              exit 1
+            fi
+          done
+          echo "OK: no legacy bad symlinks"
+
       # ----------------------------------------------------------
       # Step 2: Brewfile formula commands are on PATH
       # Brewfile に列挙した formula が実際に PATH から呼べるかを検証。

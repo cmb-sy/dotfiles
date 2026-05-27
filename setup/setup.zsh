@@ -20,14 +20,48 @@ fi
 cd ${DOTFILES_DIR}
 
 #----------------------------------------------------------
-# Create symbolic links for dotfiles (dot-prefixed files)
+# Create symbolic links for shell dotfiles
+#
+# 旧実装は `for name in *` で glob したが、zsh デフォルトで hidden file が
+# 除外されるため .zshrc などが symlink されなかった。さらに Brewfile / git /
+# macos などが ~/.Brewfile / ~/.git / ~/.macos に誤リンクされて
+# git の挙動を壊す問題があった。
+# 明示的にリストアップして、それ以外は触らない方針に変更する。
 #----------------------------------------------------------
-for name in *; do
-  if [[ ${name} != 'setup' ]] && [[ ${name} != 'README.md' ]] && [[ ${name} != 'terminal' ]] && [[ ${name} != 'tmux' ]]; then
-    if [[ -L ${HOME}/.${name} ]]; then
-      unlink ${HOME}/.${name}
+HOME_DOTFILES=(.zshrc .zshenv .aliases.sh .function.zsh .gitignore_global)
+
+for name in ${HOME_DOTFILES[@]}; do
+  src=${DOTFILES_DIR}/${name}
+  dst=${HOME}/${name}
+  if [[ ! -e ${src} ]]; then
+    util::warning "Skip ${name}: source not found at ${src}"
+    continue
+  fi
+  # symlink でも、別の場所を指していたり broken symlink でも貼り直す
+  if [[ -L ${dst} ]]; then
+    unlink ${dst}
+  elif [[ -e ${dst} ]]; then
+    util::warning "${dst} exists and is not a symlink; skipping (move or remove manually)"
+    continue
+  fi
+  ln -sfv ${src} ${dst}
+done
+
+#----------------------------------------------------------
+# Cleanup: 旧実装が作った誤った symlink を除去
+#
+# 旧 `for name in *` ループが Brewfile / bin / docs / git / macos を
+# ~/.<name> へ symlink していた。これらは本来不要（特に ~/.git は git の
+# 動作を壊す）なので、symlink である場合のみ削除する。
+#----------------------------------------------------------
+for legacy in .Brewfile .bin .docs .git .macos .claude-old; do
+  target=${HOME}/${legacy}
+  if [[ -L ${target} ]]; then
+    link_target=$(readlink "${target}")
+    if [[ "${link_target}" == "${DOTFILES_DIR}"* ]]; then
+      unlink "${target}"
+      util::info "Removed legacy symlink: ${target} → ${link_target}"
     fi
-    ln -sfv ${PWD}/${name} ${HOME}/.${name}
   fi
 done
 

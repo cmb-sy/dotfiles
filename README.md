@@ -39,27 +39,22 @@ zsh setup/install.zsh
 
 Restart your terminal to apply all changes.
 
-## Testing
-
-Two-layer verification — see [docs/testing.md](docs/testing.md) for details.
-
-**Layer 1 — GitHub Actions CI** (auto on push):
-
-```bash
-gh workflow run CI --ref main
-```
-
-Verifies symlinks, Brewfile formulas on PATH, skills inventory, and `settings.json` validity. Runs on `macOS-latest` runner.
-
-**Layer 2 — Clean macOS VM via Tart** (manual, Apple Silicon only):
-
-```bash
-bash setup/test-tart.sh
-```
-
-Runs `setup.zsh` + the same assertions inside a freshly cloned macOS VM, simulating a brand-new MacBook (no Homebrew, no Xcode, true zero state).
-
 ## CI
+
+GitHub Actions runs `setup/setup.zsh` on a `macOS-latest` runner on every push and on a monthly cron schedule, then verifies:
+
+- shell config / Claude Code / `.config` symlinks
+- Brewfile formulas on PATH (gh, jq, starship, uv, mise, ...)
+- `~/.claude/skills` SKILL.md inventory (≥ 20)
+- `~/.claude/settings.json` is valid JSON
+- no legacy bad symlinks (`~/.git`, `~/.Brewfile`, etc.)
+
+```bash
+gh workflow run CI --ref main   # manual trigger
+gh run watch                    # tail latest run
+```
+
+Reproduce locally:
 
 ```bash
 CI=true zsh setup/install.zsh
