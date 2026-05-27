@@ -103,7 +103,7 @@ jobs:
       - name: Verify Claude skills loadable
         run: |
           set -e
-          count=$(find "$HOME/.claude/skills" -maxdepth 2 -name SKILL.md 2>/dev/null | wc -l | tr -d ' ')
+          count=$(find -L "$HOME/.claude/skills" -maxdepth 2 -name SKILL.md 2>/dev/null | wc -l | tr -d ' ')
           echo "Skills found: $count"
           if [[ "$count" -lt 20 ]]; then
             echo "FAIL: expected at least 20 SKILL.md, found $count"
@@ -134,7 +134,7 @@ jobs:
               echo "FAIL: $f missing 'name:' in frontmatter"
               missing=$((missing + 1))
             fi
-          done < <(find "$HOME/.claude/skills" -maxdepth 2 -name SKILL.md)
+          done < <(find -L "$HOME/.claude/skills" -maxdepth 2 -name SKILL.md)
           if [[ "$missing" -gt 0 ]]; then
             echo "FAIL: $missing SKILL.md files missing frontmatter"
             exit 1
