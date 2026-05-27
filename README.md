@@ -39,6 +39,26 @@ zsh setup/install.zsh
 
 Restart your terminal to apply all changes.
 
+## Testing
+
+Two-layer verification — see [docs/testing.md](docs/testing.md) for details.
+
+**Layer 1 — GitHub Actions CI** (auto on push):
+
+```bash
+gh workflow run CI --ref main
+```
+
+Verifies symlinks, Brewfile formulas on PATH, skills inventory, and `settings.json` validity. Runs on `macOS-latest` runner.
+
+**Layer 2 — Clean macOS VM via Tart** (manual, Apple Silicon only):
+
+```bash
+bash setup/test-tart.sh
+```
+
+Runs `setup.zsh` + the same assertions inside a freshly cloned macOS VM, simulating a brand-new MacBook (no Homebrew, no Xcode, true zero state).
+
 ## CI
 
 ```bash
