@@ -48,6 +48,50 @@ done
 chmod +x ${DOTFILES_DIR}/claude/statusline.sh 2>/dev/null
 
 #----------------------------------------------------------
+# Claude Code (~/.claude → ~/.claude-work and per-asset symlinks)
+#
+# Structure on disk:
+#   ~/.claude            → ~/.claude-work (directory symlink)
+#   ~/.claude-work/      ← actual working directory; preserves runtime state
+#     ├── CLAUDE.md      → dotfiles/claude/CLAUDE.md
+#     ├── agents/        → dotfiles/claude/agents
+#     ├── hooks/         → dotfiles/claude/hooks
+#     ├── settings.json  → dotfiles/claude/settings.json
+#     ├── skills/        → dotfiles/claude/skills
+#     ├── statusline.sh  → dotfiles/claude/statusline.sh
+#     └── (runtime files: .claude.json, cache/, file-history/, backups/, ...)
+#----------------------------------------------------------
+mkdir -p ${HOME}/.claude-work
+
+# ~/.claude → ~/.claude-work directory symlink
+# Use -h to avoid following an existing symlink when checking
+if [[ -L ${HOME}/.claude ]]; then
+  unlink ${HOME}/.claude
+elif [[ -e ${HOME}/.claude ]]; then
+  util::warning "~/.claude exists and is not a symlink; skipping (move or remove manually)"
+fi
+if [[ ! -e ${HOME}/.claude ]]; then
+  ln -sfv ${HOME}/.claude-work ${HOME}/.claude
+fi
+
+# Per-asset symlinks inside ~/.claude-work
+for name in CLAUDE.md agents hooks settings.json skills statusline.sh; do
+  src=${DOTFILES_DIR}/claude/${name}
+  dst=${HOME}/.claude-work/${name}
+  if [[ ! -e ${src} ]]; then
+    util::warning "Skip claude/${name}: source not found at ${src}"
+    continue
+  fi
+  if [[ -L ${dst} ]]; then
+    unlink ${dst}
+  elif [[ -e ${dst} ]]; then
+    util::warning "${dst} exists and is not a symlink; skipping (move or remove manually)"
+    continue
+  fi
+  ln -sfv ${src} ${dst}
+done
+
+#----------------------------------------------------------
 # WezTerm
 #----------------------------------------------------------
 for name in ${DOTFILES_DIR}/terminal/*; do
