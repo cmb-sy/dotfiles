@@ -139,3 +139,10 @@ fi
 if [[ -f "${DOTFILES:-${HOME}/dotfiles}/.aliases.sh" ]]; then
   source "${DOTFILES:-${HOME}/dotfiles}/.aliases.sh"
 fi
+# bun completions
+[ -s "/Users/snakashima/.bun/_bun" ] && source "/Users/snakashima/.bun/_bun"
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
+export PATH=$PATH:$HOME/.maestro/bin

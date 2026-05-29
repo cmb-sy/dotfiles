@@ -1,0 +1,85 @@
+# Stock Watch Report
+
+**実行日時**: {{ run_at }}
+**Mode**: {{ mode }}
+**対象**: {{ tickers | length }} 銘柄
+**Composite Score 平均**: {{ avg_score }}
+
+{% for ticker, a in tickers.items() %}
+
+---
+
+## {{ a.name }} ({{ ticker }})
+
+| 項目 | 値 |
+|---|---|
+| 現在価格 | {{ a.latest_price }} {{ a.currency or '' }} |
+| Composite Score | **{{ a.composite_score }}** / 100 |
+| Recommendation | **{{ a.recommendation }}** |
+{% if a.position %}| 保有状況 | {{ a.position.status }}（数量 {{ a.position.quantity or '-' }} / 取得単価 {{ a.position.buy_price or '-' }}） |
+| 含み損益 | {{ a.position.pl or 'N/A' }} |
+{% endif %}
+
+### Technical（30%）
+
+スコア: {{ a.technical_score }}
+
+| 指標 | 値 |
+|---|---|
+| MA25 / MA75 | {{ a.technical_detail.ma25 or 'N/A' }} / {{ a.technical_detail.ma75 or 'N/A' }} |
+| トレンド | {{ a.technical_detail.trend or 'N/A' }} |
+| RSI(14) | {{ a.technical_detail.rsi or 'N/A' }} |
+| MACD ヒストグラム | {{ a.technical_detail.macd_hist or 'N/A' }} |
+| ボリンジャー位置 | {{ a.technical_detail.bollinger or 'N/A' }} |
+
+### Fundamental（40%）
+
+スコア: {{ a.fundamental_score }}
+
+| 指標 | 値 |
+|---|---|
+| PER | {{ a.fundamental_detail.per or 'N/A' }} |
+| PBR | {{ a.fundamental_detail.pbr or 'N/A' }} |
+| ROE | {{ a.fundamental_detail.roe or 'N/A' }} |
+| 配当利回り | {{ a.fundamental_detail.dividend_yield or 'N/A' }} |
+| 売上 YoY | {{ a.fundamental_detail.revenue_growth or 'N/A' }} |
+
+### News & Sentiment（30%）
+
+スコア: {{ a.sentiment_score }}
+
+{{ a.sentiment_summary or 'N/A' }}
+
+{% if a.news %}
+**ニュース**:
+{% for n in a.news %}
+- [{{ n.title }}]({{ n.link }}) — {{ n.publisher }}{% if n.published_at %}（{{ n.published_at }}）{% endif %}
+{% endfor %}
+{% endif %}
+
+{% if a.materials %}
+**直近の材料 (≤30日)**:
+{% for m in a.materials %}
+- [{{ m.title }}]({{ m.url }}) — {{ m.published_date }} / {{ m.category }}{% if m.one_line %} — {{ m.one_line }}{% endif %}
+{% endfor %}
+{% else %}
+**直近の材料 (≤30日)**: なし
+{% endif %}
+
+### Recommendation 根拠
+
+{{ a.recommendation_reason or 'N/A' }}
+
+{% endfor %}
+
+---
+
+## 注意事項
+
+{% if warnings %}
+{% for w in warnings %}
+- {{ w }}
+{% endfor %}
+{% else %}
+特になし
+{% endif %}

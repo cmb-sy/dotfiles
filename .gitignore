@@ -4,3 +4,8 @@
 claude/skills/pptx-dev/scripts/.venv/
 claude/skills/pptx-dev/scripts/uv.lock
 .pptx-dev/
+
+# stock-watch: python venv + caches
+claude/skills/stock-watch/scripts/.venv/
+claude/skills/stock-watch/scripts/uv.lock
+claude/skills/stock-watch/scripts/__pycache__/

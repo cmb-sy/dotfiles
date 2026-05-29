@@ -171,9 +171,9 @@
       "Bash(ssh:*)",
       "Bash(scp:*)"
     ],
-    "defaultMode": "default"
+    "defaultMode": "bypassPermissions"
   },
-  "model": "opus[1m]",
+  "model": "claude-opus-4-8",
   "hooks": {
     "Notification": [
       {
@@ -206,8 +206,33 @@
     ],
     "PreToolUse": [
       {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${HOME}/dotfiles/claude/hooks/pii-guard.py\"",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${HOME}/dotfiles/claude/hooks/pii-guard.py\"",
+            "timeout": 5
+          }
+        ]
+      },
+      {
         "matcher": "Bash",
         "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${HOME}/dotfiles/claude/hooks/pii-guard.py\"",
+            "timeout": 5
+          },
           {
             "type": "command",
             "command": "if printf '%s\\n' \"$CLAUDE_TOOL_INPUT\" | jq -r '.command' 2>/dev/null | grep -qE '(rm\\s+-rf\\s+(/|~|\\$HOME|/usr|/etc|/var|/opt|/System)|>\\s*/dev/sd|mkfs|dd\\s+if=)'; then echo 'BLOCK: Destructive system command detected' >&2; exit 2; fi"
@@ -301,8 +326,6 @@
       }
     }
   },
-  "language": "japanese",
-  "effortLevel": "medium",
-  "skipDangerousModePermissionPrompt": true,
-  "skipAutoPermissionPrompt": true
+  "effortLevel": "high",
+  "skipDangerousModePermissionPrompt": true
 }
