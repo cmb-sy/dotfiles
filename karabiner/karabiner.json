@@ -10,12 +10,9 @@
                 "keyboard_type_v2": "ansi"
             },
             "complex_modifications": {
-                "parameters": {
-                    "basic.to_delayed_action_delay_milliseconds": 300
-                },
                 "rules": [
                     {
-                        "description": "Caps Lock: single-tap switches input source (Ctrl+Space), double-tap starts Dictation",
+                        "description": "Caps Lock: single-tap switches input source (Ctrl+Space), hold starts Dictation",
                         "manipulators": [
                             {
                                 "type": "basic",
@@ -23,31 +20,14 @@
                                     "key_code": "caps_lock",
                                     "modifiers": { "optional": ["any"] }
                                 },
-                                "to": [
-                                    { "consumer_key_code": "dictation" },
-                                    { "set_variable": { "name": "caps_lock_tapped", "value": 0 } }
+                                "to_if_alone": [
+                                    { "key_code": "spacebar", "modifiers": ["left_control"] }
                                 ],
-                                "conditions": [
-                                    { "type": "variable_if", "name": "caps_lock_tapped", "value": 1 }
-                                ]
-                            },
-                            {
-                                "type": "basic",
-                                "from": {
-                                    "key_code": "caps_lock",
-                                    "modifiers": { "optional": ["any"] }
-                                },
-                                "to": [
-                                    { "set_variable": { "name": "caps_lock_tapped", "value": 1 } }
+                                "to_if_held_down": [
+                                    { "consumer_key_code": "dictation" }
                                 ],
-                                "to_delayed_action": {
-                                    "to_if_invoked": [
-                                        { "key_code": "spacebar", "modifiers": ["left_control"] },
-                                        { "set_variable": { "name": "caps_lock_tapped", "value": 0 } }
-                                    ],
-                                    "to_if_canceled": [
-                                        { "set_variable": { "name": "caps_lock_tapped", "value": 0 } }
-                                    ]
+                                "parameters": {
+                                    "basic.to_if_held_down_threshold_milliseconds": 200
                                 }
                             }
                         ]
