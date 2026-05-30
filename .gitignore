@@ -1,11 +1,17 @@
-.linear-refresh/
+# Claude Code: committed binary / npm artifacts kept out of git
+claude/slackcli
+claude/package.json
+claude/package-lock.json
+
+# Local-only learning notes
+docs/learnings/
 
 # pptx-dev: python venv + per-session artifacts
-claude/skills/pptx-dev/scripts/.venv/
-claude/skills/pptx-dev/scripts/uv.lock
+claude/skills-src/tools/pptx-dev/scripts/.venv/
+claude/skills-src/tools/pptx-dev/scripts/uv.lock
 .pptx-dev/
 
 # stock-watch: python venv + caches
-claude/skills/stock-watch/scripts/.venv/
-claude/skills/stock-watch/scripts/uv.lock
-claude/skills/stock-watch/scripts/__pycache__/
+claude/skills-src/tools/stock-watch/scripts/.venv/
+claude/skills-src/tools/stock-watch/scripts/uv.lock
+claude/skills-src/tools/stock-watch/scripts/__pycache__/
