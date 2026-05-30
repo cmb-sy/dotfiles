@@ -16,12 +16,14 @@ brew 'tmux'
 brew 'jq'
 tap 'schpet/tap'
 brew 'schpet/tap/linear'
+tap 'manaflow-ai/cmux'
 
 # -----------------------------------------------------------
 # Cask
 # -----------------------------------------------------------
 cask 'google-chrome'
 cask 'wezterm'
+cask 'cmux'
 cask 'cursor'
 cask 'docker-desktop'
 cask 'slack'

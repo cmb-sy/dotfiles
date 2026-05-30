@@ -1,0 +1,17 @@
+{
+  "$schema": "https://raw.githubusercontent.com/manaflow-ai/cmux/main/web/data/cmux.schema.json",
+  "schemaVersion": 1,
+  "app": {
+    "appearance": "system"
+  },
+  "notifications": {
+    "dockBadge": true,
+    "showInMenuBar": true,
+    "unreadPaneRing": true
+  },
+  "sidebar": {
+    "showBranchDirectory": true,
+    "showPullRequests": true,
+    "showNotificationMessage": true
+  }
+}

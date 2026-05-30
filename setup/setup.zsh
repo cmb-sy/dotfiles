@@ -126,7 +126,7 @@ for name in CLAUDE.md agents hooks settings.json skills statusline.sh; do
 done
 
 #----------------------------------------------------------
-# WezTerm
+# Terminals (ghostty / wezterm / cmux): symlink each into ~/.config/<name>
 #----------------------------------------------------------
 for name in ${DOTFILES_DIR}/terminal/*; do
   name="$(basename ${name})"
