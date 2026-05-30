@@ -54,6 +54,24 @@ if [[ $? = 0 ]]; then
 fi
 
 #----------------------------------------------------------
+# Karabiner-Elements (Caps Lock 二度押し → 音声入力)
+#----------------------------------------------------------
+util::confirm "Set up Karabiner-Elements config?"
+if [[ $? = 0 ]]; then
+  mkdir -p "$HOME/.config"
+  if [[ -d "${REPO_DIR}/karabiner" ]]; then
+    # Karabiner は初回起動で実ディレクトリを生成する。symlink がその中に作られるのを防ぐため退避する
+    if [[ -e "$HOME/.config/karabiner" && ! -L "$HOME/.config/karabiner" ]]; then
+      mv "$HOME/.config/karabiner" "$HOME/.config/karabiner.bak.$(date +%s)"
+    fi
+    ln -sfn "${REPO_DIR}/karabiner" "$HOME/.config/karabiner"
+    util::info "Karabiner config linked to ~/.config/karabiner."
+  else
+    util::info "Skip: karabiner not found."
+  fi
+fi
+
+#----------------------------------------------------------
 # tmux
 #----------------------------------------------------------
 util::confirm "Set up tmux config?"

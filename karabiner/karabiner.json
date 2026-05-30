@@ -1,0 +1,58 @@
+{
+    "global": {
+        "show_in_menu_bar": false
+    },
+    "profiles": [
+        {
+            "name": "Default profile",
+            "selected": true,
+            "virtual_hid_keyboard": {
+                "keyboard_type_v2": "ansi"
+            },
+            "complex_modifications": {
+                "parameters": {
+                    "basic.to_delayed_action_delay_milliseconds": 300
+                },
+                "rules": [
+                    {
+                        "description": "Caps Lock: double-tap to start Dictation, single-tap does nothing",
+                        "manipulators": [
+                            {
+                                "type": "basic",
+                                "from": {
+                                    "key_code": "caps_lock",
+                                    "modifiers": { "optional": ["any"] }
+                                },
+                                "to": [
+                                    { "consumer_key_code": "dictation" },
+                                    { "set_variable": { "name": "caps_lock_tapped", "value": 0 } }
+                                ],
+                                "conditions": [
+                                    { "type": "variable_if", "name": "caps_lock_tapped", "value": 1 }
+                                ]
+                            },
+                            {
+                                "type": "basic",
+                                "from": {
+                                    "key_code": "caps_lock",
+                                    "modifiers": { "optional": ["any"] }
+                                },
+                                "to": [
+                                    { "set_variable": { "name": "caps_lock_tapped", "value": 1 } }
+                                ],
+                                "to_delayed_action": {
+                                    "to_if_invoked": [
+                                        { "set_variable": { "name": "caps_lock_tapped", "value": 0 } }
+                                    ],
+                                    "to_if_canceled": [
+                                        { "set_variable": { "name": "caps_lock_tapped", "value": 0 } }
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+    ]
+}
