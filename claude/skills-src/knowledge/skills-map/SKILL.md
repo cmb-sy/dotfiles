@@ -49,10 +49,10 @@ user-invocable: true
   [開発フロー    ]  feature-dev / debug-flow / tdd-orchestrate / smoke-test
   [コードレビュー]  code-review / test-review / spec-review / implementation-review
   [ドキュメント  ]  doc-audit / doc-check / learn / handover / continue
-  [PJ管理       ]  linear-refresh / github-ops / triage / project-update
-  [振り返り・成長]  reflect / reflect-review
-  [外部ツール    ]  slackcli / trace-report / skills-map
-  [Obsidian固有  ]  daily-log / eod  (*reflect *reflect-review *project-update は共有)
+  [PJ管理       ]  github-ops / triage / meeting-notes
+  [振り返り・成長]  reflect / reflect-review / kaizen
+  [外部ツール    ]  slackcli / trace-report / skills-map / stock-watch / pptx-dev
+  [日次運用      ]  eod  (project固有の daily-log / generate-problem を呼び出す)
 
   * = グローバルと同名のプロジェクト版。Obsidian パスに特化。
 ```
@@ -76,10 +76,9 @@ DEPENDENCY TREE  (A -> B : AがBを呼び出す)
                   +-> test-review
                   +-> smoke-test
 
-  eod +-----------+-> linear-refresh --+-> slackcli
-      |                                +-> project-update -> slackcli
-      +-> daily-log -----------------> slackcli
-      +-> project-update
+  eod +-----------+-> obsidian-refresh
+      |           +-> daily-log -----------------> slackcli
+      |           +-> generate-problem
 
   reflect-review -> reflect_log.md (file read)
   continue       -> handover.md    (file read)
@@ -132,13 +131,10 @@ DEPENDENCY TREE (拡張版)
   [Obsidianワークフロー]
 
     eod (1コマンド締め)
-      +-> linear-refresh (チケット棚卸し)
+      +-> obsidian-refresh (双方向同期)
+      +-> daily-log (日報集約 + CloudLog)
       |     +-> slackcli
-      |     +-> project-update
-      |           +-> slackcli
-      +-> daily-log (日報集約)
-      |     +-> slackcli
-      +-> project-update
+      +-> generate-problem (振り返り)
 
   [セッション継続]
 
@@ -166,10 +162,9 @@ DEPENDENCY TREE (拡張版)
 
 ```
 "<キーワード>" の検索結果:
-  linear-refresh  -- 直接一致: Linearチケット棚卸し
-  triage          -- 含む: Linear Issue 登録を実行
-  eod             -- 呼び出し: linear-refresh を invoke
-  daily-log       -- フラグ: --linear-refresh を持つ
+  code-review     -- 直接一致: コードレビュー 6観点
+  feature-dev     -- 呼び出し: code-review を invoke
+  smoke-test      -- 呼び出し: code-review を invoke
 ```
 
 ---

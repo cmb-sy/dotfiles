@@ -108,17 +108,6 @@ user-invocable: true
    → Skill tool で `/{pipeline}` を invoke する
    → continue の処理はここで終了（ワークフローに委譲）
 
-   ### Linear からの Phase Summary 復元（フォールバック）
-
-   ローカルの `phase-summaries/` が不在または不完全で、`linear.issue_id` が設定されている場合:
-
-   1. `/linear-sync` の `read_phase_summary` を invoke
-   2. Linear から Phase Summary を取得
-   3. ローカルの `phase-summaries/` に書き戻し
-   4. 通常の Pipeline Detection に戻る
-
-   Linear API 失敗時はワークフロー続行（ベストエフォート）。
-
 1. 上記のパス解決で選択されたセッションの `project-state.json` を読み込む
    - 存在しない場合 → 「プロジェクト状態ファイルがありません。/handover で作成してください」と報告して終了
    - JSON として不正な場合 → エラーを報告して終了

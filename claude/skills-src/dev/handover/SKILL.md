@@ -118,11 +118,6 @@ user-invocable: true
     }
   ],
   "session_hash": "",
-  "linear": {
-    "issue_id": "Linear チケットID (例: PROJ-123)。linear-sync supplement 使用時のみ設定。null または未設定の場合、sync は無効",
-    "last_synced_phase": "execute",
-    "document_id": "Linear Document ID。linear-sync supplement が作成した Workflow Report Document の ID。sync_workflow_start で設定される"
-  },
   "phase_summaries": {
     "design": "phase-summaries/design.yml",
     "spec-review": "phase-summaries/spec-review.yml"
@@ -146,19 +141,10 @@ user-invocable: true
    - known_issues: 解決済みなら削除、新規は追加
    - phase_observations: 同一 phase のエントリは上書き、新規 phase は追加。各 phase の observations は最大5件（severity: warning > quality の順で保持）
    - session_notes: 追記（content 先頭50文字一致で重複排除）。セッションあたり最大10件
-   - `linear`: オブジェクト全体を新しい値で上書き（`issue_id`, `last_synced_phase`, `document_id`）
    - `phase_summaries`: 新しいエントリを追記（既存キーは上書きしない）
    - `session`: 新しい値で上書き
 
 5. `{保存先}/project-state.json` に書き出す
-
-### Linear Sync（オプション）
-
-project-state.json 生成後、`linear.issue_id` フィールドが設定されている場合:
-
-1. `claude/skills/linear-sync/SKILL.md` の `sync_handover` セクションを Read
-2. セクションの手順に従い、project-state.json のアップロードと中断コメントの投稿を実行
-3. API 失敗時はワークフローをブロックせず、warning を出力して続行
 
 ## Phase Summary 生成（pipeline ワークフロー時）
 
@@ -192,7 +178,6 @@ directives:
 evidence:
   - type: <種別>
     content: <内容> | local_path: <パス>
-    linear_sync: inline | attached | reference_only
 
 regate_history: []
 ```
