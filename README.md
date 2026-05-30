@@ -13,7 +13,7 @@ Brewfile             # Homebrew packages & casks
 git/                 # .gitconfig
 terminal/            # Ghostty, WezTerm configuration
 macos/               # macOS system preferences scripts
-claude/              # Claude Code configuration (skills, agents, hooks, tools)
+claude/              # Claude Code configuration (skills, agents, hooks)
 bin/                 # Custom scripts
 setup/               # Setup scripts
 ```
