@@ -210,7 +210,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${HOME}/dotfiles/claude/hooks/pii-guard.py\"",
+            "command": "python3 \"${HOME}/.claude/hooks/pii-guard.py\"",
             "timeout": 5
           }
         ]
@@ -220,7 +220,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${HOME}/dotfiles/claude/hooks/pii-guard.py\"",
+            "command": "python3 \"${HOME}/.claude/hooks/pii-guard.py\"",
             "timeout": 5
           }
         ]
@@ -230,7 +230,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${HOME}/dotfiles/claude/hooks/pii-guard.py\"",
+            "command": "python3 \"${HOME}/.claude/hooks/pii-guard.py\"",
             "timeout": 5
           },
           {
@@ -246,7 +246,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if printf '%s\\n' \"$CLAUDE_TOOL_INPUT\" | jq -r '.command' 2>/dev/null | grep -qE 'git commit'; then \"${HOME}/.dotfiles/claude/hooks/post-commit.sh\"; fi",
+            "command": "if printf '%s\\n' \"$CLAUDE_TOOL_INPUT\" | jq -r '.command' 2>/dev/null | grep -qE 'git commit'; then \"${HOME}/.claude/hooks/post-commit.sh\"; fi",
             "timeout": 30
           }
         ]
@@ -257,7 +257,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"${HOME}/.claude/claude/hooks/session-start.sh\"",
+            "command": "\"${HOME}/.claude/hooks/session-start.sh\"",
             "timeout": 10
           }
         ]
@@ -268,7 +268,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$HOME/.claude/claude/hooks/stop.sh",
+            "command": "$HOME/.claude/hooks/stop.sh",
             "timeout": 30,
             "async": true
           }
