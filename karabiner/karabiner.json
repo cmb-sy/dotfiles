@@ -31,6 +31,31 @@
                                 }
                             }
                         ]
+                    },
+                    {
+                        "description": "Fn combos: fn+space switches input source, fn+c sends Escape",
+                        "manipulators": [
+                            {
+                                "type": "basic",
+                                "from": {
+                                    "key_code": "spacebar",
+                                    "modifiers": { "mandatory": ["fn"] }
+                                },
+                                "to": [
+                                    { "key_code": "spacebar", "modifiers": ["left_control"] }
+                                ]
+                            },
+                            {
+                                "type": "basic",
+                                "from": {
+                                    "key_code": "c",
+                                    "modifiers": { "mandatory": ["fn"] }
+                                },
+                                "to": [
+                                    { "key_code": "escape" }
+                                ]
+                            }
+                        ]
                     }
                 ]
             }
