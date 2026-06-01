@@ -12,7 +12,7 @@
             "complex_modifications": {
                 "rules": [
                     {
-                        "description": "Caps Lock: switches input source (Ctrl+Space)",
+                        "description": "Caps Lock -> F18 (Typeless dictation hotkey; F18 never collides because it is not a physical key)",
                         "manipulators": [
                             {
                                 "type": "basic",
@@ -21,7 +21,7 @@
                                     "modifiers": { "optional": ["any"] }
                                 },
                                 "to": [
-                                    { "key_code": "spacebar", "modifiers": ["left_control"] }
+                                    { "key_code": "f18" }
                                 ]
                             }
                         ]
