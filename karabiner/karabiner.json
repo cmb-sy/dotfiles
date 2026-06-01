@@ -7,12 +7,12 @@
             "name": "Default profile",
             "selected": true,
             "virtual_hid_keyboard": {
-                "keyboard_type_v2": "ansi"
+                "keyboard_type_v2": "jis"
             },
             "complex_modifications": {
                 "rules": [
                     {
-                        "description": "Caps Lock: single-tap switches input source (Ctrl+Space), hold starts Dictation",
+                        "description": "Caps Lock: switches input source (Ctrl+Space)",
                         "manipulators": [
                             {
                                 "type": "basic",
@@ -20,15 +20,9 @@
                                     "key_code": "caps_lock",
                                     "modifiers": { "optional": ["any"] }
                                 },
-                                "to_if_alone": [
+                                "to": [
                                     { "key_code": "spacebar", "modifiers": ["left_control"] }
-                                ],
-                                "to_if_held_down": [
-                                    { "consumer_key_code": "dictation" }
-                                ],
-                                "parameters": {
-                                    "basic.to_if_held_down_threshold_milliseconds": 200
-                                }
+                                ]
                             }
                         ]
                     },
