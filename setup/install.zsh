@@ -66,9 +66,54 @@ if [[ $? = 0 ]]; then
     fi
     ln -sfn "${REPO_DIR}/karabiner" "$HOME/.config/karabiner"
     util::info "Karabiner config linked to ~/.config/karabiner."
+    util::warning "Manual step (cannot be scripted): launch Karabiner-Elements once and grant:"
+    util::warning "  - the driver/system extension approval it prompts for on first launch"
+    util::warning "  - Input Monitoring (System Settings > Privacy & Security > Input Monitoring)"
+    util::warning "  Without these, Caps Lock -> Handy voice input silently does nothing."
   else
     util::info "Skip: karabiner not found."
   fi
+fi
+
+#----------------------------------------------------------
+# Handy voice post-processing (ollama model + LOCAL default)
+#
+# Defaults to LOCAL (offline ollama) so a fresh Mac works with no API key.
+# Cloud (Cerebras) is opt-in: it neither retains nor trains on data
+#   https://support.cerebras.net/articles/1811589793-does-cerebras-retain-my-data
+#   https://www.cerebras.ai/terms-of-service
+#----------------------------------------------------------
+util::confirm "Set up Handy voice post-processing (ollama model + settings)?"
+if [[ $? = 0 ]]; then
+  if util::has ollama; then
+    open -a Ollama 2>/dev/null || true   # ollama-app starts the localhost:11434 server
+    ollama pull qwen3:4b-instruct-2507-q4_K_M || util::warning "ollama pull failed; run it manually later"
+  else
+    util::warning "ollama CLI not found. Launch Ollama once, then: ollama pull qwen3:4b-instruct-2507-q4_K_M"
+  fi
+
+  if [[ -d "/Applications/Handy.app" ]]; then
+    HANDY_SETTINGS="$HOME/Library/Application Support/com.pais.handy/settings_store.json"
+    if [[ ! -f "$HANDY_SETTINGS" ]]; then
+      open -a Handy                       # first launch generates settings_store.json
+      for i in {1..50}; do [[ -f "$HANDY_SETTINGS" ]] && break; sleep 0.2; done
+    fi
+    if [[ -f "$HANDY_SETTINGS" ]]; then
+      "${REPO_DIR}/bin/handy-switch" local && util::info "Voice post-processing set to LOCAL (offline ollama)."
+    else
+      util::warning "Handy settings not generated; launch Handy once, then run 'handy-switch local'."
+    fi
+  else
+    util::warning "Handy.app not installed; install via Brewfile, launch once, then run 'handy-switch local'."
+  fi
+
+  util::warning "Manual step (cannot be scripted): grant Handy these permissions or recording/paste fails:"
+  util::warning "  - Microphone (System Settings > Privacy & Security > Microphone) -- to record"
+  util::warning "  - Accessibility (System Settings > Privacy & Security > Accessibility) -- to paste (CtrlV)"
+
+  util::info "To enable Cerebras cloud (faster + higher quality; no data retention/training):"
+  util::info "  1) security add-generic-password -s handy-cerebras-api-key -a \"\$USER\" -w \"<KEY>\""
+  util::info "  2) handy-switch cloud"
 fi
 
 #----------------------------------------------------------

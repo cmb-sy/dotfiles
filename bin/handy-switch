@@ -1,0 +1,88 @@
+#!/bin/zsh
+# Switch Handy's voice post-processing between LOCAL and CLOUD, and back, anytime.
+#
+#   handy-switch local        -> ollama qwen3:4b-instruct-2507 (offline, no network)
+#   handy-switch cloud [model] -> Cerebras llama-3.3-70b (default; faster + far higher quality)
+#   handy-switch status        -> print current provider / model / prompt / cancel key
+#
+# Handy owns settings_store.json and rewrites it from memory while running, so an
+# external edit only sticks if Handy is fully quit first; we quit -> apply -> relaunch.
+#
+# CLOUD target is Cerebras, chosen because it neither RETAINS nor TRAINS on data:
+#   - no retention: https://support.cerebras.net/articles/1811589793-does-cerebras-retain-my-data
+#   - no training:  https://www.cerebras.ai/terms-of-service
+# US text transmission is acceptable per the user; data-training is the hard no-go.
+#
+# The Cerebras API key lives ONLY in the macOS login Keychain (never committed).
+# Store it once per machine:
+#   security add-generic-password -s handy-cerebras-api-key -a "$USER" -w "<KEY>"
+set -euo pipefail
+
+KEYCHAIN_SVC="handy-cerebras-api-key"
+SETTINGS="$HOME/Library/Application Support/com.pais.handy/settings_store.json"
+HERE="${0:A:h}"                 # .../dotfiles/bin
+APPLY="${HERE:h}/handy/apply-settings.py"
+
+die() { print -u2 "handy-switch: $*"; exit 1 }
+
+quit_handy() {
+  /usr/bin/osascript -e 'quit app "Handy"' >/dev/null 2>&1 || true
+  local n=0
+  while /usr/bin/pgrep -x handy >/dev/null 2>&1; do
+    (( ++n > 50 )) && die "Handy did not quit within 5s"
+    sleep 0.1
+  done
+}
+
+relaunch_handy() {
+  /usr/bin/open -a Handy
+  local n=0
+  until /usr/bin/pgrep -x handy >/dev/null 2>&1; do
+    (( ++n > 50 )) && break
+    sleep 0.1
+  done
+}
+
+print_status() {
+  [[ -f "$SETTINGS" ]] || die "settings not found: $SETTINGS"
+  /usr/bin/python3 - "$SETTINGS" <<'PY'
+import json, sys
+s = json.load(open(sys.argv[1])).get("settings", {})
+pid = s.get("post_process_provider_id")
+print(f"provider = {pid}")
+print(f"model    = {s.get('post_process_models', {}).get(pid, '')}")
+print(f"enabled  = {s.get('post_process_enabled')}")
+print(f"prompt   = {s.get('post_process_selected_prompt_id')}")
+print(f"cancel   = {s.get('bindings', {}).get('cancel', {}).get('current_binding')}")
+PY
+}
+
+[[ -f "$APPLY" ]] || die "applier not found: $APPLY"
+
+case "${1:-status}" in
+  status)
+    print_status
+    ;;
+  local)
+    quit_handy
+    /usr/bin/python3 "$APPLY" --provider local
+    relaunch_handy
+    print -r -- "-> LOCAL (ollama qwen3:4b). Offline; nothing leaves the machine."
+    ;;
+  cloud)
+    key="$(/usr/bin/security find-generic-password -s "$KEYCHAIN_SVC" -w 2>/dev/null || true)"
+    [[ -n "$key" ]] || die "no Cerebras key in Keychain. Add it once:
+  security add-generic-password -s $KEYCHAIN_SVC -a \"\$USER\" -w \"<KEY>\""
+    quit_handy
+    if [[ -n "${2:-}" ]]; then
+      CEREBRAS_API_KEY="$key" /usr/bin/python3 "$APPLY" --provider cloud --model "$2"
+    else
+      CEREBRAS_API_KEY="$key" /usr/bin/python3 "$APPLY" --provider cloud
+    fi
+    relaunch_handy
+    print -r -- "-> CLOUD (Cerebras). Text sent to US; provider does not retain or train on it."
+    ;;
+  *)
+    die "usage: handy-switch [local | cloud [model] | status]"
+    ;;
+esac

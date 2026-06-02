@@ -125,6 +125,7 @@ eval "$(starship init zsh)"
 export PATH="${HOME}/.claude/local:$PATH"
 export PATH="/opt/homebrew/bin:$PATH"
 export PATH="/usr/local/bin:$PATH"
+export PATH="${DOTFILES:-${HOME}/dotfiles}/bin:$PATH"   # handy-switch, dev, ai-format, help_key
 
 # mise (runtime version manager) — must come after PATH so mise shims take priority
 eval "$(mise activate zsh)"

@@ -12,7 +12,7 @@
             "complex_modifications": {
                 "rules": [
                     {
-                        "description": "Caps Lock -> F18 (Typeless dictation hotkey; F18 never collides because it is not a physical key)",
+                        "description": "Caps Lock -> toggle Handy speech-to-text (bin/handy-toggle): press to start recording, press again to stop + transcribe (ja) + paste. Handy runs always-resident; CLI --toggle-transcription is forwarded to it.",
                         "manipulators": [
                             {
                                 "type": "basic",
@@ -21,13 +21,13 @@
                                     "modifiers": { "optional": ["any"] }
                                 },
                                 "to": [
-                                    { "key_code": "f18" }
+                                    { "shell_command": "/Users/snakashima/dotfiles/bin/handy-toggle" }
                                 ]
                             }
                         ]
                     },
                     {
-                        "description": "Fn combos: fn+space switches input source, fn+c sends Escape",
+                        "description": "Fn combos: fn+space switches input source, fn+c sends Escape, fn+f formats clipboard via Claude (ai-format)",
                         "manipulators": [
                             {
                                 "type": "basic",
@@ -47,6 +47,16 @@
                                 },
                                 "to": [
                                     { "key_code": "escape" }
+                                ]
+                            },
+                            {
+                                "type": "basic",
+                                "from": {
+                                    "key_code": "f",
+                                    "modifiers": { "mandatory": ["fn"] }
+                                },
+                                "to": [
+                                    { "shell_command": "/Users/snakashima/dotfiles/bin/ai-format" }
                                 ]
                             }
                         ]

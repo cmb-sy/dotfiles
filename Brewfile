@@ -36,4 +36,10 @@ cask 'claude-code'
 cask 'flux-app'
 cask 'wireshark-app'
 cask 'karabiner-elements'
-cask 'typeless'
+# Voice input: Handy (local STT) + ollama (offline LLM post-processing server).
+# Cloud post-processing (opt-in via `handy-switch cloud`) targets Cerebras, which
+# does not retain or train on request data:
+#   https://support.cerebras.net/articles/1811589793-does-cerebras-retain-my-data
+#   https://www.cerebras.ai/terms-of-service
+cask 'handy'
+cask 'ollama-app'
