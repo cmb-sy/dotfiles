@@ -1,6 +1,6 @@
 #!/bin/bash
 # Display all custom keybindings across tools
-# Usage: keybindings [wezterm|nvim|all]
+# Usage: help_key [wezterm|ghostty|shell|voice|all]
 
 DOTFILES_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
@@ -42,46 +42,26 @@ show_wezterm() {
   printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+Shift+Space"   "Quick select (URLs, paths)"
 }
 
-show_nvim() {
-  echo -e "\n${BOLD}${CYAN}━━━ Neovim (Custom) ━━━${RESET}\n"
+show_ghostty() {
+  echo -e "\n${BOLD}${CYAN}━━━ Ghostty ━━━${RESET}\n"
 
-  echo -e "  ${YELLOW}File${RESET}"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+S"             "Save file"
+  echo -e "  ${YELLOW}Quick Terminal${RESET}"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+\`"             "Toggle quick terminal (drops from top)"
 
-  echo -e "  ${YELLOW}Edit${RESET}"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+Z"             "Undo"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+Shift+Z"       "Redo"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+A"             "Select all"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+C (visual)"    "Copy"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+X (visual)"    "Cut"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+/"             "Toggle comment"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Alt+Up/Down"        "Move line"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+Shift+D"       "Duplicate line"
+  echo -e "  ${YELLOW}Tabs${RESET}"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+T"              "New tab"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+Left / Right"   "Previous / Next tab"
 
-  echo -e "  ${YELLOW}Search / Navigation${RESET}"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+P"             "Find files"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+Shift+P"       "Command palette"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+F"             "Search in file"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+Shift+F"       "Search in project"
+  echo -e "  ${YELLOW}Panes${RESET}"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+Shift+-"        "Split right (vertical)"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+Shift+\\"       "Split down (horizontal)"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+Shift+Arrow"    "Move between splits"
 
-  echo -e "  ${YELLOW}UI${RESET}"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+B"             "Toggle file explorer"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+\`"            "Toggle terminal"
-
-  echo -e "  ${YELLOW}Buffers (Tabs)${RESET}"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+Tab"           "Next buffer"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+Shift+Tab"     "Previous buffer"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Space b d"          "Close buffer"
-
-  echo -e "  ${YELLOW}Claude${RESET}"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Space a c"          "Toggle Claude"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Space a f"          "Focus Claude"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Space a r"          "Resume Claude"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Space a C"          "Continue Claude"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Space a s (visual)" "Send selection to Claude"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Space a b"          "Add buffer to Claude"
-
-  echo -e "\n  ${DIM}Tip: Press Space and wait to see all leader key bindings (which-key)${RESET}"
+  echo -e "  ${YELLOW}Tools${RESET}"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+F"              "Search scrollback"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+Shift+F"        "Fuzzy cd (zsh fzf, whole scope)"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+Ctrl+F"         "Toggle fullscreen"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Shift+Enter"        "Newline (Claude Code, etc.)"
 }
 
 show_shell() {
@@ -122,18 +102,38 @@ show_shell() {
   printf "    ${GREEN}%-24s${RESET} %s\n" "tenki"               "weather"
 }
 
+show_voice() {
+  echo -e "\n${BOLD}${CYAN}━━━ Voice Input (Karabiner + Handy) ━━━${RESET}\n"
+
+  echo -e "  ${YELLOW}Recording${RESET}"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "Caps Lock"          "録音 開始 / 停止 → 文字起こし(ja) → ペースト"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "C"                  "録音をキャンセル（録音中のみ有効）"
+
+  echo -e "  ${YELLOW}Input / Format${RESET}"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "fn+Space"           "入力ソース切替 (Ctrl+Space)"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "fn+C"               "Escape を送出"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "fn+F"               "クリップボードを Claude で整形 (ai-format)"
+
+  echo -e "  ${YELLOW}Post-processing switch${RESET}"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "handy-switch local"  "後処理を ローカル(ollama) に切替"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "handy-switch cloud"  "後処理を クラウド(Cerebras) に切替"
+  printf "    ${GREEN}%-24s${RESET} %s\n" "handy-switch status" "現在の provider / model を表示"
+}
+
 case "${1:-all}" in
   wezterm)  show_wezterm ;;
-  nvim|vim) show_nvim ;;
+  ghostty)  show_ghostty ;;
   shell|sh) show_shell ;;
+  voice)    show_voice ;;
   all)
     show_wezterm
-    show_nvim
+    show_ghostty
     show_shell
+    show_voice
     echo ""
     ;;
   *)
-    echo "Usage: help_key [wezterm|nvim|shell|all]"
+    echo "Usage: help_key [wezterm|ghostty|shell|voice|all]"
     exit 1
     ;;
 esac

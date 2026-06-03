@@ -29,7 +29,12 @@ PROMPT_FILE = pathlib.Path(__file__).resolve().parent / "ja_light_tidy.prompt.tx
 PROMPT_ID = "ja_light_tidy"
 PROMPT_NAME = "JP Light Tidy"
 LOCAL_MODEL = "qwen3:4b-instruct-2507-q4_K_M"
-DEFAULT_CLOUD_MODEL = "llama-3.3-70b"  # Cerebras free tier; swap to qwen-3-32b via --model
+# Cerebras catalog is volatile (llama-3.3-70b and qwen-* were removed). As of 2026-06-03 the
+# free account exposes only gpt-oss-120b (prod) and zai-glm-4.7 (preview); verify anytime with
+#   curl https://api.cerebras.ai/v1/models -H "Authorization: Bearer $CEREBRAS_API_KEY"
+# gpt-oss-120b chosen as default: shorter reasoning, faithful JP light-tidy, prod-tier.
+# Swap to zai-glm-4.7 via --model (note: it reasons verbosely and can hit token limits).
+DEFAULT_CLOUD_MODEL = "gpt-oss-120b"
 # Rebind "cancel current recording" from the default Escape to the C key.
 # Safe: Handy registers the cancel hotkey only while recording and unregisters it on stop
 # (src-tauri/src/shortcut/handler.rs "only fires when recording"), so typing "c" normally is

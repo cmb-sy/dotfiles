@@ -2,7 +2,7 @@
 # Switch Handy's voice post-processing between LOCAL and CLOUD, and back, anytime.
 #
 #   handy-switch local        -> ollama qwen3:4b-instruct-2507 (offline, no network)
-#   handy-switch cloud [model] -> Cerebras llama-3.3-70b (default; faster + far higher quality)
+#   handy-switch cloud [model] -> Cerebras gpt-oss-120b (default; faster + far higher quality)
 #   handy-switch status        -> print current provider / model / prompt / cancel key
 #
 # Handy owns settings_store.json and rewrites it from memory while running, so an
