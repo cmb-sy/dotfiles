@@ -1,9 +1,13 @@
 #!/bin/zsh
 # Switch Handy's voice post-processing between LOCAL and CLOUD, and back, anytime.
 #
-#   handy-switch local        -> ollama qwen3:4b-instruct-2507 (offline, no network)
-#   handy-switch cloud [model] -> Cerebras gpt-oss-120b (default; faster + far higher quality)
-#   handy-switch status        -> print current provider / model / prompt / cancel key
+#   handy-switch local        -> ollama qwen3:4b-instruct-2507 (offline; STT locked to ja)
+#   handy-switch cloud [model] -> Cerebras gpt-oss-120b (faster + higher quality; STT=auto, bilingual ja/en)
+#   handy-switch status        -> print current provider / model / language / prompt / cancel key
+#
+# The local/cloud switch also sets the STT language: local locks Japanese for max accuracy,
+# cloud uses whisper auto-detect so you just speak either ja or en (no manual switching) and the
+# bilingual ja_light_tidy prompt formats both. Assumes you do not mix languages within one utterance.
 #
 # Handy owns settings_store.json and rewrites it from memory while running, so an
 # external edit only sticks if Handy is fully quit first; we quit -> apply -> relaunch.
@@ -35,11 +39,14 @@ quit_handy() {
 }
 
 relaunch_handy() {
-  /usr/bin/open -a Handy
+  # 'open -a Handy' issued right after a quit can fail with -600 (procNotFound) because
+  # LaunchServices still holds a stale descriptor for the just-exited process. Re-issue the
+  # open on an interval until pgrep sees it, rather than trying once and giving up silently.
   local n=0
   until /usr/bin/pgrep -x handy >/dev/null 2>&1; do
-    (( ++n > 50 )) && break
-    sleep 0.1
+    (( n % 15 == 0 )) && { /usr/bin/open -a Handy >/dev/null 2>&1 || true; }
+    (( ++n > 75 )) && { print -u2 "handy-switch: Handy did not relaunch in ~15s; run 'open -a Handy' manually"; break; }
+    sleep 0.2
   done
 }
 
@@ -51,6 +58,7 @@ s = json.load(open(sys.argv[1])).get("settings", {})
 pid = s.get("post_process_provider_id")
 print(f"provider = {pid}")
 print(f"model    = {s.get('post_process_models', {}).get(pid, '')}")
+print(f"language = {s.get('selected_language')}")
 print(f"enabled  = {s.get('post_process_enabled')}")
 print(f"prompt   = {s.get('post_process_selected_prompt_id')}")
 print(f"cancel   = {s.get('bindings', {}).get('cancel', {}).get('current_binding')}")

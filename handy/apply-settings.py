@@ -35,6 +35,12 @@ LOCAL_MODEL = "qwen3:4b-instruct-2507-q4_K_M"
 # gpt-oss-120b chosen as default: shorter reasoning, faithful JP light-tidy, prod-tier.
 # Swap to zai-glm-4.7 via --model (note: it reasons verbosely and can hit token limits).
 DEFAULT_CLOUD_MODEL = "gpt-oss-120b"
+# STT language per mode. Cloud is bilingual: whisper auto-detects each (monolingual) utterance
+# and the ja_light_tidy prompt formats English punctuation too, so no manual switching is needed.
+# Local stays JP-only for maximum Japanese accuracy. "auto" is Handy's own default literal
+# (Contents/Resources/resources/default_settings.json), so it is a safe value.
+LOCAL_LANGUAGE = "ja"
+CLOUD_LANGUAGE = "auto"
 # Rebind "cancel current recording" from the default Escape to the C key.
 # Safe: Handy registers the cancel hotkey only while recording and unregisters it on stop
 # (src-tauri/src/shortcut/handler.rs "only fires when recording"), so typing "c" normally is
@@ -96,6 +102,7 @@ def main() -> None:
         models["custom"] = LOCAL_MODEL
         if not keys.get("custom"):
             keys["custom"] = "ollama"  # dummy bearer; ollama ignores it but OpenAI-compat needs one
+        s["selected_language"] = LOCAL_LANGUAGE  # JP-only for max accuracy
     else:
         model = args.model or DEFAULT_CLOUD_MODEL
         key = os.environ.get("CEREBRAS_API_KEY", "").strip()
@@ -104,10 +111,12 @@ def main() -> None:
         s["post_process_provider_id"] = "cerebras"  # base_url https://api.cerebras.ai/v1 (fixed)
         models["cerebras"] = model
         keys["cerebras"] = key
+        s["selected_language"] = CLOUD_LANGUAGE  # auto-detect: bilingual JP/EN, no switching
 
     SETTINGS.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     pid = s["post_process_provider_id"]
-    print(f"apply-settings: provider={pid} model={models.get(pid)} prompt={PROMPT_ID} enabled=True")
+    print(f"apply-settings: provider={pid} model={models.get(pid)} "
+          f"language={s['selected_language']} prompt={PROMPT_ID} enabled=True")
 
 
 if __name__ == "__main__":
