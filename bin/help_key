@@ -2,122 +2,123 @@
 # Display all custom keybindings across tools
 # Usage: help_key [wezterm|ghostty|shell|voice|all]
 
-DOTFILES_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-
 BOLD='\033[1m'
 CYAN='\033[36m'
 GREEN='\033[32m'
 YELLOW='\033[33m'
-DIM='\033[2m'
 RESET='\033[0m'
 
+section() { echo -e "\n${BOLD}${CYAN}━━━ $1 ━━━${RESET}\n"; }
+group()   { echo -e "  ${YELLOW}$1${RESET}"; }
+kv()      { printf "    ${GREEN}%-24s${RESET} %s\n" "$1" "$2"; }
+
 show_wezterm() {
-  echo -e "\n${BOLD}${CYAN}━━━ WezTerm ━━━${RESET}\n"
+  section "WezTerm"
 
-  echo -e "  ${YELLOW}Tabs${RESET}"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+T"              "New tab"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+W"              "Close tab"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+1-9"            "Switch to tab N"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+Shift+[ / ]"    "Previous / Next tab"
+  group "Tabs"
+  kv "Cmd+T"              "New tab"
+  kv "Cmd+W"              "Close tab"
+  kv "Cmd+1-9"            "Switch to tab N"
+  kv "Cmd+Shift+[ / ]"    "Previous / Next tab"
 
-  echo -e "  ${YELLOW}Panes${RESET}"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+Shift+\\"       "Split vertical (down)"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+Shift+-"        "Split horizontal (right)"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+Alt+Arrow"      "Move between panes"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+Shift+Arrow"   "Resize pane"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+Shift+Enter"    "Zoom pane (toggle)"
+  group "Panes"
+  kv "Cmd+Shift+\\"       "Split vertical (down)"
+  kv "Cmd+Shift+-"        "Split horizontal (right)"
+  kv "Cmd+Alt+Arrow"      "Move between panes"
+  kv "Ctrl+Shift+Arrow"   "Resize pane"
+  kv "Cmd+Shift+Enter"    "Zoom pane (toggle)"
 
-  echo -e "  ${YELLOW}Font${RESET}"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+Shift+- / ="   "Font size down / up"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+0"              "Reset font size"
+  group "Font"
+  kv "Ctrl+Shift+- / ="   "Font size down / up"
+  kv "Cmd+0"              "Reset font size"
 
-  echo -e "  ${YELLOW}Tools${RESET}"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Alt+Cmd+H"          "Show this keybindings list"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+Shift+P"        "Command palette"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+F"              "Search scrollback"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+Shift+F"        "Directory: fuzzy cd (whole scope)"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Alt+Cmd+F"          "Directory: fuzzy cd (whole scope)"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+Shift+O"       "Project sessionizer (dev)"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+Shift+X"       "Copy mode"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+Shift+Space"   "Quick select (URLs, paths)"
+  group "Tools"
+  kv "Alt+Cmd+H"          "Show this keybindings list"
+  kv "Cmd+Shift+P"        "Command palette"
+  kv "Cmd+F"              "Search scrollback"
+  kv "Cmd+Shift+F"        "Directory: fuzzy cd (whole scope)"
+  kv "Alt+Cmd+F"          "Directory: fuzzy cd (whole scope)"
+  kv "Ctrl+Shift+O"       "Project sessionizer (dev)"
+  kv "Ctrl+Shift+X"       "Copy mode"
+  kv "Ctrl+Shift+Space"   "Quick select (URLs, paths)"
 }
 
 show_ghostty() {
-  echo -e "\n${BOLD}${CYAN}━━━ Ghostty ━━━${RESET}\n"
+  section "Ghostty"
 
-  echo -e "  ${YELLOW}Quick Terminal${RESET}"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+\`"             "Toggle quick terminal (drops from top)"
+  group "Quick Terminal"
+  kv "Cmd+\`"             "Toggle quick terminal (drops from top)"
 
-  echo -e "  ${YELLOW}Tabs${RESET}"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+T"              "New tab"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+Left / Right"   "Previous / Next tab"
+  group "Tabs"
+  kv "Cmd+T"              "New tab"
+  kv "Cmd+Left / Right"   "Previous / Next tab"
 
-  echo -e "  ${YELLOW}Panes${RESET}"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+Shift+-"        "Split right (vertical)"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+Shift+\\"       "Split down (horizontal)"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+Shift+Arrow"    "Move between splits"
+  group "Panes"
+  kv "Cmd+Shift+-"        "Split right (vertical)"
+  kv "Cmd+Shift+\\"       "Split down (horizontal)"
+  kv "Cmd+Shift+Arrow"    "Move between splits"
 
-  echo -e "  ${YELLOW}Tools${RESET}"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+F"              "Search scrollback"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+Shift+F"        "Fuzzy cd (zsh fzf, whole scope)"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+Ctrl+F"         "Toggle fullscreen"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Shift+Enter"        "Newline (Claude Code, etc.)"
+  group "Tools"
+  kv "Cmd+F"              "Search scrollback"
+  kv "Cmd+Shift+F"        "Fuzzy cd (zsh fzf, whole scope)"
+  kv "Cmd+Ctrl+F"         "Toggle fullscreen"
+  kv "Shift+Enter"        "Newline (Claude Code, etc.)"
 }
 
 show_shell() {
-  echo -e "\n${BOLD}${CYAN}━━━ Shell Aliases ━━━${RESET}\n"
+  section "Shell Aliases"
 
-  echo -e "  ${YELLOW}Navigation${RESET}"
-  printf "    ${GREEN}%-24s${RESET} %s\n" ".."                  "cd .."
-  printf "    ${GREEN}%-24s${RESET} %s\n" "..."                 "cd ../.."
-  printf "    ${GREEN}%-24s${RESET} %s\n" "...."                "cd ../../.."
+  group "Navigation"
+  kv ".."                  "cd .."
+  kv "..."                 "cd ../.."
+  kv "...."                "cd ../../.."
 
-  echo -e "  ${YELLOW}Docker${RESET}"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "d"                   "docker"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "dc"                  "docker compose"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "dps"                 "docker ps"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "dpsa"                "docker ps -a"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "dimg"                "docker images"
+  group "Docker"
+  kv "d"                   "docker"
+  kv "dc"                  "docker compose"
+  kv "dps"                 "docker ps"
+  kv "dpsa"                "docker ps -a"
+  kv "dimg"                "docker images"
 
-  echo -e "  ${YELLOW}Claude${RESET}"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "clp"                 "claude（個人）"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "clw"                 "claude（会社）"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "clpa"                "自律（個人）"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "clwa / claude-auto"  "自律（会社）"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "claude-link-shared" "共有設定を両アカウントにリンク"
+  group "Claude"
+  kv "clp"                 "claude（個人）"
+  kv "clw"                 "claude（会社）"
+  kv "clpa"                "自律（個人）"
+  kv "clwa / claude-auto"  "自律（会社）"
+  kv "claude-link-shared" "共有設定を両アカウントにリンク"
 
-  echo -e "  ${YELLOW}Dev Tools${RESET}"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "dev"                  "Project sessionizer (fzf + nvim)"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "help_key / Alt+Cmd+H" "Show this keybindings list"
+  group "Dev Tools"
+  kv "dev"                  "Project sessionizer (fzf + nvim)"
+  kv "help_key / Alt+Cmd+H" "Show this keybindings list"
 
-  echo -e "  ${YELLOW}Fuzzy search (fzf)${RESET}"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Cmd+Shift+F / cdg"     "Directory: fuzzy cd (whole scope)"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Alt+C"                "Directory: fuzzy cd (current tree only)"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+R"               "History: fuzzy search"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Ctrl+T"               "File: fuzzy insert path"
+  group "Fuzzy search (fzf)"
+  kv "Cmd+Shift+F / cdg"     "Directory: fuzzy cd (whole scope)"
+  kv "Alt+C"                "Directory: fuzzy cd (current tree only)"
+  kv "Ctrl+R"               "History: fuzzy search"
+  kv "Ctrl+T"               "File: fuzzy insert path"
 
-  echo -e "  ${YELLOW}Others${RESET}"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "la"                  "ls -a"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "h"                   "history"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "tenki"               "weather"
+  group "Others"
+  kv "la"                  "ls -a"
+  kv "h"                   "history"
+  kv "tenki"               "weather"
 }
 
 show_voice() {
-  echo -e "\n${BOLD}${CYAN}━━━ Voice Input (Karabiner + Handy) ━━━${RESET}\n"
+  section "Voice Input (Karabiner + Handy)"
 
-  echo -e "  ${YELLOW}Recording${RESET}"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "Caps Lock"          "録音 開始 / 停止 → 文字起こし(ja) → ペースト"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "C"                  "録音をキャンセル（録音中のみ有効）"
+  group "Recording"
+  kv "Caps Lock"          "録音 開始 / 停止 → 文字起こし(ja) → ペースト"
+  kv "C"                  "録音をキャンセル（録音中のみ有効）"
 
-  echo -e "  ${YELLOW}Input / Format${RESET}"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "fn+Space"           "入力ソース切替 (Ctrl+Space)"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "fn+C"               "Escape を送出"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "fn+F"               "クリップボードを Claude で整形 (ai-format)"
+  group "Input / Format"
+  kv "fn+Space"           "入力ソース切替 (Ctrl+Space)"
+  kv "fn+C"               "Escape を送出"
+  kv "fn+F"               "クリップボードを Claude で整形 (ai-format)"
 
-  echo -e "  ${YELLOW}Post-processing switch${RESET}"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "handy-switch local"  "後処理を ローカル(ollama) に切替"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "handy-switch cloud"  "後処理を クラウド(Cerebras) に切替"
-  printf "    ${GREEN}%-24s${RESET} %s\n" "handy-switch status" "現在の provider / model を表示"
+  group "Post-processing switch"
+  kv "handy-switch local"  "後処理を ローカル(ollama) に切替"
+  kv "handy-switch cloud"  "後処理を クラウド(Cerebras) に切替"
+  kv "handy-switch status" "現在の provider / model を表示"
 }
 
 case "${1:-all}" in
