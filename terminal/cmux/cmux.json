@@ -8,6 +8,13 @@
       "nextSidebarTab": "cmd+down",
       "prevSurface": "cmd+left",
       "nextSurface": "cmd+right",
+      "focusLeft": "cmd+shift+left",
+      "focusRight": "cmd+shift+right",
+      "focusUp": "cmd+shift+up",
+      "focusDown": "cmd+shift+down",
+      "splitRight": "cmd+shift+-",
+      "splitDown": "cmd+shift+\\",
+      "findInDirectory": "unbound",
       "saveFilePreview": "unbound"
     }
   }
