@@ -1,6 +1,6 @@
 #!/bin/bash
 # Display all custom keybindings across tools
-# Usage: help_key [wezterm|ghostty|shell|voice|all]
+# Usage: help_key [wezterm|ghostty|cmux|shell|voice|all]
 
 BOLD='\033[1m'
 CYAN='\033[36m'
@@ -65,6 +65,18 @@ show_ghostty() {
   kv "Shift+Enter"        "Newline (Claude Code, etc.)"
 }
 
+show_cmux() {
+  section "cmux"
+
+  group "Launch"
+  kv "open -a cmux"       "cmux を起動するだけ (Spotlight/Dock と同じ)"
+  kv "cmux ."             "カレントを開く (未起動なら起動も兼ねる)"
+  kv "cmux <path>"        "指定ディレクトリを新規 workspace で開く"
+
+  group "Config"
+  kv "cmux reload-config" "Ghostty + cmux.json を再読込 (再起動不要)"
+}
+
 show_shell() {
   section "Shell Aliases"
 
@@ -124,17 +136,19 @@ show_voice() {
 case "${1:-all}" in
   wezterm)  show_wezterm ;;
   ghostty)  show_ghostty ;;
+  cmux)     show_cmux ;;
   shell|sh) show_shell ;;
   voice)    show_voice ;;
   all)
     show_wezterm
     show_ghostty
+    show_cmux
     show_shell
     show_voice
     echo ""
     ;;
   *)
-    echo "Usage: help_key [wezterm|ghostty|shell|voice|all]"
+    echo "Usage: help_key [wezterm|ghostty|cmux|shell|voice|all]"
     exit 1
     ;;
 esac
