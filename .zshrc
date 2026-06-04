@@ -104,8 +104,10 @@ zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"   # Colored listings
 if command -v fzf &>/dev/null; then
   # Prefer fd over find for Alt+C / Ctrl+T when available
   if command -v fd &>/dev/null; then
-    export FZF_ALT_C_COMMAND='fd --type d --hidden --follow -E .git -E node_modules .'
-    export FZF_CTRL_T_COMMAND='fd --type f --hidden --follow -E .git -E node_modules .'
+    # No --follow and exclude Library: run from $HOME these otherwise descend into
+    # ~/Library/CloudStorage/OneDrive (network-backed on-demand files) and hang.
+    export FZF_ALT_C_COMMAND='fd --type d --hidden -E .git -E node_modules -E Library .'
+    export FZF_CTRL_T_COMMAND='fd --type f --hidden -E .git -E node_modules -E Library .'
   fi
   # Alt+C: fuzzy cd / Ctrl+R: history / Ctrl+T: insert file path
   if [[ -f "${HOMEBREW_PREFIX:=$(brew --prefix 2>/dev/null)}/opt/fzf/shell/key-bindings.zsh" ]]; then

@@ -24,7 +24,10 @@ _fzf_cd_global_impl() {
 	local chosen
 	local _find_cmd
 	if command -v fd &>/dev/null; then
-		_find_cmd="fd --type d --hidden --follow -E .git -E node_modules -E .cache -E Library --max-depth 5 . $HOME"
+		# No --follow: it chases the ~/OneDrive symlink into Library/CloudStorage
+		# (network-backed on-demand files), which hangs fd and freezes the picker.
+		# Real targets of the dotfiles symlinks live under $HOME, so they are still found.
+		_find_cmd="fd --type d --hidden -E .git -E node_modules -E .cache -E Library --max-depth 5 . $HOME"
 	else
 		_find_cmd="find $HOME -mindepth 1 -maxdepth 10 -type d \( -name .git -o -name node_modules -o -name .cache -o -name Library \) -prune -o -type d -print 2>/dev/null"
 	fi
