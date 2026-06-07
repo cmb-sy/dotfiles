@@ -77,6 +77,17 @@ show_cmux() {
   kv "cmux reload-config" "Ghostty + cmux.json を再読込 (再起動不要)"
 }
 
+show_claude() {
+  section "Claude Code"
+
+  group "Input editing"
+  kv "Esc"                "入力を全消去（ドラフトをキャンセル）"
+  kv "Ctrl+U"             "カーソルから行頭まで一括削除"
+  kv "Ctrl+W"             "単語を後方削除"
+  kv "Shift+Enter"        "改行（送信せず）"
+  kv "Ctrl+C"             "処理を中断（入力消去ではない）"
+}
+
 show_shell() {
   section "Shell Aliases"
 
@@ -137,18 +148,20 @@ case "${1:-all}" in
   wezterm)  show_wezterm ;;
   ghostty)  show_ghostty ;;
   cmux)     show_cmux ;;
+  claude)   show_claude ;;
   shell|sh) show_shell ;;
   voice)    show_voice ;;
   all)
     show_wezterm
     show_ghostty
     show_cmux
+    show_claude
     show_shell
     show_voice
     echo ""
     ;;
   *)
-    echo "Usage: help_key [wezterm|ghostty|cmux|shell|voice|all]"
+    echo "Usage: help_key [wezterm|ghostty|cmux|claude|shell|voice|all]"
     exit 1
     ;;
 esac
