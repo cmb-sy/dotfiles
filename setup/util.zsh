@@ -1,16 +1,5 @@
 #!/bin/zsh
 
-RED='\033[0;31m'     # Red
-GREEN='\033[0;32m'   # Green
-YELLOW='\033[1;33m'  # Yellow
-NC='\033[0m'         # Reset color
-
-# Display error message in red
-util::error() {
-  local message="$1"
-  echo -e "\e[31m${message}\e[m"
-}
-
 # Display warning message in yellow
 util::warning() {
   local message="$1"
@@ -33,7 +22,7 @@ util::confirm() {
   fi
 
   echo "${message} (y/N)"
-  read confirmation
+  read -r confirmation
   if [[ ${confirmation} = "y" || ${confirmation} = "Y" ]]; then
     return 0
   fi
@@ -53,30 +42,6 @@ util::is_ci() {
 # Check if command exists
 util::has() {
   type "$1" > /dev/null 2>&1
-  return $?
-}
-
-# Check if running on macOS
-util::is_mac() {
-  [[ "$(uname)" == "Darwin" ]]
-  return $?
-}
-
-# Check if file exists
-util::file_exists() {
-  [[ -f "$1" ]]
-  return $?
-}
-
-# Check if directory exists
-util::dir_exists() {
-  [[ -d "$1" ]]
-  return $?
-}
-
-# Check if symbolic link exists
-util::link_exists() {
-  [[ -L "$1" ]]
   return $?
 }
 

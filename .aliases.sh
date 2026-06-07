@@ -49,20 +49,20 @@ alias dimg='docker images'
 : "${CLAUDE_ACCOUNT_PRIVATE_DIR:=${HOME}/.claude-private}"
 : "${CLAUDE_ACCOUNT_WORK_DIR:=${HOME}/.claude-work}"
 
-  _claude_account_link() {
-    local target="$1"
-    ln -sfn "$target" "${HOME}/.claude"
-  }
+_claude_account_link() {
+  local target="$1"
+  ln -sfn "$target" "${HOME}/.claude"
+}
 
-  claude-use-private() {
-    _claude_account_link "${CLAUDE_ACCOUNT_PRIVATE_DIR}"
-    export CLAUDE_CONFIG_DIR="${CLAUDE_ACCOUNT_PRIVATE_DIR}"
-  }
+claude-use-private() {
+  _claude_account_link "${CLAUDE_ACCOUNT_PRIVATE_DIR}"
+  export CLAUDE_CONFIG_DIR="${CLAUDE_ACCOUNT_PRIVATE_DIR}"
+}
 
-  claude-use-work() {
-    _claude_account_link "${CLAUDE_ACCOUNT_WORK_DIR}"
-    export CLAUDE_CONFIG_DIR="${CLAUDE_ACCOUNT_WORK_DIR}"
-  }
+claude-use-work() {
+  _claude_account_link "${CLAUDE_ACCOUNT_WORK_DIR}"
+  export CLAUDE_CONFIG_DIR="${CLAUDE_ACCOUNT_WORK_DIR}"
+}
 
 _claude_require_cli() {
   if ! command -v claude >/dev/null 2>&1; then

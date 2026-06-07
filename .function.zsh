@@ -13,8 +13,6 @@ wttr() {
 	curl -fsSL -H "Accept-Language: ${LANG%_*}" $args --compressed "wttr.in/${location}"
 }
 
-autoload -Uz wttr
-
 # ----------------------------------------------------------
 # Usage: cdg or Cmd+Shift+F / Alt+Cmd+F (search all directories under $HOME)
 # ----------------------------------------------------------
