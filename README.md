@@ -8,14 +8,18 @@ Configuration files for setting up a macOS development environment.
 .aliases.sh          # Shell aliases (docker, terraform, claude, etc.)
 .function.zsh        # Custom shell functions
 .zshrc / .zshenv     # Zsh configuration
+.config/             # XDG config (starship prompt)
 .gitignore_global    # Global gitignore
 Brewfile             # Homebrew packages & casks
 git/                 # .gitconfig
-terminal/            # Ghostty, WezTerm configuration
+terminal/            # Ghostty, WezTerm, cmux configuration
 macos/               # macOS system preferences scripts
+karabiner/           # Karabiner-Elements config
+handy/               # Voice input (Handy + ollama) post-processing config
 claude/              # Claude Code configuration (skills, agents, hooks)
 bin/                 # Custom scripts
 setup/               # Setup scripts
+docs/                # Architecture notes & learnings
 ```
 
 ## Setup

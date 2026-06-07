@@ -49,9 +49,9 @@ user-invocable: true
   [開発フロー    ]  feature-dev / debug-flow / tdd-orchestrate / smoke-test
   [コードレビュー]  code-review / test-review / spec-review / implementation-review
   [ドキュメント  ]  doc-audit / doc-check / learn / handover / continue
-  [PJ管理       ]  github-ops / triage / meeting-notes
+  [PJ管理       ]  github-ops / github-issues / triage / meeting-notes
   [振り返り・成長]  reflect / reflect-review / kaizen
-  [外部ツール    ]  slackcli / trace-report / skills-map / stock-watch / pptx-dev
+  [外部ツール    ]  slackcli / trace-report / skills-map / pptx-dev
   [日次運用      ]  eod  (project固有の daily-log / generate-problem を呼び出す)
 
   * = グローバルと同名のプロジェクト版。Obsidian パスに特化。
