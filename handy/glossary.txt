@@ -1,0 +1,12 @@
+# Handy 音声入力 用語集 (誤変換・カタカナ表記 → 正しい表記)
+# 1行1エントリ「誤変換→正表記」。# 始まりはコメント、空行は無視。
+# apply-settings.py が読み込み、ja_light_tidy.prompt.txt の {{GLOSSARY}} に
+# 「、」連結で差し込む。記載順がプロンプト内の列挙順になる。
+# 編集後は `handy-switch <provider>` で再適用しないと反映されない。
+# 追加は /voice-glossary skill からでも可。
+クロード→Claude
+クロードコード→Claude Code
+カラビナー→Karabiner
+オラマ→ollama
+ハンディ→Handy
+スキル図→skills

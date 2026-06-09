@@ -26,6 +26,8 @@ import sys
 
 SETTINGS = pathlib.Path.home() / "Library/Application Support/com.pais.handy/settings_store.json"
 PROMPT_FILE = pathlib.Path(__file__).resolve().parent / "ja_light_tidy.prompt.txt"
+GLOSSARY_FILE = pathlib.Path(__file__).resolve().parent / "glossary.txt"
+GLOSSARY_MARKER = "{{GLOSSARY}}"
 PROMPT_ID = "ja_light_tidy"
 PROMPT_NAME = "JP Light Tidy"
 LOCAL_MODEL = "qwen3:4b-instruct-2507-q4_K_M"
@@ -60,6 +62,20 @@ def handy_running() -> bool:
                           capture_output=True).returncode == 0
 
 
+def load_glossary() -> str:
+    """Read glossary.txt and join entries with the Japanese comma the prompt expects.
+
+    One "誤変換→正表記" per line; '#' lines and blanks are skipped. File order is
+    preserved (it becomes the enumeration order inside the prompt). Returned string
+    replaces GLOSSARY_MARKER in the prompt so the model still sees the terms inline.
+    """
+    if not GLOSSARY_FILE.exists():
+        die(f"glossary file not found: {GLOSSARY_FILE}")
+    entries = [ln.strip() for ln in GLOSSARY_FILE.read_text(encoding="utf-8").splitlines()]
+    entries = [e for e in entries if e and not e.startswith("#")]
+    return "、".join(entries)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--provider", choices=["local", "cloud"], required=True)
@@ -74,6 +90,11 @@ def main() -> None:
         die(f"prompt file not found: {PROMPT_FILE}")
 
     prompt = PROMPT_FILE.read_text(encoding="utf-8").rstrip("\n")
+    if GLOSSARY_MARKER in prompt:
+        glossary = load_glossary()
+        if not glossary:
+            die(f"{GLOSSARY_FILE} has no entries but prompt expects {GLOSSARY_MARKER}")
+        prompt = prompt.replace(GLOSSARY_MARKER, glossary)
     data = json.loads(SETTINGS.read_text(encoding="utf-8"))
     s = data.get("settings", data)
 
