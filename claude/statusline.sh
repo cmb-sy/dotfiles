@@ -236,15 +236,15 @@ if [ -s "$HANDY_SETTINGS" ]; then
     @sh "V_PROV=\(.post_process_provider_id // "")",
     @sh "V_LANG=\(.selected_language // "")"
   ' "$HANDY_SETTINGS" 2>/dev/null)"
-  if has_val "$V_PROV"; then
-    case "$V_PROV/$V_LANG" in
-      cerebras/*)   v_label="cloud" ;;
-      custom/ja)    v_label="ja" ;;
-      custom/en)    v_label="en" ;;
-      custom/auto)  v_label="local-auto" ;;
-      *)            v_label="$V_PROV/$V_LANG" ;;
+  if has_val "$V_PROV" && has_val "$V_LANG"; then
+    case "$V_PROV" in
+      cerebras) v_prov="cloud" ;;
+      custom)   v_prov="local" ;;
+      *)        v_prov="$V_PROV" ;;
     esac
-    sec_voice="${WHT}voice${RST} ${C_VOICE}${v_label}${RST}"
+    # Format: "voice local/ja" — provider first (the local-vs-cloud distinction
+    # the user actually cares about), then language. Both share C_VOICE color.
+    sec_voice="${WHT}voice${RST} ${C_VOICE}${v_prov}/${V_LANG}${RST}"
   fi
 fi
 
