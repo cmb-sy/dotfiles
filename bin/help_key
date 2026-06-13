@@ -138,10 +138,12 @@ show_voice() {
   kv "fn+C"               "Escape を送出"
   kv "fn+F"               "クリップボードを Claude で整形 (ai-format)"
 
-  group "Post-processing switch"
-  kv "handy-switch local"  "後処理を ローカル(ollama) に切替"
-  kv "handy-switch cloud"  "後処理を クラウド(Cerebras) に切替"
-  kv "handy-switch status" "現在の provider / model を表示"
+  group "Mode switch (STT + post-processing)"
+  kv "handy-switch ja"      "ローカル(ollama) + STT=ja。日本語専用、最高精度、オフライン"
+  kv "handy-switch en"      "ローカル(ollama) + STT=en。英語専用、最高精度、オフライン"
+  kv "handy-switch cloud"   "Cerebras + STT=auto。bilingual、ネット要、品質高"
+  kv "handy-switch reapply" "現在のモードのまま再適用 (glossary 編集後など)"
+  kv "handy-switch status"  "現在の provider / model / language を表示"
 }
 
 case "${1:-all}" in
