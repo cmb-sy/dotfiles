@@ -26,6 +26,7 @@ C_REPO=$'\e[38;5;117m'        # Sky blue      - repository name
 C_BRANCH=$'\e[38;5;147m'      # Soft violet   - branch / worktree name
 C_DIRTY=$'\e[1;38;5;215m'     # Amber         - uncommitted changes indicator
 C_EFFORT=$'\e[1;38;5;220m'    # Gold          - reasoning effort level
+C_VOICE=$'\e[38;5;177m'       # Soft magenta  - Handy voice input mode
 
 SEP=" ${WHT}│${RST} "
 
@@ -219,16 +220,45 @@ fi
   sec_repo="${C_REPO}$(printf '\xef\x81\xbc') ${DIR/#$HOME/\~}${RST}"
 
 # ==============================================================================
+# [5] Voice input mode (Handy)
+#
+# Reads provider + selected_language from Handy's settings_store.json. The three
+# handy-switch modes map back to: ja / en / cloud. File is small (<10KB), so the
+# jq call adds negligible overhead per render. Section is hidden if Handy has
+# never been configured (file missing) or parse fails.
+# ==============================================================================
+
+sec_voice=""
+HANDY_SETTINGS="$HOME/Library/Application Support/com.pais.handy/settings_store.json"
+if [ -s "$HANDY_SETTINGS" ]; then
+  eval "$(jq -r '
+    (.settings // .) |
+    @sh "V_PROV=\(.post_process_provider_id // "")",
+    @sh "V_LANG=\(.selected_language // "")"
+  ' "$HANDY_SETTINGS" 2>/dev/null)"
+  if has_val "$V_PROV"; then
+    case "$V_PROV/$V_LANG" in
+      cerebras/*)   v_label="cloud" ;;
+      custom/ja)    v_label="ja" ;;
+      custom/en)    v_label="en" ;;
+      custom/auto)  v_label="local-auto" ;;
+      *)            v_label="$V_PROV/$V_LANG" ;;
+    esac
+    sec_voice="${WHT}voice${RST} ${C_VOICE}${v_label}${RST}"
+  fi
+fi
+
+# ==============================================================================
 # Assemble sections with separator and output
 # ==============================================================================
 
 out=""
-for s in "$sec_model" "$sec_ctx" "$sec_limits" "$sec_repo"; do
+for s in "$sec_model" "$sec_ctx" "$sec_limits" "$sec_repo" "$sec_voice"; do
   [ -n "$s" ] && out="${out:+${out}${SEP}}${s}"
 done
 
 # ==============================================================================
-# [5] Right-aligned clock
+# [6] Right-aligned clock
 # ==============================================================================
 sec_time="${WHT}🕐 $(date +%H:%M)${RST}"
 
