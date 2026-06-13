@@ -146,6 +146,14 @@ alias tfo='terraform output'
 alias tfw='terraform workspace'
 
 # ----------------------------------------------------------
+# Handy (voice input mode switch)
+# ----------------------------------------------------------
+alias hsja='handy-switch ja'
+alias hsen='handy-switch en'
+alias hscl='handy-switch cloud'
+alias hslo='handy-switch local'   # back-compat: same as hsja (local mode is ja-locked)
+
+# ----------------------------------------------------------
 # Others
 # ----------------------------------------------------------
 alias tenki='wttr'
