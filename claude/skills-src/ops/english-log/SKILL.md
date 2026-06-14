@@ -1,15 +1,18 @@
 ---
 name: english-log
 description: >-
-  このセッション中に Claude が指摘した英語の訂正を抽出し、Obsidian vault の
-  03_skillup/english/YYYY-MM-DD.md に追記する。CLAUDE.md「英語学習補助」ルールが
-  生成する訂正のアーカイブ用途。
+  このセッション中に Claude が与えた英語学習材料（英語入力時の訂正 + 日本語入力時の
+  英訳例）を抽出し、Obsidian vault の 03_skillup/english/YYYY-MM-DD.md に追記する。
+  CLAUDE.md「英語学習補助」ルールが生成する両方向の学習内容のアーカイブ用途。
 argument-hint: "[--date YYYY-MM-DD]  (省略時は今日)"
 user-invocable: true
 ---
 
-このセッション中に Claude が指摘した英語の訂正を抽出し、Obsidian vault の
-`03_skillup/english/YYYY-MM-DD.md` に追記する。
+このセッション中に Claude が与えた英語学習材料を抽出し、Obsidian vault の
+`03_skillup/english/YYYY-MM-DD.md` に追記する。対象は2方向:
+
+- **英語訂正**: ユーザーが英語で話しかけたときに Claude が示した `"X" → "Y"` 形式の訂正
+- **英訳教示**: ユーザーが日本語で話しかけたときに Claude が示した `In English: ...` の英訳例
 
 ## 前提
 
@@ -18,31 +21,45 @@ user-invocable: true
 
 ## 処理フロー
 
-### Step 1: 訂正の抽出
+### Step 1: 学習材料の抽出
 
-このセッションで Claude が user に対して与えた英語訂正を抽出する。対象は:
+このセッションで Claude が user に対して与えた英語学習材料を2カテゴリに分けて抽出する:
+
+**A. 英語訂正**（user が英語で話したとき）:
 - ASSISTANT 発言で「X → Y」の形で英語表現を直したもの
 - "Note:" や説明的フレーズで自然な英語を提案したもの
 - 同じパターン再発の指摘
 
+**B. 英訳教示**（user が日本語で話したとき）:
+- ASSISTANT 発言で「In English: ...」や類似形式で英訳例を提示したもの
+- 言い回しの解説（カジュアル/フォーマル、代替表現など）も含める
+
 抽出対象は **このセッション内** のみ。過去セッションには遡らない。
 
 抽出時の注意:
-- USER 発言からの引用・コードブロック内の例は対象外（user の発言を訂正したものに限る）
+- USER 発言からの引用・コードブロック内の例は対象外（Claude が学習材料として提示したものに限る）
 - 技術的回答に付帯した短い注記も含める
-- 1件もなければ "No corrections in this session" と通知して終了
+- A・B どちらも 1 件もなければ "No English learning material in this session" と通知して終了
 
 ### Step 2: フォーマット
 
-抽出した各訂正を以下のフォーマットに整形:
+カテゴリごとにセクションを作る。
 
+**A. Corrections**（英語訂正があれば）:
 ```markdown
 ### N. "<元の表現>" → "<正しい表現>"
 - Issue: <何が誤りか、1〜2文>
 - Pattern: <カテゴリ。preposition / question-order / verb-tense / collocation / vocabulary など>
 ```
 
-末尾に該当セッションで観察した Pattern まとめを 1〜2 行で添える。
+**B. Translations**（英訳教示があれば）:
+```markdown
+### N. 日本語: "<元の日本語表現>"
+- In English: "<英訳>"
+- Note: <自然な言い回し・代替表現・文体の違いなど。あれば 1〜2 文>
+```
+
+末尾に該当セッションで観察した Pattern まとめ（誤りカテゴリ・覚えておきたい表現）を 1〜3 行で添える。
 
 ### Step 3: 出力先の決定
 
