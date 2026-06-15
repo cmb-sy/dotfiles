@@ -112,6 +112,65 @@
     <button id="save-html" type="button" class="primary">HTML として保存</button>
   </aside>
 
-  <!-- JS は Task 3 で追加 -->
+  <script>
+    (function () {
+      const toggleBtn = document.getElementById('toggle-edit');
+      const pdfBtn = document.getElementById('export-pdf');
+      const saveBtn = document.getElementById('save-html');
+      let editing = true;
+
+      function applyEditingState() {
+        document.querySelectorAll('[contenteditable]').forEach(el => {
+          el.setAttribute('contenteditable', String(editing));
+        });
+        document.body.classList.toggle('preview', !editing);
+        toggleBtn.textContent = '編集モード: ' + (editing ? 'ON' : 'OFF');
+      }
+
+      toggleBtn.addEventListener('click', () => {
+        editing = !editing;
+        applyEditingState();
+      });
+
+      pdfBtn.addEventListener('click', () => {
+        window.print();
+      });
+
+      function pad(n) { return String(n).padStart(2, '0'); }
+      function timestamp() {
+        const d = new Date();
+        return d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate())
+          + '-' + pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds());
+      }
+
+      saveBtn.addEventListener('click', () => {
+        const clone = document.documentElement.cloneNode(true);
+
+        // 編集 UI を除去
+        const toolbar = clone.querySelector('#toolbar');
+        if (toolbar) toolbar.remove();
+
+        // contenteditable と placeholder を除去
+        clone.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
+        clone.querySelectorAll('[data-placeholder]').forEach(el => el.removeAttribute('data-placeholder'));
+
+        // 編集用 <script> を除去 (このスクリプト自身)
+        clone.querySelectorAll('script').forEach(s => s.remove());
+
+        const html = '<!DOCTYPE html>\n' + clone.outerHTML;
+        const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+
+        const currentName = (location.pathname.split('/').pop() || 'report.html').replace(/\.html?$/i, '');
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = currentName + '-edited-' + timestamp() + '.html';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      });
+    })();
+  </script>
 </body>
 </html>
