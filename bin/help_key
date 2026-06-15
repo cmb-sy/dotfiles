@@ -146,6 +146,7 @@ show_voice() {
   kv "vslo / voice-switch local"     "ja のエイリアス (vsja と等価)"
   kv "voice-switch reapply"          "現在のモードのまま再適用 (Handy 時のみ意味あり)"
   kv "voice-switch status"           "現在エンジン + Handy ならモード詳細を表示"
+  kv "voice-glossary-list"           "Handy 用語集の正表記側を表示 (Typeless GUI 入力用)"
 }
 
 case "${1:-all}" in

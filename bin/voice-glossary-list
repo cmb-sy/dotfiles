@@ -1,0 +1,52 @@
+#!/bin/zsh
+# voice-glossary-list: dump the Handy glossary right-hand-side ("正表記") for
+# copy-paste into Typeless's Personal Dictionary GUI.
+#
+# Handy: handy/glossary.txt is read by apply-settings.py and embedded as a
+# "誤変換 → 正表記" hint into the post-processing LLM prompt.
+# Typeless: its Personal Dictionary expects "the word I want recognized correctly"
+# and learns from usage; we only need to feed it the right-hand side.
+#
+# Usage:
+#   voice-glossary-list           print one 正表記 per line (sorted, unique)
+#   voice-glossary-list --pairs   print "誤変換 -> 正表記" for review
+#   voice-glossary-list --count   print a one-line summary
+#   voice-glossary-list -h        help
+
+set -euo pipefail
+
+HERE="${0:A:h}"
+GLOSSARY="${HERE:h}/handy/glossary.txt"
+
+[[ -f "$GLOSSARY" ]] || { print -u2 "voice-glossary-list: $GLOSSARY not found"; exit 1 }
+
+mode="${1:-words}"
+case "$mode" in
+  words|--words)
+    /usr/bin/grep -v '^#' "$GLOSSARY" | /usr/bin/grep -v '^[[:space:]]*$' \
+      | /usr/bin/sed -n 's/^.*→\(.*\)$/\1/p' | /usr/bin/sort -u
+    ;;
+  --pairs)
+    /usr/bin/grep -v '^#' "$GLOSSARY" | /usr/bin/grep -v '^[[:space:]]*$' \
+      | /usr/bin/sed 's/→/ -> /'
+    ;;
+  --count)
+    n=$(/usr/bin/grep -v '^#' "$GLOSSARY" | /usr/bin/grep -v '^[[:space:]]*$' | /usr/bin/grep -c '→')
+    print "voice-glossary-list: $n entries in $GLOSSARY"
+    ;;
+  -h|--help|help)
+    /bin/cat <<'EOF'
+voice-glossary-list: dump the Handy glossary right-hand-side ("正表記") for
+  copy-paste into Typeless's Personal Dictionary GUI.
+
+Usage:
+  voice-glossary-list           print one 正表記 per line (sorted, unique)
+  voice-glossary-list --pairs   print "誤変換 -> 正表記" for review
+  voice-glossary-list --count   print a one-line summary
+EOF
+    ;;
+  *)
+    print -u2 "voice-glossary-list: unknown arg: $mode (use --help)"
+    exit 2
+    ;;
+esac
