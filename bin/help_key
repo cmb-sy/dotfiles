@@ -139,12 +139,13 @@ show_voice() {
   kv "fn+F"               "クリップボードを Claude で整形 (ai-format)"
 
   group "Mode switch (STT + post-processing)"
-  kv "hsja / handy-switch ja"      "ローカル(ollama) + STT=ja。日本語専用、最高精度、オフライン"
-  kv "hsen / handy-switch en"      "ローカル(ollama) + STT=en。英語専用、最高精度、オフライン"
-  kv "hscl / handy-switch cloud"   "Cerebras + STT=auto。bilingual、ネット要、品質高"
-  kv "hslo / handy-switch local"   "ja の後方互換エイリアス (hsja と等価)"
-  kv "handy-switch reapply"        "現在のモードのまま再適用 (glossary 編集後など)"
-  kv "handy-switch status"         "現在の provider / model / language を表示"
+  kv "vsja / voice-switch ja"        "Handy + ローカル(ollama) + STT=ja。日本語専用、最高精度、オフライン"
+  kv "vsen / voice-switch en"        "Handy + ローカル(ollama) + STT=en。英語専用、最高精度、オフライン"
+  kv "vscl / voice-switch cloud"     "Handy + Cerebras + STT=auto。bilingual、ネット要、品質高"
+  kv "vsty / voice-switch typeless"  "Typeless に切替 (後処理 LLM 内蔵、翻訳モードあり)"
+  kv "vslo / voice-switch local"     "ja のエイリアス (vsja と等価)"
+  kv "voice-switch reapply"          "現在のモードのまま再適用 (Handy 時のみ意味あり)"
+  kv "voice-switch status"           "現在エンジン + Handy ならモード詳細を表示"
 }
 
 case "${1:-all}" in

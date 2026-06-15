@@ -148,10 +148,11 @@ alias tfw='terraform workspace'
 # ----------------------------------------------------------
 # Handy (voice input mode switch)
 # ----------------------------------------------------------
-alias hsja='handy-switch ja'
-alias hsen='handy-switch en'
-alias hscl='handy-switch cloud'
-alias hslo='handy-switch local'   # back-compat: same as hsja (local mode is ja-locked)
+alias vsja='voice-switch ja'
+alias vsen='voice-switch en'
+alias vscl='voice-switch cloud'
+alias vsty='voice-switch typeless'
+alias vslo='voice-switch local'   # same as vsja (local mode is ja-locked)
 
 # ----------------------------------------------------------
 # Others
