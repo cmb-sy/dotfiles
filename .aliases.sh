@@ -146,7 +146,7 @@ alias tfo='terraform output'
 alias tfw='terraform workspace'
 
 # ----------------------------------------------------------
-# Handy (voice input mode switch)
+# Voice input engine switch (Handy / Typeless via voice-switch)
 # ----------------------------------------------------------
 alias vsja='voice-switch ja'
 alias vsen='voice-switch en'
