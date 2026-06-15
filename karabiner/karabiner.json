@@ -12,7 +12,7 @@
             "complex_modifications": {
                 "rules": [
                     {
-                        "description": "Caps Lock -> toggle Handy speech-to-text (bin/handy-toggle): press to start recording, press again to stop + transcribe (ja) + paste. Handy runs always-resident; CLI --toggle-transcription is forwarded to it.",
+                        "description": "Caps Lock -> toggle voice input (bin/voice-toggle): Handy なら録音トグル、Typeless なら no-op、両停止時は Handy を起動。Handy/Typeless は voice-switch で排他切替。",
                         "manipulators": [
                             {
                                 "type": "basic",
@@ -21,7 +21,7 @@
                                     "modifiers": { "optional": ["any"] }
                                 },
                                 "to": [
-                                    { "shell_command": "/Users/snakashima/dotfiles/bin/handy-toggle" }
+                                    { "shell_command": "/Users/snakashima/dotfiles/bin/voice-toggle" }
                                 ]
                             }
                         ]
