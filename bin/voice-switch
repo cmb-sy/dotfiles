@@ -1,0 +1,168 @@
+#!/bin/zsh
+# Switch the active voice-input engine (Handy or Typeless), anytime.
+#
+#   voice-switch ja            -> Handy + ollama qwen3:4b (offline; STT locked to ja)
+#   voice-switch en            -> Handy + ollama qwen3:4b (offline; STT locked to en)
+#   voice-switch cloud [model] -> Handy + Cerebras gpt-oss-120b (STT=auto, bilingual)
+#   voice-switch local         -> back-compat alias for `ja`
+#   voice-switch typeless      -> Typeless (built-in LLM, GUI-managed). Handy is quit.
+#   voice-switch reapply       -> re-run apply with current Handy provider+language
+#                                 (no-op + notice if Typeless is the active engine)
+#   voice-switch status        -> print active engine + (if Handy) provider/model/language
+#
+# Handy: settings_store.json を CLI から書き換えるので Quit -> apply -> Relaunch。
+# Typeless: 設定は GUI/クラウド管理のため、外側からは起動/終了のみ制御する。
+# 両者はマイクとホットキーを取り合うので排他切替。
+
+set -euo pipefail
+
+KEYCHAIN_SVC="handy-cerebras-api-key"
+SETTINGS="$HOME/Library/Application Support/com.pais.handy/settings_store.json"
+HERE="${0:A:h}"
+APPLY="${HERE:h}/handy/apply-settings.py"
+TYPELESS_APP="/Applications/Typeless.app"
+
+die() { print -u2 "voice-switch: $*"; exit 1 }
+
+quit_handy() {
+  /usr/bin/osascript -e 'quit app "Handy"' >/dev/null 2>&1 || true
+  local n=0
+  while /usr/bin/pgrep -x handy >/dev/null 2>&1; do
+    (( ++n > 50 )) && die "Handy did not quit within 5s"
+    sleep 0.1
+  done
+}
+
+relaunch_handy() {
+  local n=0
+  until /usr/bin/pgrep -x handy >/dev/null 2>&1; do
+    (( n % 15 == 0 )) && { /usr/bin/open -a Handy >/dev/null 2>&1 || true; }
+    (( ++n > 75 )) && { print -u2 "voice-switch: Handy did not relaunch in ~15s; run 'open -a Handy' manually"; break; }
+    sleep 0.2
+  done
+}
+
+quit_typeless() {
+  /usr/bin/osascript -e 'quit app "Typeless"' >/dev/null 2>&1 || true
+  local n=0
+  while /usr/bin/pgrep -x Typeless >/dev/null 2>&1; do
+    (( ++n > 50 )) && die "Typeless did not quit within 5s"
+    sleep 0.1
+  done
+}
+
+is_handy_running()    { /usr/bin/pgrep -x handy    >/dev/null 2>&1 }
+is_typeless_running() { /usr/bin/pgrep -x Typeless >/dev/null 2>&1 }
+
+ensure_handy_active() {
+  # Switching to a Handy mode: make sure Typeless is not holding the mic/hotkeys.
+  is_typeless_running && quit_typeless
+}
+
+print_status() {
+  if is_typeless_running && is_handy_running; then
+    print "engine = both (unexpected; please quit one)"
+    return
+  fi
+  if is_typeless_running; then
+    print "engine = typeless"
+    print "(settings: GUI / cloud-managed by Typeless)"
+    return
+  fi
+  if ! is_handy_running; then
+    print "engine = none"
+    return
+  fi
+  print "engine = handy"
+  [[ -f "$SETTINGS" ]] || die "settings not found: $SETTINGS"
+  /usr/bin/python3 - "$SETTINGS" <<'PY'
+import json, sys
+s = json.load(open(sys.argv[1])).get("settings", {})
+pid = s.get("post_process_provider_id")
+print(f"provider = {pid}")
+print(f"model    = {s.get('post_process_models', {}).get(pid, '')}")
+print(f"language = {s.get('selected_language')}")
+print(f"enabled  = {s.get('post_process_enabled')}")
+print(f"prompt   = {s.get('post_process_selected_prompt_id')}")
+print(f"cancel   = {s.get('bindings', {}).get('cancel', {}).get('current_binding')}")
+PY
+}
+
+[[ -f "$APPLY" ]] || die "applier not found: $APPLY"
+
+apply_cloud() {
+  local lang="$1" model_arg="${2:-}"
+  local key
+  key="$(/usr/bin/security find-generic-password -s "$KEYCHAIN_SVC" -w 2>/dev/null || true)"
+  [[ -n "$key" ]] || die "no Cerebras key in Keychain. Add it once:
+  security add-generic-password -s $KEYCHAIN_SVC -a \"\$USER\" -w \"<KEY>\""
+  ensure_handy_active
+  quit_handy
+  if [[ -n "$model_arg" ]]; then
+    CEREBRAS_API_KEY="$key" /usr/bin/python3 "$APPLY" --provider cloud --language "$lang" --model "$model_arg"
+  else
+    CEREBRAS_API_KEY="$key" /usr/bin/python3 "$APPLY" --provider cloud --language "$lang"
+  fi
+  relaunch_handy
+}
+
+apply_local() {
+  local lang="$1"
+  ensure_handy_active
+  quit_handy
+  /usr/bin/python3 "$APPLY" --provider local --language "$lang"
+  relaunch_handy
+}
+
+apply_typeless() {
+  [[ -d "$TYPELESS_APP" ]] || die "Typeless.app not found at $TYPELESS_APP. Install it once:
+  brew install --cask typeless"
+  is_handy_running && quit_handy
+  /usr/bin/open -a Typeless
+  print -r -- "-> TYPELESS (built-in LLM). 録音は Typeless のアプリ内ホットキー設定で行ってください。"
+}
+
+case "${1:-status}" in
+  status)
+    print_status
+    ;;
+  ja|local)
+    apply_local ja
+    print -r -- "-> JA (Handy + ollama qwen3:4b, language=ja). Offline; max Japanese accuracy."
+    ;;
+  en)
+    apply_local en
+    print -r -- "-> EN (Handy + ollama qwen3:4b, language=en). Offline; max English accuracy."
+    ;;
+  cloud)
+    apply_cloud auto "${2:-}"
+    print -r -- "-> CLOUD (Handy + Cerebras, language=auto). Bilingual; text sent to US, no retention/training."
+    ;;
+  typeless)
+    apply_typeless
+    ;;
+  reapply)
+    if is_typeless_running; then
+      print -r -- "voice-switch: 現在 Typeless モードのため reapply は不要 (設定は GUI 管理)。"
+      exit 0
+    fi
+    cur="$(/usr/bin/python3 - "$SETTINGS" <<'PY'
+import json, sys
+s = json.load(open(sys.argv[1])).get("settings", {})
+print(f"{s.get('post_process_provider_id','')} {s.get('selected_language','')}")
+PY
+)"
+    cur_provider="${cur%% *}"
+    cur_language="${cur##* }"
+    [[ -n "$cur_provider" && -n "$cur_language" ]] || die "could not read current provider/language from settings"
+    if [[ "$cur_provider" == "cerebras" ]]; then
+      apply_cloud "$cur_language"
+    else
+      apply_local "$cur_language"
+    fi
+    print -r -- "-> reapplied provider=$cur_provider language=$cur_language"
+    ;;
+  *)
+    die "usage: voice-switch [ja | en | cloud [model] | local | typeless | reapply | status]"
+    ;;
+esac
