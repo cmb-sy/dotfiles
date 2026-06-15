@@ -1,5 +1,15 @@
 # /share-report Implementation Plan
 
+> **Status (2026-06-15):** 実装完了。本計画書は当初の作業手順を記録したものだが、実装中にユーザーフィードバックを反映し以下が進化した。
+>
+> - セクション構成: 当初 3 セクション (Before/After 表方式) → 確定 5 セクション (サマリー / やったこと / 残課題・次のアクション / 確認事項 / 打ち合わせメモ)
+> - 変数名: `{{BEFORE_AFTER_ROWS}}` 廃止 → `{{ACTIVITIES_ITEMS}}` + `{{CONFIRMATIONS_ITEMS}}` 追加
+> - ベースカラー: ネイビー `#1f3a5f` → ティール `#139cab`
+> - 書き出し: HTML のみ → HTML + PDF（印刷ダイアログ経由）の 2 系統
+> - 横幅: 880px → 1024px
+>
+> **最終仕様の真実源は `docs/superpowers/specs/2026-06-15-share-report-design.md` (spec)** を参照すること。以下のタスク本文は当初の進行記録として残す。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** セッション内容を業務サイドのステークホルダーへ Slack/Teams 添付で共有できる単一 HTML 報告書として出力する `/share-report` skill を新設する。報告書は contenteditable によりブラウザ内で直接編集でき、画面共有しながら書き込む打ち合わせメモ欄を備える。
