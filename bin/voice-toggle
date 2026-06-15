@@ -1,23 +1,20 @@
 #!/bin/bash
-# Toggle the active voice-input engine's recording, bound to Caps Lock via Karabiner.
+# Toggle Handy recording. Bound to Caps Lock via Karabiner ONLY when
+# voice_engine != "typeless" (Karabiner variable). Typeless モード時は Karabiner が
+# Virtual HID 経由で F18 を直接 emit するため、このスクリプトは呼ばれない。
 #
-# - Typeless が起動中 (bundle path で検出): F18 (key code 79) を System Events 経由で
-#   emit して Typeless 内グローバルホットキーをトグル。Typeless GUI 側で録音アクションを
-#   F18 にバインドしておく必要がある。Caps Lock 自体は Karabiner が voice-toggle に
-#   変換しているので Typeless には届かない (=Typeless に Caps Lock を直接登録しても
-#   反応しない)。F18 を仲介キーにすることで Caps Lock ⇄ Handy/Typeless どちらでも
-#   同じ物理キーで録音できる。
-# - Handy が起動中: handy --toggle-post-process を呼ぶ。
-# - どちらも停止: Handy を起動 (録音はしない)。
+# - Handy が起動中: handy --toggle-post-process
+# - Handy が停止中: open -a Handy (録音はしない)
+# - Typeless が起動中: variable 未設定の起動直後など稀なケース。no-op で安全に終了
+#   (voice-switch [engine] を一度実行すれば Karabiner variable が立ち、以降は通らない)
 #
 # Karabiner runs this in a minimal launchd env, so use absolute paths.
 
 HANDY_BIN="/Applications/Handy.app/Contents/MacOS/handy"
 TYPELESS_BIN_DIR="/Applications/Typeless.app/Contents/MacOS/"
-TYPELESS_HOTKEY_CODE=79   # F18
 
 if /usr/bin/pgrep -f "$TYPELESS_BIN_DIR" >/dev/null 2>&1; then
-  exec /usr/bin/osascript -e "tell application \"System Events\" to key code $TYPELESS_HOTKEY_CODE"
+  exit 0
 fi
 
 if ! /usr/bin/pgrep -x handy >/dev/null 2>&1; then

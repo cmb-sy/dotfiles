@@ -12,7 +12,7 @@
             "complex_modifications": {
                 "rules": [
                     {
-                        "description": "Caps Lock -> toggle voice input (bin/voice-toggle): Handy なら録音トグル、Typeless なら no-op、両停止時は Handy を起動。Handy/Typeless は voice-switch で排他切替。",
+                        "description": "Caps Lock -> voice input toggle. Typeless モード時は Virtual HID 経由で F18 を直接 emit (synthetic key 拒否を回避)、Handy モード時は bin/voice-toggle 経由。エンジン切替は voice-switch が karabiner_cli --set-variables で voice_engine を更新する。",
                         "manipulators": [
                             {
                                 "type": "basic",
@@ -21,7 +21,23 @@
                                     "modifiers": { "optional": ["any"] }
                                 },
                                 "to": [
+                                    { "key_code": "f18" }
+                                ],
+                                "conditions": [
+                                    { "type": "variable_if", "name": "voice_engine", "value": "typeless" }
+                                ]
+                            },
+                            {
+                                "type": "basic",
+                                "from": {
+                                    "key_code": "caps_lock",
+                                    "modifiers": { "optional": ["any"] }
+                                },
+                                "to": [
                                     { "shell_command": "/Users/snakashima/dotfiles/bin/voice-toggle" }
+                                ],
+                                "conditions": [
+                                    { "type": "variable_unless", "name": "voice_engine", "value": "typeless" }
                                 ]
                             }
                         ]

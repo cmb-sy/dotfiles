@@ -25,8 +25,18 @@ HERE="${0:A:h}"
 APPLY="${HERE:h}/handy/apply-settings.py"
 TYPELESS_APP="/Applications/Typeless.app"
 TYPELESS_BIN_DIR="$TYPELESS_APP/Contents/MacOS/"
+KARABINER_CLI="/Library/Application Support/org.pqrs/Karabiner-Elements/bin/karabiner_cli"
 
 die() { print -u2 "voice-switch: $*"; exit 1 }
+
+set_karabiner_engine() {
+  # Karabiner variable で Caps Lock の分岐を切替する。
+  # voice_engine=typeless: Caps Lock を Virtual HID 経由で F18 emit (Typeless が確実に受信)
+  # voice_engine=handy   : Caps Lock を bin/voice-toggle 経由 (Handy --toggle-post-process)
+  local engine="$1"   # "typeless" or "handy"
+  [[ -x "$KARABINER_CLI" ]] || return 0
+  "$KARABINER_CLI" --set-variables "{\"voice_engine\":\"$engine\"}" >/dev/null 2>&1 || true
+}
 
 quit_handy() {
   /usr/bin/osascript -e 'quit app "Handy"' >/dev/null 2>&1 || true
@@ -115,6 +125,7 @@ apply_cloud() {
   else
     CEREBRAS_API_KEY="$key" /usr/bin/python3 "$APPLY" --provider cloud --language "$lang"
   fi
+  set_karabiner_engine handy
   relaunch_handy
 }
 
@@ -123,6 +134,7 @@ apply_local() {
   ensure_handy_active
   quit_handy
   /usr/bin/python3 "$APPLY" --provider local --language "$lang"
+  set_karabiner_engine handy
   relaunch_handy
 }
 
@@ -130,9 +142,10 @@ apply_typeless() {
   [[ -d "$TYPELESS_APP" ]] || die "Typeless.app not found at $TYPELESS_APP. Install it once:
   brew install --cask typeless"
   is_handy_running && quit_handy
+  set_karabiner_engine typeless
   /usr/bin/open -a Typeless
   wait_typeless_running
-  print -r -- "-> TYPELESS (built-in LLM). 録音は Typeless のアプリ内ホットキー設定で行ってください。"
+  print -r -- "-> TYPELESS (built-in LLM)。Caps Lock 録音は Karabiner が Virtual HID 経由で F18 直接 emit します。"
 }
 
 case "${1:-status}" in
