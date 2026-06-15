@@ -4,7 +4,7 @@
 #   voice-switch ja            -> Handy + ollama qwen3:4b (offline; STT locked to ja)
 #   voice-switch en            -> Handy + ollama qwen3:4b (offline; STT locked to en)
 #   voice-switch cloud [model] -> Handy + Cerebras gpt-oss-120b (STT=auto, bilingual)
-#   voice-switch local         -> back-compat alias for `ja`
+#   voice-switch local         -> alias for `ja`
 #   voice-switch typeless      -> Typeless (built-in LLM, GUI-managed). Handy is quit.
 #   voice-switch reapply       -> re-run apply with current Handy provider+language
 #                                 (no-op + notice if Typeless is the active engine)
@@ -13,6 +13,9 @@
 # Handy: settings_store.json を CLI から書き換えるので Quit -> apply -> Relaunch。
 # Typeless: 設定は GUI/クラウド管理のため、外側からは起動/終了のみ制御する。
 # 両者はマイクとホットキーを取り合うので排他切替。
+#
+# Typeless の binary 名は Electron 系で揺れる可能性があるため、bundle path 経由
+# (pgrep -f /Applications/Typeless.app/Contents/MacOS/) で検出する。
 
 set -euo pipefail
 
@@ -21,6 +24,7 @@ SETTINGS="$HOME/Library/Application Support/com.pais.handy/settings_store.json"
 HERE="${0:A:h}"
 APPLY="${HERE:h}/handy/apply-settings.py"
 TYPELESS_APP="/Applications/Typeless.app"
+TYPELESS_BIN_DIR="$TYPELESS_APP/Contents/MacOS/"
 
 die() { print -u2 "voice-switch: $*"; exit 1 }
 
@@ -45,14 +49,22 @@ relaunch_handy() {
 quit_typeless() {
   /usr/bin/osascript -e 'quit app "Typeless"' >/dev/null 2>&1 || true
   local n=0
-  while /usr/bin/pgrep -x Typeless >/dev/null 2>&1; do
+  while /usr/bin/pgrep -f "$TYPELESS_BIN_DIR" >/dev/null 2>&1; do
     (( ++n > 50 )) && die "Typeless did not quit within 5s"
     sleep 0.1
   done
 }
 
-is_handy_running()    { /usr/bin/pgrep -x handy    >/dev/null 2>&1 }
-is_typeless_running() { /usr/bin/pgrep -x Typeless >/dev/null 2>&1 }
+wait_typeless_running() {
+  local n=0
+  until /usr/bin/pgrep -f "$TYPELESS_BIN_DIR" >/dev/null 2>&1; do
+    (( ++n > 75 )) && { print -u2 "voice-switch: Typeless did not start in ~15s; run 'open -a Typeless' manually"; break; }
+    sleep 0.2
+  done
+}
+
+is_handy_running()    { /usr/bin/pgrep -x handy >/dev/null 2>&1 }
+is_typeless_running() { /usr/bin/pgrep -f "$TYPELESS_BIN_DIR" >/dev/null 2>&1 }
 
 ensure_handy_active() {
   # Switching to a Handy mode: make sure Typeless is not holding the mic/hotkeys.
@@ -119,6 +131,7 @@ apply_typeless() {
   brew install --cask typeless"
   is_handy_running && quit_handy
   /usr/bin/open -a Typeless
+  wait_typeless_running
   print -r -- "-> TYPELESS (built-in LLM). 録音は Typeless のアプリ内ホットキー設定で行ってください。"
 }
 

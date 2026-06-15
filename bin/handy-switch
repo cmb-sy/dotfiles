@@ -1,4 +1,0 @@
-#!/bin/zsh
-# Back-compat alias: handy-switch was renamed to voice-switch on 2026-06-15.
-# This shim keeps existing scripts / muscle memory working.
-exec "${0:A:h}/voice-switch" "$@"
