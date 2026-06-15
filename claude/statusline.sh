@@ -220,17 +220,21 @@ fi
   sec_repo="${C_REPO}$(printf '\xef\x81\xbc') ${DIR/#$HOME/\~}${RST}"
 
 # ==============================================================================
-# [5] Voice input mode (Handy)
+# [5] Voice input mode (Handy / Typeless)
 #
-# Reads provider + selected_language from Handy's settings_store.json. The three
-# voice-switch modes map back to: ja / en / cloud. File is small (<10KB), so the
-# jq call adds negligible overhead per render. Section is hidden if Handy has
-# never been configured (file missing) or parse fails.
+# Typeless が起動中なら "typeless" を優先表示 (bundle path で検出、Electron 系の
+# binary 名揺れに耐える)。それ以外は Handy の settings_store.json から
+# provider + selected_language を読み、voice-switch モードを ja / en / cloud に
+# マップして表示する。設定ファイル不在/parse 失敗の場合はセクション非表示。
 # ==============================================================================
 
 sec_voice=""
+TYPELESS_BIN_DIR="/Applications/Typeless.app/Contents/MacOS/"
 HANDY_SETTINGS="$HOME/Library/Application Support/com.pais.handy/settings_store.json"
-if [ -s "$HANDY_SETTINGS" ]; then
+
+if /usr/bin/pgrep -f "$TYPELESS_BIN_DIR" >/dev/null 2>&1; then
+  sec_voice="${WHT}voice${RST} ${C_VOICE}typeless${RST}"
+elif [ -s "$HANDY_SETTINGS" ]; then
   eval "$(jq -r '
     (.settings // .) |
     @sh "V_PROV=\(.post_process_provider_id // "")",
