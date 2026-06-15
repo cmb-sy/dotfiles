@@ -223,7 +223,7 @@ fi
 # [5] Voice input mode (Handy)
 #
 # Reads provider + selected_language from Handy's settings_store.json. The three
-# handy-switch modes map back to: ja / en / cloud. File is small (<10KB), so the
+# voice-switch modes map back to: ja / en / cloud. File is small (<10KB), so the
 # jq call adds negligible overhead per render. Section is hidden if Handy has
 # never been configured (file missing) or parse fails.
 # ==============================================================================

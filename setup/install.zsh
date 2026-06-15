@@ -99,12 +99,12 @@ if [[ $? = 0 ]]; then
       for i in {1..50}; do [[ -f "$HANDY_SETTINGS" ]] && break; sleep 0.2; done
     fi
     if [[ -f "$HANDY_SETTINGS" ]]; then
-      "${REPO_DIR}/bin/handy-switch" local && util::info "Voice post-processing set to LOCAL (offline ollama)."
+      "${REPO_DIR}/bin/voice-switch" local && util::info "Voice post-processing set to LOCAL (offline ollama)."
     else
-      util::warning "Handy settings not generated; launch Handy once, then run 'handy-switch local'."
+      util::warning "Handy settings not generated; launch Handy once, then run 'voice-switch local'."
     fi
   else
-    util::warning "Handy.app not installed; install via Brewfile, launch once, then run 'handy-switch local'."
+    util::warning "Handy.app not installed; install via Brewfile, launch once, then run 'voice-switch local'."
   fi
 
   util::warning "Manual step (cannot be scripted): grant Handy these permissions or recording/paste fails:"
@@ -113,7 +113,7 @@ if [[ $? = 0 ]]; then
 
   util::info "To enable Cerebras cloud (faster + higher quality; no data retention/training):"
   util::info "  1) security add-generic-password -s handy-cerebras-api-key -a \"\$USER\" -w \"<KEY>\""
-  util::info "  2) handy-switch cloud"
+  util::info "  2) voice-switch cloud"
 fi
 
 #----------------------------------------------------------

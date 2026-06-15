@@ -3,7 +3,7 @@
 
 Handy OWNS this file and rewrites it from in-memory state while running, so any
 external edit is clobbered unless Handy is fully quit first. This script refuses
-to run while Handy is alive (override with HANDY_APPLY_FORCE=1). bin/handy-switch
+to run while Handy is alive (override with HANDY_APPLY_FORCE=1). bin/voice-switch
 does the quit -> apply -> relaunch dance; call this through that, not directly.
 
 Cloud post-processing targets Cerebras, which is privacy-acceptable because it
@@ -14,7 +14,7 @@ neither RETAINS nor TRAINS on request data:
     ("Cerebras does not grant itself the right to use Service Content for ... training or fine-tuning models")
 US text transmission is acceptable per the user; data-training is the hard no-go.
 The Cerebras API key is NEVER stored in this repo: it arrives via the CEREBRAS_API_KEY
-env var (read from the macOS Keychain by handy-switch) and lands only in the
+env var (read from the macOS Keychain by voice-switch) and lands only in the
 app-owned settings_store.json outside the repo.
 """
 import argparse
@@ -37,7 +37,7 @@ LOCAL_MODEL = "qwen3:4b-instruct-2507-q4_K_M"
 # gpt-oss-120b chosen as default: shorter reasoning, faithful JP light-tidy, prod-tier.
 # Swap to zai-glm-4.7 via --model (note: it reasons verbosely and can hit token limits).
 DEFAULT_CLOUD_MODEL = "gpt-oss-120b"
-# STT language is set per invocation via --language {ja,en,auto}. The three handy-switch modes are:
+# STT language is set per invocation via --language {ja,en,auto}. The three voice-switch modes are:
 #   ja    -> local + ja   (Japanese-locked, max JP accuracy, offline)
 #   en    -> local + en   (English-locked, max EN accuracy, offline)
 #   cloud -> cerebras + auto (bilingual; whisper auto-detects each utterance)
@@ -86,7 +86,7 @@ def main() -> None:
     args = ap.parse_args()
 
     if handy_running() and os.environ.get("HANDY_APPLY_FORCE") != "1":
-        die("Handy is running; quit it first (handy-switch does this) or set HANDY_APPLY_FORCE=1")
+        die("Handy is running; quit it first (voice-switch does this) or set HANDY_APPLY_FORCE=1")
     if not SETTINGS.exists():
         die(f"settings_store.json not found: {SETTINGS}")
     if not PROMPT_FILE.exists():
@@ -130,7 +130,7 @@ def main() -> None:
         model = args.model or DEFAULT_CLOUD_MODEL
         key = os.environ.get("CEREBRAS_API_KEY", "").strip()
         if not key:
-            die("CEREBRAS_API_KEY not set (handy-switch reads it from the Keychain)")
+            die("CEREBRAS_API_KEY not set (voice-switch reads it from the Keychain)")
         s["post_process_provider_id"] = "cerebras"  # base_url https://api.cerebras.ai/v1 (fixed)
         models["cerebras"] = model
         keys["cerebras"] = key

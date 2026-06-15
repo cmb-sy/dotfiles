@@ -158,9 +158,9 @@ voice-switch status             現在エンジン + Handy ならモード詳細
 1. `voice-switch ja` 実行 → Handy が再起動し、provider=ollama / language=ja で status 表示
 2. `voice-switch typeless` 実行 → Handy が quit、Typeless が起動。status で `engine = typeless`
 3. `voice-switch ja` (typeless モード中) → Typeless quit → Handy 起動
-4. `handy-switch ja` (旧名) → voice-switch ja と同じ挙動（shim 動作確認）
+4. 旧名コマンド `handy-switch` / `handy-toggle` / 旧エイリアス `hsja` 等が **not found** で落ちること（後方互換削除の確認）
 5. Typeless 未インストール環境で `voice-switch typeless` → brew インストール案内のエラー
 6. `voice-toggle` (Handy 起動中) → 録音トグル
-7. `voice-toggle` (Typeless 起動中) → no-op、stdout に説明を出す
+7. `voice-toggle` (Typeless 起動中) → no-op (CLI フックなしのため stdout 出力なし)
 8. `voice-toggle` (両方停止) → Handy 起動
-9. `hsja` `vsja` 両エイリアスが期待通り動作
+9. `vsja / vsen / vscl / vsty / vslo` 各エイリアスが対応する `voice-switch` サブコマンドに解決される
