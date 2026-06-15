@@ -6,13 +6,15 @@
   <title>{{TITLE}}</title>
   <style>
     :root {
+      --brand: #139cab;
+      --brand-dark: #0f7d89;
+      --brand-soft: #e8f6f8;
       --ink: #1a1a1a;
       --ink-soft: #555;
       --ink-mute: #888;
       --bg: #fff;
       --bg-soft: #f5f5f5;
       --border: #d8d8d8;
-      --border-strong: #333;
     }
     * { box-sizing: border-box; }
     html, body {
@@ -23,15 +25,15 @@
       background: var(--bg);
       line-height: 1.7;
     }
-    body { padding: 40px 56px 120px; max-width: 880px; margin: 0 auto; }
-    header { border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 32px; }
-    header h1 { color: var(--ink); margin: 0 0 8px; font-size: 24px; font-weight: 600; }
+    body { padding: 40px 56px 120px; max-width: 1024px; margin: 0 auto; }
+    header { border-bottom: 2px solid var(--brand); padding-bottom: 16px; margin-bottom: 32px; }
+    header h1 { color: var(--brand-dark); margin: 0 0 8px; font-size: 26px; font-weight: 700; }
     header .meta { color: var(--ink-mute); font-size: 13px; }
     section { margin-bottom: 32px; }
     section h2 {
-      color: var(--ink);
-      font-size: 16px;
-      font-weight: 600;
+      color: var(--brand-dark);
+      font-size: 18px;
+      font-weight: 700;
       margin: 0 0 12px;
     }
     [contenteditable="true"] {
@@ -41,14 +43,11 @@
       transition: border-color 0.15s;
     }
     [contenteditable="true"]:hover { border-color: var(--border); }
-    [contenteditable="true"]:focus { border-color: var(--border-strong); outline: none; }
+    [contenteditable="true"]:focus { border-color: var(--brand); outline: none; }
     [contenteditable="true"][data-placeholder]:empty::before {
       content: attr(data-placeholder);
       color: var(--ink-mute);
     }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { border: 1px solid var(--border); padding: 10px 12px; vertical-align: top; text-align: left; }
-    th { background: var(--bg-soft); color: var(--ink); font-weight: 600; width: 50%; font-size: 14px; }
     ul { padding-left: 22px; margin: 0; }
     ul li { margin-bottom: 4px; }
     #meeting-notes { background: var(--bg-soft); padding: 16px 20px; border-radius: 4px; }
@@ -59,16 +58,20 @@
       padding: 8px 10px; display: flex; gap: 6px; z-index: 999;
     }
     #toolbar button {
-      font: inherit; font-size: 13px; padding: 6px 12px; border: 1px solid var(--border-strong); background: var(--bg);
-      color: var(--ink); border-radius: 3px; cursor: pointer;
+      font: inherit; font-size: 13px; padding: 6px 12px; border: 1px solid var(--brand); background: var(--bg);
+      color: var(--brand); border-radius: 3px; cursor: pointer;
     }
-    #toolbar button:hover { background: var(--bg-soft); }
-    #toolbar button.primary { background: var(--border-strong); color: var(--bg); }
-    #toolbar button.primary:hover { background: #1a1a1a; }
+    #toolbar button:hover { background: var(--brand-soft); }
+    #toolbar button.primary { background: var(--brand); color: var(--bg); }
+    #toolbar button.primary:hover { background: var(--brand-dark); }
     body.preview [contenteditable] { border-color: transparent !important; }
     @media print {
       #toolbar { display: none; }
-      body { padding: 20px; }
+      body { padding: 20px; max-width: none; }
+      [contenteditable="true"] { border-color: transparent !important; padding: 0 !important; }
+      [contenteditable="true"][data-placeholder]:empty::before { content: ""; }
+      #meeting-notes { background: transparent; padding: 12px; border: 1px solid var(--border); border-radius: 0; }
+      section { page-break-inside: avoid; }
     }
   </style>
 </head>
@@ -79,31 +82,34 @@
   </header>
 
   <section id="summary">
-    <h2>1. ご依頼のサマリと背景</h2>
+    <h2>1. サマリー</h2>
     <div contenteditable="true">{{SUMMARY_BODY}}</div>
   </section>
 
-  <section id="before-after">
-    <h2>2. 実現したこと</h2>
-    <table>
-      <thead><tr><th>変更前 (Before)</th><th>変更後 (After)</th></tr></thead>
-      <tbody contenteditable="true">{{BEFORE_AFTER_ROWS}}</tbody>
-    </table>
+  <section id="activities">
+    <h2>2. やったこと</h2>
+    <ul contenteditable="true">{{ACTIVITIES_ITEMS}}</ul>
   </section>
 
   <section id="next-actions">
-    <h2>3. 残課題・次のアクション・確認事項</h2>
+    <h2>3. 残課題・次のアクション</h2>
     <ul contenteditable="true">{{NEXT_ACTIONS_ITEMS}}</ul>
   </section>
 
+  <section id="confirmations">
+    <h2>4. 確認事項</h2>
+    <ul contenteditable="true">{{CONFIRMATIONS_ITEMS}}</ul>
+  </section>
+
   <section id="meeting-notes">
-    <h2>4. 打ち合わせメモ</h2>
+    <h2>5. 打ち合わせメモ</h2>
     <div contenteditable="true" data-placeholder="ここに打ち合わせ中のメモを書き込めます"></div>
   </section>
 
   <aside id="toolbar">
     <button id="toggle-edit" type="button">編集モード: ON</button>
-    <button id="save-html" type="button" class="primary">保存して書き出し</button>
+    <button id="export-pdf" type="button" title="ブラウザの印刷ダイアログから『PDF として保存』を選んでください">PDF として保存</button>
+    <button id="save-html" type="button" class="primary">HTML として保存</button>
   </aside>
 
   <!-- JS は Task 3 で追加 -->
