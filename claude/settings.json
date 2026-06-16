@@ -173,8 +173,7 @@
     ],
     "defaultMode": "bypassPermissions"
   },
-  "model": "claude-opus-4-8",
-  "preferredNotifChannel": "terminal_bell",
+  "model": "opus[1m]",
   "hooks": {
     "Notification": [
       {
@@ -327,6 +326,7 @@
       }
     }
   },
-  "effortLevel": "high",
-  "skipDangerousModePermissionPrompt": true
+  "effortLevel": "xhigh",
+  "skipDangerousModePermissionPrompt": true,
+  "preferredNotifChannel": "terminal_bell"
 }
