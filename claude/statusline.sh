@@ -3,15 +3,6 @@
 set -o pipefail
 
 # ==============================================================================
-# Configuration
-# ==============================================================================
-
-CACHE_FILE="/tmp/claude_usage_cache.json"
-CACHE_TTL=300                 # Refresh usage data every 5 minutes
-KEYCHAIN_ACCOUNT="snakashima" # macOS Keychain account for OAuth credentials
-USAGE_API="https://api.anthropic.com/api/oauth/usage"
-
-# ==============================================================================
 # ANSI color palette (256-color, optimized for dark backgrounds)
 # ==============================================================================
 
@@ -70,15 +61,12 @@ fmt_tokens() {
   fi
 }
 
-# Convert ISO8601 UTC timestamp to human-readable duration until reset
+# Convert UNIX epoch seconds to human-readable duration until reset
 # Returns empty string if the reset time has already passed
 fmt_reset() {
-  local ts="$1"
-  has_val "$ts" || return
-  local reset_s diff
-  local clean="${ts%%[.+Z]*}"   # strip fractional seconds, tz offset, and trailing Z
-  reset_s=$(TZ=UTC date -jf "%Y-%m-%dT%H:%M:%S" "$clean" +%s 2>/dev/null) || return
-  diff=$(( reset_s - NOW ))
+  local reset_s="$1"
+  is_int "$reset_s" || return
+  local diff=$(( reset_s - NOW ))
   [ "$diff" -le 0 ] && return
   printf '%dh%dm' "$(( diff / 3600 ))" "$(( (diff % 3600) / 60 ))"
 }
@@ -99,7 +87,11 @@ eval "$(echo "$input" | jq -r '
   @sh "CTX_SIZE=\(.context_window.context_window_size // 200000)",
   @sh "MODE=\(.output_style.name // .agent.name // "")",
   @sh "EFFORT=\(.effort.level // "medium")",
-  @sh "WORKTREE=\(.worktree.name // "")"
+  @sh "WORKTREE=\(.worktree.name // "")",
+  @sh "U5_PCT=\(.rate_limits.five_hour.used_percentage // "")",
+  @sh "R5_TS=\(.rate_limits.five_hour.resets_at // "")",
+  @sh "U7_PCT=\(.rate_limits.seven_day.used_percentage // "")",
+  @sh "R7_TS=\(.rate_limits.seven_day.resets_at // "")"
 ' 2>/dev/null)"
 
 # ==============================================================================
@@ -134,67 +126,25 @@ if has_val "$USED"; then
 fi
 
 # ==============================================================================
-# [3] API usage limits (5-hour rolling window + 7-day)
+# [3] Rate limits (5-hour rolling window + 7-day)
 #
-# Fetches usage from Anthropic OAuth API using credentials stored in macOS
-# Keychain. Results are cached to avoid hitting the API on every message.
+# Claude Code 自身が stdin JSON で .rate_limits を渡してくれるので、Keychain や
+# OAuth API call を一切介さない。常に最新 & ネットワーク呼び出しゼロ & token
+# 失効や rate limit (429) の影響を受けない。.resets_at は UNIX epoch seconds。
 # ==============================================================================
 
 sec_limits=""
-
-# Fetch fresh usage data from API.
-#
-# Keychain の expiresAt は team subscription では実際の token 失効と一致せず、
-# 過去になっていても token はサーバ側セッションが生きている限り有効に使える
-# (HTTP 401 ではなく 200 や 429 が返る)。そのため expiresAt は信用せず、
-# レスポンスの HTTP code を信頼の source of truth とする。200 のときだけ
-# キャッシュを更新し、401/403/429 等では古いキャッシュを温存する。
-_refresh_cache() {
-  local creds token tmp http_code
-  creds=$(security find-generic-password -s "Claude Code-credentials" \
-    -a "$KEYCHAIN_ACCOUNT" -w 2>/dev/null) || return
-  token=$(echo "$creds" | jq -r '.claudeAiOauth.accessToken // ""')
-  has_val "$token" || return
-  tmp=$(mktemp -t claude_usage.XXXXXX) || return
-  http_code=$(curl -s -o "$tmp" -w '%{http_code}' --max-time 3 "$USAGE_API" \
-    -H "Authorization: Bearer $token" \
-    -H "anthropic-beta: oauth-2025-04-20" \
-    -H "User-Agent: Claude Code" 2>/dev/null)
-  if [ "$http_code" = "200" ] && [ -s "$tmp" ]; then
-    mv "$tmp" "$CACHE_FILE"
-  else
-    rm -f "$tmp"
-  fi
-}
-
-# Refresh when cache is missing, empty, or older than CACHE_TTL
-cache_age=$(( NOW - $(stat -f %m "$CACHE_FILE" 2>/dev/null || echo 0) ))
-if [ ! -s "$CACHE_FILE" ] || [ "$cache_age" -gt "$CACHE_TTL" ]; then
-  _refresh_cache
-fi
-
-# Build display string from cached data
-if [ -s "$CACHE_FILE" ]; then
-  eval "$(jq -r '
-    @sh "U5=\(.five_hour.utilization // "")",
-    @sh "R5=\(.five_hour.resets_at // "")",
-    @sh "U7=\(.seven_day.utilization // "")",
-    @sh "R7=\(.seven_day.resets_at // "")"
-  ' "$CACHE_FILE" 2>/dev/null)"
-
-  parts=""
-  for entry in "5h|$U5|$R5" "7d|$U7|$R7"; do
-    IFS='|' read -r label util reset <<< "$entry"
-    has_val "$util" || continue
-    r=$(echo "100 - $util" | bc 2>/dev/null); r="${r%%.*}"
-    [ -z "$r" ] && continue
-    [ -n "$parts" ] && parts+=" ${WHT}·${RST} "
-    parts+="${WHT}${label}${RST} ${C_LIMIT}${r}%${RST}"
-    eta=$(fmt_reset "$reset")
-    [ -n "$eta" ] && parts+=" ${C_RESET_ETA}(${eta})${RST}"
-  done
-  sec_limits="$parts"
-fi
+parts=""
+for entry in "5h|$U5_PCT|$R5_TS" "7d|$U7_PCT|$R7_TS"; do
+  IFS='|' read -r label used reset <<< "$entry"
+  is_int "$used" || continue
+  r=$(( 100 - used ))
+  [ -n "$parts" ] && parts+=" ${WHT}·${RST} "
+  parts+="${WHT}${label}${RST} ${C_LIMIT}${r}%${RST}"
+  eta=$(fmt_reset "$reset")
+  [ -n "$eta" ] && parts+=" ${C_RESET_ETA}(${eta})${RST}"
+done
+sec_limits="$parts"
 
 # ==============================================================================
 # [4] Git repository name and current branch
