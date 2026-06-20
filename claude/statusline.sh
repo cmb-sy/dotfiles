@@ -142,20 +142,29 @@ fi
 
 sec_limits=""
 
-# Fetch fresh usage data from API (only if OAuth token is still valid)
+# Fetch fresh usage data from API.
+#
+# Keychain の expiresAt は team subscription では実際の token 失効と一致せず、
+# 過去になっていても token はサーバ側セッションが生きている限り有効に使える
+# (HTTP 401 ではなく 200 や 429 が返る)。そのため expiresAt は信用せず、
+# レスポンスの HTTP code を信頼の source of truth とする。200 のときだけ
+# キャッシュを更新し、401/403/429 等では古いキャッシュを温存する。
 _refresh_cache() {
-  local creds token exp_s
+  local creds token tmp http_code
   creds=$(security find-generic-password -s "Claude Code-credentials" \
     -a "$KEYCHAIN_ACCOUNT" -w 2>/dev/null) || return
-  eval "$(echo "$creds" | jq -r '
-    @sh "token=\(.claudeAiOauth.accessToken // "")",
-    @sh "exp_s=\((.claudeAiOauth.expiresAt // 0) / 1000 | floor)"
-  ')"
-  has_val "$token" && [ "$NOW" -le "$exp_s" ] || return
-  curl -s --max-time 3 "$USAGE_API" \
+  token=$(echo "$creds" | jq -r '.claudeAiOauth.accessToken // ""')
+  has_val "$token" || return
+  tmp=$(mktemp -t claude_usage.XXXXXX) || return
+  http_code=$(curl -s -o "$tmp" -w '%{http_code}' --max-time 3 "$USAGE_API" \
     -H "Authorization: Bearer $token" \
     -H "anthropic-beta: oauth-2025-04-20" \
-    -H "User-Agent: Claude Code" > "$CACHE_FILE" 2>/dev/null
+    -H "User-Agent: Claude Code" 2>/dev/null)
+  if [ "$http_code" = "200" ] && [ -s "$tmp" ]; then
+    mv "$tmp" "$CACHE_FILE"
+  else
+    rm -f "$tmp"
+  fi
 }
 
 # Refresh when cache is missing, empty, or older than CACHE_TTL
