@@ -1,19 +1,25 @@
 #!/bin/bash
 # Toggle Handy recording. Bound to Caps Lock via Karabiner ONLY when
 # voice_engine != "typeless" (Karabiner variable). Typeless モード時は Karabiner が
-# Virtual HID 経由で F18 を直接 emit するため、このスクリプトは呼ばれない。
+# Virtual HID 経由で F18 を直接 emit するため、本来このスクリプトは呼ばれない。
 #
 # - Handy が起動中: handy --toggle-post-process
 # - Handy が停止中: open -a Handy (録音はしない)
-# - Typeless が起動中: variable 未設定の起動直後など稀なケース。no-op で安全に終了
-#   (voice-switch [engine] を一度実行すれば Karabiner variable が立ち、以降は通らない)
+# - Typeless が起動中なのにこのスクリプトに到達した場合:
+#   karabiner_grabber の再起動などで voice_engine variable が揮発した状態。
+#   variable=typeless を復帰させて次回押下から正規ルート (Virtual HID 経由 F18 emit)
+#   に戻し、今回の押下分は emit 不能なのでユーザーに再押下を促す通知を出す。
 #
 # Karabiner runs this in a minimal launchd env, so use absolute paths.
 
 HANDY_BIN="/Applications/Handy.app/Contents/MacOS/handy"
 TYPELESS_BIN_DIR="/Applications/Typeless.app/Contents/MacOS/"
+KARABINER_CLI="/Library/Application Support/org.pqrs/Karabiner-Elements/bin/karabiner_cli"
 
 if /usr/bin/pgrep -f "$TYPELESS_BIN_DIR" >/dev/null 2>&1; then
+  [[ -x "$KARABINER_CLI" ]] && "$KARABINER_CLI" \
+    --set-variables '{"voice_engine":"typeless"}' >/dev/null 2>&1
+  /usr/bin/osascript -e 'display notification "voice_engine=typeless に復帰しました。もう一度 Caps Lock を押してください。" with title "voice-toggle"' >/dev/null 2>&1
   exit 0
 fi
 
