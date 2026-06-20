@@ -131,20 +131,31 @@ fi
 # Claude Code 自身が stdin JSON で .rate_limits を渡してくれるので、Keychain や
 # OAuth API call を一切介さない。常に最新 & ネットワーク呼び出しゼロ & token
 # 失効や rate limit (429) の影響を受けない。.resets_at は UNIX epoch seconds。
+#
+# .rate_limits 自体が存在する限り 5h / 7d の両セクションを常に描画する
+# (個別の used_percentage や resets_at が欠けても "--%" で穴埋め)。
+# Claude Code はリセット直後など特定状況で片方を省略するケースがあり、
+# 「片方しか出ない」と紛らわしいので明示的に両方表示する設計とする。
 # ==============================================================================
 
 sec_limits=""
-parts=""
-for entry in "5h|$U5_PCT|$R5_TS" "7d|$U7_PCT|$R7_TS"; do
-  IFS='|' read -r label used reset <<< "$entry"
-  is_int "$used" || continue
-  r=$(( 100 - used ))
-  [ -n "$parts" ] && parts+=" ${WHT}·${RST} "
-  parts+="${WHT}${label}${RST} ${C_LIMIT}${r}%${RST}"
-  eta=$(fmt_reset "$reset")
-  [ -n "$eta" ] && parts+=" ${C_RESET_ETA}(${eta})${RST}"
-done
-sec_limits="$parts"
+RL_PRESENT=$(echo "$input" | jq -r 'if .rate_limits then "1" else "" end' 2>/dev/null)
+if [ -n "$RL_PRESENT" ]; then
+  parts=""
+  for entry in "5h|$U5_PCT|$R5_TS" "7d|$U7_PCT|$R7_TS"; do
+    IFS='|' read -r label used reset <<< "$entry"
+    [ -n "$parts" ] && parts+=" ${WHT}·${RST} "
+    if is_int "$used"; then
+      r=$(( 100 - used ))
+      parts+="${WHT}${label}${RST} ${C_LIMIT}${r}%${RST}"
+    else
+      parts+="${WHT}${label}${RST} ${C_LIMIT}--%${RST}"
+    fi
+    eta=$(fmt_reset "$reset")
+    [ -n "$eta" ] && parts+=" ${C_RESET_ETA}(${eta})${RST}"
+  done
+  sec_limits="$parts"
+fi
 
 # ==============================================================================
 # [4] Git repository name and current branch
