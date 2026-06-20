@@ -37,4 +37,5 @@
   "claudeCode.useTerminal": true,
   "vsicons.dontShowNewVersionMessage": true,
   "window.autoDetectColorScheme": false,
+  "editor.accessibilitySupport": "off",
 }
