@@ -1,0 +1,18 @@
+# GitHub dotfiles メンテナー監視リスト
+#
+# 形式:
+#   peers: 監視対象の handle を列挙 (1 行 1 人)
+#   overrides: デフォルト命名 (<handle>/dotfiles) と異なるリポジトリだけ owner/name で上書き
+#
+# 追加するときは peers に handle を 1 行足すだけ。リポジトリ名がデフォルトと
+# 違う場合のみ overrides に owner/name を書く。
+
+peers:
+  - neko-neko    # 東京、tmux/Tailscale/sesh 系の伝統的構成。同等規模・同郷のベースライン
+  - mizchi       # chezmoi + Nix home-manager + APM の三層構造、pkfire/secretlint pre-push
+  - joshukraine  # Claude Code skills を _shared/house-style.html + publish-artifact.sh で整備
+  - shunk031     # 日本人、AGENTS.md SSOT + symlink で Claude/Codex/Gemini を同居
+  - yutkat       # 5,054 commits、バージョンタグ運用、NixOS/Arch カバー、Codex prompt 内蔵
+
+overrides:
+  mizchi: mizchi/chezmoi-dotfiles
