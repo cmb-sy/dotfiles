@@ -25,6 +25,16 @@ if /usr/bin/pgrep -x say >/dev/null 2>&1; then
   exit 0
 fi
 
+# --- 競合 check: Typeless / Handy が握っている時は silent skip ---
+if /usr/bin/pgrep -f "/Applications/Typeless.app/Contents/MacOS/" >/dev/null 2>&1; then
+  log "Typeless running, skipping to avoid feedback loop"
+  exit 0
+fi
+if /usr/bin/pgrep -x handy >/dev/null 2>&1; then
+  log "Handy running, skipping to avoid feedback loop"
+  exit 0
+fi
+
 # --- 引数解析 (Task 1 では --text のみ対応) ---
 TEXT=""
 case "${1:-}" in
