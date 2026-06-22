@@ -76,6 +76,27 @@
                                 ]
                             }
                         ]
+                    },
+                    {
+                        "description": "Caps Lock + Z → voice-out (直前の Claude 応答を再生/停止トグル)",
+                        "manipulators": [
+                            {
+                                "type": "basic",
+                                "from": {
+                                    "simultaneous": [
+                                        { "key_code": "caps_lock" },
+                                        { "key_code": "z" }
+                                    ],
+                                    "simultaneous_options": {
+                                        "key_down_order": "strict",
+                                        "to_after_key_up": []
+                                    }
+                                },
+                                "to": [
+                                    { "shell_command": "/Users/snakashima/dotfiles/bin/voice-out" }
+                                ]
+                            }
+                        ]
                     }
                 ]
             }
