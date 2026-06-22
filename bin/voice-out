@@ -113,7 +113,8 @@ case "${1:-}" in
     STATE_FILE="$HOME/.cache/claude-tts.last-transcript"
     [ -f "$STATE_FILE" ] || { log "state file not found"; exit 0; }
     TRANSCRIPT="$(cat "$STATE_FILE" 2>/dev/null)"
-    [ -z "$TRANSCRIPT" ] || [ ! -f "$TRANSCRIPT" ] && { log "transcript invalid: $TRANSCRIPT"; exit 0; }
+    [ -z "$TRANSCRIPT" ] && { log "transcript path empty"; exit 0; }
+    [ -f "$TRANSCRIPT" ] || { log "transcript not found: $TRANSCRIPT"; exit 0; }
     TEXT="$(extract_latest_assistant "$TRANSCRIPT")"
     ;;
   *)
