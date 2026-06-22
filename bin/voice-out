@@ -1,13 +1,29 @@
 #!/bin/bash
-# Speak the most recent Claude Code assistant turn via macOS say.
+# voice-out — Claude Code の直前応答を macOS say (Kyoko) で読み上げる。
 #
-# Modes:
-#   voice-out                     stdin: hook JSON (Stop hook 経由)
-#                                 引数なし: state file から transcript path を読む
-#   voice-out --text "..."        渡された text をそのまま say (sanitize はかける)
-#   voice-out --transcript PATH   指定 transcript JSONL の末尾 assistant ターンを抽出
+# 通常起動 (Karabiner: Caps Lock + Z 経由):
+#   /Users/snakashima/dotfiles/bin/voice-out
+#     → ~/.cache/claude-tts.last-transcript から transcript_path を読み、
+#       末尾 assistant の text ブロックを sanitize して say に流す。
 #
-# 失敗は silent (best-effort)。CLAUDE_TTS_DEBUG=1 で /tmp/voice-out.log に詳細を吐く。
+# 手動デバッグ:
+#   voice-out --text "..."        渡された text をそのまま (sanitize あり) say
+#   voice-out --transcript PATH   指定 transcript JSONL の末尾 assistant を抽出
+#
+# トグル: 既に say が走っていれば pkill して exit 0 (同じキーで再生/停止)
+# 競合: Typeless / Handy 起動中は silent skip (feedback loop 防止)
+# 失敗: best-effort、stdout/stderr は静か。CLAUDE_TTS_DEBUG=1 で /tmp/voice-out.log
+#
+# 環境変数:
+#   CLAUDE_TTS_VOICE   default: Kyoko
+#   CLAUDE_TTS_RATE    default: 180 wpm
+#   CLAUDE_TTS_DEBUG   set to 1 で詳細ログを /tmp/voice-out.log へ
+#
+# 関連:
+#   - claude/hooks/stop.sh : state file (~/.cache/claude-tts.last-transcript) 更新
+#   - karabiner/karabiner.json : Caps Lock + Z バインド
+#   - test/voice-out.bats : sanitize の自動テスト
+#   - docs/superpowers/specs/2026-06-22-claude-tts-design.md : 設計書
 
 VOICE="${CLAUDE_TTS_VOICE:-Kyoko}"
 RATE="${CLAUDE_TTS_RATE:-180}"
