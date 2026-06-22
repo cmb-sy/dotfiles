@@ -18,6 +18,39 @@ log() {
     printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*" >> /tmp/voice-out.log
 }
 
+# --- sanitize: markdown を素読みできる平文へ変換 ---
+sanitize() {
+  printf '%s' "$1" \
+    | /usr/bin/awk '
+        BEGIN { inc = 0 }
+        /^```/ {
+          if (inc == 0) { inc = 1 }
+          else          { inc = 0; print "コードブロック省略。" }
+          next
+        }
+        inc == 0 { print }
+      ' \
+    | /usr/bin/awk '
+        BEGIN { in_tbl = 0 }
+        /^\|.*\|$/ {
+          if (in_tbl == 0) { print "表省略。"; in_tbl = 1 }
+          next
+        }
+        { in_tbl = 0; print }
+      ' \
+    | /usr/bin/sed -E 's|https?://[^[:space:]]+|リンク。|g' \
+    | /usr/bin/sed -E 's/^#+[[:space:]]*//' \
+    | /usr/bin/sed -E 's/^[[:space:]]*[-*][[:space:]]+//' \
+    | /usr/bin/sed -E 's/\*\*([^*]+)\*\*/\1/g' \
+    | /usr/bin/sed -E 's/`([^`]+)`/\1/g' \
+    | /usr/bin/sed -E 's/^>[[:space:]]*//' \
+    | /usr/bin/awk '
+        BEGIN { blank = 0 }
+        /^$/ { blank++; if (blank <= 1) print; next }
+        { blank = 0; print }
+      '
+}
+
 # --- トグル判定: 既に say が走っていれば kill して終了 ---
 if /usr/bin/pgrep -x say >/dev/null 2>&1; then
   log "say already running, killing (toggle off)"
@@ -52,6 +85,9 @@ case "${1:-}" in
 esac
 
 [ -z "$TEXT" ] && { log "empty text"; exit 0; }
+
+TEXT="$(sanitize "$TEXT")"
+[ -z "$TEXT" ] && { log "sanitized to empty"; exit 0; }
 
 log "speaking: ${TEXT:0:80}..."
 printf '%s' "$TEXT" | /usr/bin/say -v "$VOICE" -r "$RATE" &
