@@ -94,8 +94,11 @@ case "${1:-}" in
     TEXT="$(extract_latest_assistant "$TRANSCRIPT")"
     ;;
   "")
-    log "no args (state file path not yet implemented)"
-    exit 0
+    STATE_FILE="$HOME/.cache/claude-tts.last-transcript"
+    [ -f "$STATE_FILE" ] || { log "state file not found"; exit 0; }
+    TRANSCRIPT="$(cat "$STATE_FILE" 2>/dev/null)"
+    [ -z "$TRANSCRIPT" ] || [ ! -f "$TRANSCRIPT" ] && { log "transcript invalid: $TRANSCRIPT"; exit 0; }
+    TEXT="$(extract_latest_assistant "$TRANSCRIPT")"
     ;;
   *)
     log "unknown arg: $1"
