@@ -51,6 +51,20 @@ sanitize() {
       '
 }
 
+# --- 末尾 assistant ターンの text ブロックを抽出 ---
+extract_latest_assistant() {
+  local transcript="$1"
+  [ -f "$transcript" ] || { log "transcript not found: $transcript"; return 1; }
+  /usr/bin/tail -n 200 "$transcript" 2>/dev/null \
+    | /usr/bin/jq -rs '
+        map(select(.type == "assistant"))
+        | last
+        | (.message.content // [])
+        | map(select(.type == "text") | .text)
+        | join("\n\n")
+      ' 2>/dev/null
+}
+
 # --- トグル判定: 既に say が走っていれば kill して終了 ---
 if /usr/bin/pgrep -x say >/dev/null 2>&1; then
   log "say already running, killing (toggle off)"
@@ -68,11 +82,16 @@ if /usr/bin/pgrep -x handy >/dev/null 2>&1; then
   exit 0
 fi
 
-# --- 引数解析 (Task 1 では --text のみ対応) ---
+# --- 引数解析 ---
 TEXT=""
 case "${1:-}" in
   --text)
     TEXT="${2:-}"
+    ;;
+  --transcript)
+    TRANSCRIPT="${2:-}"
+    [ -z "$TRANSCRIPT" ] && { log "--transcript needs path"; exit 0; }
+    TEXT="$(extract_latest_assistant "$TRANSCRIPT")"
     ;;
   "")
     log "no args (state file path not yet implemented)"
