@@ -111,5 +111,10 @@ esac
 TEXT="$(sanitize "$TEXT")"
 [ -z "$TEXT" ] && { log "sanitized to empty"; exit 0; }
 
+if [ ${#TEXT} -gt $MAX_CHARS ]; then
+  log "text too long (${#TEXT} chars), truncating to $MAX_CHARS"
+  TEXT="${TEXT:0:$MAX_CHARS}。以下、省略します。"
+fi
+
 log "speaking: ${TEXT:0:80}..."
 printf '%s' "$TEXT" | /usr/bin/say -v "$VOICE" -r "$RATE" &
