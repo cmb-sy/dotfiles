@@ -56,7 +56,7 @@ extract_latest_assistant() {
   local transcript="$1"
   [ -f "$transcript" ] || { log "transcript not found: $transcript"; return 1; }
   /usr/bin/tail -n 200 "$transcript" 2>/dev/null \
-    | /usr/bin/jq -rs '
+    | /opt/homebrew/bin/jq -rs '
         map(select(.type == "assistant"))
         | last
         | (.message.content // [])
