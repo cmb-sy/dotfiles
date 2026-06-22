@@ -1,0 +1,40 @@
+#!/bin/bash
+# Speak the most recent Claude Code assistant turn via macOS say.
+#
+# Modes:
+#   voice-out                     stdin: hook JSON (Stop hook 経由)
+#                                 引数なし: state file から transcript path を読む
+#   voice-out --text "..."        渡された text をそのまま say (sanitize はかける)
+#   voice-out --transcript PATH   指定 transcript JSONL の末尾 assistant ターンを抽出
+#
+# 失敗は silent (best-effort)。CLAUDE_TTS_DEBUG=1 で /tmp/voice-out.log に詳細を吐く。
+
+VOICE="${CLAUDE_TTS_VOICE:-Kyoko}"
+RATE="${CLAUDE_TTS_RATE:-220}"
+MAX_CHARS=50000
+
+log() {
+  [ -n "$CLAUDE_TTS_DEBUG" ] && \
+    printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*" >> /tmp/voice-out.log
+}
+
+# --- 引数解析 (Task 1 では --text のみ対応) ---
+TEXT=""
+case "${1:-}" in
+  --text)
+    TEXT="${2:-}"
+    ;;
+  "")
+    log "no args (state file path not yet implemented)"
+    exit 0
+    ;;
+  *)
+    log "unknown arg: $1"
+    exit 0
+    ;;
+esac
+
+[ -z "$TEXT" ] && { log "empty text"; exit 0; }
+
+log "speaking: ${TEXT:0:80}..."
+printf '%s' "$TEXT" | /usr/bin/say -v "$VOICE" -r "$RATE" &
