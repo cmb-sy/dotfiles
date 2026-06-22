@@ -18,6 +18,13 @@ log() {
     printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*" >> /tmp/voice-out.log
 }
 
+# --- トグル判定: 既に say が走っていれば kill して終了 ---
+if /usr/bin/pgrep -x say >/dev/null 2>&1; then
+  log "say already running, killing (toggle off)"
+  /usr/bin/pkill -x say 2>/dev/null
+  exit 0
+fi
+
 # --- 引数解析 (Task 1 では --text のみ対応) ---
 TEXT=""
 case "${1:-}" in
