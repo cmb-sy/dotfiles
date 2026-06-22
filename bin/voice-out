@@ -10,7 +10,7 @@
 # 失敗は silent (best-effort)。CLAUDE_TTS_DEBUG=1 で /tmp/voice-out.log に詳細を吐く。
 
 VOICE="${CLAUDE_TTS_VOICE:-Kyoko}"
-RATE="${CLAUDE_TTS_RATE:-220}"
+RATE="${CLAUDE_TTS_RATE:-180}"
 MAX_CHARS=50000
 
 log() {
