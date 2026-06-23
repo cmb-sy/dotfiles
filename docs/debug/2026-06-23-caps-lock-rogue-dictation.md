@@ -49,13 +49,14 @@ killall cfprefsd
 
 OS 設定 (`~/Library/Preferences/` 配下) のため git 管理外。マシンセットアップ時に再適用する場合は本ファイルを参照。
 
-### Fix B: voice-toggle の defensive 化
-両方不在時に勝手にアプリを起動せず、通知を出して silent skip。voice-switch コマンドでの明示的な engine 選択を促す。
+### Fix B: voice-toggle の defensive 化 (★ user 判断で revert 済み)
 
-新:
+当初は両方不在時に通知 + silent skip にしたが、user 確認の結果「Typeless が起動していない時は Handy を起動してほしい」が意図された動作と判明。Fix A (Dictation OFF) で根本原因が解消されているため、Handy フォールバックは無罪。voice-toggle は元の `open -a Handy` フォールバックロジックに戻した。
+
+採用された最終形 (元のロジック維持):
 ```bash
 if ! /usr/bin/pgrep -x handy >/dev/null 2>&1; then
-  /usr/bin/osascript -e 'display notification "音声入力アプリが起動していません。voice-switch ja / en / cloud / typeless で起動してください。" with title "voice-toggle"' >/dev/null 2>&1
+  /usr/bin/open -a Handy
   exit 0
 fi
 ```
@@ -63,7 +64,7 @@ fi
 ## 再発防止策
 
 - 新規 Mac セットアップ時に `setup/` 系で Dictation を明示的に OFF にする (TODO: setup スクリプトに追記検討)
-- voice-toggle のロジックを「自動でアプリを起こさない」原則に統一 (本 fix で完了)
+- voice-toggle の Handy フォールバックは意図的に維持。根本原因は OS 側 Dictation だったので、voice-toggle 側の防御策は不要
 
 ## 関連
 
