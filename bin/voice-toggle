@@ -4,7 +4,9 @@
 # Virtual HID 経由で F18 を直接 emit するため、本来このスクリプトは呼ばれない。
 #
 # - Handy が起動中: handy --toggle-post-process
-# - Handy が停止中: open -a Handy (録音はしない)
+# - Handy が停止中: silent skip + 通知 (勝手に open -a Handy しない。user が Typeless 派の
+#   場合に意図せず Handy が立ち上がる事故を防ぐ。voice-switch ja/en/cloud/typeless での
+#   明示的な起動を促す)
 # - Typeless が起動中なのにこのスクリプトに到達した場合:
 #   karabiner_grabber の再起動などで voice_engine variable が揮発した状態。
 #   variable=typeless を復帰させて次回押下から正規ルート (Virtual HID 経由 F18 emit)
@@ -24,7 +26,9 @@ if /usr/bin/pgrep -f "$TYPELESS_BIN_DIR" >/dev/null 2>&1; then
 fi
 
 if ! /usr/bin/pgrep -x handy >/dev/null 2>&1; then
-  /usr/bin/open -a Handy
+  # Handy も Typeless も不在 → 勝手にアプリを起動しない。voice-switch コマンドでの
+  # 明示的な engine 選択を促す通知を出して silent skip。
+  /usr/bin/osascript -e 'display notification "音声入力アプリが起動していません。voice-switch ja / en / cloud / typeless で起動してください。" with title "voice-toggle"' >/dev/null 2>&1
   exit 0
 fi
 
