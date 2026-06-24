@@ -10,10 +10,22 @@
                 "keyboard_type_v2": "jis"
             },
             "complex_modifications": {
-                "parameters": {
-                    "basic.simultaneous_threshold_milliseconds": 200
-                },
                 "rules": [
+                    {
+                        "description": "F1 → voice-out (直前の Claude 応答を再生/停止トグル)",
+                        "manipulators": [
+                            {
+                                "type": "basic",
+                                "from": {
+                                    "key_code": "f1",
+                                    "modifiers": { "optional": ["any"] }
+                                },
+                                "to": [
+                                    { "shell_command": "/Users/snakashima/dotfiles/bin/voice-out" }
+                                ]
+                            }
+                        ]
+                    },
                     {
                         "description": "Caps Lock -> voice input toggle. Typeless モード時は Virtual HID 経由で F18 を直接 emit (synthetic key 拒否を回避)、Handy モード時は bin/voice-toggle 経由。エンジン切替は voice-switch が karabiner_cli --set-variables で voice_engine を更新する。",
                         "manipulators": [
@@ -76,27 +88,6 @@
                                 },
                                 "to": [
                                     { "shell_command": "/Users/snakashima/dotfiles/bin/ai-format" }
-                                ]
-                            }
-                        ]
-                    },
-                    {
-                        "description": "Caps Lock + Z → voice-out (直前の Claude 応答を再生/停止トグル)",
-                        "manipulators": [
-                            {
-                                "type": "basic",
-                                "from": {
-                                    "simultaneous": [
-                                        { "key_code": "caps_lock" },
-                                        { "key_code": "z" }
-                                    ],
-                                    "simultaneous_options": {
-                                        "key_down_order": "strict",
-                                        "to_after_key_up": []
-                                    }
-                                },
-                                "to": [
-                                    { "shell_command": "/Users/snakashima/dotfiles/bin/voice-out" }
                                 ]
                             }
                         ]

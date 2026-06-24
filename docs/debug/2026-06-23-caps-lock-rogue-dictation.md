@@ -63,24 +63,46 @@ launchctl disable gui/$(id -u)/com.apple.assistant.dictation
 
 OS 設定 (`~/Library/Preferences/` 配下) のため git 管理外。マシンセットアップ時に再適用する場合は本ファイルを参照。
 
-### Fix C: Karabiner simultaneous timeout を 200ms に延長 (2026-06-24 追加)
+### Fix C: voice-out のトリガーを `F1` 単独キーに変更 (2026-06-24 追加)
 
-`Caps Lock + Z → voice-out` の同時押し判定 threshold が default 50ms と短すぎて、人間の押下リズムで単独 Caps Lock として処理されることがあった。これにより:
-- F18 emit (Typeless モード時) と並行して Dictation が発火
-- voice-out が呼ばれない
+`Caps Lock + Z` の simultaneous バインドは 2 つの問題を抱えていた:
+1. **同時押し threshold の調整が必要** — default 50ms は短く、人間の押下リズムで取りこぼされる
+2. **Typeless 競合 check で silent skip** — Caps Lock + Z が正しく発火しても、voice-out が Typeless 起動中を検知して exit 0 してしまい、結果として「何も起こらない」状態に
 
-**修正**: `karabiner/karabiner.json` の profile に parameter を追加:
+複合的な簡素化として、トリガーを `F1` 単独キーに変更し、競合 check を削除:
 
+#### Karabiner: `F1 → voice-out`
 ```json
-"complex_modifications": {
-    "parameters": {
-        "basic.simultaneous_threshold_milliseconds": 200
-    },
-    "rules": [ ... ]
+{
+    "description": "F1 → voice-out (直前の Claude 応答を再生/停止トグル)",
+    "manipulators": [
+        {
+            "type": "basic",
+            "from": { "key_code": "f1", "modifiers": { "optional": ["any"] } },
+            "to": [ { "shell_command": "/Users/snakashima/dotfiles/bin/voice-out" } ]
+        }
+    ]
 }
 ```
 
-200ms 以内に Caps Lock → Z を押下すれば voice-out が起動。それ以上の間隔だと単独 Caps Lock として処理される (既存挙動)。
+- 単独キーなので simultaneous threshold 不要 → `parameters` ブロックも削除
+- Caps Lock 系ルールと完全に独立。並行発火・競合なし
+- macOS 標準では F1 = 画面輝度下げ。Karabiner で `f1` を捕まえることでメディアキー機能をオーバーライド
+
+#### voice-out: Typeless / Handy 競合 check 削除
+
+```bash
+# 旧: 競合 check で silent skip
+if /usr/bin/pgrep -f "/Applications/Typeless.app/Contents/MacOS/" >/dev/null 2>&1; then
+  log "Typeless running, skipping to avoid feedback loop"
+  exit 0
+fi
+
+# 新: Typeless/Handy 起動中でも読み上げ続行
+# feedback loop はヘッドホン使用で防ぐ運用に変更
+```
+
+**Feedback loop の懸念**: TTS 出力 → スピーカー → マイク → 録音アプリ誤認識のリスクは残るが、Typeless/Handy を使う user は通常ヘッドホン or 静音環境で作業しているため許容範囲。スピーカー出力で feedback loop が観測されたら、TTS 専用の出力デバイス (例: USB ヘッドホン) を選ぶか、再度競合 check を入れる。
 
 ### Fix B: voice-toggle の defensive 化 (★ user 判断で revert 済み)
 

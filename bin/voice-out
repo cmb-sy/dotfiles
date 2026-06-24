@@ -1,7 +1,7 @@
 #!/bin/bash
 # voice-out — Claude Code の直前応答を macOS say (Kyoko) で読み上げる。
 #
-# 通常起動 (Karabiner: Caps Lock + Z 経由):
+# 通常起動 (Karabiner: F1 経由):
 #   /Users/snakashima/dotfiles/bin/voice-out
 #     → ~/.cache/claude-tts.last-transcript から transcript_path を読み、
 #       末尾 assistant の text ブロックを sanitize して say に流す。
@@ -11,7 +11,7 @@
 #   voice-out --transcript PATH   指定 transcript JSONL の末尾 assistant を抽出
 #
 # トグル: 既に say が走っていれば pkill して exit 0 (同じキーで再生/停止)
-# 競合: Typeless / Handy 起動中は silent skip (feedback loop 防止)
+# 競合: Typeless / Handy 起動中でも読み上げ続行 (feedback loop 防止は要ヘッドホン)
 # 失敗: best-effort、stdout/stderr は静か。CLAUDE_TTS_DEBUG=1 で /tmp/voice-out.log
 #
 # 環境変数:
@@ -88,15 +88,9 @@ if /usr/bin/pgrep -x say >/dev/null 2>&1; then
   exit 0
 fi
 
-# --- 競合 check: Typeless / Handy が握っている時は silent skip ---
-if /usr/bin/pgrep -f "/Applications/Typeless.app/Contents/MacOS/" >/dev/null 2>&1; then
-  log "Typeless running, skipping to avoid feedback loop"
-  exit 0
-fi
-if /usr/bin/pgrep -x handy >/dev/null 2>&1; then
-  log "Handy running, skipping to avoid feedback loop"
-  exit 0
-fi
+# Typeless / Handy 起動中でも読み上げを継続する設計とする。
+# feedback loop (TTS → スピーカー → マイク → 録音アプリの誤認識) を防ぐには
+# ヘッドホン使用を推奨。詳細は docs/debug/2026-06-23-caps-lock-rogue-dictation.md。
 
 # --- 引数解析 ---
 TEXT=""
