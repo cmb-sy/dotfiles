@@ -10,6 +10,9 @@
                 "keyboard_type_v2": "jis"
             },
             "complex_modifications": {
+                "parameters": {
+                    "basic.simultaneous_threshold_milliseconds": 200
+                },
                 "rules": [
                     {
                         "description": "Caps Lock -> voice input toggle. Typeless モード時は Virtual HID 経由で F18 を直接 emit (synthetic key 拒否を回避)、Handy モード時は bin/voice-toggle 経由。エンジン切替は voice-switch が karabiner_cli --set-variables で voice_engine を更新する。",
