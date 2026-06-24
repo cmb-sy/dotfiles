@@ -17,11 +17,15 @@
 # 失敗: best-effort、stdout/stderr は静か。CLAUDE_TTS_DEBUG=1 で /tmp/voice-out.log
 #
 # 環境変数:
-#   CLAUDE_TTS_VOICE     default: Kyoko (say -v で利用可能なボイス名)
-#   CLAUDE_TTS_RATE      default: 180 wpm
-#   CLAUDE_TTS_DEBUG     set to 1 で詳細ログを /tmp/voice-out.log へ
-#   CLAUDE_TTS_SUMMARIZE default: 1 (要約を ON)、0 にすると全文読み (--full と同等)
-#   CLAUDE_TTS_MODEL     default: haiku (claude -p のモデル alias)
+#   CLAUDE_TTS_VOICE              default: Kyoko (say フォールバック時のボイス名)
+#   CLAUDE_TTS_RATE               default: 180 wpm (say フォールバック時の話速)
+#   CLAUDE_TTS_DEBUG              set to 1 で詳細ログを /tmp/voice-out.log へ
+#   CLAUDE_TTS_SUMMARIZE          default: 1 (要約 ON)、0 で全文読み (--full と同等)
+#   CLAUDE_TTS_MODEL              default: haiku (claude -p のモデル alias)
+#   CLAUDE_TTS_BACKEND            default: voicevox (voicevox / say)、未起動なら say に自動フォールバック
+#   CLAUDE_TTS_VOICEVOX_URL       default: http://localhost:50021
+#   CLAUDE_TTS_VOICEVOX_SPEAKER   default: 3 (青山龍星/低音男性)、2=春日部つむぎ、1=ずんだもん 等
+#   CLAUDE_TTS_VOICEVOX_SPEED     default: 1.0 (speedScale、0.5=遅い、1.5=速い)
 #
 # 関連:
 #   - claude/hooks/stop.sh : state file (~/.cache/claude-tts.last-transcript) 更新
@@ -34,6 +38,13 @@ RATE="${CLAUDE_TTS_RATE:-180}"
 SUMMARIZE="${CLAUDE_TTS_SUMMARIZE:-1}"
 SUMMARY_MODEL="${CLAUDE_TTS_MODEL:-haiku}"
 MAX_CHARS=50000
+
+# TTS backend: "voicevox" | "say"
+# voicevox engine が localhost:50021 で起動していれば優先利用。届かなければ say にフォールバック。
+BACKEND="${CLAUDE_TTS_BACKEND:-voicevox}"
+VOICEVOX_URL="${CLAUDE_TTS_VOICEVOX_URL:-http://localhost:50021}"
+VOICEVOX_SPEAKER="${CLAUDE_TTS_VOICEVOX_SPEAKER:-3}"  # 3 = 青山龍星(低音男性)、2 = 春日部つむぎ、1 = ずんだもん
+VOICEVOX_SPEED="${CLAUDE_TTS_VOICEVOX_SPEED:-1.0}"
 
 log() {
   [ -n "$CLAUDE_TTS_DEBUG" ] && \
@@ -71,6 +82,59 @@ sanitize() {
         /^$/ { blank++; if (blank <= 1) print; next }
         { blank = 0; print }
       '
+}
+
+# --- 発話バックエンド: VOICEVOX 経由で wav 生成 → afplay で再生 ---
+# 失敗 (engine 未起動・API エラー・空 wav) なら non-zero return で fall back させる
+speak_voicevox() {
+  local text="$1"
+  local wav
+  # engine の version エンドポイントで疎通確認 (1 秒で諦める)
+  /usr/bin/curl -s --max-time 1 "$VOICEVOX_URL/version" >/dev/null 2>&1 \
+    || { log "voicevox engine not reachable at $VOICEVOX_URL"; return 1; }
+  # audio_query: 合成パラメータを生成
+  local query
+  query=$(/usr/bin/curl -s --max-time 10 -X POST \
+    "$VOICEVOX_URL/audio_query?speaker=$VOICEVOX_SPEAKER" \
+    --get --data-urlencode "text=$text" 2>/dev/null)
+  [ -z "$query" ] && { log "voicevox audio_query failed"; return 1; }
+  # 速度調整 (speedScale)
+  query=$(printf '%s' "$query" \
+    | /opt/homebrew/bin/jq --arg s "$VOICEVOX_SPEED" '.speedScale = ($s | tonumber)' 2>/dev/null)
+  [ -z "$query" ] && { log "voicevox query patch failed"; return 1; }
+  # synthesis: wav を生成
+  wav=$(mktemp -t voicevox.XXXXXX) || return 1
+  /usr/bin/curl -s --max-time 30 -X POST \
+    "$VOICEVOX_URL/synthesis?speaker=$VOICEVOX_SPEAKER" \
+    -H "Content-Type: application/json" \
+    -d "$query" \
+    -o "$wav" 2>/dev/null
+  if [ ! -s "$wav" ]; then
+    log "voicevox synthesis empty"
+    rm -f "$wav"
+    return 1
+  fi
+  log "voicevox speak (speaker=$VOICEVOX_SPEAKER, speed=$VOICEVOX_SPEED, wav=${wav}, ${#text} chars)"
+  # afplay を background。終わったら wav を削除。
+  ( /usr/bin/afplay "$wav"; rm -f "$wav" ) &
+  return 0
+}
+
+# --- 発話: backend に応じて voicevox or say を呼ぶ ---
+speak() {
+  local text="$1"
+  if [ "$BACKEND" = "voicevox" ]; then
+    speak_voicevox "$text" && return 0
+    log "falling back to say"
+  fi
+  # フォールバック (もしくは BACKEND=say) → macOS say
+  printf '%s' "$text" | /usr/bin/say -v "$VOICE" -r "$RATE" &
+}
+
+# --- 走行中の発話プロセスを kill (say + afplay 両対応) ---
+kill_speaking() {
+  /usr/bin/pkill -x say 2>/dev/null
+  /usr/bin/pkill -x afplay 2>/dev/null
 }
 
 # --- summarize: Claude 応答を音声向けに 30 秒で読める要約に整形 ---
@@ -127,10 +191,10 @@ extract_latest_assistant() {
       ' 2>/dev/null
 }
 
-# --- トグル判定: 既に say が走っていれば kill して終了 ---
-if /usr/bin/pgrep -x say >/dev/null 2>&1; then
-  log "say already running, killing (toggle off)"
-  /usr/bin/pkill -x say 2>/dev/null
+# --- トグル判定: 既に say or afplay が走っていれば kill して終了 ---
+if /usr/bin/pgrep -x say >/dev/null 2>&1 || /usr/bin/pgrep -x afplay >/dev/null 2>&1; then
+  log "speaking process already running, killing (toggle off)"
+  kill_speaking
   exit 0
 fi
 
@@ -190,5 +254,5 @@ if [ ${#TEXT} -gt $MAX_CHARS ]; then
   TEXT="${TEXT:0:$MAX_CHARS}。以下、省略します。"
 fi
 
-log "speaking: ${TEXT:0:80}..."
-printf '%s' "$TEXT" | /usr/bin/say -v "$VOICE" -r "$RATE" &
+log "speaking (backend=$BACKEND): ${TEXT:0:80}..."
+speak "$TEXT"
