@@ -104,6 +104,44 @@ fi
 
 **Feedback loop の懸念**: TTS 出力 → スピーカー → マイク → 録音アプリ誤認識のリスクは残るが、Typeless/Handy を使う user は通常ヘッドホン or 静音環境で作業しているため許容範囲。スピーカー出力で feedback loop が観測されたら、TTS 専用の出力デバイス (例: USB ヘッドホン) を選ぶか、再度競合 check を入れる。
 
+### Fix D: voice-out に「claude -p 要約」モードを追加 (2026-06-24 追加)
+
+「Claude の応答全文を Kyoko で読み上げると長すぎ・聴き取りにくい」という user 報告を受け、voice-out のデフォルト挙動を「要約読み上げ」に変更。
+
+#### 設計
+
+- F1 押下 → voice-out 引数なし起動 → state file から transcript path 解決 → 末尾 assistant 抽出 → `claude -p --model haiku` で「音声 30 秒・要点 2-3 文・記号 URL 除外」のプロンプトで要約 → sanitize → say
+- 失敗時 (claude CLI 不在、timeout、空応答) は元の全文 text にフォールバック (best-effort 維持)
+- 環境変数で挙動切替可能:
+  - `CLAUDE_TTS_SUMMARIZE=0` → 要約 OFF (全文読み)
+  - `CLAUDE_TTS_MODEL=sonnet` → モデル変更 (default: haiku)
+- 引数モード:
+  - `voice-out` (引数なし) → 要約読み上げ (デフォルト)
+  - `voice-out --full` → state file から transcript を取り、要約せず全文読み
+  - `voice-out --text "..."` → 渡されたテキストをそのまま (要約 skip)
+  - `voice-out --transcript PATH` → 指定 transcript の末尾 assistant を要約読み
+
+#### 要約プロンプト
+
+```
+以下は Claude Code が返した応答です。これを音声 (text-to-speech) で 30 秒程度で
+聞けるよう、日本語の要点 2-3 文に整形してください。
+
+制約:
+- コード片・記号・URL・ファイルパス・コミットハッシュは読まない
+- 「を実行しました」「を修正しました」のような体言止め/結果中心の表現を使う
+- 一文を短く保ち、句読点を多めに置く
+- 出力は要約のみ。前置きや見出しは付けない
+---
+<本文>
+```
+
+#### コスト・遅延
+
+- claude -p (haiku) の起動 + inference で 3-10 秒の遅延が出る
+- usage は haiku なので比較的軽い (1 回数百 token)
+- 嫌なら `CLAUDE_TTS_SUMMARIZE=0` を .zshrc に書けば旧挙動 (全文読み) に戻る
+
 ### Fix B: voice-toggle の defensive 化 (★ user 判断で revert 済み)
 
 当初は両方不在時に通知 + silent skip にしたが、user 確認の結果「Typeless が起動していない時は Handy を起動してほしい」が意図された動作と判明。Fix A (Dictation OFF) で根本原因が解消されているため、Handy フォールバックは無罪。voice-toggle は元の `open -a Handy` フォールバックロジックに戻した。

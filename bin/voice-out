@@ -1,32 +1,38 @@
 #!/bin/bash
 # voice-out — Claude Code の直前応答を macOS say (Kyoko) で読み上げる。
+# デフォルトは「claude -p で音声向けに要約してから say」。--full で従来の全文読み。
 #
 # 通常起動 (Karabiner: F1 経由):
 #   /Users/snakashima/dotfiles/bin/voice-out
-#     → ~/.cache/claude-tts.last-transcript から transcript_path を読み、
-#       末尾 assistant の text ブロックを sanitize して say に流す。
+#     → state file から transcript path を読み、末尾 assistant ターンを抽出 →
+#       claude -p (haiku) で 30 秒程度の要約に整形 → sanitize → say
 #
-# 手動デバッグ:
+# 手動デバッグ / モード切替:
 #   voice-out --text "..."        渡された text をそのまま (sanitize あり) say
-#   voice-out --transcript PATH   指定 transcript JSONL の末尾 assistant を抽出
+#   voice-out --transcript PATH   指定 transcript JSONL の末尾 assistant を要約 say
+#   voice-out --full              要約せず全文を sanitize して say (旧挙動)
 #
 # トグル: 既に say が走っていれば pkill して exit 0 (同じキーで再生/停止)
 # 競合: Typeless / Handy 起動中でも読み上げ続行 (feedback loop 防止は要ヘッドホン)
 # 失敗: best-effort、stdout/stderr は静か。CLAUDE_TTS_DEBUG=1 で /tmp/voice-out.log
 #
 # 環境変数:
-#   CLAUDE_TTS_VOICE   default: Kyoko
-#   CLAUDE_TTS_RATE    default: 180 wpm
-#   CLAUDE_TTS_DEBUG   set to 1 で詳細ログを /tmp/voice-out.log へ
+#   CLAUDE_TTS_VOICE     default: Kyoko (say -v で利用可能なボイス名)
+#   CLAUDE_TTS_RATE      default: 180 wpm
+#   CLAUDE_TTS_DEBUG     set to 1 で詳細ログを /tmp/voice-out.log へ
+#   CLAUDE_TTS_SUMMARIZE default: 1 (要約を ON)、0 にすると全文読み (--full と同等)
+#   CLAUDE_TTS_MODEL     default: haiku (claude -p のモデル alias)
 #
 # 関連:
 #   - claude/hooks/stop.sh : state file (~/.cache/claude-tts.last-transcript) 更新
-#   - karabiner/karabiner.json : Caps Lock + Z バインド
+#   - karabiner/karabiner.json : F1 → voice-out バインド
 #   - test/voice-out.bats : sanitize の自動テスト
 #   - docs/superpowers/specs/2026-06-22-claude-tts-design.md : 設計書
 
 VOICE="${CLAUDE_TTS_VOICE:-Kyoko}"
 RATE="${CLAUDE_TTS_RATE:-180}"
+SUMMARIZE="${CLAUDE_TTS_SUMMARIZE:-1}"
+SUMMARY_MODEL="${CLAUDE_TTS_MODEL:-haiku}"
 MAX_CHARS=50000
 
 log() {
@@ -67,6 +73,38 @@ sanitize() {
       '
 }
 
+# --- summarize: Claude 応答を音声向けに 30 秒で読める要約に整形 ---
+# 失敗 (claude CLI 不在、timeout、空応答) 時は元の text をそのまま返す (best-effort)。
+summarize_for_voice() {
+  local input="$1"
+  local claude_bin
+  claude_bin="$(/usr/bin/which claude 2>/dev/null)"
+  [ -x "$claude_bin" ] || { log "claude CLI not found, skipping summary"; printf '%s' "$input"; return; }
+
+  local prompt="以下は Claude Code が返した応答です。これを音声 (text-to-speech) で 30 秒程度で聞けるよう、日本語の要点 2-3 文に整形してください。
+
+制約:
+- コード片・記号・URL・ファイルパス・コミットハッシュは読まない
+- 「を実行しました」「を修正しました」のような体言止め/結果中心の表現を使う
+- 一文を短く保ち、句読点を多めに置く
+- 出力は要約のみ。前置きや見出しは付けない
+
+---
+$input"
+
+  local out
+  out=$(printf '%s' "$prompt" \
+    | "$claude_bin" -p --model "$SUMMARY_MODEL" 2>/dev/null)
+
+  if [ -z "$out" ]; then
+    log "summary empty, falling back to original text"
+    printf '%s' "$input"
+  else
+    log "summary ok (${#out} chars)"
+    printf '%s' "$out"
+  fi
+}
+
 # --- 末尾 assistant ターンの text ブロックを抽出 ---
 extract_latest_assistant() {
   local transcript="$1"
@@ -97,11 +135,21 @@ TEXT=""
 case "${1:-}" in
   --text)
     TEXT="${2:-}"
+    SUMMARIZE=0   # 直接渡されたテキストは要約せず読み上げ (デバッグ・任意発話用)
     ;;
   --transcript)
     TRANSCRIPT="${2:-}"
     [ -z "$TRANSCRIPT" ] && { log "--transcript needs path"; exit 0; }
     TEXT="$(extract_latest_assistant "$TRANSCRIPT")"
+    ;;
+  --full)
+    STATE_FILE="$HOME/.cache/claude-tts.last-transcript"
+    [ -f "$STATE_FILE" ] || { log "state file not found"; exit 0; }
+    TRANSCRIPT="$(cat "$STATE_FILE" 2>/dev/null)"
+    [ -z "$TRANSCRIPT" ] && { log "transcript path empty"; exit 0; }
+    [ -f "$TRANSCRIPT" ] || { log "transcript not found: $TRANSCRIPT"; exit 0; }
+    TEXT="$(extract_latest_assistant "$TRANSCRIPT")"
+    SUMMARIZE=0   # --full は要約 OFF を強制
     ;;
   "")
     STATE_FILE="$HOME/.cache/claude-tts.last-transcript"
@@ -118,6 +166,13 @@ case "${1:-}" in
 esac
 
 [ -z "$TEXT" ] && { log "empty text"; exit 0; }
+
+# 要約モードなら claude -p で 30 秒分に整形。失敗時は元 text を温存
+if [ "$SUMMARIZE" = "1" ]; then
+  log "summarizing for voice (model=$SUMMARY_MODEL, source=${#TEXT} chars)"
+  TEXT="$(summarize_for_voice "$TEXT")"
+  [ -z "$TEXT" ] && { log "summary returned empty"; exit 0; }
+fi
 
 TEXT="$(sanitize "$TEXT")"
 [ -z "$TEXT" ] && { log "sanitized to empty"; exit 0; }
