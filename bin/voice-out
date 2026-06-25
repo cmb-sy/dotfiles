@@ -24,7 +24,8 @@
 #   CLAUDE_TTS_MODEL              default: haiku (claude -p のモデル alias)
 #   CLAUDE_TTS_BACKEND            default: voicevox (voicevox / say)、未起動なら say に自動フォールバック
 #   CLAUDE_TTS_VOICEVOX_URL       default: http://localhost:50021
-#   CLAUDE_TTS_VOICEVOX_SPEAKER   default: 3 (青山龍星/低音男性)、2=春日部つむぎ、1=ずんだもん 等
+#   CLAUDE_TTS_VOICEVOX_SPEAKER   default: 8 (春日部つむぎ・ノーマル)、3=ずんだもん、13=青山龍星 等
+#                                  正確な ID は engine 起動後 `curl -s localhost:50021/speakers | jq` で確認
 #   CLAUDE_TTS_VOICEVOX_SPEED     default: 1.0 (speedScale、0.5=遅い、1.5=速い)
 #
 # 関連:
@@ -43,7 +44,7 @@ MAX_CHARS=50000
 # voicevox engine が localhost:50021 で起動していれば優先利用。届かなければ say にフォールバック。
 BACKEND="${CLAUDE_TTS_BACKEND:-voicevox}"
 VOICEVOX_URL="${CLAUDE_TTS_VOICEVOX_URL:-http://localhost:50021}"
-VOICEVOX_SPEAKER="${CLAUDE_TTS_VOICEVOX_SPEAKER:-3}"  # 3 = 青山龍星(低音男性)、2 = 春日部つむぎ、1 = ずんだもん
+VOICEVOX_SPEAKER="${CLAUDE_TTS_VOICEVOX_SPEAKER:-8}"  # 8 = 春日部つむぎ(ノーマル)、3 = ずんだもん、13 = 青山龍星 等。engine 起動後に /speakers で正確値確認
 VOICEVOX_SPEED="${CLAUDE_TTS_VOICEVOX_SPEED:-1.0}"
 
 log() {
