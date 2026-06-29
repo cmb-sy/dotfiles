@@ -163,6 +163,7 @@
       "WebFetch(domain:*)",
       "Edit",
       "Write",
+      "mcp__*",
       "mcp__pencil"
     ],
     "deny": [
@@ -328,5 +329,6 @@
   },
   "effortLevel": "xhigh",
   "skipDangerousModePermissionPrompt": true,
-  "preferredNotifChannel": "terminal_bell"
+  "preferredNotifChannel": "terminal_bell",
+  "agentPushNotifEnabled": true
 }
