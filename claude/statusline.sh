@@ -88,9 +88,9 @@ eval "$(echo "$input" | jq -r '
   @sh "MODE=\(.output_style.name // .agent.name // "")",
   @sh "EFFORT=\(.effort.level // "medium")",
   @sh "WORKTREE=\(.worktree.name // "")",
-  @sh "U5_PCT=\(.rate_limits.five_hour.used_percentage // "")",
+  @sh "U5_PCT=\((.rate_limits.five_hour.used_percentage | floor?) // "")",
   @sh "R5_TS=\(.rate_limits.five_hour.resets_at // "")",
-  @sh "U7_PCT=\(.rate_limits.seven_day.used_percentage // "")",
+  @sh "U7_PCT=\((.rate_limits.seven_day.used_percentage | floor?) // "")",
   @sh "R7_TS=\(.rate_limits.seven_day.resets_at // "")"
 ' 2>/dev/null)"
 
@@ -136,6 +136,9 @@ fi
 # (個別の used_percentage や resets_at が欠けても "--%" で穴埋め)。
 # Claude Code はリセット直後など特定状況で片方を省略するケースがあり、
 # 「片方しか出ない」と紛らわしいので明示的に両方表示する設計とする。
+#
+# used_percentage は float で来るため jq 側で floor して整数化する
+# (bash の is_int チェックが小数点で false を返してしまうのを回避)。
 # ==============================================================================
 
 sec_limits=""

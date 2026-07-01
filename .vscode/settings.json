@@ -13,6 +13,9 @@
   "workbench.colorTheme": "Atom One Dark",
 
   // Git
+  "git.ignoredRepositories": [
+    "/Users/snakashima/develop/aiTaskForce/arm-claude-code/.claude/worktrees/exec-demo"
+  ],
   "git.confirmSync": false,
   "githubPullRequests.pullBranch": "never",
 

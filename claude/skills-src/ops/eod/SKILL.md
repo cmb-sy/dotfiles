@@ -15,9 +15,30 @@ user-invocable: true
 
 ## 実行フロー
 
+### Step 0: スキップ対象の対話確認（必須・最初に実施）
+
+**起動直後・他のステップに着手する前に必ず実施する**。`AskUserQuestion` で multiSelect の質問を1問だけ提示し、ユーザーがスキップしたいステップを選択させる。
+
+- 質問文: 「スキップ対象を確認させてください。どのステップを飛ばしますか?」
+- header: `Skip対象`
+- multiSelect: `true`
+- 選択肢（順序固定。AskUserQuestion の最大 4 件制約に合わせる）:
+  1. `Step 5: generate-problem` — 本日の振り返り(過去問形式)をスキップ
+  2. `Step 4: CloudLog 自動入力` — Playwright での CloudLog 入力をスキップ(daily-log でのエントリ生成は実施)
+  3. `Step 1: Slack 収集` — 本日の Slack 発言・関与スレッド取得をスキップ
+  4. `Step 1: GitHub 収集` — 本日のコミット・PR・Issue 活動取得をスキップ
+
+Step 3(daily-log 自体のスキップ) などその他のスキップは `Other` (自由記述) で受け付ける。ユーザーが何も選択しなかった場合は「全ステップ実行」とみなす。複数選択可。選択結果は実行フロー全体で参照する。
+
+**重要**:
+- `--skip-*` 系のフラグ引数は廃止。引数で渡されてもこの質問は省略しない
+- 質問は1回だけ。Step 1 以降に進んでから「やっぱりスキップしたい」が出ても再質問せず、ユーザーが /eod を再実行する想定
+- Step 3 がスキップされた場合は Step 4(CloudLog 入力) も自動的にスキップする(エントリ未生成のため)
+- Step 1 Slack/GitHub 片方または両方がスキップされた場合、daily-log は走査したセッション情報のみで成果セクションを生成する(取得失敗とは区別し「スキップにより未取得」と完了報告に明記)
+
 ### Step 1: Slack + GitHub 情報収集（並列）
 
-以降のステップで使い回すため、最初に一括取得する。
+以降のステップで使い回すため、最初に一括取得する。Step 0 で「Step 1: Slack 収集」がスキップされた場合は Slack 取得を、「Step 1: GitHub 収集」がスキップされた場合は GitHub 取得を、それぞれスキップする(両方スキップなら Step 1 全体をスキップ)。
 
 - **Slack**: 本日の自分の発言・関与したスレッドを取得する。**取得経路は以下の優先順で必ずチェックする**:
   1. **`claude.ai Slack` MCP（最優先）** — `mcp__claude_ai_Slack__slack_search_public_and_private` を使う。`query="from:<@U07KEPWQAQN> after:{YYYY-MM-DD前日} before:{YYYY-MM-DD翌日}"`（user_id は固定）。スレッド文脈が必要な場合は `slack_read_thread`、チャンネル履歴は `slack_read_channel`
@@ -50,13 +71,17 @@ user-invocable: true
 
 ### Step 4: CloudLog 入力
 
-Playwright でブラウザを開き、Step 3 で生成したエントリを自動入力する。
+Step 0 で「Step 4」がスキップ選択されている場合は本ステップ全体をスキップし、完了報告に「CloudLog 入力: スキップ」と記録する。
+
+スキップしない場合は Playwright でブラウザを開き、Step 3 で生成したエントリを自動入力する。
 
 → 詳細は daily-log の「Step CL: CloudLog 入力実行」を参照。
 
 ### Step 5: generate-problem（振り返り）
 
-`/generate-problem` スキルに従い、本日の作業を問題形式で振り返る。
+Step 0 で「Step 5」がスキップ選択されている場合は本ステップ全体をスキップし、完了報告に「generate-problem: スキップ」と記録する。
+
+スキップしない場合は `/generate-problem` スキルに従い、本日の作業を問題形式で振り返る。
 
 - Step 3 の「今日の成果」と daily-log の内容を素材として使う（再収集しない）
 - 結果は日報と `01_quant/過去問.md` に記録される
@@ -123,6 +148,6 @@ git でコミットし、リモートへ push する。**最後に実行する**
 - github-issues: open issue 件数（cmb-sy assigned）
 - CloudLog 入力件数・合計時間
 - 走査したセッション数・除外プロジェクト
-- generate-problem 結果（正解率）
+- generate-problem 結果（正解率 / スキップ時は「スキップ」）
 - 翌日デイリー作成（作成したパス or「既に存在のためスキップ」）
 - Obsidian vault: commit ハッシュ（短縮）+ push 結果（変更なしならその旨 / push 失敗なら理由）

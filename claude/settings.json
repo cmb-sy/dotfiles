@@ -163,7 +163,6 @@
       "WebFetch(domain:*)",
       "Edit",
       "Write",
-      "mcp__*",
       "mcp__pencil"
     ],
     "deny": [
@@ -174,7 +173,7 @@
     ],
     "defaultMode": "bypassPermissions"
   },
-  "model": "opus[1m]",
+  "model": "sonnet",
   "hooks": {
     "Notification": [
       {
@@ -328,6 +327,7 @@
     }
   },
   "effortLevel": "xhigh",
+  "tui": "fullscreen",
   "skipDangerousModePermissionPrompt": true,
   "preferredNotifChannel": "terminal_bell",
   "agentPushNotifEnabled": true
