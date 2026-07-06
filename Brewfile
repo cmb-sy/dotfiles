@@ -23,6 +23,7 @@ tap 'manaflow-ai/cmux'
 # Cask
 # -----------------------------------------------------------
 cask 'google-chrome'
+cask 'ghostty'
 cask 'wezterm'
 cask 'cmux'
 cask 'cursor'
