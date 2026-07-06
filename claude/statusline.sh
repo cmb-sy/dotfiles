@@ -37,8 +37,12 @@ strip_model_suffix() {
 }
 
 # Return visible length (ANSI escape sequences stripped)
+# macOS の /usr/bin/awk (one true awk) は length() がマルチバイト非対応で
+# UTF-8 文字をバイト数のままカウントしてしまう (絵文字やNerd Font アイコンが
+# 3〜4 倍に水増しされる)。wc -m は Unicode コードポイント単位で数えるため、
+# LC_ALL を明示的に UTF-8 化した上で使う (呼び出し元の locale 未設定に依存しない)。
 visible_len() {
-  printf '%s' "$1" | sed -E 's/\x1B\[[0-9;]*[[:alpha:]]//g' | awk '{print length}'
+  printf '%s' "$1" | sed -E 's/\x1B\[[0-9;]*[[:alpha:]]//g' | LC_ALL=en_US.UTF-8 wc -m | tr -d ' '
 }
 
 # Render a progress bar: filled blocks (█) in accent color, empty slots (▒) in gray
