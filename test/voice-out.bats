@@ -11,37 +11,37 @@ setup() {
   load_voice_out
 }
 
-@test "code block を仕切り語に置換" {
+@test "replaces code block with placeholder" {
   result=$(sanitize $'```sh\necho hi\n```')
   [ "$result" = "コードブロック省略。" ]
 }
 
-@test "table を仕切り語に置換" {
+@test "replaces table with placeholder" {
   result=$(sanitize $'| a | b |\n|---|---|\n| 1 | 2 |')
   [ "$result" = "表省略。" ]
 }
 
-@test "長 URL を リンク に置換" {
+@test "replaces long URL with link placeholder" {
   result=$(sanitize "see https://github.com/example/repo/pull/12345 ok")
   [[ "$result" == *"リンク。"* ]]
 }
 
-@test "markdown 見出し記号を除去" {
+@test "strips markdown heading symbols" {
   result=$(sanitize $'# Title\n## Subtitle')
   [[ "$result" != *"#"* ]]
 }
 
-@test "bold 記号を除去し中身は残す" {
+@test "strips bold markers but keeps content" {
   result=$(sanitize "**重要**な点")
   [ "$result" = "重要な点" ]
 }
 
-@test "空入力で空出力" {
+@test "empty input produces empty output" {
   result=$(sanitize "")
   [ -z "$result" ]
 }
 
-@test "改行 3 連続以上を 2 連続に圧縮" {
+@test "collapses 3+ consecutive newlines into 2" {
   result=$(sanitize $'a\n\n\n\nb')
   [ "$result" = $'a\n\nb' ]
 }
