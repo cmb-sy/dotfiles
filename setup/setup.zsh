@@ -74,6 +74,9 @@ for name in ${DOTFILES_DIR}/.config/*; do
   name="$(basename ${name})"
   if [[ -L ${HOME}/.config/${name} ]]; then
     unlink ${HOME}/.config/${name}
+  elif [[ -e ${HOME}/.config/${name} ]]; then
+    util::warning "${HOME}/.config/${name} exists and is not a symlink; skipping (move or remove manually)"
+    continue
   fi
   ln -sfv ${DOTFILES_DIR}/.config/${name} ${HOME}/.config/${name}
 done
@@ -132,6 +135,9 @@ for name in ${DOTFILES_DIR}/terminal/*; do
   name="$(basename ${name})"
   if [[ -L ${HOME}/.config/${name} ]]; then
     unlink ${HOME}/.config/${name}
+  elif [[ -e ${HOME}/.config/${name} ]]; then
+    util::warning "${HOME}/.config/${name} exists and is not a symlink; skipping (move or remove manually)"
+    continue
   fi
   ln -sfv ${DOTFILES_DIR}/terminal/${name} ${HOME}/.config/${name}
 done

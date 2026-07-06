@@ -121,12 +121,16 @@ fi
 #----------------------------------------------------------
 util::confirm "Set up tmux config?"
 if [[ $? = 0 ]]; then
-  mkdir -p "$HOME/.config/tmux"
-  ln -sf "${REPO_DIR}/tmux/tmux.conf" "$HOME/.config/tmux/tmux.conf"
-  mkdir -p "$HOME/.local/bin"
-  ln -sf "${REPO_DIR}/tmux/sessionizer.sh" "$HOME/.local/bin/tmux-sessionizer"
-  chmod +x "${REPO_DIR}/tmux/sessionizer.sh"
-  util::info "tmux config and sessionizer linked."
+  if [[ -f "${REPO_DIR}/tmux/tmux.conf" && -f "${REPO_DIR}/tmux/sessionizer.sh" ]]; then
+    mkdir -p "$HOME/.config/tmux"
+    ln -sf "${REPO_DIR}/tmux/tmux.conf" "$HOME/.config/tmux/tmux.conf"
+    mkdir -p "$HOME/.local/bin"
+    ln -sf "${REPO_DIR}/tmux/sessionizer.sh" "$HOME/.local/bin/tmux-sessionizer"
+    chmod +x "${REPO_DIR}/tmux/sessionizer.sh"
+    util::info "tmux config and sessionizer linked."
+  else
+    util::info "Skip: tmux/tmux.conf or tmux/sessionizer.sh not found."
+  fi
 fi
 
 #----------------------------------------------------------
