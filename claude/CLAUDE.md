@@ -57,6 +57,7 @@
 
 # マルチエージェント
 
+- writing-plans 等のスキルが実行方式（例: Subagent-Driven / Inline Execution）の選択を提示する場面では、ユーザーに選ばせず自動的に Subagent-Driven を採用すること。選択肢を提示する代わりに「Subagent-Driven を使います」とだけ明言してから実行に入ること。プロジェクトを問わず適用する。
 - サブエージェントには明確なスコープと完了条件を与え、作業の重複を防ぐこと。
 - サブエージェントの結果は鵜呑みにせず、主要な出力をメインエージェントが検証すること。
 - デフォルトの分業は Research → Synthesis → Implementation → Verification とすること。
