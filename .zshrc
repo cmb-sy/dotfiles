@@ -122,9 +122,9 @@ eval "$(sheldon source)"
 eval "$(starship init zsh)"
 
 # ----------------------------------------------------------
-# PATH (before .aliases.sh so `command -v claude` sees the CLI; claude often lives in ~/.claude/local)
+# PATH (before .aliases.sh so `command -v claude` sees the CLI)
+# claude は Homebrew (/opt/homebrew/bin/claude) に一本化。他の場所にインストールしないこと
 # ----------------------------------------------------------
-export PATH="${HOME}/.claude/local:$PATH"
 export PATH="/opt/homebrew/bin:$PATH"
 export PATH="/usr/local/bin:$PATH"
 export PATH="${DOTFILES:-${HOME}/dotfiles}/bin:$PATH"   # handy-switch, dev, ai-format, help_key
