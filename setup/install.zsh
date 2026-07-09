@@ -40,6 +40,32 @@ if [[ ${FORCE} != 1 ]] && util::confirm "Apply macOS settings?"; then
 fi
 
 #----------------------------------------------------------
+# TCP keepalive tuning (企業ファイアウォールのNATアイドルタイムアウト対策)
+#
+# 詳細: docs/superpowers/specs/2026-07-09-tcp-keepalive-firewall-timeout-design.md
+# root権限が必要なため LaunchAgent ではなく LaunchDaemon。symlinkではなくコピー
+# して root:wheel 644 に設定する（launchd はplistの所有権を検証するため）。
+#----------------------------------------------------------
+util::confirm "Apply TCP keepalive tuning (企業ファイアウォールのタイムアウト対策)?"
+if [[ $? = 0 ]]; then
+  PLIST_NAME="com.snakashima.tcp-keepalive-tuning.plist"
+  SRC_PLIST="${REPO_DIR}/macos/${PLIST_NAME}"
+  DEST_PLIST="/Library/LaunchDaemons/${PLIST_NAME}"
+  if [[ -f "${SRC_PLIST}" ]]; then
+    sudo cp "${SRC_PLIST}" "${DEST_PLIST}"
+    sudo chown root:wheel "${DEST_PLIST}"
+    sudo chmod 644 "${DEST_PLIST}"
+    sudo launchctl bootstrap system "${DEST_PLIST}" 2>/dev/null \
+      || sudo launchctl load -w "${DEST_PLIST}"
+    sudo sysctl -w net.inet.tcp.keepidle=30000 net.inet.tcp.keepintvl=15000 \
+      net.inet.tcp.keepcnt=8 net.inet.tcp.always_keepalive=1
+    util::info "TCP keepalive tuning applied and persisted via LaunchDaemon."
+  else
+    util::info "Skip: macos/${PLIST_NAME} not found."
+  fi
+fi
+
+#----------------------------------------------------------
 # WezTerm
 #----------------------------------------------------------
 util::confirm "Set up WezTerm config?"

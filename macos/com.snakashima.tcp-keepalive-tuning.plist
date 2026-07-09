@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  企業ファイアウォール/NATのコネクション追跡テーブルは、無通信が続く長時間ストリーミング
+  接続（Claude Code の SSE 応答等）のエントリを通知なしに削除することがある。macOS の
+  net.inet.tcp.keepidle デフォルト値（7200秒=2時間）はこれより遥かに長く、OSのkeepaliveが
+  タイムアウト前に介入できない。ファイアウォールのタイムアウトより短い間隔でkeepaliveを
+  送ることで、テーブルエントリを保持させ「Connection closed mid-response」を防ぐ。
+
+  詳細: docs/superpowers/specs/2026-07-09-tcp-keepalive-firewall-timeout-design.md
+        （設計判断の経緯・調査結果は今後追記予定）
+
+  常時ロードする LaunchDaemon（RunAtLoad + KeepAlive=false: 起動時に1回実行して終了する）。
+  sysctl の書き込みは root 権限が必要なため LaunchAgent ではなく LaunchDaemon で実行する。
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.snakashima.tcp-keepalive-tuning</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/sh</string>
+        <string>-c</string>
+        <string>sysctl -w net.inet.tcp.keepidle=30000 &amp;&amp; sysctl -w net.inet.tcp.keepintvl=15000 &amp;&amp; sysctl -w net.inet.tcp.keepcnt=8 &amp;&amp; sysctl -w net.inet.tcp.always_keepalive=1</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/var/log/com.snakashima.tcp-keepalive-tuning.log</string>
+    <key>StandardErrorPath</key>
+    <string>/var/log/com.snakashima.tcp-keepalive-tuning.log</string>
+</dict>
+</plist>
