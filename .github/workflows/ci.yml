@@ -140,3 +140,19 @@ jobs:
             exit 1
           fi
           echo "OK: all SKILL.md have name: in frontmatter"
+
+      # ----------------------------------------------------------
+      # Step 6: .vscode/settings.json に揮発性キーが混入していないこと
+      # VS Codeが「Hide from Source Control Repositories」操作時に
+      # 絶対パス(git.ignoredRepositories)を自動書き込みすることがあり、
+      # ローカルのpre-commit hook(git/hooks/pre-commit)を経由しなかった
+      # commitがpushされた場合の最終防衛line。
+      # ----------------------------------------------------------
+      - name: Verify .vscode/settings.json has no volatile VS Code keys
+        run: |
+          set -e
+          if grep -q "git.ignoredRepositories" .vscode/settings.json; then
+            echo "FAIL: .vscode/settings.json contains git.ignoredRepositories (machine-local, leaks absolute paths)"
+            exit 1
+          fi
+          echo "OK: .vscode/settings.json has no volatile VS Code keys"
