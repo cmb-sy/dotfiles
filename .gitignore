@@ -4,7 +4,7 @@ claude/package.json
 claude/package-lock.json
 
 # Local-only learning notes
-docs/learnings/
+docs/
 
 # pptx-dev: python venv + per-session artifacts
 claude/skills-src/tools/pptx-dev/scripts/.venv/
