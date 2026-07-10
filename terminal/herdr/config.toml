@@ -1,3 +1,12 @@
+[keys]
+# Direct chords injected by Ghostty cmd shortcuts (terminal/ghostty/keybindings.conf).
+# herdr forwards F1..F12 chords to panes but drops F13+, so the outer terminal
+# translates cmd keys into modified F11/F12 chords that herdr can bind directly.
+previous_tab = "shift+f11"      # Cmd+Shift+[
+next_tab = "shift+f12"          # Cmd+Shift+]
+previous_workspace = "ctrl+f11" # Cmd+Opt+Up
+next_workspace = "ctrl+f12"     # Cmd+Opt+Down
+
 [ui]
 agent_panel_sort = "priority"
 

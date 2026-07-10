@@ -27,9 +27,10 @@ return {
   { key = "_", mods = "SUPER|SHIFT", action = act.SplitHorizontal { domain = "CurrentPaneDomain" } },
 
   -- Search: scrollback（Cmd+F / Cmd+Shift+F — Ghostty と共通）
+  -- CSI 24;3~ (alt+F12): herdr forwards only F1..F12 chords to panes (F13+/CSI 25~ is dropped)
   { key = "f", mods = "SUPER", action = act.Search("CurrentSelectionOrEmptyString") },
-  { key = "f", mods = "SUPER|SHIFT", action = act.SendString("\x1b[25~") },
-  { key = "f", mods = "SUPER|ALT", action = act.SendString("\x1b[25~") },
+  { key = "f", mods = "SUPER|SHIFT", action = act.SendString("\x1b[24;3~") },
+  { key = "f", mods = "SUPER|ALT", action = act.SendString("\x1b[24;3~") },
 
   -- Claude Code: Shift+Enter = new line
   { key = "Return", mods = "SHIFT", action = act.SendString("\n") },
