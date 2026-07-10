@@ -1,9 +1,9 @@
 {
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "DIRENV_LOG_FORMAT": "",
     "ENABLE_TOOL_SEARCH": "true",
-    "MISE_YES": "1",
-    "DIRENV_LOG_FORMAT": ""
+    "MISE_YES": "1"
   },
   "attribution": {
     "commit": "",
@@ -204,6 +204,18 @@
         ]
       }
     ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if printf '%s\\n' \"$CLAUDE_TOOL_INPUT\" | jq -r '.command' 2>/dev/null | grep -qE 'git commit'; then \"${HOME}/.claude/hooks/post-commit.sh\"; fi",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Write",
@@ -240,24 +252,22 @@
         ]
       }
     ],
-    "PostToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "if printf '%s\\n' \"$CLAUDE_TOOL_INPUT\" | jq -r '.command' 2>/dev/null | grep -qE 'git commit'; then \"${HOME}/.claude/hooks/post-commit.sh\"; fi",
-            "timeout": 30
-          }
-        ]
-      }
-    ],
     "SessionStart": [
       {
         "hooks": [
           {
             "type": "command",
             "command": "\"${HOME}/.claude/hooks/session-start.sh\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${HOME}/.claude/hooks/herdr-agent-state.sh\" session",
             "timeout": 10
           }
         ]
@@ -282,35 +292,35 @@
     "padding": 0
   },
   "enabledPlugins": {
-    "context7@claude-plugins-official": true,
-    "superpowers@claude-plugins-official": true,
-    "compound-engineering@every-marketplace": true,
-    "database-design@claude-code-workflows": true,
-    "security-guidance@claude-plugins-official": true,
     "ast-grep@ast-grep-marketplace": true,
-    "quantitative-trading@claude-code-workflows": true,
     "claude-md-management@claude-plugins-official": true,
+    "code-simplifier@claude-plugins-official": true,
+    "codex@openai-codex": true,
+    "compound-engineering@every-marketplace": true,
+    "context7@claude-plugins-official": true,
+    "database-design@claude-code-workflows": true,
     "document-skills@anthropic-agent-skills": true,
+    "frontend-design@claude-plugins-official": true,
+    "gopls-lsp@claude-plugins-official": true,
+    "linear@claude-plugins-official": true,
+    "playwright@claude-plugins-official": true,
+    "pm-execution@pm-skills": true,
     "postgres-best-practices@supabase-agent-skills": true,
-    "skill-creator@anthropic-agent-skills": true,
-    "ui-ux-pro-max@ui-ux-pro-max-skill": true,
+    "quantitative-trading@claude-code-workflows": true,
     "remote-control@claude-plugins-official": true,
     "ruby-lsp@claude-plugins-official": true,
+    "security-guidance@claude-plugins-official": true,
+    "skill-creator@anthropic-agent-skills": true,
+    "superpowers@claude-plugins-official": true,
     "typescript-lsp@claude-plugins-official": true,
-    "gopls-lsp@claude-plugins-official": true,
-    "frontend-design@claude-plugins-official": true,
-    "playwright@claude-plugins-official": true,
-    "worktrunk@worktrunk": true,
-    "linear@claude-plugins-official": true,
-    "pm-execution@pm-skills": true,
-    "codex@openai-codex": true,
-    "code-simplifier@claude-plugins-official": true
+    "ui-ux-pro-max@ui-ux-pro-max-skill": true,
+    "worktrunk@worktrunk": true
   },
   "extraKnownMarketplaces": {
-    "worktrunk": {
+    "openai-codex": {
       "source": {
         "source": "github",
-        "repo": "max-sixty/worktrunk"
+        "repo": "openai/codex-plugin-cc"
       }
     },
     "pm-skills": {
@@ -319,10 +329,10 @@
         "repo": "phuryn/pm-skills"
       }
     },
-    "openai-codex": {
+    "worktrunk": {
       "source": {
         "source": "github",
-        "repo": "openai/codex-plugin-cc"
+        "repo": "max-sixty/worktrunk"
       }
     }
   },
