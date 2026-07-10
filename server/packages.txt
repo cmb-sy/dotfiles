@@ -1,0 +1,10 @@
+# server/packages.txt — apt パッケージ（1行1つ）
+zsh
+git
+tmux
+curl
+unzip
+fzf
+ripgrep
+jq
+stress-ng
