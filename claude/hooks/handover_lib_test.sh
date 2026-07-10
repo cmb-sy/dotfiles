@@ -99,6 +99,74 @@ test_validate_project_state_missing_required_field() {
   rm -rf "$dir"
 }
 
+test_scan_sessions_returns_ready_sessions_only() {
+  local base
+  base="$(mktemp -d)"
+  mkdir -p "${base}/main/20260701-090000"
+  cat > "${base}/main/20260701-090000/project-state.json" <<'JSON'
+{
+  "version": 5,
+  "status": "READY",
+  "active_tasks": [
+    {"id": "T1", "status": "done"},
+    {"id": "T2", "status": "in_progress", "next_action": "fix bug"}
+  ]
+}
+JSON
+  mkdir -p "${base}/main/20260701-100000"
+  cat > "${base}/main/20260701-100000/project-state.json" <<'JSON'
+{
+  "version": 5,
+  "status": "ALL_COMPLETE",
+  "active_tasks": [
+    {"id": "T1", "status": "done"}
+  ]
+}
+JSON
+
+  local result count branch fingerprint done_tasks total_tasks next_action
+  result="$(scan_sessions "$base")"
+  count="$(echo "$result" | jq 'length')"
+  assert_eq "scan_sessions excludes ALL_COMPLETE sessions" "1" "$count"
+
+  branch="$(echo "$result" | jq -r '.[0].branch')"
+  fingerprint="$(echo "$result" | jq -r '.[0].fingerprint')"
+  done_tasks="$(echo "$result" | jq -r '.[0].done_tasks')"
+  total_tasks="$(echo "$result" | jq -r '.[0].total_tasks')"
+  next_action="$(echo "$result" | jq -r '.[0].next_action')"
+  assert_eq "scan_sessions reports branch" "main" "$branch"
+  assert_eq "scan_sessions reports fingerprint" "20260701-090000" "$fingerprint"
+  assert_eq "scan_sessions reports done_tasks" "1" "$done_tasks"
+  assert_eq "scan_sessions reports total_tasks" "2" "$total_tasks"
+  assert_eq "scan_sessions reports next_action" "fix bug" "$next_action"
+
+  rm -rf "$base"
+}
+
+test_scan_sessions_empty_base_dir() {
+  local base result count
+  base="$(mktemp -d)"
+  result="$(scan_sessions "$base")"
+  count="$(echo "$result" | jq 'length')"
+  assert_eq "scan_sessions returns empty array for empty base dir" "0" "$count"
+  rm -rf "$base"
+}
+
+test_scan_sessions_handles_branch_names_with_slashes() {
+  local base result branch fingerprint
+  base="$(mktemp -d)"
+  mkdir -p "${base}/feature/auth-refactor/20260701-090000"
+  echo '{"version":5,"status":"READY","active_tasks":[]}' > "${base}/feature/auth-refactor/20260701-090000/project-state.json"
+
+  result="$(scan_sessions "$base")"
+  branch="$(echo "$result" | jq -r '.[0].branch')"
+  fingerprint="$(echo "$result" | jq -r '.[0].fingerprint')"
+  assert_eq "scan_sessions preserves slash-containing branch names" "feature/auth-refactor" "$branch"
+  assert_eq "scan_sessions extracts fingerprint under nested branch path" "20260701-090000" "$fingerprint"
+
+  rm -rf "$base"
+}
+
 ## Run tests
 test_handover_log_prefixes_message
 test_validate_project_state_valid_file
@@ -106,6 +174,9 @@ test_validate_project_state_missing_file
 test_validate_project_state_invalid_json
 test_validate_project_state_unsupported_version
 test_validate_project_state_missing_required_field
+test_scan_sessions_returns_ready_sessions_only
+test_scan_sessions_empty_base_dir
+test_scan_sessions_handles_branch_names_with_slashes
 
 echo ""
 echo "${PASS} passed, ${FAIL} failed"

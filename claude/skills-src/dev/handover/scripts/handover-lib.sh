@@ -19,3 +19,34 @@ validate_project_state() {
 
   return 0
 }
+
+scan_sessions() {
+  local base_dir="$1"
+  local results="[]"
+  local file rel_path fingerprint branch session_status entry
+
+  while IFS= read -r file; do
+    [[ -f "$file" ]] || continue
+    session_status="$(jq -r '.status // empty' "$file" 2>/dev/null)"
+    [[ "$session_status" == "READY" ]] || continue
+
+    rel_path="${file#"$base_dir"/}"
+    rel_path="${rel_path%/project-state.json}"
+    fingerprint="$(basename "$rel_path")"
+    branch="$(dirname "$rel_path")"
+
+    entry="$(jq -c --arg branch "$branch" --arg fingerprint "$fingerprint" '
+      {
+        branch: $branch,
+        fingerprint: $fingerprint,
+        done_tasks: ([.active_tasks[]? | select(.status == "done")] | length),
+        total_tasks: (.active_tasks | length),
+        next_action: (([.active_tasks[]? | select(.status == "in_progress" or .status == "blocked") | .next_action] | first) // "")
+      }
+    ' "$file" 2>/dev/null)" || continue
+
+    results="$(jq -c --argjson e "$entry" '. + [$e]' <<< "$results")"
+  done < <(find "$base_dir" -name project-state.json 2>/dev/null | sort)
+
+  echo "$results"
+}
