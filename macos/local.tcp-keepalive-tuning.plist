@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Corporate firewall/NAT silently drops idle TCP connections (e.g. Claude
+  Code SSE streams) after ~15s of silence, well under macOS's default
+  keepidle (7200s). Shortened keepalive keeps the NAT entry alive before
+  that timeout hits.
+
+  Details: docs/superpowers/specs/2026-07-09-tcp-keepalive-firewall-timeout-design.md
+
+  LaunchDaemon (RunAtLoad, runs once at boot): sysctl -w needs root, so
+  LaunchAgent won't work.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>local.tcp-keepalive-tuning</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/sh</string>
+        <string>-c</string>
+        <string>sysctl -w net.inet.tcp.keepidle=5000 &amp;&amp; sysctl -w net.inet.tcp.keepintvl=3000 &amp;&amp; sysctl -w net.inet.tcp.keepcnt=8 &amp;&amp; sysctl -w net.inet.tcp.always_keepalive=1</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/var/log/local.tcp-keepalive-tuning.log</string>
+    <key>StandardErrorPath</key>
+    <string>/var/log/local.tcp-keepalive-tuning.log</string>
+</dict>
+</plist>

@@ -40,15 +40,15 @@ if [[ ${FORCE} != 1 ]] && util::confirm "Apply macOS settings?"; then
 fi
 
 #----------------------------------------------------------
-# TCP keepalive tuning (企業ファイアウォールのNATアイドルタイムアウト対策)
+# TCP keepalive tuning (corporate firewall NAT idle timeout workaround)
 #
-# 詳細: docs/superpowers/specs/2026-07-09-tcp-keepalive-firewall-timeout-design.md
-# root権限が必要なため LaunchAgent ではなく LaunchDaemon。symlinkではなくコピー
-# して root:wheel 644 に設定する（launchd はplistの所有権を検証するため）。
+# Details: docs/superpowers/specs/2026-07-09-tcp-keepalive-firewall-timeout-design.md
+# LaunchDaemon, not LaunchAgent, since sysctl -w needs root. Copied (not
+# symlinked) with root:wheel 644, since launchd checks plist ownership.
 #----------------------------------------------------------
 util::confirm "Apply TCP keepalive tuning (企業ファイアウォールのタイムアウト対策)?"
 if [[ $? = 0 ]]; then
-  PLIST_NAME="com.snakashima.tcp-keepalive-tuning.plist"
+  PLIST_NAME="local.tcp-keepalive-tuning.plist"
   SRC_PLIST="${REPO_DIR}/macos/${PLIST_NAME}"
   DEST_PLIST="/Library/LaunchDaemons/${PLIST_NAME}"
   if [[ -f "${SRC_PLIST}" ]]; then
@@ -57,7 +57,7 @@ if [[ $? = 0 ]]; then
     sudo chmod 644 "${DEST_PLIST}"
     sudo launchctl bootstrap system "${DEST_PLIST}" 2>/dev/null \
       || sudo launchctl load -w "${DEST_PLIST}"
-    sudo sysctl -w net.inet.tcp.keepidle=30000 net.inet.tcp.keepintvl=15000 \
+    sudo sysctl -w net.inet.tcp.keepidle=5000 net.inet.tcp.keepintvl=3000 \
       net.inet.tcp.keepcnt=8 net.inet.tcp.always_keepalive=1
     util::info "TCP keepalive tuning applied and persisted via LaunchDaemon."
   else
