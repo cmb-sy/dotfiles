@@ -9,6 +9,7 @@ from pathlib import Path
 
 import yaml
 from pptx import Presentation
+from pptx.enum.dml import MSO_FILL
 from pptx.util import Emu
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -39,11 +40,40 @@ def emu_to_pt(emu: int) -> float:
     return emu / PT_TO_EMU
 
 
+def _own_fill_hex(fill) -> str | None:
+    """Return a FillFormat's own solid color as #RRGGBB, or None (no explicit
+    solid fill set / inherited / patterned / gradient) — callers should fall
+    back to the slide/page background in that case."""
+    try:
+        if fill.type == MSO_FILL.SOLID:
+            return f"#{str(fill.fore_color.rgb)}"
+    except TypeError:
+        pass  # non-solid FillFormat (_NoneFill / _NoFill / _GradFill, ...) has no .rgb
+    except AttributeError:
+        pass  # solid but theme-color based (_SchemeColor) has no .rgb, only .theme_color
+    return None
+
+
 def collect_text_frames(slide):
-    """Yield (shape, text_frame) pairs for shapes that have text."""
+    """Yield (shape, text_frame, own_bg_hex) for shapes that have text.
+
+    Includes table cells: a GraphicFrame holding a table has has_text_frame=False
+    (python-pptx exposes cell text via shape.table.rows[i].cells[j].text_frame,
+    a different path), so table content would otherwise be invisible to every
+    check that relies on this helper (font size, contrast, empty-slide).
+
+    own_bg_hex is the shape's (or table cell's) own solid fill color, used by
+    contrast checks instead of blindly assuming the slide/page background —
+    a table header with light text is normally set against a dark cell fill,
+    not the page background.
+    """
     for shape in slide.shapes:
         if shape.has_text_frame:
-            yield shape, shape.text_frame
+            yield shape, shape.text_frame, _own_fill_hex(shape.fill)
+        if getattr(shape, "has_table", False):
+            for row in shape.table.rows:
+                for cell in row.cells:
+                    yield shape, cell.text_frame, _own_fill_hex(cell.fill)
 
 
 def is_title_like(shape) -> bool:
@@ -56,7 +86,7 @@ def audit_fonts(prs, tokens_theme: dict) -> list[dict]:
     title_min = tokens_theme.get("font_size_title_min", MIN_FONT_TITLE_PT)
     violations: list[dict] = []
     for slide_idx, slide in enumerate(prs.slides, start=1):
-        for shape, tf in collect_text_frames(slide):
+        for shape, tf, _own_bg in collect_text_frames(slide):
             min_pt = title_min if is_title_like(shape) else body_min
             for para in tf.paragraphs:
                 for run in para.runs:
@@ -79,8 +109,9 @@ def audit_contrast(prs, theme: dict, plan_layouts: dict[int, str]) -> list[dict]
     section_bg = theme.get("color_section_bg", default_bg)
     violations: list[dict] = []
     for slide_idx, slide in enumerate(prs.slides, start=1):
-        bg = section_bg if plan_layouts.get(slide_idx) == "section" else default_bg
-        for shape, tf in collect_text_frames(slide):
+        slide_bg = section_bg if plan_layouts.get(slide_idx) == "section" else default_bg
+        for shape, tf, own_bg in collect_text_frames(slide):
+            bg = own_bg if own_bg is not None else slide_bg
             for para in tf.paragraphs:
                 for run in para.runs:
                     color = run.font.color
@@ -154,7 +185,7 @@ def audit_margin(prs, margin_pt: int) -> list[dict]:
     violations: list[dict] = []
     for slide_idx, slide in enumerate(prs.slides, start=1):
         for shape in slide.shapes:
-            if not shape.has_text_frame:
+            if not (shape.has_text_frame or getattr(shape, "has_table", False)):
                 continue
             if shape.left is None or shape.top is None:
                 continue
@@ -177,7 +208,7 @@ def audit_empty_slides(prs, plan_layouts: dict[int, str]) -> list[dict]:
         if layout == "section":
             continue
         text_count = sum(
-            1 for _, tf in collect_text_frames(slide) for p in tf.paragraphs for r in p.runs if r.text.strip()
+            1 for _, tf, _bg in collect_text_frames(slide) for p in tf.paragraphs for r in p.runs if r.text.strip()
         )
         if text_count <= 1:  # title only
             violations.append({"slide": slide_idx, "layout": layout, "text_runs": text_count})
