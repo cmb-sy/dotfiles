@@ -51,3 +51,25 @@ scan_sessions() {
 
   echo "$results"
 }
+
+find_active_session_dir() {
+  local project_dir="$1"
+  local branch handover_dir
+  branch="$(git -C "$project_dir" rev-parse --abbrev-ref HEAD 2>/dev/null)" || return 1
+  handover_dir="${project_dir}/.agents/handover/${branch}"
+  [[ -d "$handover_dir" ]] || return 1
+
+  local fingerprint session_dir state_file session_status
+  while IFS= read -r fingerprint; do
+    session_dir="${handover_dir}/${fingerprint}"
+    state_file="${session_dir}/project-state.json"
+    [[ -f "$state_file" ]] || continue
+    session_status="$(jq -r '.status // empty' "$state_file" 2>/dev/null)"
+    if [[ "$session_status" == "READY" ]]; then
+      echo "$session_dir"
+      return 0
+    fi
+  done < <(ls -1 "$handover_dir" 2>/dev/null | sort -r)
+
+  return 1
+}

@@ -180,6 +180,43 @@ test_scan_sessions_handles_trailing_slash_in_base_dir() {
   rm -rf "$base"
 }
 
+make_tmp_git_repo() {
+  local dir
+  dir="$(mktemp -d)"
+  git -C "$dir" init -q -b main
+  git -C "$dir" -c user.email="test@example.com" -c user.name="test" commit -q --allow-empty -m "init"
+  echo "$dir"
+}
+
+test_find_active_session_dir_picks_most_recent_ready() {
+  local repo result
+  repo="$(make_tmp_git_repo)"
+  mkdir -p "${repo}/.agents/handover/main/20260701-090000"
+  echo '{"version":5,"status":"READY","active_tasks":[]}' > "${repo}/.agents/handover/main/20260701-090000/project-state.json"
+  mkdir -p "${repo}/.agents/handover/main/20260701-100000"
+  echo '{"version":5,"status":"ALL_COMPLETE","active_tasks":[]}' > "${repo}/.agents/handover/main/20260701-100000/project-state.json"
+
+  result="$(find_active_session_dir "$repo")"
+  assert_eq "find_active_session_dir skips newer ALL_COMPLETE and picks older READY" "${repo}/.agents/handover/main/20260701-090000" "$result"
+  rm -rf "$repo"
+}
+
+test_find_active_session_dir_no_handover_dir() {
+  local repo
+  repo="$(make_tmp_git_repo)"
+  find_active_session_dir "$repo"
+  assert_status "find_active_session_dir returns 1 when no .agents/handover exists" 1 "$?"
+  rm -rf "$repo"
+}
+
+test_find_active_session_dir_not_a_git_repo() {
+  local dir
+  dir="$(mktemp -d)"
+  find_active_session_dir "$dir"
+  assert_status "find_active_session_dir returns 1 outside a git repo" 1 "$?"
+  rm -rf "$dir"
+}
+
 ## Run tests
 test_handover_log_prefixes_message
 test_validate_project_state_valid_file
@@ -191,6 +228,9 @@ test_scan_sessions_returns_ready_sessions_only
 test_scan_sessions_empty_base_dir
 test_scan_sessions_handles_branch_names_with_slashes
 test_scan_sessions_handles_trailing_slash_in_base_dir
+test_find_active_session_dir_picks_most_recent_ready
+test_find_active_session_dir_no_handover_dir
+test_find_active_session_dir_not_a_git_repo
 
 echo ""
 echo "${PASS} passed, ${FAIL} failed"
