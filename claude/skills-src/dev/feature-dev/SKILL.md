@@ -7,7 +7,6 @@ description: >-
   --e2e 指定時は Phase 9 (Test Review) を有効化。
   --smoke 指定時は Phase 7 (Smoke Test) を有効化。
   --doc 指定時は Phase 6 (Doc Audit) を有効化。
-  /tdd-orchestrate の後継。
   --iterations N 指定時は全レビューフェーズの N-way 投票回数を制御する（デフォルト: 3）。
   --swarm 指定時は Phase 1, 2, 4, 8 でエージェントチームを使用する（デフォルト: false）。
 user-invocable: true

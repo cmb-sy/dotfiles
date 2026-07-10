@@ -46,7 +46,7 @@ user-invocable: true
 |  CLAUDE SKILLS MAP   global:N  project:M  total:N+M      |
 +-----------------------------------------------------------+
 
-  [開発フロー    ]  feature-dev / debug-flow / tdd-orchestrate / smoke-test
+  [開発フロー    ]  feature-dev / debug-flow / smoke-test
   [コードレビュー]  code-review / test-review / spec-review / implementation-review
   [ドキュメント  ]  doc-audit / doc-check / learn / handover / continue
   [PJ管理       ]  github-ops / github-issues / triage / meeting-notes
@@ -76,8 +76,7 @@ DEPENDENCY TREE  (A -> B : AがBを呼び出す)
                   +-> test-review
                   +-> smoke-test
 
-  eod +-----------+-> obsidian-refresh
-      |           +-> daily-log -----------------> slackcli
+  eod +-----------+-> daily-log -----------------> slackcli
       |           +-> generate-problem
 
   reflect-review -> reflect_log.md (file read)
@@ -131,7 +130,6 @@ DEPENDENCY TREE (拡張版)
   [Obsidianワークフロー]
 
     eod (1コマンド締め)
-      +-> obsidian-refresh (双方向同期)
       +-> daily-log (日報集約 + CloudLog)
       |     +-> slackcli
       +-> generate-problem (振り返り)
