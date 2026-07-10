@@ -128,7 +128,45 @@ if [ -n "$acct_dir" ] && [ -d "$acct_dir" ]; then
   # Empty after stripping (dir literally named ".claude" or ".claude-") means
   # "not a recognizable per-account dir" — intentionally hide the section
   # rather than show a blank label.
-  has_val "$acct_name" && sec_account="${WHT}account${RST} ${C_ACCOUNT}${acct_name}${RST}"
+  if has_val "$acct_name"; then
+    sec_account="${C_ACCOUNT}${acct_name}${RST}"
+    # Append the token-consuming account's identity. Two sources, in order:
+    #
+    # 1. <dir>/oauth-token.account — label recorded by claude-save-token-*
+    #    at token-save time. This is authoritative when <dir>/oauth-token
+    #    exists, because setup-token's long-lived tokens carry only the
+    #    user:inference scope (no user:profile): neither we nor Claude Code
+    #    can resolve the owner from the token via API, and the .claude.json
+    #    profile cache is NEVER refreshed by token-injected sessions — it
+    #    keeps showing whichever account last did a full `/login` there.
+    # 2. Fallback: .claude.json .oauthAccount (the `/login` account), which
+    #    is what actually consumes tokens when no oauth-token file exists.
+    #
+    # Shown as local-part@org (e.g. "alice@ExampleOrg") — enough to catch a
+    # private/work token mismatch at a glance. Zero network calls.
+    acct_id=""
+    if [ -r "${acct_dir}/oauth-token" ]; then
+      # Token file exists → that token is what's being consumed. Its owner is
+      # whatever label was recorded at save time; if none was, show an
+      # explicit "?" rather than falling back to the `/login` cache, which
+      # would confidently display the WRONG account (the login one, not the
+      # token one).
+      if [ -r "${acct_dir}/oauth-token.account" ]; then
+        acct_id=$(head -c 64 "${acct_dir}/oauth-token.account")
+        acct_id="${acct_id%%@*}"
+      else
+        acct_id="?"
+      fi
+    else
+      eval "$(jq -r '.oauthAccount |
+        @sh "AE=\(.emailAddress // "")",
+        @sh "AO=\(.organizationName // "")"
+      ' "${acct_dir}/.claude.json" 2>/dev/null)"
+      acct_id="${AE%%@*}"
+      has_val "$acct_id" && has_val "$AO" && acct_id="${acct_id}@${AO}"
+    fi
+    has_val "$acct_id" && sec_account+=" ${C_ACCOUNT}(${acct_id})${RST}"
+  fi
 fi
 
 # ==============================================================================
