@@ -95,7 +95,8 @@ Agent tool を使用する。`subagent_type` に `test-review-design-alignment` 
 `codex_enabled` が true の場合のみ実行する。Bash tool を `run_in_background: true` で呼び出す。
 
 ```bash
-node "/Users/nishikataseiichi/.claude/plugins/cache/openai-codex/codex/1.0.1/scripts/codex-companion.mjs" \
+CODEX_PATH="$(ls -1d "$HOME"/.claude/plugins/cache/openai-codex/codex/*/scripts/codex-companion.mjs 2>/dev/null | sort -V | tail -1)"
+node "$CODEX_PATH" \
   review --wait <scope_flag>
 ```
 
