@@ -78,6 +78,7 @@ DEPENDENCY TREE  (A -> B : AがBを呼び出す)
 
   eod +-----------+-> daily-log -----------------> slackcli
       |           +-> generate-problem
+      |           +-> github-issues (open issue 確認 / 翌日タスクの issue 作成)
 
   reflect-review -> reflect_log.md (file read)
   continue       -> handover.md    (file read)
