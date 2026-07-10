@@ -114,3 +114,36 @@ update_status_field() {
     )
   ' "$state_file" > "$tmp" && mv "$tmp" "$state_file"
 }
+
+generate_handover_md() {
+  local state_file="$1" output_path="$2"
+  local now session_id session_status
+  now="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+  session_id="$(jq -r '.session_id // "unknown"' "$state_file")"
+  session_status="$(jq -r '.status // "READY"' "$state_file")"
+
+  {
+    echo "# Session Handover"
+    echo "> Generated: ${now}"
+    echo "> Session: ${session_id}"
+    echo "> Status: ${session_status}"
+    echo ""
+    echo "## Completed"
+    jq -r '.active_tasks[]? | select(.status == "done") | "- [\(.id)] \(.description) (\(.commit_sha // "unknown"))"' "$state_file"
+    echo ""
+    echo "## Remaining"
+    jq -r '.active_tasks[]? | select(.status == "in_progress" or .status == "blocked") | "- [\(.id)] **\(.status)** \(.description)\n  - files: \((.file_paths // []) | join(", "))\n  - next: \(.next_action // "")"' "$state_file"
+    echo ""
+    echo "## Blockers"
+    jq -r '.active_tasks[]? | (.blockers // [])[] | "- \(.)"' "$state_file"
+    echo ""
+    echo "## Context"
+    jq -r '.recent_decisions[]? | "- \(.decision)（理由: \(.rationale)）"' "$state_file"
+    echo ""
+    echo "## Architecture Changes (Recent)"
+    jq -r '.architecture_changes[]? | "- \(.commit_sha): \(.summary)"' "$state_file"
+    echo ""
+    echo "## Known Issues"
+    jq -r '.known_issues[]? | "- [\(.severity)] \(.description)"' "$state_file"
+  } > "$output_path"
+}

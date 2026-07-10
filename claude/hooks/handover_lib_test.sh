@@ -262,6 +262,35 @@ test_update_status_field_some_pending() {
   rm -rf "$dir"
 }
 
+test_generate_handover_md_includes_expected_sections() {
+  local dir state_file out
+  dir="$(make_tmp_state)"
+  state_file="${dir}/project-state.json"
+  out="${dir}/handover.md"
+  add_architecture_change "$state_file" "abc1234" "did a thing" '["a.sh"]' "2026-07-10T00:00:00Z"
+  generate_handover_md "$state_file" "$out"
+
+  grep -q "^# Session Handover" "$out"
+  assert_status "generate_handover_md writes title line" 0 "$?"
+
+  grep -q "## Completed" "$out"
+  assert_status "generate_handover_md writes Completed section" 0 "$?"
+
+  grep -q "T1" "$out"
+  assert_status "generate_handover_md lists the done task" 0 "$?"
+
+  grep -q "## Remaining" "$out"
+  assert_status "generate_handover_md writes Remaining section" 0 "$?"
+
+  grep -q "fix b.sh" "$out"
+  assert_status "generate_handover_md lists next_action for in-progress task" 0 "$?"
+
+  grep -q "abc1234: did a thing" "$out"
+  assert_status "generate_handover_md lists architecture change" 0 "$?"
+
+  rm -rf "$dir"
+}
+
 ## Run tests
 test_handover_log_prefixes_message
 test_validate_project_state_valid_file
@@ -280,6 +309,7 @@ test_add_architecture_change_appends_entry
 test_touch_related_tasks_updates_matching_task_only
 test_update_status_field_all_done
 test_update_status_field_some_pending
+test_generate_handover_md_includes_expected_sections
 
 echo ""
 echo "${PASS} passed, ${FAIL} failed"
