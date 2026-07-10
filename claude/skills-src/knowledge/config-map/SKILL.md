@@ -1,6 +1,6 @@
 ---
 name: config-map
-description: 現在のClaude Code設定(settings.json、CLAUDE.md、hooks、インストール済みskills/agents、MCPコネクタ)を一覧化し、private/workアカウント間で実際に何が同じで何が違うかを可視化する。
+description: private/work アカウント間で Claude Code 設定の差分を確認したいときに使う。settings.json・CLAUDE.md・hooks・skills/agents・MCP コネクタを一覧化し、共通ブロックと差分対比表で可視化する。差分のみの表示は argument-hint を参照。
 argument-hint: "[--diff-only]"
 user-invocable: true
 ---

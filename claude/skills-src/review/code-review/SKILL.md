@@ -1,16 +1,15 @@
 ---
 name: code-review
 description: >-
-  多角的コードレビューワークフロー。7つの観点（simplify, code-quality, code-security,
-  code-performance, code-test, ai-antipattern, code-impact）で並列レビューし、統合レポートから承認された指摘を修正する。
-  --codex 指定時は Codex (companion.mjs) による並列レビューを追加する。
-  --iterations N 指定時は各観点を N 回独立レビューし、過半数一致の findings のみ採用する（デフォルト: 3）。
+  変更したコードを承認前・マージ前に多角的にレビューしたいときに使うワークフロー。
+  7つの観点（simplify, code-quality, code-security, code-performance, code-test, ai-antipattern, code-impact）で並列レビューし、統合レポートから承認された指摘のみを修正・検証する。
+  フラグ（--codex / --branch / --staged / --iterations）の詳細は本文 Phase 1 の引数パースを参照。
 user-invocable: true
 ---
 
 # Code Review Orchestrator
 
-6つの観点で変更コードを並列レビューし、統合レポートを生成する。ユーザーが承認した指摘のみを修正し、linter/テストで検証する。
+7つの観点（6つの review エージェント + simplify）で変更コードを並列レビューし、統合レポートを生成する。ユーザーが承認した指摘のみを修正し、linter/テストで検証する。`--codex` 指定時はさらに Codex レビューを追加する。
 
 **開始時アナウンス:** 「Code Review を開始します。Phase 1: Scope Detection」
 
@@ -47,7 +46,7 @@ user-invocable: true
 
 **ファイル一覧が空の場合** → 「No changes found in the specified scope」と報告して終了。
 
-## Phase 2: Parallel Review (7+1 perspectives)
+## Phase 2: Parallel Review (6 agents + simplify + optional codex)
 
 6つの Agent 観点を `iterations` 回ずつ、simplify ×1（`codex_enabled` 時は Codex ×1 を追加）で **並列** 起動する。合計エージェント数: 6 × iterations + 1 (simplify) + (codex ? 1 : 0)。すべて `run_in_background: true` を使用し、結果を収集する。
 

@@ -1,11 +1,9 @@
 ---
 name: test-review
 description: >-
-  E2E観点でのテストレビューワークフロー。3つの観点（coverage, quality, design-alignment）で
-  テストコードを並列レビューし、統合レポートから承認された指摘を修正する。
-  --design 指定時は設計書も加味する。
-  --codex 指定時は Codex (companion.mjs) による並列レビューを追加する。
-  --iterations N 指定時は各観点を N 回独立レビューし、過半数一致の findings のみ採用する（デフォルト: 3）。
+  変更したテストコードを E2E 観点でレビューしたいときに使うワークフロー。
+  3つの観点（coverage, quality, design-alignment）で並列レビューし、統合レポートから承認された指摘のみを修正・テスト検証する。
+  フラグ（--design / --codex / --branch / --staged / --iterations）の詳細は本文 Phase 1 の引数パースを参照。
 user-invocable: true
 ---
 
@@ -300,9 +298,9 @@ git diff
 |---------|--------|---------|
 | 1 | git diff 失敗 | コミット範囲を確認するようユーザーに報告 |
 | 1 | merge-base 失敗 | main/master どちらも存在しない旨を報告 |
+| 1 | `--design` のパスが存在しない | 警告表示し、設計書なしモードで続行 |
 | 2 | エージェントタイムアウト | 該当エージェント結果を空として続行 |
 | 2 | JSON パース失敗 | 正規表現フォールバック、それでも失敗なら空 |
-| 1 | `--design` のパスが存在しない | 警告表示し、設計書なしモードで続行 |
 | 2 | Codex (companion.mjs) 実行失敗 | 警告表示し Codex なしで続行 |
 | 2 | Codex 出力パース失敗 | 生テキストをそのまま codex カテゴリで正規化 |
 | 3 | ユーザー入力が不正 | 再入力を求める |

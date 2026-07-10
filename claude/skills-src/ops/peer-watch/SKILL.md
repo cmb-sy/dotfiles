@@ -1,10 +1,9 @@
 ---
 name: peer-watch
 description: >-
-  GitHub の他メンテナーの dotfiles リポジトリの直近の動きを取得し、教育プロ視点で「何をしているか」
-  「自分にどう関係するか」を関連性ラベル付きで解説する。finding ごとに 採用/スキップ/詳細/後で を
-  選択でき、採用は docs/peer-watch/YYYY-MM-DD.md に追記。デフォルトは同ディレクトリの peers.yaml、
-  --user <handle> で個別指定。
+  他メンテナーの dotfiles リポジトリの直近の動きを観測して自分の設定に取り入れたいときに使う。
+  各 finding を教育プロ視点で「何をしているか」「自分にどう関係するか」を関連性ラベル付きで解説し、
+  採用/スキップ/詳細/後で を 1 件ずつ対話選択して採用分を記録する。オプションは本文の「起動」を参照。
 argument-hint: "[--user <handle>] [--days N] [--dry-run]"
 user-invocable: true
 ---

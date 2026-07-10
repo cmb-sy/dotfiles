@@ -1,8 +1,9 @@
 ---
 name: trace-report
 description: >-
-  trace.jsonl を分析し、パイプラインの振り返りレポートを生成する。
-  セッション単位またはブランチ/全体で集約分析が可能。
+  feature-dev / debug-flow 等のパイプライン実行後に、実行状況・レビュー効果・
+  エージェント性能を振り返りたいときに使う。trace.jsonl を分析してレポートを生成する。
+  セッション単位またはブランチ/全体での集約分析は本文の引数パースを参照。
 user-invocable: true
 ---
 

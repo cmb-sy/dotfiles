@@ -1,8 +1,9 @@
 ---
 name: reflect-review
 description: >-
-  reflect_log の累積データを分析し、成長を言語化する。
-  さらに正答率が低い問題を再出題して定着を確認する。
+  一定期間（週次・月次）の学習定着度を確認したいときに使う。reflect スキルが蓄積した
+  reflect_log の累積データを分析して成長を言語化し、正答率が低い問題を再出題して
+  定着を確認する。単発の振り返り出題は reflect を使う。期間指定は argument-hint を参照。
 argument-hint: "[--weekly | --monthly]"
 user-invocable: true
 ---

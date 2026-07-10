@@ -1,9 +1,9 @@
 ---
 name: english-log
 description: >-
-  このセッション中に Claude が与えた英語学習材料（英語入力時の訂正 + 日本語入力時の
-  英訳例）を抽出し、Obsidian vault の 03_skillup/english/YYYY-MM-DD.md に追記する。
-  CLAUDE.md「英語学習補助」ルールが生成する両方向の学習内容のアーカイブ用途。
+  このセッションで受けた英語の訂正・英訳例を Obsidian に記録したいときに使う。
+  Claude が与えた両方向の学習材料（英語入力時の `"X" → "Y"` 訂正 + 日本語入力時の英訳例）を抽出し、
+  vault の 03_skillup/english/YYYY-MM-DD.md に追記する。日付上書きは本文の Options を参照。
 argument-hint: "[--date YYYY-MM-DD]  (省略時は今日)"
 user-invocable: true
 ---
@@ -13,6 +13,12 @@ user-invocable: true
 
 - **英語訂正**: ユーザーが英語で話しかけたときに Claude が示した `"X" → "Y"` 形式の訂正
 - **英訳教示**: ユーザーが日本語で話しかけたときに Claude が示した `In English: ...` の英訳例
+
+## Options
+
+| Option | 効果 |
+|--------|------|
+| `--date YYYY-MM-DD` | 追記先ファイルの日付を上書きする（省略時は今日） |
 
 ## 前提
 

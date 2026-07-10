@@ -1,7 +1,8 @@
 ---
 name: voice-glossary
 description: >-
-  Handy 音声入力の用語集（誤変換→正表記）にエントリを追加し、Handy 設定へ再適用する。
+  Handy 音声入力の誤変換を直したいときに使う。用語集（誤変換→正表記）に 1 件追加し、
+  確認のうえ Handy 設定へ再適用する。引数指定・省略時の挙動は本文の Options を参照。
 argument-hint: "[誤変換] [正表記]  (引数なしなら直前の誤変換から推測)"
 user-invocable: true
 ---
@@ -12,6 +13,13 @@ Handy 音声入力の後処理プロンプトが参照する用語集 `handy/glo
 用語集は `apply-settings.py` が読み込み、`ja_light_tidy.prompt.txt` の
 `{{GLOSSARY}}` マーカーに「、」連結で差し込む。追加しただけでは反映されず、
 `voice-switch <provider>` による quit→apply→relaunch が必要。
+
+## Options
+
+| 引数 | 効果 |
+|------|------|
+| `[誤変換] [正表記]` | 2 つ与えられた場合、1 つ目を「誤変換」、2 つ目を「正表記」として追加する |
+| （引数なし） | 直前の会話でユーザーが指摘した誤変換から推測する。曖昧なら確認する |
 
 ---
 

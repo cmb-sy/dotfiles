@@ -1,10 +1,9 @@
 ---
 name: doc-check
 description: >-
-  コード変更に影響を受ける md ドキュメントを検出し、ユーザー承認後に更新する。
-  md ファイルの YAML frontmatter に宣言された depends-on（ファイルパス・glob）と
-  本文中の Markdown リンクから依存グラフを構築し、git diff との突合で影響範囲を特定する。
-  /doc-check で起動、またはコード変更を含むタスク完了時に実行を検討する。
+  直近のコード変更に影響を受ける md ドキュメントだけを検出して更新したいときに使う。
+  md の YAML frontmatter の depends-on（ファイルパス・glob）と本文中の Markdown リンクから依存グラフを構築し、git diff との突合で影響範囲を特定する。
+  /doc-check で起動、またはコード変更を含むタスク完了時に実行を検討する。プロジェクト全体の棚卸しが目的なら doc-audit を使う。
 user-invocable: true
 ---
 

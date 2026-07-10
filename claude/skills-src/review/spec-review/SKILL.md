@@ -1,10 +1,9 @@
 ---
 name: spec-review
 description: >-
-  設計書レビューワークフロー。4つの観点（requirements, design-judgment, feasibility, consistency）で
-  設計書を並列レビューし、統合レポートから承認された指摘を修正する。
-  --codex 指定時は Codex (companion.mjs adversarial-review) による設計判断レビューを追加する。
-  --iterations N 指定時は各観点を N 回独立レビューし、過半数一致の findings のみ採用する（デフォルト: 3）。
+  設計書（docs/plans/*-design.md）を実装着手前にレビューしたいときに使うワークフロー。
+  4つの観点（requirements, design-judgment, feasibility, consistency）で並列レビューし、統合レポートから承認された指摘のみを設計書に反映する。
+  フラグ（--codex / --ui / --iterations）の詳細は本文 Phase 1 の引数パースを参照。
 user-invocable: true
 ---
 

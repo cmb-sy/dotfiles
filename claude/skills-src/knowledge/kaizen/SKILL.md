@@ -1,11 +1,9 @@
 ---
 name: kaizen
 description: >-
-  Use when preventing recurring Claude hallucinations from this session,
-  when seeking concrete improvements to user prompts and premises, when
-  CLAUDE.md or settings.json need evolutionary updates, when identifying
-  reusable workflow patterns for skill proposals, or after sessions with
-  misunderstandings or corrections.
+  誤解・修正・ハルシネーションが起きたセッションを振り返り、再発防止まで落とし込みたい
+  ときに使う。1 回の実行で 4 視点（ハルシネーション予防 / ユーザー指示の改善 /
+  CLAUDE.md・settings.json の進化 / スキル提案）を並列分析する継続改善ループ。
 argument-hint: "[--transcript PATH] [--apply] [--no-user-side] [--limit N]"
 user-invocable: true
 ---

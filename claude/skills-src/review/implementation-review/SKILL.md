@@ -1,10 +1,9 @@
 ---
 name: implementation-review
 description: >-
-  実装計画書レビューワークフロー。3つの観点（clarity, feasibility, consistency）で
-  実装計画書を並列レビューし、統合レポートから承認された指摘を修正する。
-  --codex 指定時は Codex (companion.mjs adversarial-review) による設計判断レビューを追加する。
-  --iterations N 指定時は各観点を N 回独立レビューし、過半数一致の findings のみ採用する（デフォルト: 3）。
+  実装計画書（docs/plans/ の *-design.md を除く md）を実装着手前にレビューしたいときに使うワークフロー。
+  3つの観点（clarity, feasibility, consistency）で並列レビューし、統合レポートから承認された指摘のみを計画書に反映する。
+  フラグ（--codex / --ui / --iterations）の詳細は本文 Phase 1 の引数パースを参照。
 user-invocable: true
 ---
 

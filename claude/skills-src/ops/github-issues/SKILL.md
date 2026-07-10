@@ -1,8 +1,8 @@
 ---
 name: github-issues
 description: >-
-  `gh` CLI による GitHub Issue 操作（一覧・作成・更新・クローズ・コメント）。
-  Obsidian/ファイル連携は持たない、純粋な issue 管理スキル。
+  GitHub Issue を一覧・作成・更新・クローズ・コメントしたいときに使う `gh` CLI ベースのスキル。
+  対象組織は Resily、デフォルト assignee は cmb-sy。ファイル I/O・Obsidian 連携は一切持たない純粋な issue 操作。
 argument-hint: "list | create | close <number> | comment <number> | update <number> [自然言語の指示]"
 user-invocable: true
 ---
@@ -15,15 +15,9 @@ user-invocable: true
 
 ## 操作の判定（エントリ）
 
-| 状況 | 動作 |
-|---|---|
-| **引数なし** | `AskUserQuestion`（header: `操作`）で操作を選ばせる: `新規作成` / `更新` / `クローズ` / `コメント` / `一覧`。選択後に該当サブコマンドへ進む |
-| 引数の先頭語が `list`/`create`/`update`/`close`/`comment` | その操作へ直行 |
-| 自然言語（「一覧」「作成」「更新」「閉じる」「コメント」等） | 意図から操作を判定して直行 |
+**引数なしの場合**は `AskUserQuestion`（header: `操作`）で `新規作成` / `更新` / `クローズ` / `コメント` / `一覧` を選ばせてから該当操作へ進む。**引数の先頭語または自然言語で操作が自明な場合**は質問を省略して直行する。
 
-操作が引数・文脈から自明な場合は操作選択の質問を省略する。
-
-| 操作 | トリガー | 動作 |
+| 操作 | トリガー（先頭語 / 自然言語） | 動作 |
 |---|---|---|
 | `list` | `list` / 「一覧」「open な issue」 | open issue を一覧表示 |
 | `create` | `create` / 「作成」「新しい issue」 | 新規 issue を作成 |
@@ -251,4 +245,4 @@ gh issue comment {number} --repo Resily/{repo} --body "{本文}"
 4. **PII を body/comment に転記しない** — Slack 本文や同僚名等はマスキング、または含めない
 5. **リポジトリが特定できない場合は推測せず確認する**
 6. **実行後は issue 番号と URL を報告する**
-7. **create した issue は必ず AITF ボード（project 26）に追加する** — `gh project item-add 26 --owner Resily --url {URL}`
+7. **create した issue は必ず AITF ボード（project 26）に追加し、Status を `Backlog` に設定する** — 手順・フィールド ID は Step 7b を参照（追加直後の Status は `Done` になり隠れるため Backlog 設定まで必須）

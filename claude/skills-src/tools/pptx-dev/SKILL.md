@@ -1,12 +1,10 @@
 ---
 name: pptx-dev
 description: >-
-  品質ゲート付き PowerPoint オーケストレーター。10 フェーズで Brief → ストーリー設計 →
-  レビュー → スライド計画 → レビュー → テンプレ選定 → 生成 → ビジュアル監査 →
-  反復 → 完了報告を一気通貫で実行する。
-  --template <name> でテンプレ切替（internal_report / design_proposal / lt_talk）。
-  --codex 指定時は全レビューフェーズで Codex を有効化。
-  --iterations N 指定時は全レビューフェーズの N-way 投票回数を制御する（デフォルト: 3）。
+  トピックから配布可能な .pptx までを品質ゲート付きで一気通貫生成したいときに使う
+  PowerPoint オーケストレーター。Brief → ストーリー設計 → レビュー → スライド計画 →
+  レビュー → 生成 → ビジュアル監査 → 反復の 10 フェーズを実行する。
+  フラグ（--template / --duration / --audience / --codex / --iterations）の詳細は本文の Options を参照。
 argument-hint: "<トピック> [--template <name>] [--duration <分>] [--audience <聴衆>] [--codex] [--iterations N]"
 user-invocable: true
 ---
@@ -16,6 +14,17 @@ user-invocable: true
 10 フェーズの品質ゲート付きワークフローで、トピックから配布可能な `.pptx` までを一気通貫で生成する。feature-dev と同じ Coordinator Discipline と Audit Gate を踏襲する。
 
 **開始時アナウンス:** 「Pptx Dev を開始します。Phase 1: Brief」
+
+## Options
+
+| 引数 | 説明 |
+|------|------|
+| `<トピック>` | プレゼンの主題（必須。無ければ Phase 1 でヒアリング） |
+| `--template <name>` | テンプレ切替: internal_report / design_proposal / lt_talk |
+| `--duration <分>` | 発表時間。スライド枚数の目安に使う |
+| `--audience <聴衆>` | 聴衆の属性。用語の平易化レベルに使う |
+| `--codex` | 全レビューフェーズで Codex 並列レビューを有効化 |
+| `--iterations N` | 全レビューフェーズの N-way 投票回数（デフォルト: 3） |
 
 ## 役割定義
 

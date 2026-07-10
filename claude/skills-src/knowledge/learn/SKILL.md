@@ -1,11 +1,10 @@
 ---
 name: learn
 description: >-
-  実装完了後に自動で学習教材を生成する。実装内の専門用語・手順（lint 等）は
-  「そもそも何か」からできる限り細かく解説する。手動（/learn）も直前実装を元に
-  出力。教材を作るか自体は確認プロンプトなし（feature-dev Execute 完了後も実行）だが、
-  保存先はプロジェクト docs/learnings/ か Obsidian vault
-  （$HOME/develop/obsidian/03_skillup/learn/）かを毎回 AskUserQuestion で確認する。
+  実装完了直後に、その実装で使った技術・手順を永続的な学習教材として残したいときに使う
+  （feature-dev Execute 完了後は確認プロンプトなしで自動実行、手動は /learn）。
+  専門用語・手順は「そもそも何か」から細かく解説する。保存先（プロジェクト
+  docs/learnings/ か Obsidian vault）は毎回 AskUserQuestion で確認する。
 user-invocable: true
 ---
 

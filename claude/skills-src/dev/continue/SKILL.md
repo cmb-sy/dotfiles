@@ -1,6 +1,6 @@
 ---
 name: continue
-description: handover.md から未完了タスクを確認し、承認後に作業を再開する
+description: 前セッションで handover が保存した project-state.json / handover.md を読み込み、未完了タスクを確認して承認後に作業を再開したいときに使う。中断した作業やパイプライン（feature-dev / debug-flow）の続きから再開する
 user-invocable: true
 ---
 

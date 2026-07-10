@@ -1,6 +1,6 @@
 ---
 name: handover
-description: 現在のセッション内容を振り返り、project-state.json と handover.md を生成する
+description: セッションを中断・引き継ぎする前に、実施した作業と未完了タスクを project-state.json と handover.md に保存したいときに使う。context 逼迫時や次セッションへの申し送りに使用。復元は continue で行う
 user-invocable: true
 ---
 

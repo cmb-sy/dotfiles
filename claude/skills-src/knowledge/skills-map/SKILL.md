@@ -1,6 +1,6 @@
 ---
 name: skills-map
-description: 保持しているスキルをカテゴリー別・依存関係付きで一覧表示する。
+description: 手持ちのスキル全体を俯瞰したいとき・スキル間の呼び出し関係を確認したいときに使う。カテゴリー別グリッド・依存ツリー・スキル詳細を表示する。カテゴリ絞り込み・キーワード検索は argument-hint の各フラグを参照。
 argument-hint: "[--category <カテゴリ名>] [--deps] [--search <キーワード>]"
 user-invocable: true
 ---

@@ -1,10 +1,9 @@
 ---
 name: github-ops
 description: >-
-  PR 作成と GitHub Projects 登録を一気通貫で実行するスキル。
-  セッションコンテキストまたはフリーテキストから PR を構成し、
-  ランタイムで選択した Project にアイテムを登録する。
-  既存アイテムには対話的にステータス変更・サブタスク追加・DONE 操作を提供する。
+  PR 作成と GitHub Projects への登録を一気通貫で行いたいときに使うスキル。
+  セッションコンテキストまたはフリーテキストから PR を構成し、ランタイムで選んだ Project にアイテムを登録する。
+  既存アイテムには対話的にステータス変更・サブタスク追加・DONE 操作を提供する。フラグの詳細は本文の Options を参照。
 argument-hint: "[--content <text>] [--project <number>] [--draft] [--skip-project]"
 user-invocable: true
 ---

@@ -1,8 +1,8 @@
 ---
 name: triage
 description: >-
-  URL（Slack/GitHub/その他）から情報収集→周辺コンテキスト探索→分析→Linear Issue 登録を行う初動対応ワークフロー。
-  問い合わせやバグ報告のトリアージに使用する。
+  問い合わせ・バグ報告・障害連絡の URL（Slack/GitHub/その他）を受け取って初動対応したいときに使う。
+  情報収集→周辺コンテキスト探索→分析→Linear Issue 登録の 4 フェーズを実行するトリアージワークフロー。
 user-invocable: true
 ---
 

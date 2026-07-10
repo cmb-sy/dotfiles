@@ -1,8 +1,9 @@
 ---
 name: skills-prune
 description: >-
-  スキル利用ログを集計して未使用・低使用スキルを特定し、未使用理由を分析して
-  改善案（description/引数/導線）または削除提案を出す。スキル棚卸しやメンテ時に使う。
+  スキルの棚卸し・メンテナンスをしたいときに使う。利用ログを集計して未使用・低使用スキルを
+  特定し、未使用理由を分析して改善案（description/引数/導線）または削除提案を出す。
+  対象期間・件数・特定スキルの深掘りは argument-hint を参照。
 argument-hint: "[--window <days>] [--top <n>] [--focus <skill-name>] [--apply-draft]"
 user-invocable: true
 ---

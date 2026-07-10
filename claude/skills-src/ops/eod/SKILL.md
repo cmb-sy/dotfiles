@@ -1,15 +1,22 @@
 ---
 name: eod
 description: >-
-  その日の作業を1コマンドで締める。Slack+GitHub 収集 → github-issues（open issue 確認）
-  → daily-log → CloudLog 入力 → generate-problem → 翌日デイリー作成 → vault commit/push を順次実行する。
+  1 日の作業を締めたいとき（終業時・日報作成時）に使うオーケストレータ。
+  Slack+GitHub 収集 → open issue 確認 → 日報生成 → CloudLog 入力 → 振り返り → 翌日デイリー作成 → Obsidian vault commit/push を順次実行する。
+  除外プロジェクト指定は本文の Options を参照。
 argument-hint: "[--exclude <キーワード>...]"
 user-invocable: true
 ---
 
 その日の作業を1コマンドで締める。**Slack+GitHub収集 → github-issues（open issue 確認）→ daily-log → CloudLog入力 → generate-problem → 翌日デイリー作成 → Obsidian vault commit/push** を順次実行する。
 
-デフォルトで `--exclude siori --exclude generate-video --exclude shindanshi --exclude microsoft-agent-hackathon --exclude kunstSite --exclude dotfiles` を適用する。`--exclude` 追加指定があれば合算する。
+## Options
+
+| Option | 効果 |
+|--------|------|
+| `--exclude <キーワード>...` | 日報生成の対象から除外するプロジェクトを追加する。下記デフォルトに **合算** される（デフォルトを置き換えない） |
+
+デフォルトで `--exclude siori --exclude generate-video --exclude shindanshi --exclude microsoft-agent-hackathon --exclude kunstSite --exclude dotfiles` を適用する。
 
 ---
 
