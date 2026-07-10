@@ -18,6 +18,7 @@ C_BRANCH=$'\e[38;5;147m'      # Soft violet   - branch / worktree name
 C_DIRTY=$'\e[1;38;5;215m'     # Amber         - uncommitted changes indicator
 C_EFFORT=$'\e[1;38;5;220m'    # Gold          - reasoning effort level
 C_VOICE=$'\e[38;5;177m'       # Soft magenta  - Handy voice input mode
+C_ACCOUNT=$'\e[38;5;209m'     # Coral         - active Claude account
 
 SEP=" ${WHT}│${RST} "
 
@@ -34,15 +35,6 @@ has_val() { [ -n "$1" ] && [ "$1" != "null" ]; }
 # Drop trailing context-window hint from model label, e.g. " (1M)" or " （1M）"
 strip_model_suffix() {
   printf '%s' "$1" | sed -E 's/[[:space:]]*(\([^)]*\)|（[^）]*）)$//'
-}
-
-# Return visible length (ANSI escape sequences stripped)
-# macOS の /usr/bin/awk (one true awk) は length() がマルチバイト非対応で
-# UTF-8 文字をバイト数のままカウントしてしまう (絵文字やNerd Font アイコンが
-# 3〜4 倍に水増しされる)。wc -m は Unicode コードポイント単位で数えるため、
-# LC_ALL を明示的に UTF-8 化した上で使う (呼び出し元の locale 未設定に依存しない)。
-visible_len() {
-  printf '%s' "$1" | sed -E 's/\x1B\[[0-9;]*[[:alpha:]]//g' | LC_ALL=en_US.UTF-8 wc -m | tr -d ' '
 }
 
 # Render a progress bar: filled blocks (█) in accent color, empty slots (▒) in gray
@@ -116,7 +108,31 @@ if has_val "$MODEL"; then
 fi
 
 # ==============================================================================
-# [2] Context window remaining percentage and token count
+# [2] Active Claude account (multi-account switching via CLAUDE_CONFIG_DIR;
+# see claude-use-private / claude-use-work in .aliases.sh). Falls back to
+# resolving the ~/.claude symlink target when CLAUDE_CONFIG_DIR isn't
+# inherited (e.g. a fresh terminal that didn't go through clp/clw).
+# ==============================================================================
+
+sec_account=""
+acct_dir="${CLAUDE_CONFIG_DIR:-}"
+if [ -z "$acct_dir" ] && [ -L "$HOME/.claude" ]; then
+  acct_dir=$(readlink "$HOME/.claude")
+fi
+# Only trust a resolved, existing directory — a stale/broken ~/.claude symlink
+# would otherwise print whatever garbage basename it happens to point at.
+if [ -n "$acct_dir" ] && [ -d "$acct_dir" ]; then
+  acct_name=$(basename "$acct_dir")
+  acct_name="${acct_name#.claude-}"
+  acct_name="${acct_name#.claude}"
+  # Empty after stripping (dir literally named ".claude" or ".claude-") means
+  # "not a recognizable per-account dir" — intentionally hide the section
+  # rather than show a blank label.
+  has_val "$acct_name" && sec_account="${WHT}account${RST} ${C_ACCOUNT}${acct_name}${RST}"
+fi
+
+# ==============================================================================
+# [3] Context window remaining percentage and token count
 # ==============================================================================
 
 sec_ctx=""
@@ -130,7 +146,7 @@ if has_val "$USED"; then
 fi
 
 # ==============================================================================
-# [3] Rate limits (5-hour rolling window + 7-day)
+# [4] Rate limits (5-hour rolling window + 7-day)
 #
 # Claude Code 自身が stdin JSON で .rate_limits を渡してくれるので、Keychain や
 # OAuth API call を一切介さない。常に最新 & ネットワーク呼び出しゼロ & token
@@ -165,39 +181,42 @@ if [ -n "$RL_PRESENT" ]; then
 fi
 
 # ==============================================================================
-# [4] Git repository name and current branch
+# [5] Git repository name, branch, and uncommitted-change badge — disabled by
+# user request (not a TODO; keep commented rather than deleted for easy
+# re-enable). $DIR / $WORKTREE parsed from the jq block above are, as a
+# result, currently only consumed inside this disabled block.
 # ==============================================================================
 
 sec_repo=""
-if [ -n "$DIR" ] && git -C "$DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-  repo_name=$(basename "$(git -C "$DIR" rev-parse --show-toplevel 2>/dev/null)")
-  branch=$(git -C "$DIR" --no-optional-locks symbolic-ref --short HEAD 2>/dev/null)
-  if [ -n "$repo_name" ]; then
-    rel_path=$(git -C "$DIR" rev-parse --show-prefix 2>/dev/null)
-    rel_path="${rel_path%/}"
-    if [ -n "$rel_path" ]; then
-      sec_repo="${C_REPO}$(printf '\xef\x81\xbc') ../${repo_name}/${rel_path}${RST}"
-    else
-      sec_repo="${C_REPO}$(printf '\xef\x81\xbc') ../${repo_name}${RST}"
-    fi
-  fi
-  # Prefer worktree name (from Claude Code JSON) over raw branch when present
-  if has_val "$WORKTREE"; then
-    sec_repo+=" ${WHT}│${RST} ${C_BRANCH}$(printf '\xee\x82\xa0') ${WORKTREE}${RST}"
-  elif [ -n "$branch" ]; then
-    sec_repo+=" ${WHT}│${RST} ${C_BRANCH}$(printf '\xee\x82\xa0') ${branch}${RST}"
-  fi
-  # Uncommitted change count (staged + unstaged + untracked)
-  dirty=$(git -C "$DIR" --no-optional-locks status --porcelain 2>/dev/null | wc -l | tr -d ' ')
-  if is_int "$dirty" && [ "$dirty" -gt 0 ]; then
-    sec_repo+=" ${C_DIRTY}●${dirty}${RST}"
-  fi
-fi
-[ -z "$sec_repo" ] && [ -n "$DIR" ] && \
-  sec_repo="${C_REPO}$(printf '\xef\x81\xbc') ${DIR/#$HOME/\~}${RST}"
+# if [ -n "$DIR" ] && git -C "$DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+#   repo_name=$(basename "$(git -C "$DIR" rev-parse --show-toplevel 2>/dev/null)")
+#   branch=$(git -C "$DIR" --no-optional-locks symbolic-ref --short HEAD 2>/dev/null)
+#   if [ -n "$repo_name" ]; then
+#     rel_path=$(git -C "$DIR" rev-parse --show-prefix 2>/dev/null)
+#     rel_path="${rel_path%/}"
+#     if [ -n "$rel_path" ]; then
+#       sec_repo="${C_REPO}$(printf '\xef\x81\xbc') ../${repo_name}/${rel_path}${RST}"
+#     else
+#       sec_repo="${C_REPO}$(printf '\xef\x81\xbc') ../${repo_name}${RST}"
+#     fi
+#   fi
+#   # Prefer worktree name (from Claude Code JSON) over raw branch when present
+#   if has_val "$WORKTREE"; then
+#     sec_repo+=" ${WHT}│${RST} ${C_BRANCH}$(printf '\xee\x82\xa0') ${WORKTREE}${RST}"
+#   elif [ -n "$branch" ]; then
+#     sec_repo+=" ${WHT}│${RST} ${C_BRANCH}$(printf '\xee\x82\xa0') ${branch}${RST}"
+#   fi
+#   # Uncommitted change count (staged + unstaged + untracked)
+#   dirty=$(git -C "$DIR" --no-optional-locks status --porcelain 2>/dev/null | wc -l | tr -d ' ')
+#   if is_int "$dirty" && [ "$dirty" -gt 0 ]; then
+#     sec_repo+=" ${C_DIRTY}●${dirty}${RST}"
+#   fi
+# fi
+# [ -z "$sec_repo" ] && [ -n "$DIR" ] && \
+#   sec_repo="${C_REPO}$(printf '\xef\x81\xbc') ${DIR/#$HOME/\~}${RST}"
 
 # ==============================================================================
-# [5] Voice input mode (Handy / Typeless)
+# [6] Voice input mode (Handy / Typeless)
 #
 # Typeless が起動中なら "typeless" を優先表示 (bundle path で検出、Electron 系の
 # binary 名揺れに耐える)。それ以外は Handy の settings_store.json から
@@ -230,31 +249,17 @@ elif [ -s "$HANDY_SETTINGS" ]; then
 fi
 
 # ==============================================================================
-# Assemble sections with separator and output
+# [7] Assemble sections with separator and output. The clock is rendered
+# inline as the final section rather than right-aligned — a prior right-pad-
+# to-terminal-width approach undercounted the clock emoji's display width
+# (wc -m counts it as 1 column, terminals render it as 2), so the line ran
+# past the real width and Claude Code's UI clipped the clock off entirely.
 # ==============================================================================
 
-out=""
-for s in "$sec_model" "$sec_ctx" "$sec_limits" "$sec_repo" "$sec_voice"; do
-  [ -n "$s" ] && out="${out:+${out}${SEP}}${s}"
-done
-
-# ==============================================================================
-# [6] Right-aligned clock
-# ==============================================================================
 sec_time="${WHT}🕐 $(date +%H:%M)${RST}"
 
-cols="${COLUMNS:-}"
-if ! is_int "$cols" || [ "$cols" -lt 20 ]; then
-  cols=$(tput cols 2>/dev/null || echo 120)
-fi
-
-out_len=$(visible_len "$out")
-time_len=$(visible_len "$sec_time")
-gap=$(( cols - out_len - time_len ))
-
-if [ "$gap" -gt 1 ]; then
-  printf '%s%*s%s\n' "$out" "$gap" "" "$sec_time"
-else
-  # Narrow terminals: avoid collapsing by falling back to inline separator.
-  echo "${out}${SEP}${sec_time}"
-fi
+out=""
+for s in "$sec_model" "$sec_account" "$sec_ctx" "$sec_limits" "$sec_repo" "$sec_voice" "$sec_time"; do
+  [ -n "$s" ] && out="${out:+${out}${SEP}}${s}"
+done
+printf '%s\n' "$out"
