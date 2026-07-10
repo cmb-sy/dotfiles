@@ -73,3 +73,44 @@ find_active_session_dir() {
 
   return 1
 }
+
+add_architecture_change() {
+  local state_file="$1" sha="$2" summary="$3" files_json="$4" timestamp="$5"
+  local tmp
+  tmp="$(mktemp)"
+  jq --arg sha "$sha" --arg summary "$summary" --argjson files "$files_json" --arg date "$timestamp" '
+    .architecture_changes = ((.architecture_changes // []) + [{
+      commit_sha: $sha,
+      summary: $summary,
+      files_changed: $files,
+      date: $date
+    }])
+  ' "$state_file" > "$tmp" && mv "$tmp" "$state_file"
+}
+
+touch_related_tasks() {
+  local state_file="$1" files_json="$2" timestamp="$3"
+  local tmp
+  tmp="$(mktemp)"
+  jq --argjson changed "$files_json" --arg date "$timestamp" '
+    .active_tasks = [
+      .active_tasks[]? |
+      ((.file_paths // []) | any(. as $p | $changed | index($p) != null)) as $matched |
+      if $matched then .last_touched = $date else . end
+    ]
+  ' "$state_file" > "$tmp" && mv "$tmp" "$state_file"
+}
+
+update_status_field() {
+  local state_file="$1"
+  local tmp
+  tmp="$(mktemp)"
+  jq '
+    .status = (
+      if ((.active_tasks // []) | length > 0) and ((.active_tasks // []) | all(.status == "done"))
+      then "ALL_COMPLETE"
+      else "READY"
+      end
+    )
+  ' "$state_file" > "$tmp" && mv "$tmp" "$state_file"
+}

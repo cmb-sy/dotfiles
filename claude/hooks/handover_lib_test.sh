@@ -217,6 +217,51 @@ test_find_active_session_dir_not_a_git_repo() {
   rm -rf "$dir"
 }
 
+test_add_architecture_change_appends_entry() {
+  local dir state_file count sha
+  dir="$(make_tmp_state)"
+  state_file="${dir}/project-state.json"
+  add_architecture_change "$state_file" "abc1234" "test summary" '["a.sh","b.sh"]' "2026-07-10T00:00:00Z"
+  count="$(jq '.architecture_changes | length' "$state_file")"
+  assert_eq "add_architecture_change appends one entry" "1" "$count"
+  sha="$(jq -r '.architecture_changes[0].commit_sha' "$state_file")"
+  assert_eq "add_architecture_change records commit_sha" "abc1234" "$sha"
+  rm -rf "$dir"
+}
+
+test_touch_related_tasks_updates_matching_task_only() {
+  local dir state_file touched_a touched_b
+  dir="$(make_tmp_state)"
+  state_file="${dir}/project-state.json"
+  touch_related_tasks "$state_file" '["b.sh"]' "2026-07-10T12:00:00Z"
+  touched_a="$(jq -r '.active_tasks[] | select(.id=="T1") | .last_touched' "$state_file")"
+  touched_b="$(jq -r '.active_tasks[] | select(.id=="T2") | .last_touched' "$state_file")"
+  assert_eq "touch_related_tasks leaves non-matching task untouched" "2026-07-01T00:00:00Z" "$touched_a"
+  assert_eq "touch_related_tasks updates matching task" "2026-07-10T12:00:00Z" "$touched_b"
+  rm -rf "$dir"
+}
+
+test_update_status_field_all_done() {
+  local dir state_file session_status
+  dir="$(mktemp -d)"
+  state_file="${dir}/project-state.json"
+  echo '{"version":5,"status":"READY","active_tasks":[{"id":"T1","status":"done"},{"id":"T2","status":"done"}]}' > "$state_file"
+  update_status_field "$state_file"
+  session_status="$(jq -r '.status' "$state_file")"
+  assert_eq "update_status_field marks ALL_COMPLETE when every task is done" "ALL_COMPLETE" "$session_status"
+  rm -rf "$dir"
+}
+
+test_update_status_field_some_pending() {
+  local dir state_file session_status
+  dir="$(make_tmp_state)"
+  state_file="${dir}/project-state.json"
+  update_status_field "$state_file"
+  session_status="$(jq -r '.status' "$state_file")"
+  assert_eq "update_status_field keeps READY when a task is pending" "READY" "$session_status"
+  rm -rf "$dir"
+}
+
 ## Run tests
 test_handover_log_prefixes_message
 test_validate_project_state_valid_file
@@ -231,6 +276,10 @@ test_scan_sessions_handles_trailing_slash_in_base_dir
 test_find_active_session_dir_picks_most_recent_ready
 test_find_active_session_dir_no_handover_dir
 test_find_active_session_dir_not_a_git_repo
+test_add_architecture_change_appends_entry
+test_touch_related_tasks_updates_matching_task_only
+test_update_status_field_all_done
+test_update_status_field_some_pending
 
 echo ""
 echo "${PASS} passed, ${FAIL} failed"
