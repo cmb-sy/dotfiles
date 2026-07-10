@@ -144,7 +144,7 @@ if [[ -f "${DOTFILES:-${HOME}/dotfiles}/.aliases.sh" ]]; then
   source "${DOTFILES:-${HOME}/dotfiles}/.aliases.sh"
 fi
 # bun completions
-[ -s "/Users/snakashima/.bun/_bun" ] && source "/Users/snakashima/.bun/_bun"
+[ -s "$HOME/.bun/_bun" ] && source "$HOME/.bun/_bun"
 
 # bun
 export BUN_INSTALL="$HOME/.bun"

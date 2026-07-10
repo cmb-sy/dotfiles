@@ -30,7 +30,7 @@
 	ui = auto
 [core]
 	editor = vim
-	excludesfile = /Users/snakashima/.gitignore_global
+	excludesfile = ~/.gitignore_global
 	pager = less
 [merge]
 	ff = false

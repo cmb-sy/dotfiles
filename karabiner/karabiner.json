@@ -21,7 +21,7 @@
                                     "modifiers": { "optional": ["any"] }
                                 },
                                 "to": [
-                                    { "shell_command": "/Users/snakashima/dotfiles/bin/voice-out" }
+                                    { "shell_command": "$HOME/dotfiles/bin/voice-out" }
                                 ]
                             }
                         ]
@@ -49,7 +49,7 @@
                                     "modifiers": { "optional": ["any"] }
                                 },
                                 "to": [
-                                    { "shell_command": "/Users/snakashima/dotfiles/bin/voice-toggle" }
+                                    { "shell_command": "$HOME/dotfiles/bin/voice-toggle" }
                                 ],
                                 "conditions": [
                                     { "type": "variable_unless", "name": "voice_engine", "value": "typeless" }
@@ -87,7 +87,7 @@
                                     "modifiers": { "mandatory": ["fn"] }
                                 },
                                 "to": [
-                                    { "shell_command": "/Users/snakashima/dotfiles/bin/ai-format" }
+                                    { "shell_command": "$HOME/dotfiles/bin/ai-format" }
                                 ]
                             }
                         ]

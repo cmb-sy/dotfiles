@@ -3,7 +3,7 @@
 # デフォルトは「claude -p で音声向けに要約してから say」。--full で従来の全文読み。
 #
 # 通常起動 (Karabiner: F1 経由):
-#   /Users/snakashima/dotfiles/bin/voice-out
+#   $HOME/dotfiles/bin/voice-out
 #     → state file から transcript path を読み、末尾 assistant ターンを抽出 →
 #       claude -p (haiku) で 30 秒程度の要約に整形 → sanitize → say
 #
