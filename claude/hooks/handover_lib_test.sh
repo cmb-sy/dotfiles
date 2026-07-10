@@ -167,6 +167,19 @@ test_scan_sessions_handles_branch_names_with_slashes() {
   rm -rf "$base"
 }
 
+test_scan_sessions_handles_trailing_slash_in_base_dir() {
+  local base result branch
+  base="$(mktemp -d)"
+  mkdir -p "${base}/main/20260701-090000"
+  echo '{"version":5,"status":"READY","active_tasks":[]}' > "${base}/main/20260701-090000/project-state.json"
+
+  result="$(scan_sessions "${base}/")"
+  branch="$(echo "$result" | jq -r '.[0].branch')"
+  assert_eq "scan_sessions strips a trailing slash from base_dir before deriving branch" "main" "$branch"
+
+  rm -rf "$base"
+}
+
 ## Run tests
 test_handover_log_prefixes_message
 test_validate_project_state_valid_file
@@ -177,6 +190,7 @@ test_validate_project_state_missing_required_field
 test_scan_sessions_returns_ready_sessions_only
 test_scan_sessions_empty_base_dir
 test_scan_sessions_handles_branch_names_with_slashes
+test_scan_sessions_handles_trailing_slash_in_base_dir
 
 echo ""
 echo "${PASS} passed, ${FAIL} failed"

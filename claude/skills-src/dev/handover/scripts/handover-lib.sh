@@ -22,6 +22,7 @@ validate_project_state() {
 
 scan_sessions() {
   local base_dir="$1"
+  base_dir="${base_dir%/}"
   local results="[]"
   local file rel_path fingerprint branch session_status entry
 
