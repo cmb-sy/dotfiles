@@ -173,7 +173,7 @@
     ],
     "defaultMode": "bypassPermissions"
   },
-  "model": "claude-fable-5[1m]",
+  "model": "claude-fable-5",
   "hooks": {
     "Notification": [
       {
@@ -302,7 +302,6 @@
     "document-skills@anthropic-agent-skills": true,
     "frontend-design@claude-plugins-official": true,
     "gopls-lsp@claude-plugins-official": true,
-    "linear@claude-plugins-official": true,
     "playwright@claude-plugins-official": true,
     "pm-execution@pm-skills": true,
     "postgres-best-practices@supabase-agent-skills": true,
@@ -336,7 +335,7 @@
       }
     }
   },
-  "effortLevel": "medium",
+  "effortLevel": "high",
   "tui": "fullscreen",
   "skipDangerousModePermissionPrompt": true,
   "theme": "dark",
