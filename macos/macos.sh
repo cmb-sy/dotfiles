@@ -34,7 +34,6 @@ defaults write NSGlobalDomain AppleShowAllExtensions -bool true # show all exten
 defaults write com.apple.desktopservices DSDontWriteNetworkStores -bool true # do not create .DS_Store files on network and USB storage
 defaults write com.apple.desktopservices DSDontWriteUSBStores -bool true # do not create .DS_Store files on network and USB storage
 defaults write -g 'NSRecentDocumentsLimit' -int 0 # do not record recently used items
-sudo chflags nohidden /Volumes # do not hide /Volumes directory
 
 # ----------------------------------------------------------
 # Dock settings
@@ -56,8 +55,7 @@ defaults write com.apple.inputmethod.Kotoeri JIMPrefLiveConversionKey -bool fals
 # system dialog settings
 # ----------------------------------------------------------
 defaults write com.apple.CrashReporter DialogType -string "none" # disable crash report
-defaults write com.apple.LaunchServices LSQuarantine -bool false # disable dialog when running unknown apps
-defaults write com.apple.LaunchServices LSQuarantine -bool false # disable dialog when opening downloaded files
+defaults write com.apple.LaunchServices LSQuarantine -bool false # disable dialog when running unknown/downloaded apps
 
 # ----------------------------------------------------------
 # screenshot settings

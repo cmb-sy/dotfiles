@@ -66,20 +66,6 @@ if [[ $? = 0 ]]; then
 fi
 
 #----------------------------------------------------------
-# WezTerm
-#----------------------------------------------------------
-util::confirm "Set up WezTerm config?"
-if [[ $? = 0 ]]; then
-  mkdir -p "$HOME/.config"
-  if [[ -d "${REPO_DIR}/terminal/wezterm" ]]; then
-    ln -sfn "${REPO_DIR}/terminal/wezterm" "$HOME/.config/wezterm"
-    util::info "WezTerm config linked to ~/.config/wezterm."
-  else
-    util::info "Skip: terminal/wezterm not found."
-  fi
-fi
-
-#----------------------------------------------------------
 # Karabiner-Elements (Caps Lock 二度押し → 音声入力)
 #----------------------------------------------------------
 util::confirm "Set up Karabiner-Elements config?"
@@ -156,24 +142,6 @@ if [[ $? = 0 ]]; then
     util::info "tmux config and sessionizer linked."
   else
     util::info "Skip: tmux/tmux.conf or tmux/sessionizer.sh not found."
-  fi
-fi
-
-#----------------------------------------------------------
-# herdr (agent multiplexer)
-#
-# ~/.config/herdr は config.toml 以外にサーバーのログ/ソケット/session.json
-# を書き込み続けるため、terminal/* の一括ディレクトリ symlink 対象にはせず、
-# tmux と同様に config.toml だけをファイル単位で symlink する。
-#----------------------------------------------------------
-util::confirm "Set up herdr config?"
-if [[ $? = 0 ]]; then
-  if [[ -f "${REPO_DIR}/terminal/herdr/config.toml" ]]; then
-    mkdir -p "$HOME/.config/herdr"
-    ln -sf "${REPO_DIR}/terminal/herdr/config.toml" "$HOME/.config/herdr/config.toml"
-    util::info "herdr config linked to ~/.config/herdr/config.toml."
-  else
-    util::info "Skip: terminal/herdr/config.toml not found."
   fi
 fi
 

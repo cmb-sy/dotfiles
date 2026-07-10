@@ -124,6 +124,10 @@ eval "$(starship init zsh)"
 # ----------------------------------------------------------
 # PATH (before .aliases.sh so `command -v claude` sees the CLI)
 # claude は Homebrew (/opt/homebrew/bin/claude) に一本化。他の場所にインストールしないこと
+#
+# .zshenv と同じ prepend の再実行 — 重複ではない。login shell では
+# /etc/zprofile の path_helper が .zshenv 適用後に PATH を並べ替えるため、
+# ここで再 prepend して優先順位を復元する。変更時は .zshenv と揃えること。
 # ----------------------------------------------------------
 export PATH="/opt/homebrew/bin:$PATH"
 export PATH="/usr/local/bin:$PATH"
@@ -143,10 +147,10 @@ fi
 if [[ -f "${DOTFILES:-${HOME}/dotfiles}/.aliases.sh" ]]; then
   source "${DOTFILES:-${HOME}/dotfiles}/.aliases.sh"
 fi
-# bun completions
-[ -s "$HOME/.bun/_bun" ] && source "$HOME/.bun/_bun"
-
-# bun
+# ----------------------------------------------------------
+# bun (curl installer 製、Homebrew 管理外) / maestro (同じく管理外)
+# ----------------------------------------------------------
 export BUN_INSTALL="$HOME/.bun"
 export PATH="$BUN_INSTALL/bin:$PATH"
+[ -s "$HOME/.bun/_bun" ] && source "$HOME/.bun/_bun"   # bun completions
 export PATH=$PATH:$HOME/.maestro/bin

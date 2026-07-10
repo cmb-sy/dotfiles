@@ -1,4 +1,5 @@
-#!/bin/sh
+# .zshrc から source される前提の zsh スクリプト（実行ファイルではない）。
+# zsh 固有構文（配列、read -rs、read "var?prompt"）を含むため POSIX sh では動かない。
 
 # ----------------------------------------------------------
 # Shell Commands
@@ -244,13 +245,8 @@ claude-link-shared() {
   zsh "$d/claude/link-shared-config.zsh"
 }
 
-if [ -n "${ZSH_VERSION-}" ]; then
-  builtin unfunction cla 2>/dev/null
-  unalias cla cl 2>/dev/null
-fi
-
 # ----------------------------------------------------------
-# Terraform
+# Terraform (tfenv 経由でインストール — Brewfile 参照)
 # ----------------------------------------------------------
 alias tf='terraform'
 alias tfi='terraform init'
