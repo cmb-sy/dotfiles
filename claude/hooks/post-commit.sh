@@ -45,10 +45,18 @@ FILES_CHANGED_JSON="$(echo "$FILES_CHANGED_RAW" | jq -R -s '[split("\n")[] | sel
 
 NOW="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 
-add_architecture_change "$STATE_FILE" "$COMMIT_SHORT" "$COMMIT_MSG" "$FILES_CHANGED_JSON" "$NOW"
-touch_related_tasks "$STATE_FILE" "$FILES_CHANGED_JSON" "$NOW"
-update_status_field "$STATE_FILE"
+{
+  add_architecture_change "$STATE_FILE" "$COMMIT_SHORT" "$COMMIT_MSG" "$FILES_CHANGED_JSON" "$NOW" &&
+  touch_related_tasks "$STATE_FILE" "$FILES_CHANGED_JSON" "$NOW" &&
+  update_status_field "$STATE_FILE"
+} || {
+  _handover_log "failed to update project-state.json, skipping"
+  exit 0
+}
 
-generate_handover_md "$STATE_FILE" "$HANDOVER_FILE"
+generate_handover_md "$STATE_FILE" "$HANDOVER_FILE" || {
+  _handover_log "failed to generate handover.md, skipping"
+  exit 0
+}
 
 _handover_log "updated project-state.json and handover.md for commit ${COMMIT_SHORT}"
