@@ -1,5 +1,6 @@
 #!/bin/bash
 # Plain-bash unit tests for handover-lib.sh (no external test framework).
+# 実行: bash claude/hooks/handover_lib_test.sh
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"

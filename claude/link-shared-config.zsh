@@ -31,6 +31,8 @@ _link_into() {
   mkdir -p "$root"
 
   local name src dst backup
+  # skills-src は意図的に対象外: skills-src はソース（カテゴリ別ディレクトリ）、
+  # skills が実際に Claude Code へ公開されるデプロイ版（skills-src への symlink 集）
   for name in settings.json hooks statusline.sh skills agents CLAUDE.md; do
     src="$DOTFILES/claude/$name"
     [[ -e "$src" ]] || continue
