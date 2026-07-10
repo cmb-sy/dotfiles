@@ -92,6 +92,10 @@ alias dimg='docker images'
 _claude_account_link() {
   local target="$1"
   ln -sfn "$target" "${HOME}/.claude"
+  # プラグイン installPath の symlink パス混入を毎回正規化する。これを怠ると、
+  # symlink 切替時にもう一方のアカウントの稼働中セッションが
+  # "Plugin directory does not exist" を毎 Stop で吐く（詳細はスクリプト内コメント）。
+  zsh "${DOTFILES:-${HOME}/dotfiles}/claude/normalize-plugin-paths.zsh" 2>/dev/null
 }
 
 claude-use-private() {
