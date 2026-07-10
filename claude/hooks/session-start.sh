@@ -4,15 +4,12 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "${SCRIPT_DIR}/../skills/handover/scripts/handover-lib.sh"
 
-# Get project root
 PROJECT_DIR="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
 
-HANDOVER_BASE="${PROJECT_DIR}/.claude/handover"
+HANDOVER_BASE="${PROJECT_DIR}/.agents/handover"
 
-# Exit silently if no handover directory exists
 [[ -d "$HANDOVER_BASE" ]] || exit 0
 
-# Scan for active sessions
 SESSIONS="$(scan_sessions "$HANDOVER_BASE")"
 SESSION_COUNT="$(echo "$SESSIONS" | jq 'length')"
 
@@ -20,7 +17,6 @@ if [[ "$SESSION_COUNT" -eq 0 ]]; then
   exit 0
 fi
 
-# Output READY session info
 echo "📋 Handover sessions found:"
 echo "$SESSIONS" | jq -r '.[] | "  - [\(.branch)/\(.fingerprint)] tasks: \(.done_tasks)/\(.total_tasks) | next: \(.next_action)"'
 echo ""
