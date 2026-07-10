@@ -107,7 +107,7 @@ clpa() {
   claude-use-private
   local q="$*"
   [ -z "$q" ] && q="$_claude_autonomous_default_prompt"
-  command claude --effort xhigh --dangerously-skip-permissions "$q"
+  command claude --effort medium --dangerously-skip-permissions "$q"
 }
 
 clwa() {
