@@ -43,6 +43,16 @@ make_tmp_git_repo_with_commit() {
   echo "$dir"
 }
 
+test_not_a_git_repo_skips() {
+  local dir output exit_status
+  dir="$(mktemp -d)"
+  output="$(cd "$dir" && env -u CLAUDE_PROJECT_DIR bash "$SCRIPT" 2>&1)"
+  exit_status="$?"
+  assert_eq "post-commit.sh exits 0 outside a git repository" "0" "$exit_status"
+  assert_contains "post-commit.sh logs 'not in a git repository'" "$output" "not in a git repository"
+  rm -rf "$dir"
+}
+
 test_no_active_session_skips() {
   local repo output exit_status
   repo="$(make_tmp_git_repo_with_commit)"
@@ -84,6 +94,7 @@ JSON
   rm -rf "$repo"
 }
 
+test_not_a_git_repo_skips
 test_no_active_session_skips
 test_active_session_updates_state_and_md
 

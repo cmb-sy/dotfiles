@@ -6,7 +6,10 @@ readonly HANDOVER_LOG_PREFIX="[claude-post-commit]"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "${SCRIPT_DIR}/../skills/handover/scripts/handover-lib.sh"
 
-PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null)}"
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-}"
+if [[ -z "$PROJECT_DIR" ]]; then
+  PROJECT_DIR="$(git rev-parse --show-toplevel 2>/dev/null)" || true
+fi
 if [[ -z "$PROJECT_DIR" ]]; then
   _handover_log "not in a git repository, skipping"
   exit 0
