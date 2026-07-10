@@ -133,6 +133,9 @@ done
 #----------------------------------------------------------
 for name in ${DOTFILES_DIR}/terminal/*; do
   name="$(basename ${name})"
+  # herdr writes runtime logs/sockets/session.json next to its config, so it
+  # cannot be bulk-symlinked as a whole directory; handled separately below.
+  [[ ${name} == "herdr" ]] && continue
   if [[ -L ${HOME}/.config/${name} ]]; then
     unlink ${HOME}/.config/${name}
   elif [[ -e ${HOME}/.config/${name} ]]; then
@@ -141,6 +144,23 @@ for name in ${DOTFILES_DIR}/terminal/*; do
   fi
   ln -sfv ${DOTFILES_DIR}/terminal/${name} ${HOME}/.config/${name}
 done
+
+#----------------------------------------------------------
+# herdr: symlink config.toml only (its config dir also holds runtime
+# logs/sockets/session.json, unlike the other terminal tools above)
+#----------------------------------------------------------
+if [[ -f ${DOTFILES_DIR}/terminal/herdr/config.toml ]]; then
+  mkdir -p ${HOME}/.config/herdr
+  dst=${HOME}/.config/herdr/config.toml
+  if [[ -L ${dst} ]]; then
+    unlink ${dst}
+  elif [[ -e ${dst} ]]; then
+    util::warning "${dst} exists and is not a symlink; skipping (move or remove manually)"
+  fi
+  if [[ ! -e ${dst} ]]; then
+    ln -sfv ${DOTFILES_DIR}/terminal/herdr/config.toml ${dst}
+  fi
+fi
 
 #----------------------------------------------------------
 # VSCode Settings
