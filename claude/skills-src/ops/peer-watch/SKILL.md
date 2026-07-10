@@ -109,7 +109,7 @@ notable_diffs:
 
 ### Why for me (自分にどう関係するか)
 
-ユーザーの dotfiles (`/Users/snakashima/dotfiles`) と実際に diff を取り、以下のラベルから 1 つを付ける:
+ユーザーの dotfiles (`$HOME/dotfiles`) と実際に diff を取り、以下のラベルから 1 つを付ける:
 
 | ラベル | 意味 | 判定基準 |
 |---|---|---|
@@ -136,7 +136,7 @@ What:
 
 Why for me [🆕 NEW]:
   あなたの dotfiles には git hooks 関連のファイルが見当たらず (確認: ls
-  -la /Users/snakashima/dotfiles/.git/hooks)、CLAUDE.md の PII Protection
+  -la $HOME/dotfiles/.git/hooks)、CLAUDE.md の PII Protection
   憲法に対応する未実装の防御層がある。secretlint 自体はインストール不要で、
   npm 経由で 1 コマンド導入可能。pre-push に組み込めば、Slack や Linear に
   PII を送る前の最後のセーフティネットになる。
@@ -175,7 +175,7 @@ A:
 
 採用された finding と「後で」バケットを以下に追記する:
 
-- 出力先: `/Users/snakashima/dotfiles/docs/peer-watch/YYYY-MM-DD.md`
+- 出力先: `$HOME/dotfiles/docs/peer-watch/YYYY-MM-DD.md`
 - ディレクトリが無ければ作成
 - 既存ファイルがあれば追記（同日複数回実行を想定）
 
@@ -232,7 +232,7 @@ Peer Watch 完了。
 
 ### diff 判定の grep ベース実装
 
-「自分にどう関係するか」を判定するために、`/Users/snakashima/dotfiles` を grep / find / ls で実際に探索する。**LLM の推測で「ありそう/なさそう」を判定しない**。grep で見つからなければ 🆕、見つかれば内容を読んで 🔁 / ✅ を判定する。
+「自分にどう関係するか」を判定するために、`$HOME/dotfiles` を grep / find / ls で実際に探索する。**LLM の推測で「ありそう/なさそう」を判定しない**。grep で見つからなければ 🆕、見つかれば内容を読んで 🔁 / ✅ を判定する。
 
 ### 教育解説の深さ
 

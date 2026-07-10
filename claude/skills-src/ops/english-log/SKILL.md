@@ -17,7 +17,7 @@ user-invocable: true
 ## 前提
 
 - CLAUDE.md の「英語学習補助」セクションが有効であること。これが訂正を生成する元。
-- Obsidian vault は `/Users/snakashima/Documents/obsidian/`（git リポジトリ、private）。
+- Obsidian vault は `$HOME/develop/obsidian/`（git リポジトリ、private）。
 
 ## 処理フロー
 
@@ -63,7 +63,7 @@ user-invocable: true
 
 ### Step 3: 出力先の決定
 
-- ベースパス: `/Users/snakashima/Documents/obsidian/03_skillup/english/`
+- ベースパス: `$HOME/develop/obsidian/03_skillup/english/`
 - ファイル名: `YYYY-MM-DD.md`（今日の日付。`--date` 引数で上書き可）
 - ディレクトリが無ければ作成する。
 
