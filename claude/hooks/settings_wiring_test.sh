@@ -1,19 +1,19 @@
 #!/bin/bash
-# settings.json の inline hook command が stdin JSON で実際に動くかの配線テスト
-# (post-commit 起動判定 / 破壊的コマンドブロック)
+# Wiring tests: verify the inline hook commands in settings.json actually work
+# with stdin JSON (post-commit trigger detection / destructive-command block).
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SETTINGS="${SCRIPT_DIR}/../settings.json"
 source "${SCRIPT_DIR}/test-helpers.sh"
 
-# --- 抽出: matcher/内容で select (インデックス非依存) ---
+# --- Extract hook commands by matcher/content (index-independent) ---
 POST_CMD="$(jq -r '.hooks.PostToolUse[] | select(.matcher=="Bash") | .hooks[].command | select(contains("post-commit"))' "$SETTINGS")"
 BLOCK_CMD="$(jq -r '.hooks.PreToolUse[] | select(.matcher=="Bash") | .hooks[].command | select(contains("BLOCK"))' "$SETTINGS")"
 assert_eq "post-commit trigger exists in settings" "0" "$([ -n "$POST_CMD" ]; echo $?)"
 assert_eq "destructive block exists in settings"   "0" "$([ -n "$BLOCK_CMD" ]; echo $?)"
 
-# --- post-commit 起動判定: stub した post-commit.sh が呼ばれるか ---
+# --- post-commit trigger: is the stubbed post-commit.sh invoked? ---
 FAKE_HOME="$(mktemp -d)"
 mkdir -p "$FAKE_HOME/.claude/hooks"
 printf '#!/bin/bash\necho CALLED\n' > "$FAKE_HOME/.claude/hooks/post-commit.sh"
@@ -28,7 +28,7 @@ assert_eq "broken JSON does not trigger" "" \
   "$(run_post 'not-json')"
 rm -rf "$FAKE_HOME"
 
-# --- 破壊的コマンドブロック: exit 2 / 0 ---
+# --- Destructive-command block: exit 2 (block) / 0 (allow) ---
 run_block() { printf '%s' "$1" | bash -c "$BLOCK_CMD" >/dev/null 2>&1; echo $?; }
 assert_eq "blocks rm -rf /"           "2" "$(run_block '{"tool_input":{"command":"rm -rf /"}}')"
 assert_eq "blocks rm -rf ~"           "2" "$(run_block '{"tool_input":{"command":"rm -rf ~"}}')"

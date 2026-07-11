@@ -1,5 +1,5 @@
-# .zshrc から source される前提の zsh スクリプト（実行ファイルではない）。
-# zsh 固有構文（配列、read -rs、read "var?prompt"）を含むため POSIX sh では動かない。
+# zsh script meant to be sourced from .zshrc (not executed directly).
+# Uses zsh-only syntax (arrays, read -rs, read "var?prompt"); not POSIX sh.
 
 # ----------------------------------------------------------
 # Shell Commands
@@ -30,56 +30,33 @@ alias dimg='docker images'
 # Claude Code (multi-account via CLAUDE_CONFIG_DIR)
 # ----------------------------------------------------------
 # One-time setup:
-#   1. Create per-account config dirs if missing, e.g.:
-#        ~/.claude-private  (personal)
-#        ~/.claude-work     (company)
-#      Use mkdir, or mv ~/.claude ~/.claude-private if migrating an existing tree.
-#   2. Mint a per-account long-lived token (required — see "Why" below). Run
-#      these as two SEPARATE commands (not chained) — `claude setup-token` is
-#      an interactive TUI that leaves the terminal's stdin in a state where a
-#      capture command chained right after it will read EOF immediately:
-#        claude-setup-token-private   # opens browser login, prints a token
-#        claude-save-token-private    # then, in a fresh prompt, paste it here
-#        claude-setup-token-work      # same, for the work account
-#        claude-save-token-work
-#      The token is saved to CLAUDE_ACCOUNT_*_DIR/oauth-token (chmod 600, not
-#      echoed back to the terminal) and read automatically by clp/clw/clpa/clwa
-#      from then on. The save step also asks for an ACCOUNT LABEL (the email
-#      of the account you logged in as during setup-token) and stores it in
-#      CLAUDE_ACCOUNT_*_DIR/oauth-token.account — statusline.sh shows this as
-#      the token-consuming account, e.g. "private (alice)". The label
-#      is the ONLY identity record: setup-token tokens carry just the
-#      user:inference OAuth scope, so the owning account can never be resolved
-#      from the token itself (API returns 403), and <dir>/.claude.json's
-#      oauthAccount cache is never refreshed by token-injected sessions.
-#      OPERATIONAL RULES:
-#        - Rotate tokens ONLY via claude-setup-token-* + claude-save-token-*.
-#          Never hand-edit oauth-token alone — the label would silently go
-#          stale and the statusline would show the wrong account.
-#        - When statusline shows "(?)", the token has no label: re-run
-#          claude-save-token-* (or write the email to oauth-token.account).
-#        - Log in with the CORRECT account in the browser during setup-token;
-#          nothing downstream can detect a private/work mix-up at that step.
-#   3. Share dotfiles-backed config into both dirs (once), if not already done
-#      (e.g. setup.zsh may run this): `claude-link-shared`, or:
-#        zsh "${DOTFILES:-${HOME}/dotfiles}/claude/link-shared-config.zsh"
-#   4. Make ~/.claude a symlink (not a plain directory), or clp/clw may not behave
-#      as intended. Example default target (pick one):
+#   1. Create per-account config dirs (e.g. ~/.claude-private, ~/.claude-work),
+#      or mv ~/.claude ~/.claude-private when migrating an existing tree.
+#   2. Mint a per-account long-lived token (required — see "Why" below):
+#        claude-setup-token-private  then  claude-save-token-private
+#        claude-setup-token-work     then  claude-save-token-work
+#      Run setup and save as SEPARATE commands: setup-token's interactive TUI
+#      leaves stdin in a state where a chained read gets immediate EOF. The
+#      save step stores the token (chmod 600) plus an account label (the email
+#      used at setup-token) in oauth-token.account; statusline.sh shows it as
+#      the token-consuming account. The label is the ONLY identity record:
+#      setup-token tokens carry just the user:inference scope, so the owner
+#      cannot be resolved from the token via API, and token-injected sessions
+#      never refresh .claude.json's oauthAccount cache. Rotate only via
+#      setup + save (hand-editing oauth-token leaves a stale label; "(?)" in
+#      the statusline means no label — re-run claude-save-token-*).
+#   3. Link shared dotfiles config into both dirs (once): `claude-link-shared`.
+#   4. Make ~/.claude a symlink (not a plain directory), e.g.:
 #        ln -sfn ~/.claude-private ~/.claude
-# Why per-account tokens (not just `/login` per config dir): on macOS, Claude
-# Code's OAuth session is stored in ONE global Keychain item
-# ("Claude Code-credentials"), not scoped by CLAUDE_CONFIG_DIR. Switching
-# CLAUDE_CONFIG_DIR only changes where settings/skills/history are read from —
-# it does NOT change which account's token is used for API calls. Whichever
-# account you last ran `/login` as silently becomes active for BOTH clp and
-# clw. A per-account CLAUDE_CODE_OAUTH_TOKEN (from `claude setup-token`, valid
-# 1 year) bypasses Keychain entirely and is injected only for the duration of
-# that one command, so private/work usage can never cross-contaminate.
-# Daily: `clp` / `clw` switch account + launch; `clpa` / `clwa` same + autonomous mode.
-# New terminals do not inherit CLAUDE_CONFIG_DIR; ~/.claude symlink persists.
-# Per-account defaults (effort/model) live in CLAUDE_PRIVATE_DEFAULT_* /
-# CLAUDE_WORK_DEFAULT_* below — export an override before sourcing this file
-# to change them (e.g. in ~/.zshrc.local).
+# Why per-account tokens: on macOS the OAuth session lives in ONE global
+# Keychain item, NOT scoped by CLAUDE_CONFIG_DIR — switching config dirs only
+# changes settings/skills/history, while the last `/login` account silently
+# serves API calls for BOTH clp and clw. A per-account CLAUDE_CODE_OAUTH_TOKEN
+# (valid 1 year) bypasses Keychain and is injected per command only.
+# Daily: clp / clw switch account + launch; clpa / clwa add autonomous mode.
+# New terminals do not inherit CLAUDE_CONFIG_DIR; the ~/.claude symlink is the
+# persistent default. Per-account effort/model defaults: export overrides for
+# CLAUDE_PRIVATE_DEFAULT_* / CLAUDE_WORK_DEFAULT_* before sourcing this file.
 # ----------------------------------------------------------
 : "${CLAUDE_ACCOUNT_PRIVATE_DIR:=${HOME}/.claude-private}"
 : "${CLAUDE_ACCOUNT_WORK_DIR:=${HOME}/.claude-work}"
@@ -92,9 +69,9 @@ alias dimg='docker images'
 _claude_account_link() {
   local target="$1"
   ln -sfn "$target" "${HOME}/.claude"
-  # プラグイン installPath の symlink パス混入を毎回正規化する。これを怠ると、
-  # symlink 切替時にもう一方のアカウントの稼働中セッションが
-  # "Plugin directory does not exist" を毎 Stop で吐く（詳細はスクリプト内コメント）。
+  # Normalize plugin installPath symlink contamination on every switch;
+  # otherwise the other account's live sessions emit "Plugin directory does
+  # not exist" on every Stop (details in that script's header comments).
   zsh "${DOTFILES:-${HOME}/dotfiles}/claude/normalize-plugin-paths.zsh" 2>/dev/null
 }
 
@@ -250,7 +227,7 @@ claude-link-shared() {
 }
 
 # ----------------------------------------------------------
-# Terraform (tfenv 経由でインストール — Brewfile 参照)
+# Terraform (installed via tfenv — see Brewfile)
 # ----------------------------------------------------------
 alias tf='terraform'
 alias tfi='terraform init'

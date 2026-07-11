@@ -1,8 +1,8 @@
 #cloud-config
-# OCI インスタンス作成時に「高度なオプション > cloud-init スクリプト」へ貼り付ける。
-# 貼り付け前に {{TAILSCALE_AUTH_KEY}} を使い捨てキー（単回使用・有効期限付き・
-# https://login.tailscale.com/admin/settings/keys で発行）に置換すること。
-# このファイル自体はテンプレであり、実キーを書き込んで保存・コミットしてはならない。
+# Paste into "Advanced options > cloud-init script" when creating the OCI instance.
+# Before pasting, replace {{TAILSCALE_AUTH_KEY}} with a single-use, expiring key
+# issued at https://login.tailscale.com/admin/settings/keys.
+# This file is a template: never save or commit a real key into it.
 package_update: true
 package_upgrade: true
 packages:
@@ -11,9 +11,9 @@ packages:
   - curl
 timezone: Asia/Tokyo
 runcmd:
-  # Tailscale 参加（inbound 全閉じでも outbound だけで成立する）
+  # Join Tailscale (outbound-only; works with all inbound ports closed)
   - ['sh', '-c', 'curl -fsSL https://tailscale.com/install.sh | sh']
   - ['tailscale', 'up', '--authkey={{TAILSCALE_AUTH_KEY}}', '--ssh']
-  # dotfiles 取得（bootstrap は初回 SSH 後に手動実行する）
+  # Fetch dotfiles (bootstrap is run manually after the first SSH)
   - ['sudo', '-u', 'ubuntu', 'git', 'clone', 'https://github.com/cmb-sy/dotfiles.git', '/home/ubuntu/dotfiles']
 final_message: "cloud-init done. Connect via: tailscale ssh ubuntu@<hostname>"

@@ -1,6 +1,6 @@
 #!/bin/bash
-# pii-guard.py の stdin JSON 契約のテスト
-# 実行: bash claude/hooks/pii_guard_test.sh
+# Tests for the stdin JSON contract of pii-guard.py.
+# Run: bash claude/hooks/pii_guard_test.sh
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -12,7 +12,7 @@ run_guard() {  # $1=stdin payload -> echo exit code
   echo $?
 }
 
-# 実在風メールアドレスを実行時に組み立てる (リテラルでファイルに残さない)
+# Assemble a realistic-looking email at runtime (never leave it as a literal in this file)
 addr="taro.yamada@""real-corp"".co.jp"
 
 payload_write_pii="{\"hook_event_name\":\"PreToolUse\",\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"/tmp/x.md\",\"content\":\"連絡先: ${addr}\"}}"

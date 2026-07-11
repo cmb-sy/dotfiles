@@ -187,17 +187,16 @@ fi
 # ==============================================================================
 # [4] Rate limits (5-hour rolling window + 7-day)
 #
-# Claude Code 自身が stdin JSON で .rate_limits を渡してくれるので、Keychain や
-# OAuth API call を一切介さない。常に最新 & ネットワーク呼び出しゼロ & token
-# 失効や rate limit (429) の影響を受けない。.resets_at は UNIX epoch seconds。
+# Claude Code passes .rate_limits in the stdin JSON, so no Keychain access or
+# OAuth API calls are needed — always current, zero network, unaffected by
+# token expiry or 429s. .resets_at is UNIX epoch seconds.
 #
-# .rate_limits 自体が存在する限り 5h / 7d の両セクションを常に描画する
-# (個別の used_percentage や resets_at が欠けても "--%" で穴埋め)。
-# Claude Code はリセット直後など特定状況で片方を省略するケースがあり、
-# 「片方しか出ない」と紛らわしいので明示的に両方表示する設計とする。
+# While .rate_limits exists, always render BOTH 5h and 7d sections, filling
+# missing used_percentage/resets_at with "--%". Claude Code sometimes omits
+# one window (e.g. right after a reset), and showing only one is confusing.
 #
-# used_percentage は float で来るため jq 側で floor して整数化する
-# (bash の is_int チェックが小数点で false を返してしまうのを回避)。
+# used_percentage arrives as a float, so jq floors it to an integer
+# (bash's is_int check would reject a decimal point).
 # ==============================================================================
 
 sec_limits=""
@@ -256,10 +255,10 @@ sec_repo=""
 # ==============================================================================
 # [6] Voice input mode (Handy / Typeless)
 #
-# Typeless が起動中なら "typeless" を優先表示 (bundle path で検出、Electron 系の
-# binary 名揺れに耐える)。それ以外は Handy の settings_store.json から
-# provider + selected_language を読み、voice-switch モードを ja / en / cloud に
-# マップして表示する。設定ファイル不在/parse 失敗の場合はセクション非表示。
+# If Typeless is running, show "typeless" (detected via bundle path, robust
+# to Electron binary-name drift). Otherwise read provider + selected_language
+# from Handy's settings_store.json and map them to the voice-switch mode
+# (ja / en / cloud). Hide the section if the file is missing or unparsable.
 # ==============================================================================
 
 sec_voice=""

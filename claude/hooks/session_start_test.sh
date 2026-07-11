@@ -1,6 +1,6 @@
 #!/bin/bash
-# session-start.sh の unit test（フレームワーク不使用の素の bash）
-# 実行: bash claude/hooks/session_start_test.sh
+# Plain-bash unit tests for session-start.sh (no test framework).
+# Run: bash claude/hooks/session_start_test.sh
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"

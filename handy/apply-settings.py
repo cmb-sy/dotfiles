@@ -66,7 +66,7 @@ def handy_running() -> bool:
 def load_glossary() -> str:
     """Read glossary.txt and join entries with the Japanese comma the prompt expects.
 
-    One "誤変換→正表記" per line; '#' lines and blanks are skipped. File order is
+    One "wrong→correct" mapping per line; '#' lines and blanks are skipped. File order is
     preserved (it becomes the enumeration order inside the prompt). Returned string
     replaces GLOSSARY_MARKER in the prompt so the model still sees the terms inline.
     """

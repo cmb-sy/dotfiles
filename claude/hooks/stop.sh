@@ -4,8 +4,8 @@ CONFIG_DIR="$HOME/.config/claude-stats"
 
 INPUT=$(cat)
 
-# --- 追加: 最新 transcript_path を voice-out 用 state file に記録 ---
-# jq は PATH 優先で解決 (絶対パス直書きだと Intel mac / 異環境で無言failする)
+# --- Record latest transcript_path to the voice-out state file ---
+# Resolve jq via PATH first (a hardcoded absolute path fails silently on Intel Macs / other environments)
 JQ="$(command -v jq || true)"
 [ -x "$JQ" ] || JQ=/opt/homebrew/bin/jq
 [ -x "$JQ" ] || JQ=/usr/local/bin/jq
@@ -15,7 +15,7 @@ if [ -x "$JQ" ]; then
     > "$HOME/.cache/claude-tts.last-transcript" 2>/dev/null
 fi
 
-# --- 既存: claude-stats collector ---
+# --- claude-stats collector ---
 [ -f "$CONFIG_DIR/project-path" ] || exit 0
 [ -f "$CONFIG_DIR/env" ] || exit 0
 

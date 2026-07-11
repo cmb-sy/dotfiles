@@ -46,9 +46,9 @@ util::has() {
 }
 
 # Create/refresh a symlink with guards:
-#   - src が存在しない       -> warn して return 1
-#   - dst が symlink         -> (壊れていても別ターゲットでも) unlink して張り直す
-#   - dst が実ファイル/実dir -> warn + skip (ユーザーデータを壊さない)
+#   - src missing             -> warn and return 1
+#   - dst is a symlink        -> unlink and relink (even if broken or wrong target)
+#   - dst is a real file/dir  -> warn + skip (never destroy user data)
 util::link() {
   local src="$1"
   local dst="$2"

@@ -537,9 +537,10 @@ def report(findings: list[str], context: str = "") -> int:
 
 
 def read_hook_input() -> dict:
-    """Claude Code のフック入力は stdin の JSON で渡される (env 変数ではない)。
-    形式: {"hook_event_name": "...", "tool_name": "...", "tool_input": {...}, ...}
-    読めない/壊れている場合は空 dict (fail-open: ガード異常でツール実行を止めない)。
+    """Claude Code passes hook input as JSON on stdin (not env vars).
+    Shape: {"hook_event_name": "...", "tool_name": "...", "tool_input": {...}, ...}
+    On unreadable/broken input return {} (fail-open: a guard failure must not
+    block tool execution).
     """
     try:
         raw = sys.stdin.read()

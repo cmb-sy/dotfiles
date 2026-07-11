@@ -1,9 +1,7 @@
 #!/usr/bin/env bats
 
-# voice-out スクリプトを source して sanitize 関数を呼ぶ
 load_voice_out() {
-  # voice-out 自体は実行されると say を呼んでしまうので、
-  # sanitize 関数だけ抽出して評価する
+  # Extract and eval only the sanitize function; running voice-out itself would call say
   eval "$(sed -n '/^sanitize()/,/^}/p' "${BATS_TEST_DIRNAME}/../bin/voice-out")"
 }
 

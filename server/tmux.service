@@ -1,5 +1,5 @@
-# tmux サーバーを boot 時から常設する user unit。
-# enable-linger 前提（bootstrap.zsh が設定する）。
+# User unit that keeps a tmux server running from boot.
+# Requires enable-linger (set by bootstrap.zsh).
 [Unit]
 Description=Persistent tmux session for Claude Code
 

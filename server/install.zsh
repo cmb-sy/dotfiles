@@ -1,6 +1,6 @@
 #!/bin/zsh
-# OCI サーバー（Ubuntu arm64）用の非対話パッケージ導入。冪等。
-# 使い方: zsh ~/dotfiles/server/install.zsh
+# Non-interactive package install for the OCI server (Ubuntu arm64). Idempotent.
+# Usage: zsh ~/dotfiles/server/install.zsh
 set -e
 
 SCRIPT_DIR="${0:A:h}"
@@ -16,7 +16,7 @@ util::info "Installing apt packages from server/packages.txt..."
 sudo apt-get update -qq
 grep -v -e '^#' -e '^$' "${SCRIPT_DIR}/packages.txt" | xargs sudo apt-get install -y -qq
 
-# デフォルトシェルを zsh に（冪等）
+# Set the default shell to zsh (idempotent)
 if [[ "$(getent passwd "$USER" | cut -d: -f7)" != "$(command -v zsh)" ]]; then
   sudo chsh -s "$(command -v zsh)" "$USER"
   util::info "Default shell changed to zsh (takes effect next login)."

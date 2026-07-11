@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# setup/util.zsh の util::link のテスト（zsh -c 経由で実行）
+# Tests for util::link in setup/util.zsh (run via zsh -c).
 
 UTIL="${BATS_TEST_DIRNAME}/../setup/util.zsh"
 

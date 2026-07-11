@@ -1,6 +1,6 @@
 #!/bin/bash
-# claude/hooks/*_test.sh の共有ヘルパ。各テストから source して使う。
-# 使い方: source "${SCRIPT_DIR}/test-helpers.sh" → assert_* → 最後に print_summary
+# Shared helpers for claude/hooks/*_test.sh. Source from each test script.
+# Usage: source "${SCRIPT_DIR}/test-helpers.sh", call assert_*, end with print_summary.
 
 PASS=0
 FAIL=0

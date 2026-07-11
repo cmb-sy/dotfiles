@@ -22,11 +22,8 @@ cd "${DOTFILES_DIR}"
 #----------------------------------------------------------
 # Create symbolic links for shell dotfiles
 #
-# 旧実装は `for name in *` で glob したが、zsh デフォルトで hidden file が
-# 除外されるため .zshrc などが symlink されなかった。さらに Brewfile / git /
-# macos などが ~/.Brewfile / ~/.git / ~/.macos に誤リンクされて
-# git の挙動を壊す問題があった。
-# 明示的にリストアップして、それ以外は触らない方針に変更する。
+# Explicit list only: globbing `*` missed hidden files (.zshrc etc.) and
+# wrongly linked Brewfile/git/macos into $HOME, breaking git.
 #----------------------------------------------------------
 HOME_DOTFILES=(.zshrc .zshenv .aliases.sh .function.zsh .gitignore_global)
 
@@ -34,16 +31,12 @@ for name in ${HOME_DOTFILES[@]}; do
   util::link "${DOTFILES_DIR}/${name}" "${HOME}/${name}"
 done
 
-# git config: alias / init.templatedir(=pre-commit フック配布の起点) を新規マシンでも再現する。
-# これまで手動 symlink 依存で setup に配線がなかった。
+# git config: reproduce alias / init.templatedir (distributes pre-commit hooks) on new machines.
 util::link "${DOTFILES_DIR}/git/.gitconfig" "${HOME}/.gitconfig"
 
 #----------------------------------------------------------
-# Cleanup: 旧実装が作った誤った symlink を除去
-#
-# 旧 `for name in *` ループが Brewfile / bin / docs / git / macos を
-# ~/.<name> へ symlink していた。これらは本来不要（特に ~/.git は git の
-# 動作を壊す）なので、symlink である場合のみ削除する。
+# Cleanup: remove wrong symlinks a previous glob-based version created in $HOME
+# (~/.git in particular breaks git). Delete only symlinks pointing into this repo.
 #----------------------------------------------------------
 for legacy in .Brewfile .bin .docs .git .macos .claude-old; do
   target="${HOME}/${legacy}"
@@ -63,8 +56,8 @@ mkdir -p "${HOME}/.config"
 
 for name in ${DOTFILES_DIR}/.config/*; do
   name="$(basename "${name}")"
-  # karabiner は install.zsh が dotfiles/karabiner を ~/.config/karabiner へ直接
-  # リンクする。この glob が未追跡の runtime dir を拾って二重リンクしないよう除外。
+  # karabiner is linked directly by install.zsh; skip it here so this glob
+  # does not double-link an untracked runtime dir.
   [[ "${name}" == "karabiner" ]] && continue
   util::link "${DOTFILES_DIR}/.config/${name}" "${HOME}/.config/${name}"
 done

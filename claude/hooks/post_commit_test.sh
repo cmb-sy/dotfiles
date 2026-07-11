@@ -1,6 +1,6 @@
 #!/bin/bash
-# post-commit.sh の unit test（フレームワーク不使用の素の bash）
-# 実行: bash claude/hooks/post_commit_test.sh
+# Plain-bash unit tests for post-commit.sh (no test framework).
+# Run: bash claude/hooks/post_commit_test.sh
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"

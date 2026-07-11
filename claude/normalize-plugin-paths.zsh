@@ -1,18 +1,15 @@
 #!/bin/zsh
-# installed_plugins.json の installPath を ~/.claude (symlink) 経由のパスから
-# 各アカウント dir の実パスへ正規化する。
+# Normalize plugin installPath in installed_plugins.json from the ~/.claude
+# symlink path to each account dir's real path.
 #
-# 背景: Claude Code はプラグインの installPath を、セッション起動時の config dir
-# パス（clp/clw 環境では ~/.claude symlink 経由のパス）のまま記録する。この状態で
-# 別ターミナルの clp/clw が symlink を付け替えると、稼働中セッションのフック解決が
-# もう一方のアカウントの plugins/cache を参照してしまい、
-# "Plugin directory does not exist ... run /plugin to reinstall" を毎 Stop で吐く
-# （実体は無傷なので再インストールは不要・誤診）。プラグインの新規インストール/
-# 更新のたびに symlink パスが再記録されるため、symlink 切替経路 (_claude_account_link)
-# から毎回この正規化を通して機械的に再発を防ぐ。
-#
-# 冪等・高速（変更が無ければ書き込まない）。JSON の破損を避けるため
-# tmp ファイルへ書いてから rename する。
+# Claude Code records installPath using the config-dir path seen at session
+# start (the ~/.claude symlink under clp/clw). When another terminal flips the
+# symlink, live sessions resolve hooks against the other account's plugins and
+# emit "Plugin directory does not exist ... run /plugin to reinstall" on every
+# Stop. Reinstalling is a misdiagnosis — the files are intact. Installs and
+# updates re-record the symlink path, so _claude_account_link reruns this on
+# every switch. Idempotent (no write when unchanged); writes to a tmp file
+# then renames to avoid corrupting the JSON.
 set -u
 
 for account_dir in "${CLAUDE_ACCOUNT_PRIVATE_DIR:-$HOME/.claude-private}" \
@@ -30,7 +27,7 @@ try:
     with open(path) as f:
         data = json.load(f)
 except (json.JSONDecodeError, OSError):
-    sys.exit(0)  # 壊れた/読めないファイルには触らない
+    sys.exit(0)  # leave corrupt/unreadable files alone
 
 changed = False
 for entries in data.get("plugins", {}).values():
@@ -49,18 +46,15 @@ PYEOF
 done
 
 # ---------------------------------------------------------------------------
-# Phase 2: プラグイン cache の相互互換リンク
+# Phase 2: cross-account compatibility links for the plugin cache.
 #
-# Phase 1 の installPath 正規化はファイル上の記録しか直せない。稼働中の
-# セッションは起動時に ~/.claude (symlink) 経由で解決した絶対パスをメモリに
-# 保持しており、別ターミナルの clp/clw が symlink を付け替えると、以後の
-# フック解決がもう一方のアカウントの plugins/cache を指す。バージョン構成が
-# アカウント間で違うと "Plugin directory does not exist" を毎 Stop で吐く。
-#
-# 対策: cache の {marketplace}/{plugin}/{version} を両アカウントで突き合わせ、
-# 片方にしか無い version dir をもう片方へ symlink する。どちらへ flip しても
-# 稼働中セッションのパスが実体へ解決される。冪等・追加のみ（実体には触らない）。
-# 実体が消えて宙に浮いた相互リンクだけは掃除する（他の symlink には触らない）。
+# Phase 1 only fixes the on-disk record. A live session keeps the absolute
+# path it resolved through ~/.claude at startup, so after a symlink flip it
+# reads the other account's plugins/cache and fails when version dirs differ.
+# Fix: mirror each cache {marketplace}/{plugin}/{version} dir that exists in
+# only one account into the other as a symlink, so either flip direction still
+# resolves to a real dir. Idempotent, additive only (never touches real dirs);
+# prunes only dangling mirror links we created (other symlinks untouched).
 # ---------------------------------------------------------------------------
 _priv_cache="${CLAUDE_ACCOUNT_PRIVATE_DIR:-$HOME/.claude-private}/plugins/cache"
 _work_cache="${CLAUDE_ACCOUNT_WORK_DIR:-$HOME/.claude-work}/plugins/cache"
@@ -69,10 +63,10 @@ _prune_dangling_mirror() {
   local root="$1" other_root="$2" link target
   [ -d "$root" ] || return 0
   for link in "$root"/*/*/*(N@); do
-    [ -e "$link" ] && continue          # 生きているリンクは残す
+    [ -e "$link" ] && continue          # keep links that still resolve
     target="$(readlink "$link")"
     case "$target" in
-      "$other_root"/*) rm -f "$link" ;; # 自分たちが張った相互リンクのみ削除
+      "$other_root"/*) rm -f "$link" ;; # remove only mirror links we created
     esac
   done
 }
@@ -81,7 +75,7 @@ _mirror_missing_versions() {
   local src_root="$1" dst_root="$2" ver_dir rel dst
   [ -d "$src_root" ] || return 0
   for ver_dir in "$src_root"/*/*/*(N/); do
-    [ -L "$ver_dir" ] && continue       # 相互リンク自体は複製元にしない
+    [ -L "$ver_dir" ] && continue       # never mirror a mirror link itself
     rel="${ver_dir#$src_root/}"
     dst="$dst_root/$rel"
     if [ ! -e "$dst" ] && [ ! -L "$dst" ]; then

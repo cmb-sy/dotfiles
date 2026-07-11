@@ -1,13 +1,13 @@
 #!/bin/zsh
-# OCI サーバー初回セットアップ（初回 tailscale ssh ログイン後に手動実行）。
-# 冪等: 2回実行しても安全。secrets は一切ファイルに書かず対話で注入する。
-# 使い方: zsh ~/dotfiles/server/bootstrap.zsh [--dry-run]
+# Initial OCI server setup (run manually after the first tailscale ssh login).
+# Idempotent: safe to re-run. Secrets are injected interactively, never written to files.
+# Usage: zsh ~/dotfiles/server/bootstrap.zsh [--dry-run]
 set -e
 setopt pipe_fail
 
-# claude の native installer は ~/.local/bin に入れるが、fresh Ubuntu では
-# ~/.local/bin が存在せず PATH にも載らない（~/.profile は存在時のみ追加し、
-# chsh 後の zsh は ~/.profile を読まない）。install 直後の呼び出しを保証する。
+# The claude installer targets ~/.local/bin, which on fresh Ubuntu is absent from
+# PATH (~/.profile adds it only if it exists, and zsh after chsh never reads
+# ~/.profile). Ensure claude is callable right after install.
 export PATH="$HOME/.local/bin:$PATH"
 
 SCRIPT_DIR="${0:A:h}"
@@ -35,8 +35,8 @@ step "apt packages" zsh "${SCRIPT_DIR}/install.zsh"
 
 # --- 2. zsh env (PATH) -----------------------------------------------
 setup_zsh_env() {
-  # 将来のログインシェルでも ~/.local/bin (claude) が PATH に載るようにする。
-  # ~/.zshenv は login/non-login を問わず全ての zsh が読む。
+  # Keep ~/.local/bin (claude) on PATH for future shells;
+  # ~/.zshenv is read by every zsh, login or not.
   local line='export PATH="$HOME/.local/bin:$PATH"'
   touch "$HOME/.zshenv"
   grep -qxF "$line" "$HOME/.zshenv" || echo "$line" >> "$HOME/.zshenv"
@@ -48,9 +48,9 @@ install_claude() {
   if ! util::has claude; then
     curl -fsSL https://claude.ai/install.sh | bash
   fi
-  # Linux では credential は ~/.claude/.credentials.json に保存される（keychain なし）。
-  # `claude setup-token` はトークンを表示するだけで credentials を保存しない
-  # （CLAUDE_CODE_OAUTH_TOKEN 用）ため、対話 /login フローで認証する。
+  # On Linux credentials live in ~/.claude/.credentials.json (no keychain).
+  # `claude setup-token` only prints a token (for CLAUDE_CODE_OAUTH_TOKEN) and
+  # saves nothing, so authenticate via the interactive /login flow.
   if [[ ! -f "$HOME/.claude/.credentials.json" ]]; then
     util::warning "claude を起動します。/login でログインを完了し、終了（/exit または Ctrl+C）してください"
     claude || true
@@ -78,11 +78,11 @@ step "gh auth login" install_gh
 
 # --- 5. systemd user units -------------------------------------------
 setup_units() {
-  # Tailscale SSH は logind セッションを登録しないため XDG_RUNTIME_DIR が未設定になり、
-  # systemctl --user が "Failed to connect to bus" で失敗する既知事象への防御。
+  # Tailscale SSH registers no logind session, so XDG_RUNTIME_DIR is unset and
+  # systemctl --user fails with "Failed to connect to bus". Guard against that.
   export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
   sudo loginctl enable-linger "$USER"
-  # linger 有効化直後は user manager の起動を待つ（bus socket 出現まで最大 10 秒）
+  # After enabling linger, wait for the user manager's bus socket (up to 10s)
   for i in {1..10}; do [[ -S "$XDG_RUNTIME_DIR/bus" ]] && break; sleep 1; done
   mkdir -p "$HOME/.config/systemd/user"
   for unit in tmux.service keepalive.service keepalive.timer; do
