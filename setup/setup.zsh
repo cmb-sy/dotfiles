@@ -10,14 +10,14 @@ DOTFILES_DIR="$(util::repo_dir)"
 # Clone or update dotfiles
 #----------------------------------------------------------
 if [[ -z "${CI}" || "${CI}" != "true" ]]; then
-  if [[ ! -e ${DOTFILES_DIR} ]]; then
-    git clone --recursive https://github.com/cmb-sy/dotfiles.git ${DOTFILES_DIR}
+  if [[ ! -e "${DOTFILES_DIR}" ]]; then
+    git clone --recursive https://github.com/cmb-sy/dotfiles.git "${DOTFILES_DIR}"
   else
-    (cd ${DOTFILES_DIR} && git pull)
+    (cd "${DOTFILES_DIR}" && git pull)
   fi
 fi
 
-cd ${DOTFILES_DIR}
+cd "${DOTFILES_DIR}"
 
 #----------------------------------------------------------
 # Create symbolic links for shell dotfiles
@@ -31,21 +31,12 @@ cd ${DOTFILES_DIR}
 HOME_DOTFILES=(.zshrc .zshenv .aliases.sh .function.zsh .gitignore_global)
 
 for name in ${HOME_DOTFILES[@]}; do
-  src=${DOTFILES_DIR}/${name}
-  dst=${HOME}/${name}
-  if [[ ! -e ${src} ]]; then
-    util::warning "Skip ${name}: source not found at ${src}"
-    continue
-  fi
-  # symlink でも、別の場所を指していたり broken symlink でも貼り直す
-  if [[ -L ${dst} ]]; then
-    unlink ${dst}
-  elif [[ -e ${dst} ]]; then
-    util::warning "${dst} exists and is not a symlink; skipping (move or remove manually)"
-    continue
-  fi
-  ln -sfv ${src} ${dst}
+  util::link "${DOTFILES_DIR}/${name}" "${HOME}/${name}"
 done
+
+# git config: alias / init.templatedir(=pre-commit フック配布の起点) を新規マシンでも再現する。
+# これまで手動 symlink 依存で setup に配線がなかった。
+util::link "${DOTFILES_DIR}/git/.gitconfig" "${HOME}/.gitconfig"
 
 #----------------------------------------------------------
 # Cleanup: 旧実装が作った誤った symlink を除去
@@ -55,9 +46,9 @@ done
 # 動作を壊す）なので、symlink である場合のみ削除する。
 #----------------------------------------------------------
 for legacy in .Brewfile .bin .docs .git .macos .claude-old; do
-  target=${HOME}/${legacy}
-  if [[ -L ${target} ]]; then
-    link_target=$(readlink "${target}")
+  target="${HOME}/${legacy}"
+  if [[ -L "${target}" ]]; then
+    link_target="$(readlink "${target}")"
     if [[ "${link_target}" == "${DOTFILES_DIR}"* ]]; then
       unlink "${target}"
       util::info "Removed legacy symlink: ${target} → ${link_target}"
@@ -68,21 +59,18 @@ done
 #----------------------------------------------------------
 # .config symlinks
 #----------------------------------------------------------
-mkdir -p ${HOME}/.config
+mkdir -p "${HOME}/.config"
 
 for name in ${DOTFILES_DIR}/.config/*; do
-  name="$(basename ${name})"
-  if [[ -L ${HOME}/.config/${name} ]]; then
-    unlink ${HOME}/.config/${name}
-  elif [[ -e ${HOME}/.config/${name} ]]; then
-    util::warning "${HOME}/.config/${name} exists and is not a symlink; skipping (move or remove manually)"
-    continue
-  fi
-  ln -sfv ${DOTFILES_DIR}/.config/${name} ${HOME}/.config/${name}
+  name="$(basename "${name}")"
+  # karabiner は install.zsh が dotfiles/karabiner を ~/.config/karabiner へ直接
+  # リンクする。この glob が未追跡の runtime dir を拾って二重リンクしないよう除外。
+  [[ "${name}" == "karabiner" ]] && continue
+  util::link "${DOTFILES_DIR}/.config/${name}" "${HOME}/.config/${name}"
 done
 
 
-chmod +x ${DOTFILES_DIR}/claude/statusline.sh 2>/dev/null
+chmod +x "${DOTFILES_DIR}/claude/statusline.sh" 2>/dev/null
 
 #----------------------------------------------------------
 # Claude Code (~/.claude → ~/.claude-work and per-asset symlinks)
@@ -98,87 +86,56 @@ chmod +x ${DOTFILES_DIR}/claude/statusline.sh 2>/dev/null
 #     ├── statusline.sh  → dotfiles/claude/statusline.sh
 #     └── (runtime files: .claude.json, cache/, file-history/, backups/, ...)
 #----------------------------------------------------------
-mkdir -p ${HOME}/.claude-work
+mkdir -p "${HOME}/.claude-work"
 
 # ~/.claude → ~/.claude-work directory symlink
-# Use -h to avoid following an existing symlink when checking
-if [[ -L ${HOME}/.claude ]]; then
-  unlink ${HOME}/.claude
-elif [[ -e ${HOME}/.claude ]]; then
-  util::warning "~/.claude exists and is not a symlink; skipping (move or remove manually)"
-fi
-if [[ ! -e ${HOME}/.claude ]]; then
-  ln -sfv ${HOME}/.claude-work ${HOME}/.claude
-fi
+util::link "${HOME}/.claude-work" "${HOME}/.claude"
 
 # Per-asset symlinks inside ~/.claude-work
 for name in CLAUDE.md agents hooks settings.json skills statusline.sh; do
-  src=${DOTFILES_DIR}/claude/${name}
-  dst=${HOME}/.claude-work/${name}
-  if [[ ! -e ${src} ]]; then
-    util::warning "Skip claude/${name}: source not found at ${src}"
-    continue
-  fi
-  if [[ -L ${dst} ]]; then
-    unlink ${dst}
-  elif [[ -e ${dst} ]]; then
-    util::warning "${dst} exists and is not a symlink; skipping (move or remove manually)"
-    continue
-  fi
-  ln -sfv ${src} ${dst}
+  src="${DOTFILES_DIR}/claude/${name}"
+  dst="${HOME}/.claude-work/${name}"
+  util::link "${src}" "${dst}"
 done
 
 #----------------------------------------------------------
 # Terminals (ghostty / wezterm / cmux): symlink each into ~/.config/<name>
 #----------------------------------------------------------
 for name in ${DOTFILES_DIR}/terminal/*; do
-  name="$(basename ${name})"
+  name="$(basename "${name}")"
   # herdr writes runtime logs/sockets/session.json next to its config, so it
   # cannot be bulk-symlinked as a whole directory; handled separately below.
-  [[ ${name} == "herdr" ]] && continue
-  if [[ -L ${HOME}/.config/${name} ]]; then
-    unlink ${HOME}/.config/${name}
-  elif [[ -e ${HOME}/.config/${name} ]]; then
-    util::warning "${HOME}/.config/${name} exists and is not a symlink; skipping (move or remove manually)"
-    continue
-  fi
-  ln -sfv ${DOTFILES_DIR}/terminal/${name} ${HOME}/.config/${name}
+  [[ "${name}" == "herdr" ]] && continue
+  util::link "${DOTFILES_DIR}/terminal/${name}" "${HOME}/.config/${name}"
 done
 
 #----------------------------------------------------------
 # herdr: symlink config.toml only (its config dir also holds runtime
 # logs/sockets/session.json, unlike the other terminal tools above)
 #----------------------------------------------------------
-if [[ -f ${DOTFILES_DIR}/terminal/herdr/config.toml ]]; then
-  mkdir -p ${HOME}/.config/herdr
-  dst=${HOME}/.config/herdr/config.toml
-  if [[ -L ${dst} ]]; then
-    unlink ${dst}
-  elif [[ -e ${dst} ]]; then
-    util::warning "${dst} exists and is not a symlink; skipping (move or remove manually)"
-  fi
-  if [[ ! -e ${dst} ]]; then
-    ln -sfv ${DOTFILES_DIR}/terminal/herdr/config.toml ${dst}
-  fi
+if [[ -f "${DOTFILES_DIR}/terminal/herdr/config.toml" ]]; then
+  mkdir -p "${HOME}/.config/herdr"
+  dst="${HOME}/.config/herdr/config.toml"
+  util::link "${DOTFILES_DIR}/terminal/herdr/config.toml" "${dst}"
 fi
 
 #----------------------------------------------------------
 # VSCode Settings
 #----------------------------------------------------------
 mkdir -p "${HOME}/Library/Application Support/Code/User"
-ln -sfv ${DOTFILES_DIR}/.vscode/settings.json "${HOME}/Library/Application Support/Code/User/settings.json"
+util::link "${DOTFILES_DIR}/.vscode/settings.json" "${HOME}/Library/Application Support/Code/User/settings.json"
 
 #----------------------------------------------------------
 # Cursor Settings
 #----------------------------------------------------------
 mkdir -p "${HOME}/Library/Application Support/Cursor/User"
-ln -sfv ${DOTFILES_DIR}/.vscode/settings.json "${HOME}/Library/Application Support/Cursor/User/settings.json"
+util::link "${DOTFILES_DIR}/.vscode/settings.json" "${HOME}/Library/Application Support/Cursor/User/settings.json"
 
 #----------------------------------------------------------
 # Run installation scripts
 #----------------------------------------------------------
 FORCE=1
-. ${DOTFILES_DIR}/setup/install.zsh
+. "${DOTFILES_DIR}/setup/install.zsh"
 
 #----------------------------------------------------------
 util::info "Installation completed! Please restart terminal."

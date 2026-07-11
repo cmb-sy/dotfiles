@@ -9,26 +9,22 @@ util::info "Starting dotfiles installation..."
 #----------------------------------------------------------
 # Homebrew (Brewfile)
 #----------------------------------------------------------
-util::confirm "Install packages from Brewfile?"
-if [[ $? = 0 ]]; then
-  export HOMEBREW_NO_AUTO_UPDATE=1
-  export HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1
-  brew bundle --file="${REPO_DIR}/Brewfile" --quiet
+if util::confirm "Install packages from Brewfile?"; then
+  HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1 \
+    brew bundle --file="${REPO_DIR}/Brewfile" --quiet
 fi
 
 #----------------------------------------------------------
 # VSCode Extensions
 #----------------------------------------------------------
-util::confirm "Install VSCode extensions?"
-if [[ $? = 0 ]]; then
+if util::confirm "Install VSCode extensions?"; then
   source "${REPO_DIR}/.vscode/install.zsh"
 fi
 
 #----------------------------------------------------------
 # Cursor Extensions
 #----------------------------------------------------------
-util::confirm "Install Cursor extensions?"
-if [[ $? = 0 ]]; then
+if util::confirm "Install Cursor extensions?"; then
   source "${REPO_DIR}/.cursor/install.zsh"
 fi
 
@@ -46,8 +42,7 @@ fi
 # LaunchDaemon, not LaunchAgent, since sysctl -w needs root. Copied (not
 # symlinked) with root:wheel 644, since launchd checks plist ownership.
 #----------------------------------------------------------
-util::confirm "Apply TCP keepalive tuning (企業ファイアウォールのタイムアウト対策)?"
-if [[ $? = 0 ]]; then
+if util::confirm "Apply TCP keepalive tuning (企業ファイアウォールのタイムアウト対策)?"; then
   PLIST_NAME="local.tcp-keepalive-tuning.plist"
   SRC_PLIST="${REPO_DIR}/macos/${PLIST_NAME}"
   DEST_PLIST="/Library/LaunchDaemons/${PLIST_NAME}"
@@ -68,8 +63,7 @@ fi
 #----------------------------------------------------------
 # Karabiner-Elements (Caps Lock 二度押し → 音声入力)
 #----------------------------------------------------------
-util::confirm "Set up Karabiner-Elements config?"
-if [[ $? = 0 ]]; then
+if util::confirm "Set up Karabiner-Elements config?"; then
   mkdir -p "$HOME/.config"
   if [[ -d "${REPO_DIR}/karabiner" ]]; then
     # Karabiner は初回起動で実ディレクトリを生成する。symlink がその中に作られるのを防ぐため退避する
@@ -95,8 +89,7 @@ fi
 #   https://support.cerebras.net/articles/1811589793-does-cerebras-retain-my-data
 #   https://www.cerebras.ai/terms-of-service
 #----------------------------------------------------------
-util::confirm "Set up Handy voice post-processing (ollama model + settings)?"
-if [[ $? = 0 ]]; then
+if util::confirm "Set up Handy voice post-processing (ollama model + settings)?"; then
   if util::has ollama; then
     open -a Ollama 2>/dev/null || true   # ollama-app starts the localhost:11434 server
     ollama pull qwen3:4b-instruct-2507-q4_K_M || util::warning "ollama pull failed; run it manually later"
@@ -129,27 +122,9 @@ if [[ $? = 0 ]]; then
 fi
 
 #----------------------------------------------------------
-# tmux
-#----------------------------------------------------------
-util::confirm "Set up tmux config?"
-if [[ $? = 0 ]]; then
-  if [[ -f "${REPO_DIR}/tmux/tmux.conf" && -f "${REPO_DIR}/tmux/sessionizer.sh" ]]; then
-    mkdir -p "$HOME/.config/tmux"
-    ln -sf "${REPO_DIR}/tmux/tmux.conf" "$HOME/.config/tmux/tmux.conf"
-    mkdir -p "$HOME/.local/bin"
-    ln -sf "${REPO_DIR}/tmux/sessionizer.sh" "$HOME/.local/bin/tmux-sessionizer"
-    chmod +x "${REPO_DIR}/tmux/sessionizer.sh"
-    util::info "tmux config and sessionizer linked."
-  else
-    util::info "Skip: tmux/tmux.conf or tmux/sessionizer.sh not found."
-  fi
-fi
-
-#----------------------------------------------------------
 # Cursor (skills shared with Claude)
 #----------------------------------------------------------
-util::confirm "Set up Cursor config?"
-if [[ $? = 0 ]]; then
+if util::confirm "Set up Cursor config?"; then
   mkdir -p "$HOME/.cursor"
   if [[ -d "${REPO_DIR}/claude/skills" ]]; then
     ln -sfn "${REPO_DIR}/claude/skills" "$HOME/.cursor/skills"
@@ -160,8 +135,7 @@ fi
 #----------------------------------------------------------
 # slackcli (not available via Homebrew)
 #----------------------------------------------------------
-util::confirm "Install slackcli?"
-if [[ $? = 0 ]]; then
+if util::confirm "Install slackcli?"; then
   local arch=$(uname -m)
   local suffix="macos"
   [[ "$arch" = "arm64" ]] && suffix="macos-arm64"
@@ -170,9 +144,11 @@ if [[ $? = 0 ]]; then
   if command -v slackcli &>/dev/null; then
     util::info "slackcli already installed: $(slackcli --version)"
   else
-    curl -fSL "https://github.com/shaharia-lab/slackcli/releases/latest/download/slackcli-${suffix}" -o /tmp/slackcli
-    chmod +x /tmp/slackcli
-    mv /tmp/slackcli "$dest"
+    local tmp
+    tmp="$(mktemp -t slackcli)" || return 1
+    curl -fSL "https://github.com/shaharia-lab/slackcli/releases/latest/download/slackcli-${suffix}" -o "${tmp}"
+    chmod +x "${tmp}"
+    mv "${tmp}" "$dest"
     util::info "slackcli installed to $dest"
   fi
 fi

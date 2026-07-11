@@ -45,30 +45,24 @@ util::has() {
   return $?
 }
 
-# Create directory if it doesn't exist
-util::mkdir() {
-  if [[ ! -d "$1" ]]; then
-    mkdir -p "$1"
-  fi
-}
-
-# Create symbolic link
-util::symlink() {
+# Create/refresh a symlink with guards:
+#   - src が存在しない       -> warn して return 1
+#   - dst が symlink         -> (壊れていても別ターゲットでも) unlink して張り直す
+#   - dst が実ファイル/実dir -> warn + skip (ユーザーデータを壊さない)
+util::link() {
   local src="$1"
   local dst="$2"
-  
-  # Remove existing symbolic link
-  if [[ -L "$dst" ]]; then
-    unlink "$dst"
+  if [[ ! -e "${src}" ]]; then
+    util::warning "Skip $(basename "${src}"): source not found at ${src}"
+    return 1
   fi
-  
-  # Create new symbolic link
-  ln -sfv "$src" "$dst"
-}
-
-# Get absolute dotfiles directory path
-util::dotfiles_dir() {
-  echo "${HOME}/dotfiles"
+  if [[ -L "${dst}" ]]; then
+    unlink "${dst}"
+  elif [[ -e "${dst}" ]]; then
+    util::warning "${dst} exists and is not a symlink; skipping (move or remove manually)"
+    return 1
+  fi
+  ln -sfv "${src}" "${dst}"
 }
 
 # Get repository root directory path
@@ -95,6 +89,6 @@ util::repo_dir() {
     done
     
     # If not found, use default dotfiles directory
-    echo "$(util::dotfiles_dir)"
+    echo "${HOME}/dotfiles"
   fi
 } 
