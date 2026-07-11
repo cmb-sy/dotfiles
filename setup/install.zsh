@@ -4,6 +4,14 @@ SCRIPT_DIR="${0:A:h}"
 REPO_DIR="${SCRIPT_DIR:h}"
 source "${SCRIPT_DIR}/util.zsh"
 
+#----------------------------------------------------------
+# Linux (OCI server) はサーバー用インストーラへ委譲
+#----------------------------------------------------------
+if [[ "$(uname -s)" == "Linux" ]]; then
+  util::info "Linux detected: delegating to server/install.zsh"
+  exec zsh "${REPO_DIR}/server/install.zsh"
+fi
+
 util::info "Starting dotfiles installation..."
 
 #----------------------------------------------------------
