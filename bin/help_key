@@ -1,6 +1,6 @@
 #!/bin/bash
 # Display all custom keybindings across tools
-# Usage: help_key [wezterm|ghostty|cmux|shell|voice|all]
+# Usage: help_key [wezterm|ghostty|cmux|claude|shell|voice|all]
 
 BOLD='\033[1m'
 CYAN='\033[36m'

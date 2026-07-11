@@ -129,9 +129,9 @@ eval "$(starship init zsh)"
 # /etc/zprofile の path_helper が .zshenv 適用後に PATH を並べ替えるため、
 # ここで再 prepend して優先順位を復元する。変更時は .zshenv と揃えること。
 # ----------------------------------------------------------
-export PATH="/opt/homebrew/bin:$PATH"
 export PATH="/usr/local/bin:$PATH"
-export PATH="${DOTFILES:-${HOME}/dotfiles}/bin:$PATH"   # handy-switch, dev, ai-format, help_key
+export PATH="/opt/homebrew/bin:$PATH"
+export PATH="${DOTFILES:-${HOME}/dotfiles}/bin:$PATH"   # voice-switch, dev, ai-format, help_key
 export PATH="$HOME/.local/bin:$PATH"                    # slackcli, tmux-sessionizer
 
 # mise (runtime version manager) — must come after PATH so mise shims take priority

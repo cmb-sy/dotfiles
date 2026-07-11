@@ -6,11 +6,11 @@
 wttr() {
 	local location="${1// /+}"
 	shift 2>/dev/null
-	local args=""
+	local -a args
 	for p in "$@"; do
-		args+=" --data-urlencode $p "
+		args+=(--data-urlencode "$p")
 	done
-	curl -fsSL -H "Accept-Language: ${LANG%_*}" $args --compressed "wttr.in/${location}"
+	curl -fsSL -H "Accept-Language: ${LANG%_*}" "${args[@]}" --compressed "wttr.in/${location}"
 }
 
 # ----------------------------------------------------------

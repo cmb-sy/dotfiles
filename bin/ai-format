@@ -8,7 +8,6 @@ export USER="${USER:-$(id -un)}"
 export LANG="${LANG:-en_US.UTF-8}"
 export LC_ALL="${LC_ALL:-$LANG}"
 
-CLAUDE=/usr/local/bin/claude
 PBPASTE=/usr/bin/pbpaste
 PBCOPY=/usr/bin/pbcopy
 AFPLAY=/usr/bin/afplay
@@ -17,10 +16,14 @@ SND_ERR=/System/Library/Sounds/Basso.aiff
 
 err() { "$AFPLAY" "$SND_ERR" & exit "${1:-1}"; }
 
+# claude 解決は err() 定義後に置く（不在時に err でエラー音通知するため。PATH は line 6 で export 済み）
+CLAUDE="$(command -v claude)"
+[ -x "$CLAUDE" ] || err 1
+
 PROMPT='次の音声入力テキストを書き言葉に整形して。フィラー(えーと/あの/まあ等)除去・話し言葉の書き言葉化・句読点と改行の整理。質問や確認は一切せず、入力が短くてもそのまま整形する(整形不要ならほぼ原文を返す)。整形後の本文のみを出力し、説明・前置き・引用符・コードブロックは付けない。'
 
 raw=$("$PBPASTE")
-[ -z "$raw" ] && err 0   # nothing to format
+[ -z "$raw" ] && exit 0  # nothing to format — not an error, no sound
 
 # Run from a neutral cwd so no project CLAUDE.md is auto-loaded. Haiku for speed.
 cleaned=$(cd /tmp && printf '%s' "$raw" | "$CLAUDE" -p --model claude-haiku-4-5 "$PROMPT" 2>/dev/null)
@@ -28,7 +31,7 @@ cleaned=$(cd /tmp && printf '%s' "$raw" | "$CLAUDE" -p --model claude-haiku-4-5 
 # Guard: empty output, or a Claude auth/limit error leaking onto stdout -> do NOT clobber clipboard.
 case "$cleaned" in
   "" ) err 1 ;;
-  *"Please run /login"* | *"Not logged in"* | *"Invalid API key"* | *"Credit balance"* | *"Usage limit"* ) err 1 ;;
+  *"Please run /login"* | *"Not logged in"* | *"Invalid API key"* | *"Credit balance"* | *"Usage limit"* | *"Failed to authenticate"* | *"Invalid authentication credentials"* ) err 1 ;;
 esac
 
 printf '%s' "$cleaned" | "$PBCOPY"

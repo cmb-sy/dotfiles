@@ -34,6 +34,9 @@
 #   - test/voice-out.bats : sanitize の自動テスト
 #   - docs/superpowers/specs/2026-06-22-claude-tts-design.md : 設計書
 
+# Karabiner (F1) は最小 launchd env で起動するため PATH を明示する (ai-format と同方式)
+export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+
 VOICE="${CLAUDE_TTS_VOICE:-Kyoko}"
 RATE="${CLAUDE_TTS_RATE:-180}"
 SUMMARIZE="${CLAUDE_TTS_SUMMARIZE:-1}"
@@ -143,7 +146,7 @@ kill_speaking() {
 summarize_for_voice() {
   local input="$1"
   local claude_bin
-  claude_bin="$(/usr/bin/which claude 2>/dev/null)"
+  claude_bin="$(command -v claude 2>/dev/null)"
   [ -x "$claude_bin" ] || { log "claude CLI not found, skipping summary"; printf '%s' "$input"; return; }
 
   local prompt="以下は Claude Code が返した応答です。これを音声合成で読み上げて聞くための「ナレーション原稿」として書き直してください。
@@ -192,6 +195,17 @@ extract_latest_assistant() {
       ' 2>/dev/null
 }
 
+# --- state file (~/.cache/claude-tts.last-transcript) から末尾 assistant を TEXT へ ---
+# 異常系はすべて log + exit 0 (best-effort 設計。従来の inline 処理と同一)
+load_from_state_file() {
+  STATE_FILE="$HOME/.cache/claude-tts.last-transcript"
+  [ -f "$STATE_FILE" ] || { log "state file not found"; exit 0; }
+  TRANSCRIPT="$(cat "$STATE_FILE" 2>/dev/null)"
+  [ -z "$TRANSCRIPT" ] && { log "transcript path empty"; exit 0; }
+  [ -f "$TRANSCRIPT" ] || { log "transcript not found: $TRANSCRIPT"; exit 0; }
+  TEXT="$(extract_latest_assistant "$TRANSCRIPT")"
+}
+
 # --- トグル判定: 既に say or afplay が走っていれば kill して終了 ---
 if /usr/bin/pgrep -x say >/dev/null 2>&1 || /usr/bin/pgrep -x afplay >/dev/null 2>&1; then
   log "speaking process already running, killing (toggle off)"
@@ -216,21 +230,11 @@ case "${1:-}" in
     TEXT="$(extract_latest_assistant "$TRANSCRIPT")"
     ;;
   --full)
-    STATE_FILE="$HOME/.cache/claude-tts.last-transcript"
-    [ -f "$STATE_FILE" ] || { log "state file not found"; exit 0; }
-    TRANSCRIPT="$(cat "$STATE_FILE" 2>/dev/null)"
-    [ -z "$TRANSCRIPT" ] && { log "transcript path empty"; exit 0; }
-    [ -f "$TRANSCRIPT" ] || { log "transcript not found: $TRANSCRIPT"; exit 0; }
-    TEXT="$(extract_latest_assistant "$TRANSCRIPT")"
+    load_from_state_file
     SUMMARIZE=0   # --full は要約 OFF を強制
     ;;
   "")
-    STATE_FILE="$HOME/.cache/claude-tts.last-transcript"
-    [ -f "$STATE_FILE" ] || { log "state file not found"; exit 0; }
-    TRANSCRIPT="$(cat "$STATE_FILE" 2>/dev/null)"
-    [ -z "$TRANSCRIPT" ] && { log "transcript path empty"; exit 0; }
-    [ -f "$TRANSCRIPT" ] || { log "transcript not found: $TRANSCRIPT"; exit 0; }
-    TEXT="$(extract_latest_assistant "$TRANSCRIPT")"
+    load_from_state_file
     ;;
   *)
     log "unknown arg: $1"
