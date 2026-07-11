@@ -2,6 +2,9 @@
 
 # ---------------------------------------------------------------------------
 # Theme
+# NOTE: 下の固定 background/foreground/palette と window-theme = dark が
+# theme の light/dark 自動切替を実質上書きしている (light 側はほぼ発現しない)。
+# 固定色をやめて自動切替に戻す場合は、下の Vivid colors セクションごと削除すること。
 # ---------------------------------------------------------------------------
 theme = light:Catppuccin Latte,dark:Catppuccin Mocha
 

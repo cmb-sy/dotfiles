@@ -29,7 +29,7 @@ wezterm.on("window-resized", function(window, pane)
 end)
 
 wezterm.on("gui-startup", function(cmd)
-  local tab, pane, window = mux.spawn_window(cmd or {})
+  mux.spawn_window(cmd or {})
 end)
 
 -- Bell notification (e.g. Claude Code task completed)
