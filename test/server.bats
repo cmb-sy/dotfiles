@@ -83,3 +83,10 @@ REPO_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
   [[ "$output" == *"PLAN: systemd user units (tmux, keepalive)"* ]]
   [[ "$output" == *"PLAN: claude global CLAUDE.md link"* ]]
 }
+
+@test "bootstrap.zsh は未知引数を reject して live run に落ちない" {
+  # typo（--dry_run 等）が silent に live run へ落ちると実サーバーで副作用が出るため exit 1 必須
+  run zsh "$REPO_DIR/server/bootstrap.zsh" --dry_run
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"Unknown argument"* ]]
+}

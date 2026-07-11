@@ -3,13 +3,19 @@
 # 冪等: 2回実行しても安全。secrets は一切ファイルに書かず対話で注入する。
 # 使い方: zsh ~/dotfiles/server/bootstrap.zsh [--dry-run]
 set -e
+setopt pipe_fail
 
 SCRIPT_DIR="${0:A:h}"
 REPO_DIR="${SCRIPT_DIR:h}"
 source "${REPO_DIR}/setup/util.zsh"
 
 DRY_RUN=0
-[[ "$1" == "--dry-run" ]] && DRY_RUN=1
+if [[ $# -gt 0 ]]; then
+  case "$1" in
+    --dry-run) DRY_RUN=1 ;;
+    *) echo "Unknown argument: $1 (usage: bootstrap.zsh [--dry-run])" >&2; exit 1 ;;
+  esac
+fi
 
 plan() { echo "PLAN: $1"; }
 step() {  # step <label> <command...>
