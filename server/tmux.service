@@ -1,0 +1,13 @@
+# tmux サーバーを boot 時から常設する user unit。
+# enable-linger 前提（bootstrap.zsh が設定する）。
+[Unit]
+Description=Persistent tmux session for Claude Code
+
+[Service]
+Type=forking
+ExecStart=/usr/bin/tmux new-session -d -s main
+ExecStop=/usr/bin/tmux kill-server
+RemainAfterExit=yes
+
+[Install]
+WantedBy=default.target
