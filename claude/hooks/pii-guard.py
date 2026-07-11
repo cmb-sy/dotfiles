@@ -172,17 +172,16 @@ def check_credentials(text: str) -> list[str]:
         r"(?i)(password|passwd|pass|pwd|secret|token)"
         r"\s*[=:]\s*['\"]?[^\s'\"]{8,}"
     )
-    if re.search(pw_labels, text):
-        match = re.search(pw_labels, text)
-        if match:
-            val = match.group(0)
-            placeholders = [
-                "xxx", "***", "your_", "change_me", "placeholder",
-                "example", "dummy", "${", "ENV[", "os.environ",
-                "process.env",
-            ]
-            if not any(p in val.lower() for p in placeholders):
-                findings.append("Plaintext password/secret")
+    match = re.search(pw_labels, text)
+    if match:
+        val = match.group(0)
+        placeholders = [
+            "xxx", "***", "your_", "change_me", "placeholder",
+            "example", "dummy", "${", "ENV[", "os.environ",
+            "process.env",
+        ]
+        if not any(p in val.lower() for p in placeholders):
+            findings.append("Plaintext password/secret")
     return findings
 
 
@@ -230,9 +229,9 @@ def check_id_documents(text: str) -> list[str]:
     """Passport, driver's license, health insurance, pension, residence card."""
     findings = []
     # Japanese passport: 2 alpha + 7 digits (e.g., TK1234567)
-    if re.search(r"\b[A-Z]{2}\d{7}\b", text):
-        # Require labeled context to reduce false positives
-        idx = text.find(re.search(r"\b[A-Z]{2}\d{7}\b", text).group())
+    m = re.search(r"\b[A-Z]{2}\d{7}\b", text)
+    if m:
+        idx = m.start()
         before = text[max(0, idx - 20) : idx]
         passport_labels = [
             "\u30d1\u30b9\u30dd\u30fc\u30c8",  # passport (JP)

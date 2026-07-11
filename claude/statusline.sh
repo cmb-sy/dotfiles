@@ -76,6 +76,7 @@ NOW=$(date +%s)
 
 eval "$(echo "$input" | jq -r '
   @sh "MODEL=\(.model.display_name // "")",
+  @sh "RL_PRESENT=\(if .rate_limits then "1" else "" end)",
   @sh "DIR=\(.workspace.current_dir // "")",
   @sh "USED=\(.context_window.used_percentage // "")",
   @sh "REM=\(.context_window.remaining_percentage // "")",
@@ -200,7 +201,6 @@ fi
 # ==============================================================================
 
 sec_limits=""
-RL_PRESENT=$(echo "$input" | jq -r 'if .rate_limits then "1" else "" end' 2>/dev/null)
 if [ -n "$RL_PRESENT" ]; then
   parts=""
   for entry in "5h|$U5_PCT|$R5_TS" "7d|$U7_PCT|$R7_TS"; do
