@@ -68,3 +68,18 @@ REPO_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
   run grep -c -- '--cpu-load 60 --timeout 7200' "$REPO_DIR/server/keepalive.service"
   [ "$status" -eq 0 ]
 }
+
+@test "bootstrap.zsh が zsh 構文として正しい" {
+  run zsh -n "$REPO_DIR/server/bootstrap.zsh"
+  [ "$status" -eq 0 ]
+}
+
+@test "bootstrap.zsh --dry-run は副作用なしで全ステップを列挙する" {
+  run zsh "$REPO_DIR/server/bootstrap.zsh" --dry-run
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"PLAN: apt packages"* ]]
+  [[ "$output" == *"PLAN: claude install + setup-token"* ]]
+  [[ "$output" == *"PLAN: gh auth login"* ]]
+  [[ "$output" == *"PLAN: systemd user units (tmux, keepalive)"* ]]
+  [[ "$output" == *"PLAN: claude global CLAUDE.md link"* ]]
+}
