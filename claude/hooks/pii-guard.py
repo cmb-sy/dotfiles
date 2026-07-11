@@ -18,7 +18,6 @@ Exit codes:
 """
 
 import json
-import os
 import re
 import sys
 
@@ -28,7 +27,7 @@ import sys
 
 # File paths to skip (regex matched against file_path)
 SKIP_PATHS = [
-    r"pii-guard\.(py|sh)$",
+    r"pii[-_]guard[^/]*\.(py|sh)$",
     r"\.env\.example$",
     r"SKILL\.md$",
     r"/test[s_]?/.*\.(py|js|ts|rb|go)$",
@@ -63,17 +62,6 @@ def extract_text(tool: str, data: dict) -> tuple[str, str]:
     if tool == "Bash":
         return data.get("command", ""), ""
     return "", ""
-
-
-def extract_text_mcp(tool: str, data: dict) -> str:
-    """Extract message body from MCP tool inputs for PII scanning."""
-    # Slack: send_message, send_message_draft, create_canvas, update_canvas
-    for key in ("message", "body", "text", "content", "description", "comment"):
-        val = data.get(key, "")
-        if val:
-            return val
-    # Fallback: serialize entire input for scanning
-    return json.dumps(data, ensure_ascii=False)
 
 
 def should_skip_path(file_path: str) -> bool:
@@ -549,25 +537,30 @@ def report(findings: list[str], context: str = "") -> int:
 # ---------------------------------------------------------------------------
 
 
-def mode_pre_tool_use() -> int:
-    tool = os.environ.get("CLAUDE_TOOL", "")
-    raw = os.environ.get("CLAUDE_TOOL_INPUT", "")
-    if not raw:
-        return 0
-
+def read_hook_input() -> dict:
+    """Claude Code のフック入力は stdin の JSON で渡される (env 変数ではない)。
+    形式: {"hook_event_name": "...", "tool_name": "...", "tool_input": {...}, ...}
+    読めない/壊れている場合は空 dict (fail-open: ガード異常でツール実行を止めない)。
+    """
+    try:
+        raw = sys.stdin.read()
+    except OSError:
+        return {}
+    if not raw.strip():
+        return {}
     try:
         data = json.loads(raw)
     except (json.JSONDecodeError, TypeError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def mode_pre_tool_use(payload: dict) -> int:
+    tool = str(payload.get("tool_name", ""))
+    data = payload.get("tool_input")
+    if not isinstance(data, dict) or not data:
         return 0
 
-    # MCP tools (Slack, Linear, GitHub, etc.)
-    if tool.startswith("mcp__"):
-        text = extract_text_mcp(tool, data)
-        if not text:
-            return 0
-        return report(run_scan(text), f"MCP:{tool}")
-
-    # Standard tools (Write, Edit, Bash)
     text, file_path = extract_text(tool, data)
     if not text:
         return 0
@@ -579,54 +572,9 @@ def mode_pre_tool_use() -> int:
         cmd = data.get("command", "")
         if re.search(r"\bgit\s+commit\b", cmd):
             return mode_git_commit_scan()
-        # Regular Bash command scan
         return report(run_scan(text), "Bash")
 
     return report(run_scan(text), tool)
-
-
-# ---------------------------------------------------------------------------
-# Mode: PostToolUse — re-scan written file after Write/Edit completes
-# ---------------------------------------------------------------------------
-
-
-def mode_post_tool_use() -> int:
-    tool = os.environ.get("CLAUDE_TOOL", "")
-    raw = os.environ.get("CLAUDE_TOOL_INPUT", "")
-    if not raw:
-        return 0
-
-    if tool not in ("Write", "Edit"):
-        return 0
-
-    try:
-        data = json.loads(raw)
-    except (json.JSONDecodeError, TypeError):
-        return 0
-
-    file_path = data.get("file_path", "")
-    if not file_path or should_skip_path(file_path):
-        return 0
-
-    # Read the actual file content after the write
-    try:
-        with open(file_path, "r", encoding="utf-8", errors="replace") as f:
-            content = f.read()
-    except (OSError, PermissionError):
-        return 0
-
-    findings = run_scan(content)
-    if findings:
-        detail = "; ".join(findings)
-        # PostToolUse warning: cannot block, but alert the user
-        print(
-            f"\u26a0\ufe0f PII Guard [PostToolUse]: file {file_path} contains PII"
-            f" \u2014 {detail}",
-            file=sys.stderr,
-        )
-        # Exit 0 for PostToolUse (cannot block after execution)
-        # The warning is surfaced to Claude and the user
-    return 0
 
 
 # ---------------------------------------------------------------------------
@@ -670,22 +618,7 @@ def mode_git_commit_scan() -> int:
 
 
 def main() -> int:
-    # Determine mode from environment
-    # CLAUDE_HOOK_EVENT is set by Claude Code hook system
-    hook_event = os.environ.get("CLAUDE_HOOK_EVENT", "")
-
-    if hook_event == "PostToolUse":
-        return mode_post_tool_use()
-
-    # CLI argument mode for direct invocation
-    if len(sys.argv) > 1:
-        if sys.argv[1] == "--post":
-            return mode_post_tool_use()
-        if sys.argv[1] == "--git-commit":
-            return mode_git_commit_scan()
-
-    # Default: PreToolUse mode
-    return mode_pre_tool_use()
+    return mode_pre_tool_use(read_hook_input())
 
 
 if __name__ == "__main__":

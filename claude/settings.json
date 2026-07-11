@@ -210,7 +210,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if printf '%s\\n' \"$CLAUDE_TOOL_INPUT\" | jq -r '.command' 2>/dev/null | grep -qE 'git commit'; then \"${HOME}/.claude/hooks/post-commit.sh\"; fi",
+            "command": "if jq -r '.tool_input.command // empty' 2>/dev/null | grep -qE 'git commit'; then \"${HOME}/.claude/hooks/post-commit.sh\"; fi",
             "timeout": 30
           }
         ]
@@ -247,7 +247,7 @@
           },
           {
             "type": "command",
-            "command": "if printf '%s\\n' \"$CLAUDE_TOOL_INPUT\" | jq -r '.command' 2>/dev/null | grep -qE '(rm\\s+-rf\\s+(/|~|\\$HOME|/usr|/etc|/var|/opt|/System)|>\\s*/dev/sd|mkfs|dd\\s+if=)'; then echo 'BLOCK: Destructive system command detected' >&2; exit 2; fi"
+            "command": "if jq -r '.tool_input.command // empty' 2>/dev/null | grep -qE '(rm[[:space:]]+-rf[[:space:]]+((/|~|\\$HOME)[[:space:]]*$|(/usr|/etc|/var|/opt|/System)(/|[[:space:]]|$))|>[[:space:]]*/dev/sd|mkfs|dd[[:space:]]+if=)'; then echo 'BLOCK: Destructive system command detected' >&2; exit 2; fi"
           }
         ]
       }

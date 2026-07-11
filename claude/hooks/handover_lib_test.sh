@@ -6,22 +6,7 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 LIB="${SCRIPT_DIR}/../skills/handover/scripts/handover-lib.sh"
 source "$LIB"
-
-PASS=0
-FAIL=0
-
-assert_eq() {
-  local desc="$1" expected="$2" actual="$3"
-  if [[ "$expected" == "$actual" ]]; then
-    echo "[PASS] $desc"
-    PASS=$((PASS + 1))
-  else
-    echo "[FAIL] $desc"
-    echo "  expected: $expected"
-    echo "  actual:   $actual"
-    FAIL=$((FAIL + 1))
-  fi
-}
+source "${SCRIPT_DIR}/test-helpers.sh"
 
 assert_status() {
   local desc="$1" expected="$2" actual="$3"
@@ -181,14 +166,6 @@ test_scan_sessions_handles_trailing_slash_in_base_dir() {
   rm -rf "$base"
 }
 
-make_tmp_git_repo() {
-  local dir
-  dir="$(mktemp -d)"
-  git -C "$dir" init -q -b main
-  git -C "$dir" -c user.email="test@example.com" -c user.name="test" commit -q --allow-empty -m "init"
-  echo "$dir"
-}
-
 test_find_active_session_dir_picks_most_recent_ready() {
   local repo result
   repo="$(make_tmp_git_repo)"
@@ -312,6 +289,4 @@ test_update_status_field_all_done
 test_update_status_field_some_pending
 test_generate_handover_md_includes_expected_sections
 
-echo ""
-echo "${PASS} passed, ${FAIL} failed"
-[[ "$FAIL" -eq 0 ]]
+print_summary

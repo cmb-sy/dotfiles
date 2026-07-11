@@ -6,34 +6,7 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SCRIPT="${SCRIPT_DIR}/post-commit.sh"
 
-PASS=0
-FAIL=0
-
-assert_eq() {
-  local desc="$1" expected="$2" actual="$3"
-  if [[ "$expected" == "$actual" ]]; then
-    echo "[PASS] $desc"
-    PASS=$((PASS + 1))
-  else
-    echo "[FAIL] $desc"
-    echo "  expected: $expected"
-    echo "  actual:   $actual"
-    FAIL=$((FAIL + 1))
-  fi
-}
-
-assert_contains() {
-  local desc="$1" haystack="$2" needle="$3"
-  if [[ "$haystack" == *"$needle"* ]]; then
-    echo "[PASS] $desc"
-    PASS=$((PASS + 1))
-  else
-    echo "[FAIL] $desc"
-    echo "  expected to contain: $needle"
-    echo "  actual: $haystack"
-    FAIL=$((FAIL + 1))
-  fi
-}
+source "${SCRIPT_DIR}/test-helpers.sh"
 
 make_tmp_git_repo_with_commit() {
   local dir
@@ -127,6 +100,4 @@ test_no_active_session_skips
 test_active_session_updates_state_and_md
 test_malformed_task_field_skips_gracefully
 
-echo ""
-echo "${PASS} passed, ${FAIL} failed"
-[[ "$FAIL" -eq 0 ]]
+print_summary
