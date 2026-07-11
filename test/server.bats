@@ -86,7 +86,8 @@ REPO_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
   run zsh "$REPO_DIR/server/bootstrap.zsh" --dry-run
   [ "$status" -eq 0 ]
   echo "$output" | grep -qF "PLAN: apt packages"
-  echo "$output" | grep -qF "PLAN: claude install + setup-token"
+  echo "$output" | grep -qF "PLAN: zsh env (PATH)"
+  echo "$output" | grep -qF "PLAN: claude install + login"
   echo "$output" | grep -qF "PLAN: gh auth login"
   echo "$output" | grep -qF "PLAN: systemd user units (tmux, keepalive)"
   echo "$output" | grep -qF "PLAN: claude global CLAUDE.md link"
