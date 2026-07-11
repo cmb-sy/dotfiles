@@ -1,0 +1,11 @@
+# OCI Always Free の idle 回収（7日間の95%ile CPU/NW/メモリ < 20%）対策。
+# 毎日2時間、全体CPU約30%（2 OCPUのうち0.6コア）を発生させ、
+# 週14h > 必要量8.4h (=168hの5%) で95%ile CPU >= 20% を維持する。
+# 根拠: docs/superpowers/specs/2026-07-11-oci-claude-server-design.md
+[Unit]
+Description=CPU keep-alive against OCI idle reclaim
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/stress-ng --cpu 1 --cpu-load 60 --timeout 7200
+Nice=19

@@ -53,3 +53,18 @@ REPO_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
   [ "$status" -eq 0 ]
   [ "$output" -ge 1 ]
 }
+
+@test "tmux.service は boot 常設の user unit である" {
+  run grep -c 'WantedBy=default.target' "$REPO_DIR/server/tmux.service"
+  [ "$status" -eq 0 ]
+}
+
+@test "keepalive.timer は日次実行の設定を持つ" {
+  run grep -c 'OnCalendar=' "$REPO_DIR/server/keepalive.timer"
+  [ "$status" -eq 0 ]
+}
+
+@test "keepalive.service は CPU 負荷を2時間発生させる" {
+  run grep -c -- '--cpu-load 60 --timeout 7200' "$REPO_DIR/server/keepalive.service"
+  [ "$status" -eq 0 ]
+}
