@@ -47,6 +47,9 @@ REPO_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
 }
 
 @test "setup/install.zsh は Linux では server/install.zsh へ委譲する" {
-  run grep -c 'server/install.zsh' "$REPO_DIR/setup/install.zsh"
+  # 文字列の単純な言及ではなく、Linux 判定分岐の直後に exec 委譲があることを検証する。
+  # 行頭アンカーによりコメントアウトされた exec 行は match しない。
+  run bash -c "grep -A4 'uname -s.*Linux' '$REPO_DIR/setup/install.zsh' | grep -Ec '^[[:space:]]*exec zsh.*server/install\.zsh'"
   [ "$status" -eq 0 ]
+  [ "$output" -ge 1 ]
 }
