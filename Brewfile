@@ -17,8 +17,6 @@ brew 'tmux'
 brew 'herdr'
 brew 'jq'
 brew 'tfenv'
-tap 'schpet/tap'
-brew 'schpet/tap/linear'
 tap 'manaflow-ai/cmux'
 
 # -----------------------------------------------------------

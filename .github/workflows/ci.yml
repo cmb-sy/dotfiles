@@ -21,8 +21,7 @@ jobs:
 
       # ----------------------------------------------------------
       # Step 1: Symlink verification
-      # setup.zsh が dotfiles へのリンクを正しく貼れたかを構造的に検証する。
-      # ここを抜くと「setup 完走したのにリンク欠落」というサイレント故障が漏れる。
+      # Catches "setup finished but links are missing" silent failures.
       # ----------------------------------------------------------
       - name: Verify shell config symlinks
         run: |
@@ -68,8 +67,8 @@ jobs:
       - name: Verify legacy bad symlinks are absent
         run: |
           set -e
-          # 旧 setup.zsh が誤って作っていた symlink が再生していないことを確認。
-          # 特に ~/.git は git の動作を壊すので絶対に存在してはならない。
+          # Legacy symlinks the old setup.zsh created by mistake must not
+          # come back; ~/.git in particular breaks git entirely.
           for bad in .Brewfile .bin .docs .git .macos; do
             if [[ -L "$HOME/$bad" ]]; then
               echo "FAIL: legacy symlink ~/$bad still exists (setup.zsh should not create this)"
@@ -80,14 +79,13 @@ jobs:
 
       # ----------------------------------------------------------
       # Step 2: Brewfile formula commands are on PATH
-      # Brewfile に列挙した formula が実際に PATH から呼べるかを検証。
-      # cask は CI runner の制約で起動検証ができないため、ここでは formula のみ。
+      # Formulas only; casks cannot be launch-tested on CI runners.
       # ----------------------------------------------------------
       - name: Verify Brewfile formulas
         run: |
           set -e
           export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
-          for cmd in gh jq fd fzf sheldon starship uv yarn git mise tmux linear; do
+          for cmd in gh jq fd fzf sheldon starship uv yarn git mise tmux; do
             if ! command -v "$cmd" >/dev/null 2>&1; then
               echo "FAIL: $cmd not on PATH"
               exit 1
@@ -97,8 +95,7 @@ jobs:
 
       # ----------------------------------------------------------
       # Step 3: Claude skills inventory
-      # claude/skills/*/SKILL.md の数が期待値以上あること。
-      # 期待値は将来増えるので「最低 20」と緩めにする。減ったら故障扱い。
+      # At least 20 SKILL.md files; a drop below means breakage.
       # ----------------------------------------------------------
       - name: Verify Claude skills loadable
         run: |
@@ -113,7 +110,7 @@ jobs:
 
       # ----------------------------------------------------------
       # Step 4: settings.json is valid JSON
-      # 設定ファイルの構文エラーで Claude Code 起動を壊さないように。
+      # A syntax error here would break Claude Code startup.
       # ----------------------------------------------------------
       - name: Verify settings.json is valid JSON
         run: |
@@ -123,7 +120,7 @@ jobs:
 
       # ----------------------------------------------------------
       # Step 5: SKILL.md frontmatter sanity
-      # 各 SKILL.md が `name:` フィールドを持つ最低限の構造であることを検証。
+      # Every SKILL.md must at least carry a `name:` field.
       # ----------------------------------------------------------
       - name: Verify SKILL.md frontmatter
         run: |
@@ -142,11 +139,10 @@ jobs:
           echo "OK: all SKILL.md have name: in frontmatter"
 
       # ----------------------------------------------------------
-      # Step 6: .vscode/settings.json に揮発性キーが混入していないこと
-      # VS Codeが「Hide from Source Control Repositories」操作時に
-      # 絶対パス(git.ignoredRepositories)を自動書き込みすることがあり、
-      # ローカルのpre-commit hook(git/hooks/pre-commit)を経由しなかった
-      # commitがpushされた場合の最終防衛line。
+      # Step 6: no volatile VS Code keys in .vscode/settings.json
+      # VS Code auto-writes machine-local absolute paths
+      # (git.ignoredRepositories); last line of defense when a commit
+      # bypassed the local pre-commit hook.
       # ----------------------------------------------------------
       - name: Verify .vscode/settings.json has no volatile VS Code keys
         run: |
