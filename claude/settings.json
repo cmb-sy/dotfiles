@@ -173,7 +173,7 @@
     ],
     "defaultMode": "bypassPermissions"
   },
-  "model": "claude-fable-5",
+  "model": "sonnet",
   "hooks": {
     "Notification": [
       {
