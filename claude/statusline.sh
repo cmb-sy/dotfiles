@@ -218,39 +218,23 @@ if [ -n "$RL_PRESENT" ]; then
 fi
 
 # ==============================================================================
-# [5] Git repository name, branch, and uncommitted-change badge — disabled by
-# user request (not a TODO; keep commented rather than deleted for easy
-# re-enable). $DIR / $WORKTREE parsed from the jq block above are, as a
-# result, currently only consumed inside this disabled block.
+# [5] Current directory + uncommitted-change badge — rendered on its own
+# second line (below the clock) rather than joined into the main line.
+# Repo name / branch are intentionally NOT shown here (prior user request
+# to keep this line to just directory + dirty count); $WORKTREE is unused.
 # ==============================================================================
 
-sec_repo=""
-# if [ -n "$DIR" ] && git -C "$DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-#   repo_name=$(basename "$(git -C "$DIR" rev-parse --show-toplevel 2>/dev/null)")
-#   branch=$(git -C "$DIR" --no-optional-locks symbolic-ref --short HEAD 2>/dev/null)
-#   if [ -n "$repo_name" ]; then
-#     rel_path=$(git -C "$DIR" rev-parse --show-prefix 2>/dev/null)
-#     rel_path="${rel_path%/}"
-#     if [ -n "$rel_path" ]; then
-#       sec_repo="${C_REPO}$(printf '\xef\x81\xbc') ../${repo_name}/${rel_path}${RST}"
-#     else
-#       sec_repo="${C_REPO}$(printf '\xef\x81\xbc') ../${repo_name}${RST}"
-#     fi
-#   fi
-#   # Prefer worktree name (from Claude Code JSON) over raw branch when present
-#   if has_val "$WORKTREE"; then
-#     sec_repo+=" ${WHT}│${RST} ${C_BRANCH}$(printf '\xee\x82\xa0') ${WORKTREE}${RST}"
-#   elif [ -n "$branch" ]; then
-#     sec_repo+=" ${WHT}│${RST} ${C_BRANCH}$(printf '\xee\x82\xa0') ${branch}${RST}"
-#   fi
-#   # Uncommitted change count (staged + unstaged + untracked)
-#   dirty=$(git -C "$DIR" --no-optional-locks status --porcelain 2>/dev/null | wc -l | tr -d ' ')
-#   if is_int "$dirty" && [ "$dirty" -gt 0 ]; then
-#     sec_repo+=" ${C_DIRTY}●${dirty}${RST}"
-#   fi
-# fi
-# [ -z "$sec_repo" ] && [ -n "$DIR" ] && \
-#   sec_repo="${C_REPO}$(printf '\xef\x81\xbc') ${DIR/#$HOME/\~}${RST}"
+sec_dir=""
+if has_val "$DIR"; then
+  sec_dir="${C_REPO}$(printf '\xef\x81\xbc') ${DIR/#$HOME/\~}${RST}"
+  if git -C "$DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    # Uncommitted change count (staged + unstaged + untracked)
+    dirty=$(git -C "$DIR" --no-optional-locks status --porcelain 2>/dev/null | wc -l | tr -d ' ')
+    if is_int "$dirty" && [ "$dirty" -gt 0 ]; then
+      sec_dir+=" ${C_DIRTY}●${dirty}${RST}"
+    fi
+  fi
+fi
 
 # ==============================================================================
 # [6] Voice input mode (Handy / Typeless)
@@ -296,7 +280,8 @@ fi
 sec_time="${WHT}🕐 $(date +%H:%M)${RST}"
 
 out=""
-for s in "$sec_model" "$sec_account" "$sec_ctx" "$sec_limits" "$sec_repo" "$sec_voice" "$sec_time"; do
+for s in "$sec_model" "$sec_account" "$sec_ctx" "$sec_limits" "$sec_voice" "$sec_time"; do
   [ -n "$s" ] && out="${out:+${out}${SEP}}${s}"
 done
+[ -n "$sec_dir" ] && out="${out}"$'\n'"${sec_dir}"
 printf '%s\n' "$out"
