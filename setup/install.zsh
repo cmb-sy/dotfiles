@@ -16,10 +16,17 @@ util::info "Starting dotfiles installation..."
 
 #----------------------------------------------------------
 # Homebrew (Brewfile)
+# CI installs formulas only: casks cannot be launch-tested there and
+# downloading them blows the job's 60-minute timeout.
 #----------------------------------------------------------
 if util::confirm "Install packages from Brewfile?"; then
+  BREWFILE="${REPO_DIR}/Brewfile"
+  if util::is_ci; then
+    BREWFILE="$(mktemp)"
+    grep -vE '^cask ' "${REPO_DIR}/Brewfile" > "${BREWFILE}"
+  fi
   HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1 \
-    brew bundle --file="${REPO_DIR}/Brewfile" --quiet
+    brew bundle --file="${BREWFILE}" --quiet
 fi
 
 #----------------------------------------------------------
