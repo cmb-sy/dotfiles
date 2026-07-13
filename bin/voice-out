@@ -1,16 +1,18 @@
 #!/bin/bash
-# voice-out — Claude Code の直前応答を macOS say (Kyoko) で読み上げる。
+# voice-out — 今開いているターミナル画面に見えているテキストを macOS say (Kyoko) で読み上げる。
 # デフォルトは「claude -p で音声向けに要約してから say」。--full で従来の全文読み。
 #
 # 通常起動 (Karabiner: F1 経由):
 #   $HOME/dotfiles/bin/voice-out
-#     → state file から transcript path を読み、末尾 assistant ターンを抽出 →
+#     → herdr で今フォーカスされている pane を解決し、その画面に見えているテキストを取得 →
 #       claude -p (haiku) で 30 秒程度の要約に整形 → sanitize → say
+#     herdr が使えない/pane 解決に失敗した場合のみ、旧来の state file
+#     (直前 Claude 応答の transcript) にフォールバックする。
 #
 # 手動デバッグ / モード切替:
 #   voice-out --text "..."        渡された text をそのまま (sanitize あり) say
 #   voice-out --transcript PATH   指定 transcript JSONL の末尾 assistant を要約 say
-#   voice-out --full              要約せず全文を sanitize して say (旧挙動)
+#   voice-out --full              要約せず全文を sanitize して say (画面 or state file、旧挙動と同じ優先順)
 #
 # トグル: 既に say が走っていれば pkill して exit 0 (同じキーで再生/停止)
 # 競合: Typeless / Handy 起動中でも読み上げ続行 (feedback loop 防止は要ヘッドホン)
@@ -30,6 +32,7 @@
 #
 # 関連:
 #   - claude/hooks/stop.sh : state file (~/.cache/claude-tts.last-transcript) 更新
+#     (herdr フォールバック時のみ使用。--transcript の手動指定にも state file は不要)
 #   - karabiner/karabiner.json : F1 → voice-out バインド
 #   - test/voice-out.bats : sanitize の自動テスト
 #   - docs/superpowers/specs/2026-06-22-claude-tts-design.md : 設計書
@@ -53,6 +56,7 @@ VOICEVOX_SPEED="${CLAUDE_TTS_VOICEVOX_SPEED:-1.0}"
 log() {
   [ -n "$CLAUDE_TTS_DEBUG" ] && \
     printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*" >> /tmp/voice-out.log
+  return 0
 }
 
 # --- sanitize: markdown を素読みできる平文へ変換 ---
@@ -149,7 +153,9 @@ summarize_for_voice() {
   claude_bin="$(command -v claude 2>/dev/null)"
   [ -x "$claude_bin" ] || { log "claude CLI not found, skipping summary"; printf '%s' "$input"; return; }
 
-  local prompt="以下は Claude Code が返した応答です。これを音声合成で読み上げて聞くための「ナレーション原稿」として書き直してください。
+  local prompt="以下はターミナル画面に今見えているテキストです (Claude Code の応答本体に加え、
+ステータスバー・罫線・プロンプト記号などの UI 装飾が混在していることがあります)。
+これを音声合成で読み上げて聞くための「ナレーション原稿」として書き直してください。
 
 書き方の要件:
 - 自然な日本語の話し言葉 (です・ます調)。体言止めや箇条書きは使わない
@@ -157,6 +163,8 @@ summarize_for_voice() {
 - 一文は 60 文字以内を目安。読点で適度に呼吸を入れる
 - 専門用語・固有名詞・略語は最小限に。残すときは平易な言い換えを添える
 - コード片・記号・URL・ファイルパス・コミットハッシュ・絵文字は一切読まない
+- ステータスバー・罫線・プロンプト記号 (❯ ⏺ ✻ ✶ 等) ・進捗バーなどの UI 装飾は完全に無視し、
+  実質的な会話内容だけを対象にする
 - 「〜しました」「〜が完了しました」のように結果と次のアクションが伝わる流れにする
 - 接続詞 (「まず」「続いて」「最後に」「ただし」など) でテンポを作る
 - 朗読としてそのまま流せる完成原稿のみを出力。前置き・見出し・解説は付けない
@@ -195,8 +203,43 @@ extract_latest_assistant() {
       ' 2>/dev/null
 }
 
+# --- herdr: 今画面に見えている pane を解決する ---
+# F1 は Karabiner のグローバル shortcut として karabiner_console_user_server から
+# 発火するため、herdr pane 内のシェルではない (= $HERDR_PANE_ID は継承されない)。
+# 「このコマンドを実行した pane」ではなく「今ユーザーが見ている pane」を
+# herdr workspace list の focused フラグから解決する必要がある。
+resolve_focused_pane_id() {
+  command -v herdr >/dev/null 2>&1 || return 1
+  local ws_json pane_json ws_id pane_id
+  ws_json="$(herdr workspace list 2>/dev/null)" || return 1
+  ws_id="$(printf '%s' "$ws_json" | jq -r '.result.workspaces[] | select(.focused == true) | .workspace_id' 2>/dev/null | head -1)"
+  [ -z "$ws_id" ] && return 1
+  pane_json="$(herdr pane list 2>/dev/null)" || return 1
+  # 同一 workspace 内に pane が複数あれば、その中で focused な pane を優先。
+  # なければ (単一 pane の workspace が大半) 先頭 pane にフォールバック。
+  pane_id="$(printf '%s' "$pane_json" | jq -r --arg ws "$ws_id" '
+    [.result.panes[] | select(.workspace_id == $ws)] as $panes
+    | (($panes[] | select(.focused == true) | .pane_id) // $panes[0].pane_id) // empty
+  ' 2>/dev/null | head -1)"
+  [ -z "$pane_id" ] && return 1
+  printf '%s' "$pane_id"
+}
+
+# --- herdr pane read で「今画面に見えているテキスト」を TEXT へ ---
+# 失敗時は return 1 のみ (exit しない) — 呼び出し側で state file へフォールバックさせる。
+load_from_visible_pane() {
+  local pane_id
+  pane_id="$(resolve_focused_pane_id)"
+  [ -z "$pane_id" ] && { log "no focused herdr pane resolved"; return 1; }
+  TEXT="$(herdr pane read "$pane_id" --source visible --format text 2>/dev/null)"
+  [ -z "$TEXT" ] && { log "pane read empty for $pane_id"; return 1; }
+  log "read visible pane $pane_id (${#TEXT} chars)"
+  return 0
+}
+
 # --- state file (~/.cache/claude-tts.last-transcript) から末尾 assistant を TEXT へ ---
 # 異常系はすべて log + exit 0 (best-effort 設計。従来の inline 処理と同一)
+# load_from_visible_pane が失敗した場合のフォールバック専用 (herdr 未使用時等)。
 load_from_state_file() {
   STATE_FILE="$HOME/.cache/claude-tts.last-transcript"
   [ -f "$STATE_FILE" ] || { log "state file not found"; exit 0; }
@@ -230,11 +273,11 @@ case "${1:-}" in
     TEXT="$(extract_latest_assistant "$TRANSCRIPT")"
     ;;
   --full)
-    load_from_state_file
+    load_from_visible_pane || load_from_state_file
     SUMMARIZE=0   # --full は要約 OFF を強制
     ;;
   "")
-    load_from_state_file
+    load_from_visible_pane || load_from_state_file
     ;;
   *)
     log "unknown arg: $1"

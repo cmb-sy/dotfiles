@@ -12,7 +12,7 @@
             "complex_modifications": {
                 "rules": [
                     {
-                        "description": "F1 → voice-out (直前の Claude 応答を再生/停止トグル)",
+                        "description": "F1 → voice-out (今フォーカスされているターミナル画面のテキストを再生/停止トグル)",
                         "manipulators": [
                             {
                                 "type": "basic",
