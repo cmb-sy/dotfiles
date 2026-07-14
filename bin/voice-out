@@ -15,8 +15,11 @@
 #   voice-out --full              要約せず全文を sanitize して say (画面 or state file、旧挙動と同じ優先順)
 #
 # トグル: 既に say が走っていれば pkill して exit 0 (同じキーで再生/停止)
+# 通知: 開始/停止/失敗のたびに macOS 通知バナーを出す (osascript display notification)。
+#       「押しても反応がわからない」を防ぐための最小限のフィードバック。
 # 競合: Typeless / Handy 起動中でも読み上げ続行 (feedback loop 防止は要ヘッドホン)
-# 失敗: best-effort、stdout/stderr は静か。CLAUDE_TTS_DEBUG=1 で /tmp/voice-out.log
+# 失敗: 処理自体は best-effort だが、失敗時も通知は出す。詳細ログは
+#       CLAUDE_TTS_DEBUG=1 で /tmp/voice-out.log
 #
 # 環境変数:
 #   CLAUDE_TTS_VOICE              default: Kyoko (say フォールバック時のボイス名)
@@ -56,6 +59,14 @@ VOICEVOX_SPEED="${CLAUDE_TTS_VOICEVOX_SPEED:-1.0}"
 log() {
   [ -n "$CLAUDE_TTS_DEBUG" ] && \
     printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*" >> /tmp/voice-out.log
+  return 0
+}
+
+# --- 通知: F1 を押した瞬間に「反応した」ことを目に見える形で伝える ---
+# 呼び出し側は固定の短い文言のみを渡すこと (AppleScript 文字列への埋め込みのため、
+# 可変長のテキスト本文はここに渡さない)。失敗しても best-effort で無視する。
+notify() {
+  /usr/bin/osascript -e "display notification \"$1\" with title \"voice-out\"" >/dev/null 2>&1
   return 0
 }
 
@@ -253,6 +264,7 @@ load_from_state_file() {
 if /usr/bin/pgrep -x say >/dev/null 2>&1 || /usr/bin/pgrep -x afplay >/dev/null 2>&1; then
   log "speaking process already running, killing (toggle off)"
   kill_speaking
+  notify "⏹ 読み上げを停止しました"
   exit 0
 fi
 
@@ -285,17 +297,17 @@ case "${1:-}" in
     ;;
 esac
 
-[ -z "$TEXT" ] && { log "empty text"; exit 0; }
+[ -z "$TEXT" ] && { log "empty text"; notify "読み上げ失敗: 読み上げる内容が見つかりませんでした"; exit 0; }
 
 # 要約モードなら claude -p で 30 秒分に整形。失敗時は元 text を温存
 if [ "$SUMMARIZE" = "1" ]; then
   log "summarizing for voice (model=$SUMMARY_MODEL, source=${#TEXT} chars)"
   TEXT="$(summarize_for_voice "$TEXT")"
-  [ -z "$TEXT" ] && { log "summary returned empty"; exit 0; }
+  [ -z "$TEXT" ] && { log "summary returned empty"; notify "読み上げ失敗: 要約に失敗しました"; exit 0; }
 fi
 
 TEXT="$(sanitize "$TEXT")"
-[ -z "$TEXT" ] && { log "sanitized to empty"; exit 0; }
+[ -z "$TEXT" ] && { log "sanitized to empty"; notify "読み上げ失敗: 本文が空でした"; exit 0; }
 
 if [ ${#TEXT} -gt $MAX_CHARS ]; then
   log "text too long (${#TEXT} chars), truncating to $MAX_CHARS"
@@ -303,4 +315,5 @@ if [ ${#TEXT} -gt $MAX_CHARS ]; then
 fi
 
 log "speaking (backend=$BACKEND): ${TEXT:0:80}..."
+notify "🔊 読み上げ開始"
 speak "$TEXT"
