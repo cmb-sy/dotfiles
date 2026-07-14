@@ -290,8 +290,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$HOME/.claude/hooks/stop-failure-debug.sh",
-            "timeout": 10,
+            "command": "$HOME/.claude/hooks/stop-failure-handler.sh",
+            "timeout": 15,
             "async": true
           }
         ]
