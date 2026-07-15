@@ -147,6 +147,31 @@ gh api "repos/Resily/{repo}/collaborators" --jq '.[] | "\(.login)\t(\(.role_name
 gh api "repos/Resily/{repo}/milestones?state=open" --jq '.[] | "\(.title)\t\(.due_on // "期日なし")"'
 ```
 
+### Step 5b: ラベル・タイプ・優先度/サイズの候補取得
+
+**Issue には常にラベル・タイプ・（Project ボードの）優先度/サイズを設定する。** 該当する既存の値が無ければ、その場で新規作成する（後述）。
+
+```bash
+# 既存ラベル一覧
+gh label list --repo Resily/{repo}
+# 既存 Issue Type 一覧（org 単位で定義され、repo に対して有効化されているもの）
+gh api graphql -f query='
+{
+  repository(owner: "Resily", name: "{repo}") {
+    issueTypes(first: 20) { nodes { id name description isEnabled } }
+  }
+}'
+```
+
+優先度（Priority）・サイズ（Size）は AITF ボード（project 26）の固定フィールドを使う（値は既知、再取得不要）:
+
+| フィールド | field-id | 選択肢 |
+|---|---|---|
+| Priority | `PVTSSF_lADOArEsis4BIUQAzg4z9-k` | P0(`79628723`) / P1(`0a877460`) / P2(`da944a9c`) |
+| Size | `PVTSSF_lADOArEsis4BIUQAzg4z9-o` | XS(`6c6483d2`) / S(`f784b110`) / M(`7515a9f1`) / L(`817d0097`) / XL(`db339eb2`) |
+
+他のボードに追加する場合（project 26 以外）は、都度 `gh api graphql` で当該 project の `fields` を問い合わせて field-id・option-id を取得し直す（ハードコードしない）。
+
 ### Step 6: 担当者・期日の選択
 
 `AskUserQuestion` で **2 問まとめて**聞く:
@@ -158,20 +183,50 @@ gh api "repos/Resily/{repo}/milestones?state=open" --jq '.[] | "\(.title)\t\(.du
   - `今週中`（今週金曜）/ `今月末` / `期日なし` / 既存 milestone 名（あれば）
   - `Other` で `YYYY-MM-DD` 直接指定も受ける
 
-**期日の反映方法:**
-- 既存 milestone を選んだ場合 → `--milestone "{title}"` を付与
-- 日付（今週中/今月末/カスタム）を選んだ場合 → GitHub issue に期日フィールドは無いため、**本文末尾に `期日: YYYY-MM-DD` 行を追記**する（`date -v` で絶対日付に変換）
+**期日の反映方法（ユーザーが明確な期限を述べている場合を優先する）:**
+- ユーザーが「〜までに」「〜日締切」等、**具体的な期限を明言している場合** → まず既存 milestone（Step 5 で取得済み）に `due_on` が一致するものが無いか確認する
+  - 一致する既存 milestone がある → それを使う（`--milestone "{title}"`）
+  - 一致するものが無い → **その場で新規作成する**（下記コマンド）。タイトルは日付か内容から簡潔に付ける（例: `2026-07-22 締切分`）
+    ```bash
+    gh api repos/Resily/{repo}/milestones -f title="{title}" -f due_on="{YYYY-MM-DD}T00:00:00Z" -f state=open
+    ```
+  - 作成した milestone も `--milestone "{title}"` で issue に付与する
+- ユーザーが期限を明言していない、かつ「今週中」「今月末」等の相対表現のみの場合 → 既存の運用どおり、本文末尾に `期日: YYYY-MM-DD` 行を追記する（`date -v` で絶対日付に変換）。milestone は新規作成しない
 - `期日なし` → 何もしない
+
+### Step 6b: ラベル・タイプの選択
+
+`AskUserQuestion` で **2 問まとめて**聞く:
+
+- **ラベル**（header: `ラベル`）: 候補は Step 5b で取得した既存ラベルから、内容に合いそうなものを提示する（`multiSelect: true`）。合うものが無ければ `Other` で新規ラベル名を受け付け、以下で作成してから使う:
+  ```bash
+  gh label create "{name}" --repo Resily/{repo} --description "{説明}" --color "{6桁hex、指定なければ ededed}"
+  ```
+- **タイプ**（header: `タイプ`）: 候補は Step 5b で取得した既存 Issue Type（例: Task / Bug / Feature）。内容から最も自然なものを一番上に推奨として出す。合うものが無ければ `Other` で新規タイプ名を受け付け、以下で作成する（**org 管理者権限が必要な場合がある**。権限エラーになったら「既存タイプで代用するか、権限のある人に作成を依頼してください」と案内し、既存タイプへのフォールバックを提案する）:
+  ```bash
+  ORG_ID=$(gh api graphql -f query='{ organization(login: "Resily") { id } }' --jq '.data.organization.id')
+  gh api graphql -f query='
+  mutation($ownerId: ID!, $name: String!, $description: String) {
+    createIssueType(input: {ownerId: $ownerId, name: $name, description: $description, isEnabled: true}) {
+      issueType { id name }
+    }
+  }' -f ownerId="$ORG_ID" -f name="{name}" -f description="{説明}"
+  ```
+
+### Step 6c: 優先度・サイズの選択
+
+`AskUserQuestion` で **2 問まとめて**聞く（header: `優先度` / `サイズ`）。選択肢は Step 5b の Priority(P0/P1/P2) / Size(XS/S/M/L/XL)。**「未設定」も選択肢に含める**（すべての issue に無理に優先度・サイズを付けない。判断材料が無ければ未設定を推奨として出す）。
 
 ### Step 7: 最終確認と作成
 
-確定した repo / title / body / assignee / 期日 をまとめて提示し、最終確認を取る。承認後に実行:
+確定した repo / title / body / assignee / 期日 / ラベル / タイプ / 優先度 / サイズ をまとめて提示し、最終確認を取る。承認後に実行:
 
 ```bash
 gh issue create --repo Resily/{repo} \
   --title "{タイトル}" \
   --body "{洗練した本文}" \
   --assignee {login1} [--assignee {login2}] \
+  [--label "{label1}"] [--label "{label2}"] \
   [--milestone "{title}"]
 ```
 
@@ -196,10 +251,39 @@ gh project item-edit \
 - これは org の共有ボードを変更する操作だが、運用上 create とセットで常に実行する（ユーザーの恒久指示）
 - 失敗した場合（権限・project scope 不足など）はエラーを報告し、手動追加を案内する
 
+### Step 7c: Issue Type の設定
+
+`gh issue create` に issue type を直接渡すフラグは無いため、作成後に GraphQL で設定する。Step 6b で選んだタイプが「無し」でない限り必ず実行する。
+
+```bash
+ISSUE_NODE_ID=$(gh issue view {number} --repo Resily/{repo} --json id --jq .id)
+gh api graphql -f query='
+mutation($issueId: ID!, $typeId: ID!) {
+  updateIssue(input: {id: $issueId, issueTypeId: $typeId}) {
+    issue { id issueType { name } }
+  }
+}' -f issueId="$ISSUE_NODE_ID" -f typeId="{Step 6b で確定した type の node id}"
+```
+
+失敗した場合はエラーを報告し、タイプ無しのまま続行してよいか確認する。
+
+### Step 7d: 優先度・サイズの設定
+
+Step 6c で「未設定」以外を選んだ場合、Step 7b で取得した `$ITEM_ID` に対して同じ project item-edit パターンで設定する。
+
+```bash
+# 優先度
+gh project item-edit --id "$ITEM_ID" --project-id PVT_kwDOArEsis4BIUQA \
+  --field-id PVTSSF_lADOArEsis4BIUQAzg4z9-k --single-select-option-id "{選んだ Priority の option-id}"
+# サイズ
+gh project item-edit --id "$ITEM_ID" --project-id PVT_kwDOArEsis4BIUQA \
+  --field-id PVTSSF_lADOArEsis4BIUQAzg4z9-o --single-select-option-id "{選んだ Size の option-id}"
+```
+
 ### Step 8: リンク返却
 
 作成された issue の **URL を必ず報告する**（`gh issue create` の標準出力に URL が返る）。
-`#{number} {タイトル} → {URL}` 形式で出し、**AITF ボードへ追加した旨も添える**。
+`#{number} {タイトル} → {URL}` 形式で出し、**AITF ボードへ追加した旨、設定したラベル・タイプ・優先度・サイズ・milestone（新規作成した場合はその旨）も添える**。
 
 ---
 
@@ -246,3 +330,6 @@ gh issue comment {number} --repo Resily/{repo} --body "{本文}"
 5. **リポジトリが特定できない場合は推測せず確認する**
 6. **実行後は issue 番号と URL を報告する**
 7. **create した issue は必ず AITF ボード（project 26）に追加し、Status を `Backlog` に設定する** — 手順・フィールド ID は Step 7b を参照（追加直後の Status は `Done` になり隠れるため Backlog 設定まで必須）
+8. **create した issue には必ずラベル・タイプ・優先度/サイズを設定する** — 該当する既存の値が無ければ、確認せずその場で新規作成する（ラベル: `gh label create`、タイプ: `createIssueType` GraphQL mutation。タイプ新規作成が権限不足で失敗した場合のみ、既存タイプへのフォールバックを確認する）。優先度・サイズは「未設定」も正当な選択肢とする
+9. **ユーザーが具体的な期限を明言した場合、その期限に対応する milestone を使う** — 既存 milestone に一致する `due_on` が無ければ、確認せずその場で新規作成し issue に付与する。期限の明言が無い相対表現（今週中/今月末）のみの場合は、従来どおり本文への期日追記に留め milestone は作成しない
+10. **一度確立したこれらの標準動作（ラベル・タイプ・フィールド・milestone の自動補完）は、以後のすべての create 操作に適用する** — 個別の issue ごとに毎回確認を求めない
