@@ -3,13 +3,13 @@ name: english-log
 description: >-
   このセッションで受けた英語の訂正・英訳例を Obsidian に記録したいときに使う。
   Claude が与えた両方向の学習材料（英語入力時の `"X" → "Y"` 訂正 + 日本語入力時の英訳例）を抽出し、
-  vault の 03_skillup/english/YYYY-MM-DD.md に追記する。日付上書きは本文の Options を参照。
+  vault の 02_skillup/english/YYYY-MM-DD.md に追記する。日付上書きは本文の Options を参照。
 argument-hint: "[--date YYYY-MM-DD]  (省略時は今日)"
 user-invocable: true
 ---
 
 このセッション中に Claude が与えた英語学習材料を抽出し、Obsidian vault の
-`03_skillup/english/YYYY-MM-DD.md` に追記する。対象は2方向:
+`02_skillup/english/YYYY-MM-DD.md` に追記する。対象は2方向:
 
 - **英語訂正**: ユーザーが英語で話しかけたときに Claude が示した `"X" → "Y"` 形式の訂正
 - **英訳教示**: ユーザーが日本語で話しかけたときに Claude が示した `In English: ...` の英訳例
@@ -69,7 +69,7 @@ user-invocable: true
 
 ### Step 3: 出力先の決定
 
-- ベースパス: `$HOME/develop/obsidian/03_skillup/english/`
+- ベースパス: `$HOME/develop/obsidian/02_skillup/english/`
 - ファイル名: `YYYY-MM-DD.md`（今日の日付。`--date` 引数で上書き可）
 - ディレクトリが無ければ作成する。
 
