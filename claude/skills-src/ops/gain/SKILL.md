@@ -55,3 +55,53 @@ AskUserQuestion は 1 問最大 4 択のため 2 段構成にする。
 
 - 単一スコープ / research を選んだら、続けて**対象を追加質問**する（例: SNS → 「誰の SNS?」を `sources.yaml` の登録者 + AI 推測候補 + 自由入力で提示）
 - 選んだアドホック対象が `sources.yaml` に未登録なら、実行後に **「今後も watch 対象に追加しますか?」** を AskUserQuestion で確認 → YES で該当セクションに追記（単発 → 永続化）。ユーザー承認なしに追記しない
+
+## watch: peers スコープ（dotfiles 採用ワークフロー）
+
+旧 peer-watch の挙動を保持する。出力先は `dotfiles/docs/peer-watch/YYYY-MM-DD.md`（Obsidian ではない。採用対象が dotfiles 設定のため設定とバージョン管理を共にする）。
+
+**基準日:** `dotfiles/docs/peer-watch/` の最新ファイルの `date` frontmatter を読み、その「後で」バケットを次回再提示候補として合流させる。
+
+### Phase 1: Target Resolution
+1. `--user <handle>` があればそれを単独対象。無ければ `sources.yaml` の `peers.handles` を対象化
+2. repo 解決: `peers.overrides` に handle があればその `owner/name`、無ければ `<handle>/dotfiles`
+3. `gh api /repos/{owner}/{name}` で存在検証。404 は 1 行警告で skip
+
+### Phase 2: Activity Collection（並列）
+1 peer = 1 サブエージェント（`subagent_type: general-purpose`、自己完結プロンプト）で並列 dispatch。各エージェントは直近 N 日（default 30）の以下を**構造化データ（YAML）**で返す:
+- commit: `gh api '/repos/{owner}/{name}/commits?since=<iso8601>&per_page=100'` の message + changed files 要約
+- 新規追加ファイル（commit 内 `status: added`）
+- 注目ファイル（README.md / Brewfile / `*.json` / `*.yaml` / `flake.nix` / `chezmoi*.toml`）の更新有無
+- star 数（`gh api /repos/{owner}/{name}` の `stargazers_count`）
+
+返却スキーマ: `handle` / `repo` / `stars` / `last_commit` / `commits_in_window` / `themes[]`（`title`/`commits`/`files_touched`/`summary`）/ `notable_additions[]` / `notable_diffs[]`。
+
+### Phase 3: Educational Analysis（メイン実行、subagent に投げない）
+各 theme に以下 2 つを生成:
+- **What（何をしているか）**: 2〜4 文。登場する専門用語は「そもそも何か」を 1〜2 文で必ず解説（省略禁止）
+- **Why for me（自分への関係）**: `$HOME/dotfiles` を実 grep/find/ls で diff し（LLM 推測禁止）、ラベルを 1 つ付与:
+
+| ラベル | 判定基準 |
+|---|---|
+| 🆕 NEW | 関連ファイルが見つからない |
+| 🔁 OUTDATED | 同種はあるが古い/素朴 |
+| ✅ COVERED | 同種があり自分が同等以上 |
+| ❌ N/A | OS/流派/関心領域が異なる |
+
+判定後、自分の運用への含意を 2〜3 文書く。
+
+### Phase 4: Interactive Approval
+`--dry-run` 時は Phase 4/5 をスキップ。finding を **1 件ずつ** AskUserQuestion で 4 択:
+- 採用（memo に追記） / スキップ / 詳細を見る / 後で（次回再提示）
+
+ルール: 一覧一括選択は禁止（1 件ずつ問う）。「詳細を見る」は commit diff・該当ファイル全体・自分の対応箇所を提示してから同 4 択を再提示（1 finding 1 回まで）。「採用」時にメモ 1 行を任意入力（空可）。
+
+### Phase 5: Persistence
+採用 finding と「後で」バケットを `dotfiles/docs/peer-watch/YYYY-MM-DD.md` に追記（無ければ作成、同日は追記）。frontmatter: `date` / `peers` / `days_window`。「後で」は次回 Phase 3 完了後に Read して再提示候補へ合流。
+
+### 完了報告
+```
+gain peers 完了。対象: <n> peers (<days> 日窓)
+finding: 採用 <a> / スキップ <b> / 後で <c>
+記録先: dotfiles/docs/peer-watch/<date>.md
+```
