@@ -105,3 +105,84 @@ gain peers 完了。対象: <n> peers (<days> 日窓)
 finding: 採用 <a> / スキップ <b> / 後で <c>
 記録先: dotfiles/docs/peer-watch/<date>.md
 ```
+
+## watch: 一般ソース（github / services / engineers / news）
+
+**基準日:** `02_skillup/情報収集/watch/` の最新ダイジェストの `date` を `since` とする。無ければ 14 日窓。
+
+**実行:** スコープ内の各ソースカテゴリ = 1 サブエージェントで並列 dispatch（メイン context 保護）。各エージェントは自己完結プロンプトで**構造化データ**を返す。オーケストレーターが統合し、peers と同じ教育視点（What + 用語解説 + 自分への関係）でダイジェスト化する。サブエージェントの生出力をそのまま転送しない。
+
+| スコープ | 取得方法 | 信頼度 |
+|---|---|---|
+| github | `gh api /repos/{repo}/commits?since=<iso>` + `/releases`。「何を作っているか」を要約 | 高 |
+| services | changelog URL を WebFetch → 基準日以降のエントリ抽出（前回ダイジェストと照合し重複除去） | 中〜高 |
+| engineers(blog) | RSS/Atom を WebFetch → 基準日以降の記事。RSS 無しは WebFetch スクレイプにフォールバック | 高 |
+| engineers(sns) | WebSearch で直近の注目投稿（threadreader/引用/埋め込み経由） | **低（best-effort）** |
+| news | クエリごとに WebSearch → 影響度・新しさでフィルタ | 中 |
+
+SNS は必ず「信頼度低」ラベルを付す。取得ゼロは正常扱い（「該当なし」と記載）。
+
+## research モード
+
+トピックを受け取り並列で:
+- **Web**: 既存 `deep-research` スキルを invoke（fan-out 検索 + adversarial verify + 出典付き）。利用不可なら内蔵 WebSearch で縮退し、その旨を明示
+- **自リポ**: `code-explorer` 系サブエージェントで現リポジトリの関連構造・依存・既存実装を調査
+
+オーケストレーターが両者を統合:
+- 技術選定 → 導入可否・影響範囲・既存コードとの整合性
+- 外部リポ理解 → 設計/実装の要約 + 自リポへの取り込みポイント
+
+出力: `02_skillup/情報収集/research/YYYY-MM-DD-<topic>.md`
+
+## 出力構造（Obsidian）
+
+```
+02_skillup/情報収集/
+├── watch/YYYY-MM-DD.md          # 実行ごとのダイジェスト
+├── research/YYYY-MM-DD-<topic>.md
+└── index.md                     # MOC: 直近ファイルへのリンク一覧
+```
+
+ダイジェスト md:
+```markdown
+---
+date: YYYY-MM-DD
+type: watch-digest
+tags: [情報収集, tech-radar]
+---
+# 情報収集ダイジェスト YYYY-MM-DD
+
+## GitHub
+### owner/repo — <テーマ>
+- 何をしているか: ...
+- 自分への関係: ...
+- source: <URL>
+
+## サービス更新
+## エンジニア発信（blog / SNS·信頼度低）
+## ニュース
+```
+
+- `[[]]` リンク・`#tag` を維持。実行後 `index.md` に新ファイルへのリンクを追記
+- vault の commit/push はしない（/eod に委譲）
+
+## エラーハンドリング
+
+| 状況 | 対応 |
+|---|---|
+| `gh` 未認証 | 「`gh auth login` を実行してください」と表示し該当スコープ終了 |
+| リポジトリ 404 | 1 行警告で skip、他は続行 |
+| RSS/changelog 取得失敗 | 当該ソースを skip、他は続行 |
+| SNS 取得ゼロ | 正常扱い（「該当なし」） |
+| 全ソース取得失敗 | 「データを取得できませんでした」と報告し終了 |
+| deep-research 未利用可 | Web を内蔵 WebSearch で縮退実行し明示 |
+
+## Red Flags（やってはいけないこと）
+
+- peers で finding を一覧一括選択させる（1 件ずつが要件）
+- 教育解説で専門用語を読み手任せにする / 関連性ラベルを省略する
+- diff 判定を LLM 推測で行う（必ず grep/find/ls）
+- サブエージェントの生出力を統合せずダイジェストへ転送する
+- SNS を「信頼度低」ラベルなしで他ソースと同列に出す
+- ユーザー承認なしに sources.yaml へアドホック対象を追記する
+- gain が vault を自動 commit する（/eod に委譲）
