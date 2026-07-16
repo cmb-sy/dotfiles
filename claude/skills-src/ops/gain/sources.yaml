@@ -1,5 +1,8 @@
 # gain watch sources
 # Add sources per section. gain watch reads this file to know what to observe.
+# NOTE: sections below scaffold as `key: []` with commented-out examples underneath.
+# Before uncommenting an example, remove the `[]` from that key first —
+# a key set to `[]` followed by uncommented `- ` list items is invalid YAML.
 
 # dotfiles peers — adoption workflow targets (absorbed from peer-watch)
 #   handles: GitHub handles to watch, one per line
