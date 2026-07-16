@@ -1,0 +1,37 @@
+# gain watch sources
+# Add sources per section. gain watch reads this file to know what to observe.
+
+# dotfiles peers — adoption workflow targets (absorbed from peer-watch)
+#   handles: GitHub handles to watch, one per line
+#   overrides: owner/name only for repos differing from default <handle>/dotfiles
+peers:
+  handles:
+    - neko-neko    # Tokyo; traditional tmux/Tailscale/sesh stack
+    - mizchi       # three-layer chezmoi + Nix home-manager + APM
+    - joshukraine  # Claude Code skills via _shared/house-style.html
+    - shunk031     # AGENTS.md SSOT + symlinks for Claude/Codex/Gemini
+    - yutkat       # version-tag releases; NixOS/Arch; bundled Codex prompts
+  overrides:
+    mizchi: mizchi/chezmoi-dotfiles
+
+# General repos — watch commits/releases (not limited to dotfiles)
+github: []
+  # - repo: some-owner/some-repo
+  #   note: what to watch for
+
+# Service changelog / release pages
+services: []
+  # - name: Claude
+  #   url: https://docs.anthropic.com/en/release-notes/claude-code
+  #   note: Claude Code updates
+
+# Engineers to follow via blog (RSS) and SNS (best-effort)
+engineers: []
+  # - name: Some Engineer
+  #   x: "@handle"
+  #   blog: https://example.com/feed.xml
+
+# Impact news — search queries
+news: []
+  # - query: "AI coding agent 新機能"
+  #   note: why this matters
