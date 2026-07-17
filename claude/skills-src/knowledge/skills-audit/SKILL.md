@@ -2,8 +2,9 @@
 name: skills-audit
 description: >-
   skills を棚卸しするときに使う。利用ログ集計で未使用・低使用スキルを特定し、
-  全スキルペアの責務重複も体系スキャンして、Keep / Improve / Merge / Delete を判定。
-  承認された提案は実行まで行う（削除・統合してオプション分岐化・description改善の適用）。
+  全スキルペアの責務重複と、鮮度（壊れたパス・死んだ外部前提・stale URL・ハーネス新機能での簡素化機会）も
+  体系スキャンして、Keep / Improve / Merge / Delete を判定。承認された提案は実行まで行う
+  （削除・統合してオプション分岐化・陳腐化修正・導線/ルーティング追記の適用）。
   対象期間・件数・分析のみで止める場合は argument-hint を参照。
 argument-hint: "[--window <days>] [--top <n>] [--focus <skill-name>] [--report-only]"
 user-invocable: true
@@ -114,6 +115,24 @@ user-invocable: true
 
 Phase 5 の `MERGE` 判定は、利用実績起点（Phase 4 原因3）と本スキャンの両方を入力にする。
 
+## Phase 4.6: Update Scan（鮮度・アップデート検査）
+
+利用実績と独立に、スキル内容が**現在も正しく動く前提の上にあるか**を検査する（過去の実例: triage の Linear 登録が Linear 廃止で死んでいた / 03_skillup パスが vault 再編で陳腐化 / watch ソースの URL が stale キャッシュ化 / feature-dev がフロー導線の欠如で素通りされていた）。
+
+**機械チェック（全スキル対象、grep/存在検証で行い LLM 推測で判定しない）:**
+
+1. 本文中のファイルパス・ディレクトリの実在（`$HOME` 配下・vault 配下・リポジトリ内）
+2. 参照している他スキル名の実在（改名・削除への追従漏れ）
+3. 参照コマンド/CLI の存在（`which`）と、URL の生存（HTTP ステータス確認。ただし外部アクセスは件数を絞る）
+
+**前提チェック（要分析対象 + active 上位 + `--focus` 対象に絞る、コスト管理のため）:**
+
+4. 外部サービス・plugin の生存を auto memory（MEMORY.md）と突合する（例: 使用終了サービスへの登録フローが残っていないか）
+5. ハーネス新機能との突合: `02_skillup/情報収集/watch/` の直近ダイジェスト（あれば）から Claude Code の新機能を読み、スキルの手順が**新機能で簡素化・置換できる**場合は改善候補として挙げる
+6. フロー導線の生存: 上位オーケストレータ・CLAUDE.md のルーティングから実際に到達できるか（到達経路が存在しないスキルは「導線欠如」として IMPROVE 候補へ）
+
+検出した陳腐化・改善機会は Phase 5 の `IMPROVE` 入力にする（壊れた前提は severity 高として優先提示）。
+
 ## Phase 5: Recommendation（改善 or 削除提案）
 
 各スキルに 1 つの推奨アクションを割り当てる:
@@ -138,6 +157,7 @@ Phase 5 の `MERGE` 判定は、利用実績起点（Phase 4 原因3）と本ス
 - `IMPROVE` は次のいずれか:
   - 価値はあるが discoverability/導線が弱い
   - 入力設計を変えれば利用が増える見込みが高い
+  - Phase 4.6 で陳腐化（壊れたパス・死んだ外部前提・stale URL）や新機能による簡素化機会を検出した
 - `MERGE` は責務重複が高い場合
 
 ## Phase 6: Interactive Apply（承認つき適用）
@@ -154,7 +174,7 @@ Phase 5 の推奨のうち `IMPROVE` / `MERGE` / `DELETE` を **1 件ずつ** As
 
 - `DELETE`: `claude/skills-src/<category>/<name>/` と symlink `claude/skills/<name>` を `git rm -r` で削除
 - `MERGE`: (1) 統合先 SKILL.md に吸収元の固有機能を**オプション/引数/モードとして**追記するドラフトを提示、(2) 承認後に統合先を編集、(3) 吸収元を DELETE と同様に削除、(4) description に「旧 <name> を吸収」と 1 行残す
-- `IMPROVE`: name/description/argument-hint/導線の最小差分ドラフトを提示し、承認後に適用
+- `IMPROVE`: name/description/argument-hint/導線/本文のアップデート（陳腐化修正・新機能への置換を含む）の最小差分ドラフトを提示し、承認後に適用。導線改善は SKILL.md 内に限らず、上位スキルや CLAUDE.md のルーティング節への追記も対象にしてよい（その場合も変更ファイルを明示して承認を取る）
 
 **実行ルール:**
 
