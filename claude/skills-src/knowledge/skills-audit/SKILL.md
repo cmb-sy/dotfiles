@@ -11,7 +11,7 @@ user-invocable: true
 
 # Skills Audit — スキル棚卸し
 
-`claude/skills` の利用実績を監査し、使われていないスキルを「改善すべきか / 削除すべきか」まで判断する棚卸しスキル。
+`claude/skills` の利用実績と責務重複を監査し、「改善 / 統合 / 削除」の判断から承認つき適用までを行う棚卸しスキル。
 
 **開始時アナウンス:** 「Skills Audit を開始します。Phase 1: Inventory」
 
@@ -163,7 +163,7 @@ Phase 5 の推奨のうち `IMPROVE` / `MERGE` / `DELETE` を **1 件ずつ** As
 ### 1) Overview
 
 ```text
-Skills Prune Report
+Skills Audit Report
 window: <days>
 total_skills: <N>
 active: <N>
