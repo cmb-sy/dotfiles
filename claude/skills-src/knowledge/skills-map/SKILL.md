@@ -50,7 +50,7 @@ user-invocable: true
   [コードレビュー]  code-review / test-review / spec-review / implementation-review
   [ドキュメント  ]  doc-audit / doc-check / learn / handover / continue
   [PJ管理       ]  github-ops / github-issues / triage / meeting-notes
-  [振り返り・成長]  reflect / reflect-review / kaizen
+  [振り返り・成長]  reflect / kaizen
   [外部ツール    ]  slackcli / trace-report / skills-map / pptx-dev
   [日次運用      ]  eod  (project固有の daily-log / generate-problem を呼び出す)
 
@@ -80,7 +80,7 @@ DEPENDENCY TREE  (A -> B : AがBを呼び出す)
       |           +-> generate-problem
       |           +-> github-issues (open issue 確認 / 翌日タスクの issue 作成)
 
-  reflect-review -> reflect_log.md (file read)
+  reflect --weekly/--monthly -> reflect_log.md (file read)
   continue       -> handover.md    (file read)
 ```
 
