@@ -43,8 +43,8 @@ engineers:
     note: LLM tooling practice; highest signal in the space
   - name: mizchi
     x: "@mizchi"
-    blog: https://mizchi.dev
-    note: also watched in peers (dotfiles); this covers articles/SNS
+    blog: https://zenn.dev/mizchi/feed
+    note: also watched in peers (dotfiles); Zenn is authoritative (mizchi.dev serves stale 2020 cache)
 
 # Impact news — search queries
 news:
