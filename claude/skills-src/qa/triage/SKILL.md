@@ -2,7 +2,7 @@
 name: triage
 description: >-
   問い合わせ・バグ報告・障害連絡の URL（Slack/GitHub/その他）を受け取って初動対応したいときに使う。
-  情報収集→周辺コンテキスト探索→分析→Linear Issue 登録の 4 フェーズを実行するトリアージワークフロー。
+  情報収集→周辺コンテキスト探索→分析→GitHub Issue 登録の 4 フェーズを実行するトリアージワークフロー。
 user-invocable: true
 ---
 
@@ -99,8 +99,8 @@ Phase 1 のデータから以下を抽出する:
 **エージェント構成:**
 - 各エージェントには以下を渡す:
   - Phase 1 の取得データ（コンテキスト共有）
-  - 探索の具体的な指示（例: 「Linear で [トピック] に関連するチケットを検索」）
-  - 利用するツールの指定（slackcli, Grep, linear CLI 等）
+  - 探索の具体的な指示（例: 「GitHub で [トピック] に関連する issue/PR を検索」）
+  - 利用するツールの指定（slackcli, Grep, gh CLI 等）
 - エージェント数の上限なし（承認された探索数 = エージェント数）
 
 **エージェントの責務:**
@@ -155,7 +155,7 @@ Phase 1 + Phase 2 で収集した全情報を構造化する。
 
 収集した情報量に応じて、以下の項目を取捨選択して構造化する。全項目を常に出力するわけではない。
 
-- **タイトル**: 1行要約（Linear Issue のタイトルになる）
+- **タイトル**: 1行要約（GitHub Issue のタイトルになる）
 - **分類**: Bug / Feature / Improvement
 - **ドメインラベル**: データ内容から判断（プロジェクトに存在するラベルから選択）
 - **優先度提案**: Urgent / High / Medium / Low + 根拠
@@ -169,52 +169,28 @@ Phase 1 + Phase 2 で収集した全情報を構造化する。
 
 構造化した分析結果を Phase 4 に渡す。この時点ではユーザーに提示しない（Phase 4 のプレビューで提示する）。
 
-## Phase 4: Linear Registration
+## Phase 4: GitHub Issue Registration
 
-**アナウンス:** 「Phase 4: Linear Registration — Linear Issue を作成します」
+**アナウンス:** 「Phase 4: GitHub Issue Registration — GitHub Issue を作成します」
 
-Phase 3 の分析結果をプレビューとしてユーザーに提示し、承認後に Linear Issue を作成する。
+Phase 3 の分析結果を **`github-issues` skill の create フロー**に引き渡して Issue を登録する（Linear は 2026-07 に使用終了。旧 Linear 登録フェーズの置き換え）。
 
-### プレビュー
+### 動作
 
-以下のフォーマットで提示し、AskUserQuestion で承認を取得する:
-
-```
-## Linear Issue プレビュー
-- **Title**: [タイトル]
-- **Project**: [プロジェクト名]
-- **Labels**: [ラベル]
-- **Priority**: [優先度] — [根拠]
-- **Description**:
-  [要約 + 分析結果]
-
-この内容で Linear Issue を作成しますか？（修正があれば指示してください）
-```
-
-受け付ける入力:
-- 承認（`yes`, `ok`, `作成して` 等） → Issue を作成
-- 修正指示（テキスト） → 指示に従い修正してから再プレビュー
-- `cancel` → 「Issue 作成をキャンセルしました。」と報告して終了
-
-### Issue 作成
-
-1. Issue を作成する
-   - title: Phase 3 のタイトル
-   - project: 分析結果から判断
-   - labels: 分析結果の分類 + ドメインラベル
-   - priority: 分析結果の優先度（Urgent=1, High=2, Medium=3, Low=4）
-   - description: 分析結果の要約 + 関連リソースのリンク
-2. 分析が深い場合（原因仮説・影響範囲・関連コミット等がある場合）:
-   - 詳細分析ドキュメントを作成し、Issue に紐付ける
-3. 元 URL をアタッチメントとして添付する
+1. `github-issues` skill を invoke し、create 操作として以下を入力に渡す:
+   - issue 内容: Phase 3 の構造化結果（タイトル・分類・優先度提案・要約・原因仮説・影響範囲・関連リソース・推奨アクション）
+   - プロジェクト手がかり: Phase 1/2 で判明したリポジトリ・プロダクト名
+2. 以降のプレビュー・repo 特定・重複チェック・担当者/期日/ラベル/タイプ/優先度の選択・AITF ボード登録は github-issues の create フロー（Step 1〜8）に従う
+   - triage の優先度提案（Urgent/High/Medium/Low）は github-issues の Priority(P0/P1/P2) 選択時の推奨材料として添える
+3. 元 URL・関連リソースは issue 本文の「関連」節に含める（github-issues の PII ルールに従いマスキング）
 
 ### 完了報告
 
 ```
 Triage 完了。
-- Linear Issue: [Issue ID] [Issue URL]
+- GitHub Issue: #[number] [URL]
 - Title: [タイトル]
-- Priority: [優先度]
+- Priority: [設定値または未設定]
 ```
 
 ## エラーハンドリング
@@ -223,12 +199,12 @@ Triage 完了。
 |-------|--------|------|
 | 1 | URL からデータ取得不可 | 報告して終了 |
 | 2 | 探索ツールが失敗 | 該当探索をスキップし、取得済みデータで続行 |
-| 4 | Linear API エラー | エラー内容を報告し、再試行するか確認 |
+| 4 | GitHub API / gh CLI エラー | エラー内容を報告し、再試行するか確認（github-issues 側のエラー処理に従う） |
 
 ## Red Flags
 
 **Never:**
-- ユーザー承認なしに Linear Issue を作成する
+- ユーザー承認なしに GitHub Issue を作成する
 - Phase 2 の探索提案をスキップする（`none` はユーザーの明示的選択）
 - 取得できなかったデータを推測で補完する
 - Phase 2b エージェントの生出力を統合・要約せずに Phase 3 に転送する
