@@ -18,8 +18,10 @@ Exit codes:
 """
 
 import json
+import os
 import re
 import sys
+import time
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -507,7 +509,6 @@ def run_scan(text: str) -> list[str]:
     findings.extend(check_postal_code(text))
     findings.extend(check_japanese_address(text))
     findings.extend(check_japanese_name(text))
-    findings.extend(check_private_ip(text))
     findings.extend(check_bank_account(text))
     findings.extend(check_id_documents(text))
     findings.extend(check_corporate_number(text))
@@ -515,6 +516,33 @@ def run_scan(text: str) -> list[str]:
     findings.extend(check_salary(text))
     findings.extend(check_quasi_identifier_combination(text))
     return findings
+
+
+LOG_PATH = os.environ.get("PII_GUARD_LOG") or os.path.expanduser(
+    "~/.claude/pii-guard-log.jsonl"
+)
+
+
+def log_event(
+    action: str, findings: list[str], tool: str, file_path: str
+) -> None:
+    """Append a JSONL record for false-positive tuning. Never raises.
+
+    Records rule labels only — never the matched text itself.
+    """
+    try:
+        findings = [f.split(" (")[0] for f in findings]  # labels only, no matched text
+        rec = {
+            "ts": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+            "action": action,
+            "tool": tool,
+            "file_path": file_path,
+            "findings": findings,
+        }
+        with open(LOG_PATH, "a", encoding="utf-8") as f:
+            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+    except OSError:
+        pass
 
 
 def report(findings: list[str], context: str = "") -> int:
@@ -529,6 +557,16 @@ def report(findings: list[str], context: str = "") -> int:
         )
         return 2
     return 0
+
+
+def scan_and_report(text: str, tool: str, file_path: str = "") -> int:
+    findings = run_scan(text)
+    advisory = check_private_ip(text)
+    if findings:
+        log_event("block", findings + advisory, tool, file_path)
+    elif advisory:
+        log_event("advisory", advisory, tool, file_path)
+    return report(findings, tool)
 
 
 # ---------------------------------------------------------------------------
@@ -572,9 +610,9 @@ def mode_pre_tool_use(payload: dict) -> int:
         cmd = data.get("command", "")
         if re.search(r"\bgit\s+commit\b", cmd):
             return mode_git_commit_scan()
-        return report(run_scan(text), "Bash")
+        return scan_and_report(text, "Bash")
 
-    return report(run_scan(text), tool)
+    return scan_and_report(text, tool, file_path)
 
 
 # ---------------------------------------------------------------------------
@@ -609,7 +647,7 @@ def mode_git_commit_scan() -> int:
         return 0
 
     text = "\n".join(added_lines)
-    return report(run_scan(text), "git-commit")
+    return scan_and_report(text, "git-commit")
 
 
 # ---------------------------------------------------------------------------
