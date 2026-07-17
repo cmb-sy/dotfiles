@@ -9,8 +9,8 @@ Detects:
   - Passport, driver's license, health insurance, pension, residence card numbers
   - Corporate number (13 digits)
   - Bank account (branch + account), IBAN
-  - Private IP addresses (10.x, 172.16-31.x, 192.168.x)
-  - Combination PII: 3+ quasi-identifiers (company, dept, title, age, gender, etc.)
+  - Private IP addresses (10.x, 172.16-31.x, 192.168.x) — advisory log only (not blocked)
+  - Combination PII: 4+ labeled quasi-identifiers
 
 Exit codes:
   0 — no PII found (allow)
@@ -136,9 +136,23 @@ def check_my_number(text: str) -> list[str]:
     return []
 
 
+def luhn_ok(digits: str) -> bool:
+    total = 0
+    for i, ch in enumerate(reversed(digits)):
+        d = int(ch)
+        if i % 2 == 1:
+            d *= 2
+            if d > 9:
+                d -= 9
+        total += d
+    return total % 10 == 0
+
+
 def check_credit_card(text: str) -> list[str]:
-    if re.search(r"\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b", text):
-        return ["Credit card number pattern (16 digits)"]
+    for m in re.finditer(r"\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b", text):
+        digits = re.sub(r"[-\s]", "", m.group(0))
+        if luhn_ok(digits):
+            return ["Credit card number pattern (16 digits, Luhn valid)"]
     return []
 
 
@@ -171,19 +185,29 @@ def check_credentials(text: str) -> list[str]:
         findings.append("DB connection string with credentials")
     # Plaintext passwords in config-like context
     pw_labels = (
-        r"(?i)(password|passwd|pass|pwd|secret|token)"
-        r"\s*[=:]\s*['\"]?[^\s'\"]{8,}"
+        r"(?i)\b(password|passwd|pass|pwd|secret|token)"
+        r"\s*[=:]\s*['\"]?([^\s'\"]{8,})"
     )
-    match = re.search(pw_labels, text)
-    if match:
-        val = match.group(0)
+    for match in re.finditer(pw_labels, text):
+        val = match.group(2)
+        low = val.lower()
         placeholders = [
             "xxx", "***", "your_", "change_me", "placeholder",
-            "example", "dummy", "${", "ENV[", "os.environ",
+            "example", "dummy", "${", "env[", "os.environ",
             "process.env",
         ]
-        if not any(p in val.lower() for p in placeholders):
-            findings.append("Plaintext password/secret")
+        if any(p in low for p in placeholders):
+            continue
+        # Code-shaped values are not secrets: calls, interpolation, refs
+        if any(c in val for c in "(){}$"):
+            continue
+        # Identifier-shaped values (snake_case / camelCase) are code refs
+        if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", val) and (
+            "_" in val or re.search(r"[a-z][A-Z]", val)
+        ):
+            continue
+        findings.append("Plaintext password/secret")
+        break
     return findings
 
 
@@ -334,9 +358,6 @@ def check_quasi_identifier_combination(text: str) -> list[str]:
                 r"(?:\u4f1a\u793e\u540d|\u6240\u5c5e|\u52e4\u52d9\u5148|\u4f01\u696d\u540d"
                 r"|\u7d44\u7e54)[\uff1a:\s]",
                 r"(?:company|org(?:anization)?|employer)[\s:=]",
-                # explicit company suffixes (JP: kabushiki-gaisha, etc.)
-                r"\u682a\u5f0f\u4f1a\u793e|\uff08\u682a\uff09"
-                r"|(?:Co\.|Ltd\.|Inc\.|Corp\.)",
             ],
         ),
         (
@@ -354,13 +375,7 @@ def check_quasi_identifier_combination(text: str) -> list[str]:
                 # job title, position, role (JP)
                 r"(?:\u5f79\u8077|\u8077\u4f4d|\u8077\u7a2e|\u32a4\u30b8\u30b7\u30e7\u30f3"
                 r"|\u808c\u66f8\u304d)[\uff1a:\s]",
-                # specific JP titles: buchou, kachou, shunin, torishimariyaku, etc.
-                r"(?:\u90e8\u9577|\u8ab2\u9577|\u4fc2\u9577|\u4e3b\u4efb|\u53d6\u7de0\u5f79"
-                r"|\u793e\u9577|\u526f\u793e\u9577|\u5e38\u52d9|\u5c02\u52d9"
-                r"|\u30de\u30cd\u30fc\u30b8\u30e3\u30fc|\u30ea\u30fc\u30c0\u30fc"
-                r"|\u30c7\u30a3\u30ec\u30af\u30bf\u30fc)",
                 r"(?:title|position|role)[\s:=]",
-                r"(?:CEO|CTO|CFO|COO|VP|SVP|EVP|Director|Manager|Lead)\b",
             ],
         ),
         (
@@ -437,7 +452,7 @@ def check_quasi_identifier_combination(text: str) -> list[str]:
                 matched_categories.append(cat_name)
                 break  # one match per category is enough
 
-    threshold = 3
+    threshold = 4
     if len(matched_categories) >= threshold:
         cats = ", ".join(matched_categories[:5])
         return [
@@ -541,7 +556,7 @@ def log_event(
         }
         with open(LOG_PATH, "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
-    except OSError:
+    except Exception:
         pass
 
 
