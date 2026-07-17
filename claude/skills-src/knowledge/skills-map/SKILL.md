@@ -49,7 +49,7 @@ user-invocable: true
   [開発フロー    ]  feature-dev / debug-flow / smoke-test
   [コードレビュー]  code-review / test-review / spec-review / implementation-review
   [ドキュメント  ]  doc-audit / doc-check / learn / handover / continue
-  [PJ管理       ]  github-ops / github-issues / triage / meeting-notes
+  [PJ管理       ]  github-issues / triage / meeting-notes
   [振り返り・成長]  reflect / kaizen
   [外部ツール    ]  slackcli / trace-report / skills-map / pptx-dev
   [日次運用      ]  eod  (project固有の daily-log / generate-problem を呼び出す)

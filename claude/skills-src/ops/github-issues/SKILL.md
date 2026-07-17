@@ -1,9 +1,10 @@
 ---
 name: github-issues
 description: >-
-  GitHub Issue を一覧・作成・更新・クローズ・コメントしたいときに使う `gh` CLI ベースのスキル。
-  対象組織は Resily、デフォルト assignee は cmb-sy。ファイル I/O・Obsidian 連携は一切持たない純粋な issue 操作。
-argument-hint: "list | create | close <number> | comment <number> | update <number> [自然言語の指示]"
+  GitHub Issue を一覧・作成・更新・クローズ・コメントしたいとき、および PR 作成+Projects 登録を
+  一気通貫で行いたいときに使う `gh` CLI ベースのスキル。対象組織は Resily、デフォルト assignee は cmb-sy。
+  ファイル I/O・Obsidian 連携は持たない。旧 github-ops を吸収（pr サブコマンド）。
+argument-hint: "list | create | close <number> | comment <number> | update <number> | pr [--content <text>] [--project <number>] [--draft] [--skip-project] [自然言語の指示]"
 user-invocable: true
 ---
 
@@ -24,6 +25,7 @@ user-invocable: true
 | `update` | `update <number>` / 「更新」「タイトル変更」 | 既存 issue を編集 |
 | `close` | `close <number>` / 「クローズ」「閉じる」 | issue をクローズ |
 | `comment` | `comment <number>` / 「コメント」 | issue にコメント追加 |
+| `pr` | `pr` / 「PR 作成」「プルリク」「Projects 登録」 | PR 作成 + GitHub Projects 登録（旧 github-ops） |
 
 破壊的・外部可視の操作（create / close / comment / update）は、**実行前に内容を提示してユーザー確認を取る**。list は確認不要。
 
@@ -318,6 +320,59 @@ gh issue comment {number} --repo Resily/{repo} --body "{本文}"
 ```
 
 - 投稿内容を提示して確認後に実行
+
+---
+
+## pr — PR 作成 + Projects 登録（旧 github-ops）
+
+セッションコンテキストまたは `--content <text>` から PR を構成して作成/更新し、選んだ GitHub Project にアイテム登録する。既存アイテムには対話的操作（ステータス変更/サブタスク/コメント/DONE）を提供する。
+
+**フラグ:** `--content <text>`（フリーテキストから PR 構成）/ `--project <number>`（Project 直接指定）/ `--draft` / `--skip-project`（PR 作成のみ）
+
+**前提:** `gh auth status` で認証と `project` スコープを確認（未付与なら「`gh auth refresh -s project` を実行してください」と案内して終了）。Git リポジトリ内・リモート設定済みであること。
+
+### pr Phase 1: Context Collection
+
+- 並列取得: 現在ブランチ / `git log --oneline main..HEAD` / `git diff main...HEAD --stat` / `git remote get-url origin` / `gh pr list --head {branch} --json number,title,url,state --limit 5`
+- ベースブランチ推定: `git config branch.{branch}.gh-merge-base` → `git symbolic-ref refs/remotes/origin/HEAD --short` → フォールバック `main`
+- handover が保存した `project-state.json` / `handover.md` が現在ブランチ向けに存在すれば Read し、done タスク・decisions・session_notes を抽出（保存先は handover skill 準拠）
+- コンテンツソース優先順: `--content` > project-state.json > 直近コミットメッセージ（`git log --format='%s%n%b' HEAD~5..HEAD`）
+
+### pr Phase 2: PR Resolution
+
+`gh pr list` の結果で分岐: 既存なし/closed/merged → 新規作成へ。open の PR あり → AskUserQuestion で「既存を更新（推奨）/ 新規作成 / PR 操作スキップ（Projects のみ）/ キャンセル」。
+
+### pr Phase 3: PR Execution
+
+- **Title**: 70文字以内。project-state.json があれば Pipeline 名+主要タスク要約、`--content` ならその1行要約、フォールバックは最新コミット1行目
+- **Body**: `## Summary`(1-3行) / `## Changes`(diff --stat) / `## Context`(decisions・session_notes または --content またはコミット body) / `## Test Plan`(test_results なければ `- [ ] Manual verification required`)
+- **プレビュー承認必須**: Title/Base/Head/Draft/Body 先頭200字を提示し AskUserQuestion で承認を取ってから実行。修正は Other で受ける
+- 新規: `git push -u origin {branch}`(未 push 時) → `gh pr create --title ... --body ... --base {base} --assignee "@me" [--draft]`。更新: `git push` → `gh pr edit {number} --title ... --body ...`
+- push 失敗時は AskUserQuestion:「`--force-with-lease` 再 push(main/master は拒否) / `git pull --rebase` → 再 push / キャンセル」
+
+### pr Phase 4: Project Registration
+
+`--skip-project` 時はスキップ。
+
+1. `--project <N>` 指定があればそれ、なければ `gh project list --owner @me --format json` から AskUserQuestion で選択（スキップ選択肢を含める）
+2. `gh project item-list {N} --owner @me --format json --limit 100` で PR URL 照合（多ければ limit を 100→300→全件と拡大）
+3. 未登録 → `gh project item-add {N} --owner @me --url {pr_url}`
+4. 登録済み → ループ形式で対話操作: ステータス変更（`field-list` で Status 選択肢取得 → `item-edit`）/ サブタスク追加（`item-create --title ... --body "Parent: #{pr}"`）/ PR コメント / DONE 化。「完了」選択で抜ける
+
+### pr Phase 5: Report
+
+作成/更新した PR の番号・URL・状態と、Project へのアクション（登録/変更/スキップ）を報告する。
+
+### pr のエラー処理
+
+issue 系と共通（未認証・リポジトリ外・リモート未設定は案内して終了）に加え: detached HEAD → ブランチ名を確認 / `gh pr create`・`item-add` 失敗 → エラー表示しリトライ確認（最大2回）/ Project 0件 → 報告してスキップ / API レート制限 → 30秒待機リトライ（最大3回）。
+
+### pr の Red Flags
+
+- ユーザー承認なしの PR 作成/更新/Project 操作
+- main/master への force push（対話でも拒否）
+- PR body へのシークレット転記、project-state.json 全文コピー（要約して使う）
+- 既存 PR チェック（Phase 2）・既存アイテムチェック（Phase 4）のスキップ
 
 ---
 
