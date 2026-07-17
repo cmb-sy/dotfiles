@@ -1,6 +1,6 @@
 # gain watch sources
 # Add sources per section. gain watch reads this file to know what to observe.
-# NOTE: sections below scaffold as `key: []` with commented-out examples underneath.
+# NOTE: empty sections scaffold as `key: []` with commented-out examples underneath.
 # Before uncommenting an example, remove the `[]` from that key first —
 # a key set to `[]` followed by uncommented `- ` list items is invalid YAML.
 
@@ -18,23 +18,41 @@ peers:
     mizchi: mizchi/chezmoi-dotfiles
 
 # General repos — watch commits/releases (not limited to dotfiles)
-github: []
-  # - repo: some-owner/some-repo
-  #   note: what to watch for
+github:
+  - repo: neko-neko/belt
+    note: LLM-driven Agent Skills workflow engine; directly relevant to my skill ops
+  - repo: mizchi/vibe-lang
+    note: active experimental language for AI coding
 
 # Service changelog / release pages
-services: []
-  # - name: Claude
-  #   url: https://docs.anthropic.com/en/release-notes/claude-code
-  #   note: Claude Code updates
+services:
+  - name: Claude Code
+    url: https://docs.anthropic.com/en/release-notes/claude-code
+    note: primary daily tool; weekly feature drops
+  - name: Anthropic API
+    url: https://docs.anthropic.com/en/release-notes/api
+    note: model/API updates; feeds Databricks & AI work
+  - name: Obsidian
+    url: https://obsidian.md/changelog
+    note: vault workflow foundation
 
 # Engineers to follow via blog (RSS) and SNS (best-effort)
-engineers: []
-  # - name: Some Engineer
-  #   x: "@handle"
-  #   blog: https://example.com/feed.xml
+engineers:
+  - name: Simon Willison
+    blog: https://simonwillison.net/atom/everything/
+    note: LLM tooling practice; highest signal in the space
+  - name: mizchi
+    x: "@mizchi"
+    blog: https://mizchi.dev
+    note: also watched in peers (dotfiles); this covers articles/SNS
 
 # Impact news — search queries
-news: []
-  # - query: "AI coding agent 新機能"
-  #   note: why this matters
+news:
+  - query: "AI coding agent 新機能 比較"
+    note: Claude Code / Cursor / Codex competitive landscape
+  - query: "音声入力 コーディング dictation STT ツール"
+    note: alternatives/new tools around Handy/Typeless workflow
+  - query: "dotfiles 開発環境 ツール トレンド"
+    note: dev-environment new practices
+  - query: "開発者ツール 話題 トレンド"
+    note: catch-all for whatever is trending
