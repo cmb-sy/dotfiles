@@ -69,6 +69,18 @@
 - メインのコンテキストウィンドウを保護するため、調査・探索・並列分析はサブエージェントに委譲すること。
 - 1サブエージェント1方針で集中して実行すること。複数の方針を1エージェントに混ぜない。
 
+# パイプライン ルーティング
+
+作業開始時、以下を上から順に判定して実行経路を決めること（brainstorming の入口より先に効かせる）:
+
+1. **バグ起点**（症状+再現手順がある） → `/debug-flow`
+2. **仕事リポジトリで Verification Contract 発動規模**（3ファイル以上・backend/API 変更・infrastructure 変更）の新機能・変更 → `/feature-dev`
+3. **プレゼン資料** → `/pptx-dev`
+4. **それ以外**（dotfiles・1〜2ファイルの変更・実験・使い捨て） → superpowers 標準フロー（brainstorming → writing-plans → subagent-driven-development）
+
+- 境界で迷ったら「これが壊れた時、証跡（done-criteria 監査・trace）がないと困るか？」で判定する。セキュリティ/ガード機構の変更は原則 feature-dev 側に倒す
+- ツールを使うために仕事を作らない。ルーティングの結果はそのまま受け入れる
+
 # Audit Gate（憲法）
 
 - /feature-dev, /debug-flow のフェーズ遷移時、done-criteria に定義された監査ゲートは例外なく実行すること
