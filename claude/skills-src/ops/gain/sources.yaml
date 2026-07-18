@@ -62,3 +62,7 @@ news:
     note: successor candidates for qwen3:4b in Handy local voice mode (small, ja-capable, runs on Mac)
   - query: "small local LLM new model Ollama English instruct"
     note: en-mode candidates for Handy local voice (voice-switch en)
+  - query: "AI coding agent harness ベストプラクティス CLAUDE.md 運用 構築"
+    note: harness construction practices; feeds harness-audit Level 4 anchors
+  - query: "agentic coding workflow harness best practices"
+    note: EN sources for the same; top-engineer harness patterns
