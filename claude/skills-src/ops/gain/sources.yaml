@@ -23,6 +23,8 @@ github:
     note: LLM-driven Agent Skills workflow engine; directly relevant to my skill ops
   - repo: mizchi/vibe-lang
     note: active experimental language for AI coding
+  - repo: ollama/ollama
+    note: releases only — new versions of the free local runtime behind Handy voice post-processing
 
 # Service changelog / release pages
 services:
@@ -56,3 +58,7 @@ news:
     note: dev-environment new practices
   - query: "開発者ツール 話題 トレンド"
     note: catch-all for whatever is trending
+  - query: "ローカルLLM 小型モデル 日本語 Ollama 新モデル"
+    note: successor candidates for qwen3:4b in Handy local voice mode (small, ja-capable, runs on Mac)
+  - query: "small local LLM new model Ollama English instruct"
+    note: en-mode candidates for Handy local voice (voice-switch en)
