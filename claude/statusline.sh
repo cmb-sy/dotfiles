@@ -57,14 +57,14 @@ fmt_tokens() {
   fi
 }
 
-# Convert UNIX epoch seconds to human-readable duration until reset
-# Returns empty string if the reset time has already passed
+# Convert UNIX epoch seconds to an absolute reset clock time.
+# $2 is a strftime format. Returns empty if the reset time already passed.
+# Tries BSD date (-r) first, then GNU date (-d @) for portability.
 fmt_reset() {
-  local reset_s="$1"
+  local reset_s="$1" fmt="$2"
   is_int "$reset_s" || return
-  local diff=$(( reset_s - NOW ))
-  [ "$diff" -le 0 ] && return
-  printf '%dh%dm' "$(( diff / 3600 ))" "$(( (diff % 3600) / 60 ))"
+  [ "$(( reset_s - NOW ))" -le 0 ] && return
+  date -r "$reset_s" "+$fmt" 2>/dev/null || date -d "@$reset_s" "+$fmt" 2>/dev/null
 }
 
 # ==============================================================================
@@ -211,7 +211,12 @@ if [ -n "$RL_PRESENT" ]; then
     else
       parts+="${WHT}${label}${RST} ${C_LIMIT}--%${RST}"
     fi
-    eta=$(fmt_reset "$reset")
+    # 5h resets within a day → clock time only; 7d can be days out → add date.
+    if [ "$label" = "7d" ]; then
+      eta=$(fmt_reset "$reset" '%m/%d %H:%M')
+    else
+      eta=$(fmt_reset "$reset" '%H:%M')
+    fi
     [ -n "$eta" ] && parts+=" ${C_RESET_ETA}(${eta})${RST}"
   done
   sec_limits="$parts"
