@@ -304,7 +304,7 @@ D. わからない
 
 ```markdown
 ---
-## <font color="#81A1C1">generate-problem 結果（{HH:MM} / {素材の概要30字}）</font>
+## <font color="#81A1C1">generate-problem 結果</font>
 
 **正解率: N/M**
 
