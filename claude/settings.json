@@ -1,6 +1,7 @@
 {
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "CLAUDE_CODE_MAX_RETRIES": "3",
     "DIRENV_LOG_FORMAT": "",
     "ENABLE_TOOL_SEARCH": "true",
     "MISE_YES": "1"
