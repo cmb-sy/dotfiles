@@ -285,8 +285,14 @@ fi
 sec_time="${WHT}🕐 $(date +%H:%M)${RST}"
 
 out=""
-for s in "$sec_model" "$sec_account" "$sec_ctx" "$sec_limits" "$sec_voice" "$sec_time"; do
+for s in "$sec_model" "$sec_account" "$sec_ctx" "$sec_limits" "$sec_voice"; do
   [ -n "$s" ] && out="${out:+${out}${SEP}}${s}"
 done
-[ -n "$sec_dir" ] && out="${out}"$'\n'"${sec_dir}"
+
+# Line 2: dir, then time last.
+line2=""
+for s in "$sec_dir" "$sec_time"; do
+  [ -n "$s" ] && line2="${line2:+${line2}${SEP}}${s}"
+done
+[ -n "$line2" ] && out="${out}"$'\n'"${line2}"
 printf '%s\n' "$out"
