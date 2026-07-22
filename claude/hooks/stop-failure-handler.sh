@@ -37,6 +37,21 @@ ERROR="$(printf '%s' "$INPUT" | jq -r '.error // empty' 2>/dev/null)"
 [ -n "$HERDR_PANE_ID" ] || exit 0
 command -v herdr >/dev/null 2>&1 || exit 0
 
+# Cap consecutive auto-continues at 3. Without this, a persistent network
+# outage (e.g. DNS ENOTFOUND) loops forever: every failed turn re-fires
+# StopFailure, which types "continue", which fails again. The counter is
+# per-pane and reset by stop.sh on any successful (normal) stop.
+MAX_CONTINUES=3
+COUNT_FILE="$HOME/.claude/stop-failure-continue-${HERDR_PANE_ID//[^A-Za-z0-9_-]/_}.count"
+mkdir -p "$(dirname "$COUNT_FILE")" 2>/dev/null
+COUNT=$(cat "$COUNT_FILE" 2>/dev/null || echo 0)
+case "$COUNT" in (*[!0-9]*|'') COUNT=0;; esac
+if [ "$COUNT" -ge "$MAX_CONTINUES" ]; then
+  printf 'auto-continue suppressed (limit %s reached)\n' "$MAX_CONTINUES" >> "$LOG" 2>/dev/null
+  exit 0
+fi
+printf '%s' "$((COUNT + 1))" > "$COUNT_FILE" 2>/dev/null
+
 herdr pane send-text "$HERDR_PANE_ID" "continue" >/dev/null 2>&1
 sleep 0.3
 herdr pane send-keys "$HERDR_PANE_ID" Enter >/dev/null 2>&1

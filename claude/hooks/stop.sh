@@ -4,6 +4,12 @@ CONFIG_DIR="$HOME/.config/claude-stats"
 
 INPUT=$(cat)
 
+# A normal stop means the session recovered: reset the auto-continue
+# counter used by stop-failure-handler.sh (per-pane).
+if [ -n "$HERDR_PANE_ID" ]; then
+  rm -f "$HOME/.claude/stop-failure-continue-${HERDR_PANE_ID//[^A-Za-z0-9_-]/_}.count" 2>/dev/null
+fi
+
 # --- Record latest transcript_path to the voice-out state file ---
 # Resolve jq via PATH first (a hardcoded absolute path fails silently on Intel Macs / other environments)
 JQ="$(command -v jq || true)"
