@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Some apps (e.g. Ghostty, known bug:
+  https://github.com/ghostty-org/ghostty/discussions/10480) enable macOS
+  Secure Input Mode for a password prompt and fail to disable it afterward.
+  While enabled, the holding app exclusively receives all keyboard input,
+  silently blocking other apps' global hotkeys (e.g. Typeless/Handy voice
+  input via Karabiner Caps Lock). This agent polls every 60s and sends a
+  notification (never kills the app) if Secure Input has been held by the
+  same process for 2+ minutes. See bin/secure-input-watch.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.snakashima.secure-input-watch</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/snakashima/dotfiles/bin/secure-input-watch</string>
+    </array>
+    <key>StartInterval</key>
+    <integer>60</integer>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/tmp/secure-input-watch.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/secure-input-watch.log</string>
+</dict>
+</plist>

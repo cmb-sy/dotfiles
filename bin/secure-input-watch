@@ -1,0 +1,55 @@
+#!/bin/bash
+# Detect macOS Secure Input Mode being held by an app for too long (e.g. a
+# Ghostty bug: https://github.com/ghostty-org/ghostty/discussions/10480
+# leaves Secure Input enabled after a password prompt closes). While Secure
+# Input is enabled, the holding app receives ALL keyboard input exclusively,
+# silently blocking other apps' global hotkeys (e.g. Typeless/Handy via
+# Karabiner). Notify-only: never kills the offending app (could lose work
+# in an open tab/pane).
+#
+# Run periodically by launchd (see macos/com.snakashima.secure-input-watch.plist).
+# Each invocation is a fresh process, so state is tracked in $STATE_FILE.
+
+set -euo pipefail
+
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CHECK_SWIFT="$HERE/secure-input-check.swift"
+STATE_FILE="$HOME/.cache/secure-input-watch.state"
+THRESHOLD_SECONDS=120
+
+mkdir -p "$(dirname "$STATE_FILE")"
+
+pid="$(/usr/bin/swift "$CHECK_SWIFT" 2>/dev/null || true)"
+now="$(/bin/date +%s)"
+
+if [[ -z "$pid" ]]; then
+  # Secure Input not enabled: clear any tracked state so a future
+  # occurrence starts a fresh timer (and can notify again).
+  rm -f "$STATE_FILE"
+  exit 0
+fi
+
+if [[ -f "$STATE_FILE" ]]; then
+  read -r seen_since seen_pid notified < "$STATE_FILE"
+else
+  seen_since=""
+  seen_pid=""
+  notified="0"
+fi
+
+if [[ "$seen_pid" != "$pid" ]]; then
+  # New PID holding Secure Input (or first time seeing it at all):
+  # restart the timer.
+  seen_since="$now"
+  notified="0"
+fi
+
+elapsed=$(( now - seen_since ))
+
+if (( elapsed >= THRESHOLD_SECONDS )) && [[ "$notified" != "1" ]]; then
+  app_name="$(/bin/ps -p "$pid" -o comm= 2>/dev/null | xargs -I{} basename {} || echo "PID $pid")"
+  /usr/bin/osascript -e "display notification \"${app_name} が ${THRESHOLD_SECONDS}秒以上 Secure Input Mode を保持しています。音声入力・グローバルホットキーが効かない場合は ${app_name} を再起動してください。\" with title \"secure-input-watch\"" >/dev/null 2>&1 || true
+  notified="1"
+fi
+
+printf '%s %s %s\n' "$seen_since" "$pid" "$notified" > "$STATE_FILE"
