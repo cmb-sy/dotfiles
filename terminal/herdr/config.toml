@@ -1,3 +1,4 @@
+onboarding = false
 [keys]
 # Direct chords injected by Ghostty cmd shortcuts (terminal/ghostty/keybindings.conf).
 # herdr forwards F1..F12 chords to panes but drops F13+, so the outer terminal
