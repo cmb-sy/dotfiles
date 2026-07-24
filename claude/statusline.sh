@@ -85,6 +85,7 @@ eval "$(echo "$input" | jq -r '
   @sh "MODE=\(.output_style.name // .agent.name // "")",
   @sh "EFFORT=\(.effort.level // "medium")",
   @sh "WORKTREE=\(.worktree.name // "")",
+  @sh "SESSION_ID=\(.session_id // "")",
   @sh "U5_PCT=\((.rate_limits.five_hour.used_percentage | floor?) // "")",
   @sh "R5_TS=\(.rate_limits.five_hour.resets_at // "")",
   @sh "U7_PCT=\((.rate_limits.seven_day.used_percentage | floor?) // "")",
@@ -112,17 +113,41 @@ fi
 # [2] Active Claude account (multi-account switching via CLAUDE_CONFIG_DIR;
 # see claude-use-private / claude-use-work in .aliases.sh). Falls back to
 # resolving the ~/.claude symlink target when CLAUDE_CONFIG_DIR isn't
-# inherited (e.g. a fresh terminal that didn't go through clp/clw).
+# inherited (e.g. a fresh terminal that didn't go through clp/clw, or a
+# session launched by an IDE extension host that bypasses the shell wrapper
+# entirely).
+#
+# The symlink is machine-global: any other terminal running clp/clw at any
+# time repoints it for every process on the box. A session resolves its real
+# account ONCE at process start (cached internally by Claude Code — see
+# Login method in /status), so a later flip elsewhere doesn't change what
+# it's actually authenticated as, but a live `readlink` fallback here would
+# start reporting the OTHER account's label mid-session. Freeze the first
+# resolution per session_id (in ~/.cache/claude-statusline-account/) so the
+# displayed label tracks this session's real account instead of the
+# symlink's current, possibly unrelated, position.
 # ==============================================================================
 
 sec_account=""
 acct_dir="${CLAUDE_CONFIG_DIR:-}"
+acct_cache_file=""
+if [ -z "$acct_dir" ] && has_val "$SESSION_ID"; then
+  acct_cache_dir="$HOME/.cache/claude-statusline-account"
+  acct_cache_file="$acct_cache_dir/$SESSION_ID"
+  # Best-effort prune of caches from long-finished sessions.
+  find "$acct_cache_dir" -maxdepth 1 -type f -mtime +7 -delete 2>/dev/null
+  [ -r "$acct_cache_file" ] && acct_dir=$(cat "$acct_cache_file" 2>/dev/null)
+fi
 if [ -z "$acct_dir" ] && [ -L "$HOME/.claude" ]; then
   acct_dir=$(readlink "$HOME/.claude")
 fi
 # Only trust a resolved, existing directory — a stale/broken ~/.claude symlink
 # would otherwise print whatever garbage basename it happens to point at.
 if [ -n "$acct_dir" ] && [ -d "$acct_dir" ]; then
+  if [ -n "$acct_cache_file" ] && [ ! -e "$acct_cache_file" ]; then
+    mkdir -p "$acct_cache_dir" 2>/dev/null
+    printf '%s' "$acct_dir" > "$acct_cache_file" 2>/dev/null
+  fi
   acct_name=$(basename "$acct_dir")
   acct_name="${acct_name#.claude-}"
   acct_name="${acct_name#.claude}"
