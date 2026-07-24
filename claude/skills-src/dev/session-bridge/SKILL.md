@@ -19,6 +19,7 @@ user-invocable: true
 - **同一 repo（別 worktree を含む）**: `handover` + `continue` を使う。`continue` が worktree を探索するため、このスキルは使わない。
 - **pipeline の resume**: `handover` + `continue` を使う。
 - **別マシン**: git push または承認済み Artifact を使う。このスキルの対象外。
+- **密結合な共同作業には向かない**: このスキルは「たまの cross-repo 引き継ぎ」向けで、非同期・人手中継のため高頻度の往復には不向き。共有 branch/worktree の同時編集、順序依存の本番操作（write→検証→purge 等）を2セッションで分担する作業では、**1セッションが両 repo 分を担う単一ドライバー**を推奨する。2セッションで同じ worktree/branch を同時編集しないこと（コードは git で暗黙に伝播し、意図・判断はメッセージで遅延伝播するため必ず食い違う）。
 
 ## メッセージ形式
 ```
@@ -40,6 +41,16 @@ user-invocable: true
 3. `open <slug>` / `reply <slug>` の対象 slug は、そのコマンド中は古くても削除対象から除外する。
 4. 各候補を独立して処理し、1件の失敗で掃除全体を中断しない。削除成功後は `自動削除: <slug>（経過時間）`、失敗・スキップ時は対象と理由をユーザーへ通知してから本来のコマンドを続行する。削除対象がなければ通知しない。
 
+## 公開後の出力（share / reply 共通）
+message を公開したら **slug 単体で終わらせず、相手が別セッションで打つコマンドまで必ず提示する**。相手（および中継するユーザー）が受信・返信を迷わないようにする。
+
+1. **受信コマンド**を macOS ならクリップボードへコピーする: `printf '%s' "/session-bridge open <slug>" | pbcopy`（`pbcopy` 不在ならスキップ）。
+2. 次を出力する:
+   - `受信: /session-bridge open <slug>`（コピー成功時は「クリップボードにコピー済み。相手セッションで Cmd+V」を添える）
+   - `expects_reply: true` のときのみ、返信手段も示す: `返信: /session-bridge reply <slug> [topic]`（相手はこのメッセージを親にして返す）
+   - 送信先の `origin repo/branch` と `thread_id` を1行で併記する。
+3. `expects_reply: false`（一方向の共有・返信不要）のときは受信コマンドのみ出し、返信行は出さない。
+
 ## share（送る側）
 **REQUIRED SUB-SKILL:** Use `handover` for the schema and brief generation rules. `.agents/` には書かず、生成結果だけを一時ディレクトリへ保存する。
 
@@ -52,13 +63,16 @@ user-invocable: true
    - `meta.json`: `bridge_version: 2`, `message_type: "request"`, `thread_id: <新規slug>`, `parent_slug: null`, `expects_reply`, `topic`, `request`, `origin_repo`, `origin_branch`, `created_at`。`request` は受信側にしてほしいことを1〜3文で記述する。`expects_reply` は作業結果・回答を戻してほしい場合は `true`、一方向の情報共有なら `false` とし、不明なら公開前にユーザーへ確認する。
 5. 3ファイルを再読してJSON妥当性と必須フィールドを検証し、既知のPII・secretをレビューして除去する。自動検出だけで完全性を保証しない。問題があれば一時ディレクトリを削除して終了する。
 6. 一時ディレクトリを、既存パスを置換しない排他的な atomic rename で `~/.claude/session-bridge/<slug>/` へ公開する。競合なら一時ディレクトリを削除し、slug 生成から再試行する。公開後の3ファイルは変更せず、更新時は新しい message を発行する。
-7. `printf '%s' "/session-bridge open <slug>" | pbcopy` でコマンド全文をクリップボードへコピーする（macOS 前提。`pbcopy` が無ければこの手順を省略する）。コピー成功時は「`/session-bridge open <slug>` をクリップボードにコピーしました。相手セッションに切り替えて Cmd+V してください」、失敗時はコマンド全文をそのまま出力する。
+7. 「公開後の出力（share / reply 共通）」に従い、受信コマンド `/session-bridge open <slug>` と（`expects_reply: true` なら）返信コマンド `/session-bridge reply <slug>`、origin/thread_id を提示する。
 
 ## open（受け取る側）
 1. `<slug>` が `^[a-z0-9][a-z0-9-]{0,79}$` を満たすことを確認する。不正なら読み込まない。
 2. 解決後のパスが `~/.claude/session-bridge/` 直下であること、ディレクトリと3ファイルが symlink ではない通常ファイルであることを確認する。
 3. `meta.json` の `bridge_version` と必須フィールド、`project-state.json` の version 5・status・active_tasks を検証する。version 1 は legacy root message として読み、`thread_id: <slug>`, `parent_slug: null`, `message_type: "request"` とみなす。`expects_reply` は不明として、作業開始前にユーザーへ確認する。不正・欠落・書き込み途中なら作業せず報告する。
-4. origin repo/branch、作成日時、topic、request、message type、返信要否、未完了タスク、`next_action`、blocker、未コミット参照物を提示する。
+4. origin repo/branch、作成日時、topic、request、message type、返信要否、未完了タスク、`next_action`、blocker、未コミット参照物を提示する。あわせて、このメッセージへ返す手段を提示する:
+   - `printf '%s' "/session-bridge reply <slug>" | pbcopy` で **返信コマンドをクリップボードへコピー**する（macOS 前提。`pbcopy` 不在ならスキップ）。
+   - コピー成功時は「返信コマンド `/session-bridge reply <slug>` をクリップボードにコピーしました。返信するにはこのセッションで Cmd+V」と伝えたうえで、`返信: /session-bridge reply <slug> [topic]` を提示する。失敗時はコマンド全文をそのまま提示する。
+   - `expects_reply: true` の場合は「このメッセージは返信が必要です」と添える。
 5. 受信側 repo の git 履歴で origin の `commit_sha` やパスを検証しない。pipeline の自動 resume、worktree 切り替え、project-state の更新も行わない。
 6. `<slug>` をこの作業の返信先として保持する。作業開始前にユーザー承認を得て、承認後は共有内容を入力資料として受信側 repo の規約に従って作業する。
 7. 作業中・作業終了時に「返信が必要になる条件」を判定し、該当する場合は通常チャットで相手への伝言をユーザーに委ねず、最終報告より先に `/session-bridge reply <slug>` を実行する。
@@ -74,7 +88,7 @@ user-invocable: true
    - `message_type`: `question | answer | update | result` から内容に合う値
    - `expects_reply`: `question` は `true`、`result` は原則 `false`。`answer` は相手の作業結果を待つ場合のみ `true`、回答だけで完結するなら `false`。`update` は具体的な返答・対応を求める場合のみ `true`。不明なら公開前にユーザーへ確認する
 3. `request` には、相手に知ってほしい情報と次にしてほしいことを自己完結する1〜3文で書く。単に「前の続き」「相手に伝えて」だけにしない。
-4. 公開後、送信先の origin repo/branch と thread_id を併記する。`share` の手順7と同じ方法で `/session-bridge open <新slug>` をクリップボードへコピーし、コピー結果に応じたメッセージを出す。
+4. 公開後、「公開後の出力（share / reply 共通）」に従い、受信コマンド `/session-bridge open <新slug>` と（`expects_reply: true` なら）返信コマンド `/session-bridge reply <新slug>`、origin/thread_id を提示する。
 
 ## 返信が必要になる条件
 `open` 後は1回の受け取りで関係を終了したとみなさない。次のいずれかが生じた時点で `reply` する:
@@ -93,6 +107,14 @@ user-invocable: true
 - 「受け取りました」「了解しました」だけの acknowledgement。`expects_reply` は実質的な回答・対応を求める印であり、受領確認の往復には使わない。
 
 「相手はこうするべき」「相手に伝えてください」と通常チャットに書くだけで終了してはならない。その内容が相手の行動や判断に必要なら、必ず `reply` message を発行する。
+
+## 協調の食い違いを防ぐ（ターンの所在）
+非同期メッセージ + 人手中継のため、放置すると「両者が同時に相手待ち」のデッドロックや、未読依頼の見落とし、分担のドリフトが起きる。以下を必須とする。
+
+- **ターンを明示する**: すべての `request` / `next_action` に「次に動くのは誰か（相手 / 自分）」と「その単一の次アクション」を1行で書く。曖昧な共有で終えない。`expects_reply: true`＝「次は相手のターン」、`false`＝「相手の対応を要さない」を意味として一貫させる。
+- **「相手待ち」と宣言する前に受信箱を確認する**: 自分のターンが終わったと判断する前に必ず `list` を実行し、自分の thread に未処理の inbound（自分の対応を要する未 open / open 済みメッセージ）が無いことを確かめる。未読の依頼を見落として「相手待ち」と誤宣言しないこと。ユーザーへ「相手待ち」と報告する前にも同様に確認する。
+- **単一の権威ある計画を共有する**: 多段・順序依存（本番 write → 検証 → purge 等）の作業は、担当・対象・順序を1つの計画（例: thread root か固定メッセージ）に固定し、変更はメッセージで宣言してから反映する。各 AI が相手の分担を推測して先回りしない。
+- **前提が変わる発見は即 reply**: 「既存データの年度」「書込先が dev か prod か」等の前提が実測で覆ったら、作業を止めて即 `reply` し、相手の想定とのズレを解消してから進む。
 
 ## list
 - `/session-bridge list` → 共通の自動掃除後、残っている slug を `meta.json`（topic/created_at/origin/thread_id/message_type）付きで一覧。
@@ -116,3 +138,6 @@ user-invocable: true
 - **古い message を確認待ちで残す**: 168時間以上の message と24時間以上の一時 message は各コマンド開始時に自動削除する。削除前のユーザー確認は行わず、結果だけ通知する。
 - **repo 相対パスや git 参照だけを書く**: 別 repo では解決できない。依頼・確定事実・必要なコード要点を本文に自己完結させる。
 - **PII・secret を置く**: ローカルでも共有前に除去する。外部 Artifact には明示的な承認なしで転送しない。
+- **受信箱を確認せず「相手待ち」と宣言する**: 自分のターン終了前に `list` で未処理 inbound を確認する。両者同時「相手待ち」デッドロックの主因。
+- **ターンの所在を書かない**: 次に誰が何をするかを毎メッセージに明記しないと、入れ違い・重複作業・分担ドリフトになる。
+- **共有 worktree/branch を2セッションで同時編集する**: コードが git で暗黙伝播し意図がメッセージで遅延伝播するため食い違う。密結合作業は単一ドライバーにする（ルーティング参照）。
