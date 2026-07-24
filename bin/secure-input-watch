@@ -1,14 +1,22 @@
 #!/bin/bash
-# Detect macOS Secure Input Mode being held by an app for too long (e.g. a
-# Ghostty bug: https://github.com/ghostty-org/ghostty/discussions/10480
-# leaves Secure Input enabled after a password prompt closes). While Secure
-# Input is enabled, the holding app receives ALL keyboard input exclusively,
-# silently blocking other apps' global hotkeys (e.g. Typeless/Handy via
-# Karabiner). Notify-only: never kills the offending app (could lose work
-# in an open tab/pane).
+# Detect macOS Secure Input Mode being held by an app for too long, and
+# auto-remediate the known Ghostty cases:
+#
+# 1. "Secure Keyboard Entry" menu toggle left ON: persisted as
+#    SecureInput=1 in com.mitchellh.ghostty defaults, so every fresh
+#    Ghostty instance holds Secure Input from launch. Safe to auto-fix:
+#    clicking the menu item releases it live AND persists OFF.
+# 2. Ghostty bug (github.com/ghostty-org/ghostty/discussions/10480):
+#    Secure Input left enabled after a password prompt closes (pref stays
+#    0). Notify-only: never kills the offending app (could lose work).
+#
+# While Secure Input is enabled, the holding app receives ALL keyboard
+# input exclusively, silently blocking other apps' global hotkeys
+# (e.g. Typeless/Handy via Karabiner).
 #
 # Run periodically by launchd (see macos/com.snakashima.secure-input-watch.plist).
 # Each invocation is a fresh process, so state is tracked in $STATE_FILE.
+# External binaries are overridable via *_BIN env vars for testing.
 
 set -euo pipefail
 
@@ -17,9 +25,23 @@ CHECK_SWIFT="$HERE/secure-input-check.swift"
 STATE_FILE="$HOME/.cache/secure-input-watch.state"
 THRESHOLD_SECONDS=120
 
+SWIFT_BIN="${SWIFT_BIN:-/usr/bin/swift}"
+OSASCRIPT_BIN="${OSASCRIPT_BIN:-/usr/bin/osascript}"
+DEFAULTS_BIN="${DEFAULTS_BIN:-/usr/bin/defaults}"
+PS_BIN="${PS_BIN:-/bin/ps}"
+SLEEP_BIN="${SLEEP_BIN:-/bin/sleep}"
+
 mkdir -p "$(dirname "$STATE_FILE")"
 
-pid="$(/usr/bin/swift "$CHECK_SWIFT" 2>/dev/null || true)"
+check_pid() {
+  "$SWIFT_BIN" "$CHECK_SWIFT" 2>/dev/null || true
+}
+
+notify() {
+  "$OSASCRIPT_BIN" -e "display notification \"$1\" with title \"secure-input-watch\"" >/dev/null 2>&1 || true
+}
+
+pid="$(check_pid)"
 now="$(/bin/date +%s)"
 
 if [[ -z "$pid" ]]; then
@@ -27,6 +49,28 @@ if [[ -z "$pid" ]]; then
   # occurrence starts a fresh timer (and can notify again).
   rm -f "$STATE_FILE"
   exit 0
+fi
+
+holder_cmd="$("$PS_BIN" -p "$pid" -o comm= 2>/dev/null || true)"
+
+# Case 1: Ghostty holds Secure Input because the "Secure Keyboard Entry"
+# menu toggle is persisted ON. Clicking the menu item is non-destructive:
+# it releases Secure Input live and persists SecureInput=0.
+if [[ "$holder_cmd" == *"Ghostty.app"* ]]; then
+  pref="$("$DEFAULTS_BIN" read com.mitchellh.ghostty SecureInput 2>/dev/null || echo 0)"
+  if [[ "$pref" == "1" ]]; then
+    "$OSASCRIPT_BIN" -e 'tell application "System Events" to tell process "Ghostty" to click menu item "Secure Keyboard Entry" of menu "Ghostty" of menu bar item "Ghostty" of menu bar 1' >/dev/null 2>&1 || true
+    "$SLEEP_BIN" 1
+    if [[ -z "$(check_pid)" ]]; then
+      notify "Ghostty の Secure Keyboard Entry が ON だったため自動で OFF にしました。音声入力が使えます。"
+      rm -f "$STATE_FILE"
+      exit 0
+    fi
+    # Menu click failed (likely missing Accessibility permission for
+    # osascript). At least neutralize the persisted pref so the next
+    # Ghostty launch is clean, then fall through to the timer/notify path.
+    "$DEFAULTS_BIN" write com.mitchellh.ghostty SecureInput -bool false >/dev/null 2>&1 || true
+  fi
 fi
 
 if [[ -f "$STATE_FILE" ]]; then
@@ -47,8 +91,8 @@ fi
 elapsed=$(( now - seen_since ))
 
 if (( elapsed >= THRESHOLD_SECONDS )) && [[ "$notified" != "1" ]]; then
-  app_name="$(/bin/ps -p "$pid" -o comm= 2>/dev/null | xargs -I{} basename {} || echo "PID $pid")"
-  /usr/bin/osascript -e "display notification \"${app_name} が ${THRESHOLD_SECONDS}秒以上 Secure Input Mode を保持しています。音声入力・グローバルホットキーが効かない場合は ${app_name} を再起動してください。\" with title \"secure-input-watch\"" >/dev/null 2>&1 || true
+  app_name="$(basename "${holder_cmd:-PID $pid}")"
+  notify "${app_name} が ${THRESHOLD_SECONDS}秒以上 Secure Input Mode を保持しています。音声入力・グローバルホットキーが効かない場合は ${app_name} を再起動してください。"
   notified="1"
 fi
 
