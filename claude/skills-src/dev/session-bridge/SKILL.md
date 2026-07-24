@@ -52,7 +52,7 @@ user-invocable: true
    - `meta.json`: `bridge_version: 2`, `message_type: "request"`, `thread_id: <新規slug>`, `parent_slug: null`, `expects_reply`, `topic`, `request`, `origin_repo`, `origin_branch`, `created_at`。`request` は受信側にしてほしいことを1〜3文で記述する。`expects_reply` は作業結果・回答を戻してほしい場合は `true`、一方向の情報共有なら `false` とし、不明なら公開前にユーザーへ確認する。
 5. 3ファイルを再読してJSON妥当性と必須フィールドを検証し、既知のPII・secretをレビューして除去する。自動検出だけで完全性を保証しない。問題があれば一時ディレクトリを削除して終了する。
 6. 一時ディレクトリを、既存パスを置換しない排他的な atomic rename で `~/.claude/session-bridge/<slug>/` へ公開する。競合なら一時ディレクトリを削除し、slug 生成から再試行する。公開後の3ファイルは変更せず、更新時は新しい message を発行する。
-7. `別セッションで /session-bridge open <slug>` と出力する。
+7. `printf '%s' "/session-bridge open <slug>" | pbcopy` でコマンド全文をクリップボードへコピーする（macOS 前提。`pbcopy` が無ければこの手順を省略する）。コピー成功時は「`/session-bridge open <slug>` をクリップボードにコピーしました。相手セッションに切り替えて Cmd+V してください」、失敗時はコマンド全文をそのまま出力する。
 
 ## open（受け取る側）
 1. `<slug>` が `^[a-z0-9][a-z0-9-]{0,79}$` を満たすことを確認する。不正なら読み込まない。
@@ -74,7 +74,7 @@ user-invocable: true
    - `message_type`: `question | answer | update | result` から内容に合う値
    - `expects_reply`: `question` は `true`、`result` は原則 `false`。`answer` は相手の作業結果を待つ場合のみ `true`、回答だけで完結するなら `false`。`update` は具体的な返答・対応を求める場合のみ `true`。不明なら公開前にユーザーへ確認する
 3. `request` には、相手に知ってほしい情報と次にしてほしいことを自己完結する1〜3文で書く。単に「前の続き」「相手に伝えて」だけにしない。
-4. 公開後、送信先の origin repo/branch と thread_id を併記し、`相手セッションで /session-bridge open <新slug>` と出力する。
+4. 公開後、送信先の origin repo/branch と thread_id を併記する。`share` の手順7と同じ方法で `/session-bridge open <新slug>` をクリップボードへコピーし、コピー結果に応じたメッセージを出す。
 
 ## 返信が必要になる条件
 `open` 後は1回の受け取りで関係を終了したとみなさない。次のいずれかが生じた時点で `reply` する:
