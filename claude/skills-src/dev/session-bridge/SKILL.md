@@ -28,6 +28,18 @@ user-invocable: true
   meta.json            # bridge_version, message_type, thread_id, parent_slug, expects_reply, topic, request, origin_repo, origin_branch, created_at
 ```
 
+## 全コマンド共通: 自動掃除
+`share` / `open` / `reply` / `list` の開始時に、以下をユーザー確認なしで best-effort 実行する。削除対象は `~/.claude/session-bridge/` 直下の1階層だけとし、base directory 自体や配下を再帰探索して対象を広げない。
+
+1. 通常 message:
+   - 名前が `^[a-z0-9][a-z0-9-]{0,79}$` を満たす実ディレクトリだけを候補にする。ディレクトリまたは3ファイルが symlink なら削除せず警告する。
+   - `meta.json` が妥当で、`created_at` から現在までが168時間以上ならディレクトリごと削除する。日時が欠落・不正・未来なら削除せず警告する。mtime へフォールバックしない。
+2. 一時 message:
+   - `.tmp-<slug>` 形式の実ディレクトリで、directory mtime から24時間以上経過したものを異常終了の残骸として削除する。
+   - symlink、名前が不正、日時が未来または判定不能なものは削除せず警告する。
+3. `open <slug>` / `reply <slug>` の対象 slug は、そのコマンド中は古くても削除対象から除外する。
+4. 各候補を独立して処理し、1件の失敗で掃除全体を中断しない。削除成功後は `自動削除: <slug>（経過時間）`、失敗・スキップ時は対象と理由をユーザーへ通知してから本来のコマンドを続行する。削除対象がなければ通知しない。
+
 ## share（送る側）
 **REQUIRED SUB-SKILL:** Use `handover` for the schema and brief generation rules. `.agents/` には書かず、生成結果だけを一時ディレクトリへ保存する。
 
@@ -82,10 +94,9 @@ user-invocable: true
 
 「相手はこうするべき」「相手に伝えてください」と通常チャットに書くだけで終了してはならない。その内容が相手の行動や判断に必要なら、必ず `reply` message を発行する。
 
-## list / 掃除
-- `/session-bridge list` → `~/.claude/session-bridge/` 直下の slug を `meta.json`（topic/created_at/origin）付きで一覧。
-- `.tmp-*` は一覧から除外し、24時間以上前なら異常終了の残骸として報告する。
-- 7日以上前の slug は stale 表示する。削除は対象 slug と origin を提示し、ユーザー確認後に限る。
+## list
+- `/session-bridge list` → 共通の自動掃除後、残っている slug を `meta.json`（topic/created_at/origin/thread_id/message_type）付きで一覧。
+- `.tmp-*` は一覧から除外する。24時間以上前の残骸は共通の自動掃除で削除・通知済みとする。
 
 ## Quick Reference
 | 目的 | コマンド |
@@ -102,5 +113,6 @@ user-invocable: true
 - **既存 slug を更新する**: 受信中の内容が変わる。更新ではなく新しい message を発行する。
 - **open 後に通常チャットだけで伝言する**: 相手セッションには届かない。必要性が確定した時点で `reply` を発行し、新しい slug を案内する。
 - **無関係な最新 slug に reply する**: thread を混線させる。作業の起点になった受信 slug を親にする。
+- **古い message を確認待ちで残す**: 168時間以上の message と24時間以上の一時 message は各コマンド開始時に自動削除する。削除前のユーザー確認は行わず、結果だけ通知する。
 - **repo 相対パスや git 参照だけを書く**: 別 repo では解決できない。依頼・確定事実・必要なコード要点を本文に自己完結させる。
 - **PII・secret を置く**: ローカルでも共有前に除去する。外部 Artifact には明示的な承認なしで転送しない。
