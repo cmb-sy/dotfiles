@@ -131,7 +131,7 @@ A〜D の本文は、以下を満たす具体性で書く。曖昧な要約表�
 
 ### Step 2: テンプレート読み込みと変数置換
 
-1. `$HOME/dotfiles/claude/skills-src/ops/share-report/template.html` を Read で読み込む
+1. `$HOME/dotfiles/claude/skills/share-report/template.html` を Read で読み込む
 2. 以下のプレースホルダを置換する:
    - `{{TITLE}}` → Step 1-6 の「タイトル選択の質問」でユーザーが選んだ値（`--title` 指定時はその値）をそのまま使う。Step 1-6 を経ずに AI が独自判断で決めた値を使わない（2 箇所: `<title>` と `<h1>` 両方を同じ値で置換）
    - `{{DATE}}` → 今日の日付（YYYY-MM-DD 形式）

@@ -40,9 +40,9 @@ user-invocable: true
   - `permissions`(存在すれば)
 - `{DOTFILES}/claude/CLAUDE.md` を Read し、`^# ` / `^## ` の見出し行だけ抽出して
   構成の目次を作る(全文は表示しない。長すぎるため)
-- `{DOTFILES}/claude/skills/` を走査し、symlink先のカテゴリディレクトリ
-  (`skills-src/<category>/`)からカテゴリ別スキル数を集計する。個々のスキルの
-  詳細な依存関係は重複させず「詳細は /skills-map 参照」とだけ添える
+- `{DOTFILES}/claude/skills/` を走査し、スキル総数と name の一覧を出す。
+  個々のスキルの詳細な依存関係は重複させず「詳細は /skills-map 参照」と
+  だけ添える
 - `{DOTFILES}/claude/agents/*.md` を走査し、各ファイルの frontmatter
   `description`(またはファイル先頭の説明)を1行ずつ抽出する。
   `description: >-` や `description: |` のようなYAML複数行ブロック記法の

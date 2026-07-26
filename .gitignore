@@ -7,8 +7,8 @@ claude/package-lock.json
 docs/
 
 # pptx-dev: python venv + per-session artifacts
-claude/skills-src/tools/pptx-dev/scripts/.venv/
-claude/skills-src/tools/pptx-dev/scripts/uv.lock
+claude/skills/pptx-dev/scripts/.venv/
+claude/skills/pptx-dev/scripts/uv.lock
 .pptx-dev/
 # 証券アプリの端末識別情報 (PII)。追跡しない (2026-07-11 untrack 済み)
 .config/Futu-Mac/

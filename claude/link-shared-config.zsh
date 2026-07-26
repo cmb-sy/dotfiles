@@ -31,8 +31,6 @@ _link_into() {
   mkdir -p "$root"
 
   local name src dst backup
-  # skills-src is intentionally excluded: it is the source tree (per-category
-  # dirs); skills is the deployed set of symlinks Claude Code actually reads.
   for name in settings.json hooks statusline.sh skills agents CLAUDE.md; do
     src="$DOTFILES/claude/$name"
     [[ -e "$src" ]] || continue

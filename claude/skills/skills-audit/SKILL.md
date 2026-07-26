@@ -41,7 +41,6 @@ user-invocable: true
    - `argument-hint`
    - 依存（他スキル名への invoke 記述）
 2. スキル一覧テーブルを作る（欠損メタも記録する）
-3. パスからカテゴリを抽出して `category` 列を持たせる（例: `claude/skills/review/code-review/SKILL.md` -> `review`）
 
 ## Phase 2: Usage Collection（利用実績の収集）
 
@@ -172,7 +171,7 @@ Phase 5 の推奨のうち `IMPROVE` / `MERGE` / `DELETE` を **1 件ずつ** As
 
 **適用内容:**
 
-- `DELETE`: `claude/skills-src/<category>/<name>/` と symlink `claude/skills/<name>` を `git rm -r` で削除
+- `DELETE`: `claude/skills/<name>/` を `git rm -r` で削除
 - `MERGE`: (1) 統合先 SKILL.md に吸収元の固有機能を**オプション/引数/モードとして**追記するドラフトを提示、(2) 承認後に統合先を編集、(3) 吸収元を DELETE と同様に削除、(4) description に「旧 <name> を吸収」と 1 行残す
 - `IMPROVE`: name/description/argument-hint/導線/本文のアップデート（陳腐化修正・新機能への置換を含む）の最小差分ドラフトを提示し、承認後に適用。導線改善は SKILL.md 内に限らず、上位スキルや CLAUDE.md のルーティング節への追記も対象にしてよい（その場合も変更ファイルを明示して承認を取る）
 
@@ -180,7 +179,7 @@ Phase 5 の推奨のうち `IMPROVE` / `MERGE` / `DELETE` を **1 件ずつ** As
 
 1. 1 適用 = 1 コミット。変更ファイルを明示して `git add`（`-A` 禁止）。メッセージ例: `chore(skills): merge <src> into <dst> as --<option>`
 2. 他スキルから吸収元への invoke 記述が残る場合、その参照も同コミットで統合先に書き換える（Phase 1 の依存記録を使う）
-3. 適用後に `find -L claude/skills -maxdepth 2 -name SKILL.md | wc -l` と dangling symlink チェック（`find claude/skills -type l ! -exec test -e {} \; -print`）を実行し、結果を報告する
+3. 適用後に `find claude/skills -maxdepth 2 -name SKILL.md | wc -l` を実行し、結果を報告する
 4. 全件処理後、適用サマリ（適用 n / スキップ n / 後で n、コミット一覧）を出力する
 
 ## 出力フォーマット
