@@ -1,17 +1,22 @@
 ---
 name: skills-map
-description: 手持ちのスキル全体を俯瞰したいとき・スキル間の呼び出し関係を確認したいときに使う。カテゴリー別グリッド・依存ツリー・スキル詳細を表示する。カテゴリ絞り込み・キーワード検索は argument-hint の各フラグを参照。
-argument-hint: "[--category <カテゴリ名>] [--deps] [--search <キーワード>]"
+description: 手持ちのスキル全体を俯瞰したいとき・スキル間の呼び出し関係を確認したいときに使う。自作スキルの一覧と依存ツリーに加え、プラグイン由来スキルとプロジェクト固有スキルも横断表示する。絞り込みは argument-hint の各フラグを参照。
+argument-hint: "[--deps] [--search <キーワード>] [--plugins] [--all]"
 user-invocable: true
 ---
 
-保持しているスキルをカテゴリー別・依存関係付きで一覧表示する。
+保持しているスキルを、出所（自作 / プラグイン / プロジェクト固有）ごとに一覧表示し、
+呼び出し関係を依存ツリーで示す。
 
 **モード:**
-- **引数なし**: カテゴリーグリッド + 依存ツリー + スキル詳細を表示
-- **`--category <名前>`**: 指定カテゴリのスキルのみ詳細表示（部分一致）
-- **`--deps`**: 依存関係ツリーのみ表示
-- **`--search <キーワード>`**: キーワードに部分一致するスキルを横断検索
+- **引数なし**: 自作スキル一覧 + 依存ツリー + プラグインのサマリ（既定）
+- **`--deps`**: 依存ツリーのみ
+- **`--search <キーワード>`**: 全出所を横断してキーワード検索
+- **`--plugins`**: プラグイン由来スキルをプラグイン単位で一覧
+- **`--all`**: すべての出所を詳細表示（長い。全体棚卸し時のみ）
+
+既定でプラグインを詳細表示しないのは、プラグイン側が自作スキルの数倍あり、
+全部並べると自作スキルが埋もれて俯瞰の役に立たなくなるため。
 
 ---
 
@@ -19,159 +24,205 @@ user-invocable: true
 
 ### Step 1: スキルの収集
 
-以下を並列で走査しスキル定義ファイルを収集する。
+出所ごとに取得元が違う。走査するものは並列で走査してよい。
+**件数は毎回実測すること**（この文書に数を書き込まない）。
 
-- `~/.claude/skills/` — グローバル（dotfiles）。各サブディレクトリの `SKILL.md` を対象とする
-- `{current_project}/.claude/skills/` — プロジェクト固有の `SKILL.md`（存在すれば）
-- `{current_project}/.claude/commands/` — プロジェクト固有の旧形式コマンド（`.md`）。`skills/` と重複する name は `skills/` を優先する
+| 出所 | 取得元 | 備考 |
+|---|---|---|
+| 自作（グローバル） | `~/.claude/skills/*/SKILL.md` を走査 | dotfiles の実体。深さ 1 の各ディレクトリ |
+| プロジェクト固有 | `{cwd}/.claude/skills/*/SKILL.md` を走査 | 存在すれば |
+| プロジェクト旧形式 | `{cwd}/.claude/commands/*.md` を走査 | `skills/` と同名なら `skills/` を優先 |
+| プラグイン | **セッションが提示しているスキル一覧を使う**（ファイル走査しない） | 表示名は `<plugin>:<name>` |
 
-各 SKILL.md から抽出:
-- frontmatter の `name` / `argument-hint`
-- frontmatter 直後の最初の非空行（1行説明）
-- `--` フラグ一覧
-- 他スキル名への言及（依存関係）
+**プラグインをファイル走査しない理由（重要）:** `~/.claude/plugins/cache/` には
+同一プラグインの複数 version が残り、どれが有効かをファイルシステムから確定できない。
+2026-07-26 に実測した破綻例:
 
-### Step 2: 出力
+- `installed_plugins.json` は権威に見えるが古い version を指す
+  （記録は pm-execution 1.0.1 / superpowers 6.1.1、cache には 2.1.0 / 6.2.0 が存在）
+- version 文字列のソートも当てにならない（`unknown` や git SHA が混在し、
+  `frontend-design` では実体と違うものを選ぶ）
+- mtime 順も、再インストールやキャッシュ掃除で簡単に狂う
 
-出力はプレーンテキスト + ASCII のみ。特殊文字・絵文字禁止。
+3 方式とも、セッションが実際にロードしているスキル集合と一致しなかった。
+自分の文脈に提示されている `<plugin>:<name>` の一覧こそが唯一の正解なので、そこから読む。
+ファイル走査の結果を混ぜない（存在しないスキルを載せることになる）。
 
----
+**自作スキルのパス解決の注意:** `~/.claude` はアカウント切替（clp / clw）で貼り替わる
+symlink。必ず `~/.claude/...` 経由で辿り、`~/.claude-work` や `~/.claude-private` を
+直接指定しない。`installed_plugins.json` の `installPath` も特定アカウントの絶対パスで
+焼き付いているため、パス取得元に使わない。
 
-#### 引数なしの出力フォーマット
+各 SKILL.md から抽出する:
+- frontmatter の `name` / `description` / `argument-hint` / `user-invocable`
+- `--` で始まるフラグ一覧（`argument-hint` と本文の両方から）
+- 依存（後述の判定基準）
 
-**ブロック1: カテゴリーグリッド（全体を一目で把握）**
+プラグインスキルは提示済み一覧から `name` と説明文だけを採る。フラグや依存は
+（SKILL.md を読んでいないため）推測して書かない。
 
-```
-+-----------------------------------------------------------+
-|  CLAUDE SKILLS MAP   global:N  project:M  total:N+M      |
-+-----------------------------------------------------------+
+### Step 2: 依存の判定
 
-  [開発フロー    ]  feature-dev / debug-flow / smoke-test
-  [コードレビュー]  code-review / test-review / spec-review / implementation-review
-  [ドキュメント  ]  doc-audit / doc-check / learn / handover / continue
-  [PJ管理       ]  github-issues / triage / meeting-notes
-  [振り返り・成長]  reflect / kaizen
-  [外部ツール    ]  slackcli / trace-report / skills-map / pptx-dev
-  [日次運用      ]  eod  (project固有の daily-log / generate-problem を呼び出す)
+**依存として数えるもの:** そのスキルが他スキルを**実行する**と読める記述。
 
-  * = グローバルと同名のプロジェクト版。Obsidian パスに特化。
-```
+- `/<skill-name>` 形式の起動記述
+- 「`<skill-name>` を invoke する / 呼び出す / 起動する」
+- 「`<skill-name>` に委譲する」
 
-**ブロック2: 依存ツリー（呼び出し関係を視覚化）**
+**依存として数えないもの:** 単なる言及。
 
-```
-DEPENDENCY TREE  (A -> B : AがBを呼び出す)
-------------------------------------------
+- 「詳細は `/skills-map` 参照」のような案内
+- 「旧 `<name>` を吸収」のような来歴の記録
+- 比較・使い分けの説明（「全体棚卸しが目的なら `doc-audit` を使う」）
 
-  feature-dev ----+-> spec-review
-                  +-> implementation-review
-                  +-> code-review
-                  +-> test-review
-                  +-> smoke-test
-                  +-> doc-audit
-                  +-> doc-check
-                  +-> learn
+区別が曖昧なら依存に数えず、ツリーの下に「関連（呼び出しではない）」として別記する。
+呼び出していないものをツリーに描くと、実際の実行コストを読み違える。
 
-  debug-flow -----+-> code-review
-                  +-> test-review
-                  +-> smoke-test
+### Step 3: 出力
 
-  eod +-----------+-> daily-log -----------------> slackcli
-      |           +-> generate-problem
-      |           +-> github-issues (open issue 確認 / 翌日タスクの issue 作成)
-
-  reflect --weekly/--monthly -> reflect_log.md (file read)
-  continue       -> handover.md    (file read)
-```
-
-**ブロック3: スキル詳細（カテゴリー別、コンパクト）**
-
-1スキルあたり最大4行に収める。フォーマット:
-
-```
-  skill-name      [flags]
-  | 説明1行
-  | 使いどき: ...
-```
-
-全カテゴリー分を順番に表示する。
+出力はプレーンテキスト + ASCII のみ。特殊文字・絵文字・装飾記号は使わない。
 
 ---
 
-#### `--deps` の出力フォーマット
+## 出力フォーマット
 
-依存ツリーのみ拡張版で表示する。各ノードに簡単な説明を付与する。
+以下はすべて**レイアウトの型**であり、中身のスキル名は書式を示すためのプレースホルダ。
+実際の表示は Step 1 の実測結果で埋めること。この文書のスキル名をそのまま出力しない。
+
+### 引数なし
+
+**ブロック1: ヘッダ（規模を一目で）**
+
+```
++-------------------------------------------------------------+
+|  CLAUDE SKILLS MAP                                          |
+|  self:N   plugin:M (P plugins)   project:K   total:N+M+K    |
++-------------------------------------------------------------+
+```
+
+`self` と `project` は走査の実測値、`plugin` は提示済み一覧の実数。
+数え方が違うので、合計が「ディレクトリを数えた数」と一致しなくてよい。
+
+**ブロック2: 自作スキル一覧**
+
+1 スキル 2 行。`/` 付きはユーザーから直接起動できるもの（`user-invocable: true`）、
+無印は条件が揃ったときに自動で発動するもの。
+
+```
+SELF-MADE  (~/.claude/skills)
+------------------------------------------------------------
+
+  /skill-name          [--flag1] [--flag2]
+  | 説明を1行で。SKILL.md の description から圧縮する
+
+  skill-name-auto
+  | 自動発動のみ。ユーザーが名前で呼ぶ導線はない
+```
+
+**ブロック3: 依存ツリー**
+
+```
+DEPENDENCY TREE  (A -> B : A が B を呼び出す)
+------------------------------------------------------------
+
+  parent-skill ---+-> child-a
+                  +-> child-b
+                  +-> child-c ---+-> grandchild
+
+  standalone-skill        (呼び出しなし)
+
+  関連（呼び出しではない）:
+    skill-x  <-->  skill-y   使い分けの関係
+```
+
+**ブロック4: プラグインのサマリ**
+
+既定では名前と件数のみ。詳細は `--plugins` に誘導する。
+
+```
+PLUGINS  (詳細は /skills-map --plugins)
+------------------------------------------------------------
+
+  plugin-name-a      n skills   代表: skill-1, skill-2, ...
+  plugin-name-b      n skills   代表: skill-1, skill-2, ...
+```
+
+**ブロック5: プロジェクト固有**（存在する場合のみ）
+
+```
+PROJECT  ({cwd}/.claude/skills)
+------------------------------------------------------------
+
+  /skill-name
+  | 説明
+  | 注記: グローバルの <name> と同名。プロジェクト側が優先される
+```
+
+### `--deps`
+
+ブロック3 のみを拡張表示する。各ノードに役割の短い注記を付ける。
 
 ```
 DEPENDENCY TREE (拡張版)
-------------------------------------------
+------------------------------------------------------------
 
-  [開発フロー]
-
-    feature-dev (10フェーズ開発)
-      +-> spec-review         (設計書レビュー 4観点)
-      +-> implementation-review (計画書レビュー 3観点)
-      +-> code-review         (コードレビュー 6観点)
-      |     +-> (並列サブエージェント)
-      +-> test-review         (テストレビュー 3観点)
-      |     +-> (並列サブエージェント)
-      +-> smoke-test          (動作確認・VRT・E2E)
-      |     +-> code-review
-      |     +-> test-review
-      +-> doc-audit           (ドキュメント監査)
-      |     +-> doc-check
-      +-> doc-check           (変更影響ドキュメント更新)
-      +-> learn               (学習教材生成)
-
-    debug-flow (8フェーズデバッグ)
-      +-> code-review
-      +-> test-review
-      +-> smoke-test
-
-  [Obsidianワークフロー]
-
-    eod (1コマンド締め)
-      +-> daily-log (日報集約 + CloudLog)
-      |     +-> slackcli
-      +-> generate-problem (振り返り)
-
-  [セッション継続]
-
-    handover (要約生成)
-      <-- continue (読み取り・再開)
+  parent-skill (何をするスキルか)
+    +-> child-a          (呼び出す目的)
+    |     +-> grandchild (孫の目的)
+    +-> child-b          (呼び出す目的)
 ```
 
----
+### `--plugins`
 
-#### `--category <名前>` の出力フォーマット
-
-指定カテゴリのスキルのみ、詳細フォーマットで表示する。
+`<plugin>:<name>` の接頭辞でグループ化する。version や marketplace は
+提示済み一覧に含まれないため表示しない（ファイルから補わない）。
 
 ```
-  skill-name      [flags]
-  | 説明
-  | 使いどき: ...
-  | 呼び出し: A -> B -> C
-  | 参考: /skill-name --flag で起動
+PLUGIN SKILLS
+------------------------------------------------------------
+
+  [plugin-name]  n skills
+
+    plugin-name:skill-a
+    | 説明1行
+    plugin-name:skill-b
+    | 説明1行
 ```
 
----
+接頭辞を持たないスキル（ハーネス組み込み）は `[built-in]` としてまとめる。
 
-#### `--search <キーワード>` の出力フォーマット
+### `--search <キーワード>`
+
+全出所を横断し、一致した理由を添える。
 
 ```
 "<キーワード>" の検索結果:
-  code-review     -- 直接一致: コードレビュー 6観点
-  feature-dev     -- 呼び出し: code-review を invoke
-  smoke-test      -- 呼び出し: code-review を invoke
+
+  [self]    skill-name      -- name 一致
+  [self]    other-skill     -- 説明に一致: ...
+  [plugin]  plug:skill      -- 説明に一致: ...
+  [self]    caller-skill    -- 依存に一致: skill-name を呼び出す
 ```
+
+一致 0 件のときは、近い語のスキルを最大 3 件「もしかして」として提示する。
+
+### `--all`
+
+引数なしの出力に加え、プラグインとプロジェクトも詳細形式で表示する。
 
 ---
 
 ## ルール
 
-1. SKILL.md を実際に Read してから表示する（ハードコード禁止）
-2. 出力はプレーンテキスト + ASCII のみ。特殊文字・絵文字・装飾記号は使わない
-3. 1スキルあたりの説明は最大4行。冗長な文は削る
-4. プロジェクト固有スキルはグローバルと明示的に区別して表示する
-5. 新スキルが追加されてもディレクトリ走査で自動反映する
+1. 自作・プロジェクト固有は SKILL.md を実際に Read してから表示する。プラグインは
+   提示済み一覧から採る。いずれにせよ、この文書に書かれたスキル名・件数・ツリー構造を
+   そのまま出力しない（すべて書式見本であり、データではない）
+2. 出力はプレーンテキスト + ASCII のみ
+3. 1 スキルの説明は 2 行以内。description が長い場合は先頭の 1 文に圧縮する
+4. 出所（self / plugin / project）は必ず区別して表示する
+5. 同名スキルが複数の出所にある場合、優先される側を明示し、隠れる側に
+   「(shadowed)」と付ける
+6. 新スキルが追加されてもディレクトリ走査で自動反映する。カテゴリ分類は持たない
+   （ディレクトリもメタデータも分類を持たず、必要なら `--search` で引く）
+7. 走査で SKILL.md が 0 件だった出所は、行ごと省略せず「なし」と明示する
+   （走査漏れと本当に無いことを読み手が区別できるようにする）
