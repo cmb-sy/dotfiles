@@ -6,10 +6,17 @@
 # Fixture email addresses are built via concatenation (never a literal
 # `local@domain` string in this file) to avoid tripping pii-guard on fake
 # test data.
+#
+# Assertions use `grep -qF` pipes and `[ ]`, never `[[ ]]` or `! cmd`: under
+# bash 3.2 errexit skips both, so those forms silently pass mid-test.
 
 setup() {
   TEST_DIR="$(mktemp -d /private/tmp/sl-acct-test.XXXXXX)"
   export HOME="$TEST_DIR/home"
+  # clp/clw export this in the developer's shell. Leaving it set makes the
+  # script take the CLAUDE_CONFIG_DIR branch and never touch the cache path
+  # these tests exist to cover.
+  unset CLAUDE_CONFIG_DIR
   mkdir -p "$HOME"
   SCRIPT="$BATS_TEST_DIRNAME/../claude/statusline.sh"
 
@@ -38,49 +45,49 @@ run_statusline() {
 @test "first render caches the account resolved at that time" {
   run run_statusline "session-a"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"work"* ]]
-  [[ "$output" == *"worker""@""ExampleCorp"* ]]
+  echo "$output" | grep -qF "work"
+  echo "$output" | grep -qF "worker""@""ExampleCorp"
   [ -f "$HOME/.cache/claude-statusline-account/session-a" ]
   [ "$(cat "$HOME/.cache/claude-statusline-account/session-a")" = "$TEST_DIR/.claude-work" ]
 }
 
 @test "symlink flip after first render does not change this session's label" {
   run run_statusline "session-b"
-  [[ "$output" == *"work"* ]]
+  echo "$output" | grep -qF "work"
 
   # Another terminal repoints the machine-global symlink.
   ln -sfn "$TEST_DIR/.claude-private" "$HOME/.claude"
 
   run run_statusline "session-b"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"work"* ]]
-  [[ "$output" != *"personal"* ]]
+  echo "$output" | grep -qF "work"
+  [ "$(echo "$output" | grep -cF "personal")" -eq 0 ]
 }
 
 @test "a different session_id resolves independently against the current symlink" {
   run run_statusline "session-c"
-  [[ "$output" == *"work"* ]]
+  echo "$output" | grep -qF "work"
 
   ln -sfn "$TEST_DIR/.claude-private" "$HOME/.claude"
 
   run run_statusline "session-d"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"personal"* ]]
-  [[ "$output" != *"worker"* ]]
+  echo "$output" | grep -qF "personal"
+  [ "$(echo "$output" | grep -cF "worker")" -eq 0 ]
 }
 
 @test "CLAUDE_CONFIG_DIR still takes priority over any cache" {
   run run_statusline "session-e"
-  [[ "$output" == *"work"* ]]
+  echo "$output" | grep -qF "work"
 
   CLAUDE_CONFIG_DIR="$TEST_DIR/.claude-private" run run_statusline "session-e"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"personal"* ]]
+  echo "$output" | grep -qF "personal"
 }
 
 @test "missing session_id falls back to live symlink resolution (old behavior)" {
   run bash -c "echo '$BASE_INPUT' | '$SCRIPT'"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"work"* ]]
+  echo "$output" | grep -qF "work"
   [ ! -d "$HOME/.cache/claude-statusline-account" ]
 }

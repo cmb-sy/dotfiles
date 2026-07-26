@@ -94,7 +94,8 @@ teardown() {
 
   run "$SCRIPT"
   [ "$status" -eq 0 ]
-  [ ! -f "$STUB_DIR/osascript_calls" ] || ! grep -qF "click menu item" "$STUB_DIR/osascript_calls"
+  clicks=$(grep -cF "click menu item" "$STUB_DIR/osascript_calls" 2>/dev/null) || clicks=0
+  [ "$clicks" -eq 0 ]
   grep -qF " 845 " "$STATE_FILE"
 }
 
@@ -105,7 +106,8 @@ teardown() {
 
   run "$SCRIPT"
   [ "$status" -eq 0 ]
-  [ ! -f "$STUB_DIR/osascript_calls" ] || ! grep -qF "click menu item" "$STUB_DIR/osascript_calls"
+  clicks=$(grep -cF "click menu item" "$STUB_DIR/osascript_calls" 2>/dev/null) || clicks=0
+  [ "$clicks" -eq 0 ]
   grep -qF " 999 " "$STATE_FILE"
 }
 
