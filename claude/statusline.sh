@@ -248,16 +248,25 @@ if [ -n "$RL_PRESENT" ]; then
 fi
 
 # ==============================================================================
-# [5] Current directory + uncommitted-change badge — rendered on its own
-# second line (below the clock) rather than joined into the main line.
-# Repo name / branch are intentionally NOT shown here (prior user request
-# to keep this line to just directory + dirty count); $WORKTREE is unused.
+# [5] Current directory + branch + uncommitted-change badge — rendered on its
+# own second line (below the clock) rather than joined into the main line.
+# Repo name is still not shown; the directory path already carries it.
+# $WORKTREE is unused: `branch --show-current` reports the worktree's own
+# branch, which is what matters when several worktrees are checked out.
 # ==============================================================================
 
 sec_dir=""
 if has_val "$DIR"; then
   sec_dir="${C_REPO}$(printf '\xef\x81\xbc') ${DIR/#$HOME/\~}${RST}"
   if git -C "$DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    # Branch name. Detached HEAD prints nothing, so fall back to a short SHA
+    # rather than rendering empty parentheses.
+    branch=$(git -C "$DIR" --no-optional-locks branch --show-current 2>/dev/null)
+    has_val "$branch" || branch=$(git -C "$DIR" rev-parse --short HEAD 2>/dev/null)
+    if has_val "$branch"; then
+      sec_dir+=" ${C_BRANCH}(${branch})${RST}"
+    fi
+
     # Uncommitted change count (staged + unstaged + untracked)
     dirty=$(git -C "$DIR" --no-optional-locks status --porcelain 2>/dev/null | wc -l | tr -d ' ')
     if is_int "$dirty" && [ "$dirty" -gt 0 ]; then
