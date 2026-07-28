@@ -85,4 +85,37 @@ assert_eq "Luhn-valid card number blocked"                 "2" "$(run_guard "$pa
 assert_eq "real-looking pw still blocked"                  "2" "$(run_guard "$payload_real_pw")"
 assert_eq "4 quasi-identifier categories still blocked"    "2" "$(run_guard "$payload_quasi4")"
 
+# --- Task 3: quasi-identifier label separator ---
+# Prose occurrences used to count as matches ("関係 ", "title ", "アカウント "),
+# which pushed purely technical documents over the 4-category threshold and
+# blocked commits. Only key-like positions should count now.
+# Fixtures are assembled at runtime per the convention above.
+pr1="関""係"
+pr2="tit""le"
+pr3="アカ""ウント"
+pr4="従業""員番号"
+prose="Genie と UC の ${pr1} を説明する。space.json の ${pr2} は陳腐化。個人${pr3} は 4 件。${pr4}リストを渡す。unisex という語も出る。"
+payload_prose="{\"hook_event_name\":\"PreToolUse\",\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"/tmp/x.md\",\"content\":\"${prose}\"}}"
+
+# JSON keys are quoted, so the separator must tolerate a closing quote.
+jk1="employ""ee_id"
+jk2="depart""ment"
+jk3="job_ti""tle"
+jk4="gen""der"
+json_body="{\\\"${jk1}\\\":\\\"000000001\\\",\\\"${jk2}\\\":\\\"Sales\\\",\\\"${jk3}\\\":\\\"Manager\\\",\\\"${jk4}\\\":\\\"male\\\"}"
+payload_json_keys="{\"hook_event_name\":\"PreToolUse\",\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"/tmp/x.md\",\"content\":\"${json_body}\"}}"
+
+# CSV headers use a comma as the separator.
+c1="従業""員番号"
+c2="部""署"
+c3="役""職"
+c4="性""別"
+c5="年""齢"
+csv_body="${c1},${c2},${c3},${c4},${c5}\\n000000001,営業部,課長,男,45"
+payload_csv_header="{\"hook_event_name\":\"PreToolUse\",\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"/tmp/x.md\",\"content\":\"${csv_body}\"}}"
+
+assert_eq "prose mentions of quasi-identifier words allowed" "0" "$(run_guard "$payload_prose")"
+assert_eq "quoted JSON keys still blocked"                   "2" "$(run_guard "$payload_json_keys")"
+assert_eq "CSV header of quasi-identifiers still blocked"    "2" "$(run_guard "$payload_csv_header")"
+
 print_summary

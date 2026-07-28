@@ -350,52 +350,67 @@ def check_quasi_identifier_combination(text: str) -> list[str]:
     """Detect combination PII: individually harmless quasi-identifiers that
     together can identify a person. Flags when 3+ distinct categories co-occur.
     """
+    # Label separator. Prose occurrences ("関係 ", "chart title ") must NOT match:
+    # only key-like positions do (JSON/YAML keys, CSV headers, key=value).
+    # Whitespace alone is deliberately excluded -- it caused false positives that
+    # blocked commits on purely technical documents.
+    # An optional closing quote is allowed so that JSON/YAML keys ("department":)
+    # match just as well as bare keys (department:).
+    sep = r"""["']?\s*[：:=,]"""
+
     quasi_categories: list[tuple[str, list[str]]] = [
         (
             "company/org",
             [
                 # company name, affiliation, employer, organization (JP)
-                r"(?:\u4f1a\u793e\u540d|\u6240\u5c5e|\u52e4\u52d9\u5148|\u4f01\u696d\u540d"
-                r"|\u7d44\u7e54)[\uff1a:\s]",
-                r"(?:company|org(?:anization)?|employer)[\s:=]",
+                r"(?:会社名|所属|勤務先|企業名"
+                r"|組織)" + sep,
+                r"\b(?:company|org|organization|employer)\b" + sep,
             ],
         ),
         (
             "department",
             [
                 # department, division, section, group, team (JP)
-                r"(?:\u90e8\u7f72|\u90e8\u9580|\u8ab2|\u30b0\u30eb\u30fc\u30d7|\u30c1\u30fc\u30e0"
-                r"|\u4fc2)[\uff1a:\s]",
-                r"(?:department|division|team|unit|section)[\s:=]",
+                # NOTE: bare 係 was dropped -- it matched the tail of 関係 / 係数
+                # in technical prose far more often than an actual department label.
+                r"(?:部署|部門|課|グループ|チーム)"
+                + sep,
+                r"\b(?:department|division|team|unit|section)\b" + sep,
             ],
         ),
         (
             "job_title",
             [
                 # job title, position, role (JP)
-                r"(?:\u5f79\u8077|\u8077\u4f4d|\u8077\u7a2e|\u32a4\u30b8\u30b7\u30e7\u30f3"
-                r"|\u808c\u66f8\u304d)[\uff1a:\s]",
-                r"(?:title|position|role)[\s:=]",
+                # NOTE: ポジション and 肩書き were previously mis-encoded
+                # (㊤ / 肌) and therefore never matched. Fixed here.
+                r"(?:役職|職位|職種|ポジション"
+                r"|肩書き)" + sep,
+                # Bare title/position/role are too common in code and docs to be a
+                # useful signal; require the job- prefix instead.
+                r"\bjob[\s_-]?(?:title|position|role)\b" + sep,
             ],
         ),
         (
             "age",
             [
                 # age (JP: nenrei, sai, sai)
-                r"(?:\u5e74\u9f62|\u6b73|\u624d)[\uff1a:\s]*\d",
-                r"\b(?:age)[\s:=]\s*\d",
+                # These already require a digit, so they stay specific without `sep`.
+                r"(?:年齢|歳|才)[：:\s]*\d",
+                r"\b(?:age)\b[\s:=]\s*\d",
                 # NN years old (JP)
-                r"\d{2}\u6b73",
+                r"\d{2}歳",
             ],
         ),
         (
             "gender",
             [
                 # gender (JP: seibetsu)
-                r"(?:\u6027\u5225)[\uff1a:\s]",
-                r"(?:gender|sex)[\s:=]",
+                r"(?:性別)" + sep,
+                r"\b(?:gender|sex)\b" + sep,
                 # gender with value: male/female/other (JP)
-                r"(?:\u6027\u5225)[\uff1a:\s]*(?:\u7537|\u5973|\u305d\u306e\u4ed6"
+                r"(?:性別)\s*[：:=,]\s*(?:男|女|その他"
                 r"|male|female|other)",
             ],
         ),
@@ -403,44 +418,52 @@ def check_quasi_identifier_combination(text: str) -> list[str]:
             "employee_id",
             [
                 # employee number, staff ID (JP)
-                r"(?:\u793e\u54e1\u756a\u53f7|\u5f93\u696d\u54e1\u756a\u53f7"
-                r"|\u8077\u54e1\u756a\u53f7|\u30b9\u30bf\u30c3\u30d5ID"
-                r"|employee[\s_]?(?:id|number|no))",
+                # A separator is required here too. Without it, documentation that
+                # merely discusses 従業員番号 as a concept counted as a match, which
+                # pushed technical docs over the threshold on its own.
+                # Real leaked data puts the term in a key position (CSV header,
+                # JSON key, "label: value"), which the separator captures.
+                r"(?:社員番号|従業員番号"
+                r"|職員番号|スタッフID"
+                r"|employee[\s_]?(?:id|number|no))" + sep,
             ],
         ),
         (
             "username",
             [
                 # username, account, login ID (JP)
-                r"(?:\u30e6\u30fc\u30b6\u30fc\u540d|\u30a2\u30ab\u30a6\u30f3\u30c8"
-                r"|\u30ed\u30b0\u30a4\u30f3ID)[\uff1a:\s]",
-                r"(?:username|login|user[\s_]?id|account[\s_]?name)[\s:=]",
+                r"(?:ユーザー名|アカウント"
+                r"|ログインID)" + sep,
+                r"\b(?:username|login|user[\s_]?id|account[\s_]?name)\b" + sep,
             ],
         ),
         (
             "hire_date",
             [
                 # hire date, years of service (JP)
-                r"(?:\u5165\u793e\u65e5|\u5165\u793e\u5e74\u6708|\u52e4\u7d9a\u5e74\u6570"
-                r"|\u63a1\u7528\u65e5)[\uff1a:\s]",
-                r"(?:hire[\s_]?date|start[\s_]?date|joined)[\s:=]",
+                r"(?:入社日|入社年月|勤続年数"
+                r"|採用日)" + sep,
+                r"\b(?:hire[\s_]?date|start[\s_]?date|joined)\b" + sep,
             ],
         ),
         (
             "nationality",
             [
                 # nationality, birthplace, country of origin (JP)
-                r"(?:\u56fd\u7c4d|\u51fa\u8eab\u5730|\u51fa\u8eab\u56fd)[\uff1a:\s]",
-                r"(?:nationality|citizenship|country[\s_]?of[\s_]?origin)[\s:=]",
+                r"(?:国籍|出身地|出身国)" + sep,
+                r"\b(?:nationality|citizenship|country[\s_]?of[\s_]?origin)\b" + sep,
             ],
         ),
         (
             "family",
             [
                 # family structure, dependents, spouse, number of children (JP)
-                r"(?:\u5bb6\u65cf\u69cb\u6210|\u6276\u990a\u5bb6\u65cf|\u914d\u5076\u8005"
-                r"|\u5b50\u4f9b\u306e\u6570)[\uff1a:\s]",
-                r"(?:dependents|spouse|marital[\s_]?status|family)[\s:=]",
+                r"(?:家族構成|扶養家族|配偶者"
+                r"|子供の数)" + sep,
+                # Bare "family" was dropped: it matches unrelated technical usage
+                # such as "factor family" in this project's aggregation code.
+                r"\b(?:dependents|spouse|marital[\s_]?status"
+                r"|family[\s_]?(?:structure|members))\b" + sep,
             ],
         ),
     ]
