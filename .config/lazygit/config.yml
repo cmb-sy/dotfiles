@@ -45,13 +45,19 @@ git:
 
   # Selecting a branch shows which files it touches before its commit log, so
   # the shape of the change is visible without opening any commit.
-  #   - merge-base against HEAD rather than a hardcoded main, so this works in
-  #     repos whose trunk is master and shows nothing for the current branch
+  #   - HEAD...branch, which git defines as merge-base(HEAD,branch)..branch, so
+  #     no hardcoded main (works where the trunk is master) and no $() subshell.
+  #     lazygit substitutes {{branchName}} into a string a shell then runs, and
+  #     git permits `;`, `$`, backtick and `&` in branch names, so a subshell
+  #     here would execute whatever a fetched branch name contained.
+  #   - the substitutions are quoted for the same reason. Not airtight: git also
+  #     permits `"` in ref names, and lazygit's own default branchLogCmd carries
+  #     the same exposure, so this raises the bar rather than closing the hole.
   #   - --name-status rather than --stat: --stat elides long paths to `.../`,
   #     which drops exactly the directory information this is here to show
   #   - core.quotePath=false so Japanese filenames render as themselves rather
   #     than as octal escapes
-  branchLogCmd: 'git -c core.quotePath=false diff --name-status $(git merge-base HEAD {{branchName}})..{{branchName}}; echo; git log --graph --color=always --abbrev-commit --decorate --date=relative --pretty=medium {{branchName}} --'
+  branchLogCmd: 'git -c core.quotePath=false diff --name-status "HEAD...{{branchName}}"; echo; git log --graph --color=always --abbrev-commit --decorate --date=relative --pretty=medium "{{branchName}}" --'
 
 os:
   # Pinned rather than inherited from $EDITOR: a lazygit started before the

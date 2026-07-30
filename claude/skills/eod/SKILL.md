@@ -16,7 +16,7 @@ user-invocable: true
 |--------|------|
 | `--exclude <キーワード>...` | 日報生成の対象から除外するプロジェクトを追加する。下記デフォルトに **合算** される（デフォルトを置き換えない） |
 
-デフォルトで `--exclude siori --exclude generate-video --exclude shindanshi --exclude microsoft-agent-hackathon --exclude kunstSite --exclude dotfiles` を適用する。
+デフォルトで `--exclude siori --exclude generate-video --exclude shindanshi --exclude microsoft-agent-hackathon --exclude kunstSite --exclude dotfiles --exclude body-management --exclude household-accounts` を適用する。
 
 ---
 
@@ -69,7 +69,7 @@ Step 3(daily-log 自体のスキップ) などその他のスキップは `Other
 以下と等価な処理を実行する:
 
 ```
-/daily-log --session --cloudlog --exclude siori --exclude generate-video --exclude shindanshi --exclude microsoft-agent-hackathon --exclude kunstSite --exclude dotfiles [追加 --exclude ...]
+/daily-log --session --cloudlog --exclude siori --exclude generate-video --exclude shindanshi --exclude microsoft-agent-hackathon --exclude kunstSite --exclude dotfiles --exclude body-management --exclude household-accounts [追加 --exclude ...]
 ```
 
 - Step 1 で取得済みの Slack + GitHub 情報をそのまま使う（再取得しない）
