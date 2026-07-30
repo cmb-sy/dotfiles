@@ -78,7 +78,13 @@ is_typeless_running() { /usr/bin/pgrep -f "$TYPELESS_BIN_DIR" >/dev/null 2>&1 }
 
 ensure_handy_active() {
   # Switching to a Handy mode: make sure Typeless is not holding the mic/hotkeys.
-  is_typeless_running && quit_typeless
+  # Guard with `if` rather than `is_typeless_running && quit_typeless`: that form
+  # is the function's only statement, so when Typeless is already stopped the
+  # && list returns 1, the function returns 1, and set -e aborts the switch
+  # silently. Every Handy-to-Handy switch hits that, since Typeless is down.
+  if is_typeless_running; then
+    quit_typeless
+  fi
 }
 
 print_status() {
