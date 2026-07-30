@@ -43,6 +43,16 @@ git:
   # is for reading rather than for staging individual lines.
   diffContextSize: 6
 
+  # Selecting a branch shows which files it touches before its commit log, so
+  # the shape of the change is visible without opening any commit.
+  #   - merge-base against HEAD rather than a hardcoded main, so this works in
+  #     repos whose trunk is master and shows nothing for the current branch
+  #   - --name-status rather than --stat: --stat elides long paths to `.../`,
+  #     which drops exactly the directory information this is here to show
+  #   - core.quotePath=false so Japanese filenames render as themselves rather
+  #     than as octal escapes
+  branchLogCmd: 'git -c core.quotePath=false diff --name-status $(git merge-base HEAD {{branchName}})..{{branchName}}; echo; git log --graph --color=always --abbrev-commit --decorate --date=relative --pretty=medium {{branchName}} --'
+
 os:
   # Pinned rather than inherited from $EDITOR: a lazygit started before the
   # shell exported EDITOR=nvim would otherwise still open plain vim.
