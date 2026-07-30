@@ -24,6 +24,25 @@ gui:
   # without typing a contiguous fragment of the path.
   filterMode: fuzzy
 
+  # Several views are sub-tabs rather than panels of their own -- Worktrees and
+  # Submodules sit behind Files, Remotes and Tags behind Local branches -- and
+  # are otherwise only reachable with `[` / `]`. With this on, pressing the
+  # panel's own number again cycles its tabs, so 2 2 lands on Worktrees.
+  switchTabsWithPanelJumpKeys: true
+
+  theme:
+    # The default selection background is ANSI blue, which assumes blue is
+    # dark. Ghostty remaps colour 4 to #5CC8FF, a light cyan, leaving near-
+    # white text on a near-white bar. Colour 0 is not remapped, so it stays
+    # the palette's dark grey and keeps the text legible.
+    selectedLineBgColor:
+      - black
+
+git:
+  # More surrounding context per hunk than the default of 3, since this view
+  # is for reading rather than for staging individual lines.
+  diffContextSize: 6
+
 os:
   # Pinned rather than inherited from $EDITOR: a lazygit started before the
   # shell exported EDITOR=nvim would otherwise still open plain vim.

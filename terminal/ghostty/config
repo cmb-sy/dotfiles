@@ -14,6 +14,9 @@ theme = light:Catppuccin Latte,dark:Catppuccin Mocha
 background = #1E1233
 foreground = #F0F6FF
 cursor-color = #8FDBFF
+# Steady, not blinking: on a highlighted row in a TUI (lazygit's selected
+# line) a blinking block reads as the text itself flickering.
+cursor-style-blink = false
 cursor-text = #0B1020
 selection-foreground = #0B1020
 minimum-contrast = 1.2

@@ -34,6 +34,12 @@ alias dimg='docker images'
 alias lg='lazygit'
 
 # ----------------------------------------------------------
+# Terminal workspace
+# ----------------------------------------------------------
+# Subcommands pass straight through: `hr pane list`, `hr worktree ...`.
+alias hr='herdr'
+
+# ----------------------------------------------------------
 # Claude Code (multi-account via CLAUDE_CONFIG_DIR)
 # ----------------------------------------------------------
 # One-time setup:
