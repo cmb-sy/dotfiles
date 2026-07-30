@@ -6,7 +6,7 @@
 export LANG=en_US.UTF-8 
 export LC_ALL=en_US.UTF-8
 export TZ=Asia/Tokyo
-export EDITOR=vim
+export EDITOR=nvim
 export PAGER=lv
 export SHELL=zsh
 export XDG_CONFIG_HOME=${HOME}/.config

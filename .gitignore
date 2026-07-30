@@ -15,3 +15,12 @@ claude/skills/pptx-dev/scripts/uv.lock
 
 # Playwright MCP browser artifacts
 .playwright-mcp/
+
+# Editor scratch files (vim/nvim swap + undo), created whenever a file is
+# opened from lazygit or an editor session is interrupted
+*.swp
+*.swo
+*.un~
+
+# R session history, dropped into whatever directory R was started in
+.Rhistory

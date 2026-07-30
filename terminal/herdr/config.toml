@@ -5,8 +5,16 @@ onboarding = false
 # translates cmd keys into modified F11/F12 chords that herdr can bind directly.
 previous_tab = "shift+f11"      # Cmd+Shift+[
 next_tab = "shift+f12"          # Cmd+Shift+]
+new_tab = "ctrl+f10"            # Cmd+Opt+T
 previous_workspace = "ctrl+f11" # Cmd+Opt+Up
 next_workspace = "ctrl+f12"     # Cmd+Opt+Down
+
+# lazygit in a throwaway pane: opens on Cmd+Ctrl+G, closes when lazygit exits.
+# Lets git state be reviewed visually instead of reading raw diffs.
+[[keys.command]]
+key = "alt+f11"                 # Cmd+Ctrl+G
+type = "pane"
+command = "lazygit"
 
 [ui]
 agent_panel_sort = "priority"

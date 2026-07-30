@@ -27,6 +27,13 @@ alias dpsa='docker ps -a'
 alias dimg='docker images'
 
 # ----------------------------------------------------------
+# Git
+# ----------------------------------------------------------
+# Also on Cmd+Ctrl+G, which opens it in a throwaway herdr pane instead of
+# taking over the current one (terminal/herdr/config.toml).
+alias lg='lazygit'
+
+# ----------------------------------------------------------
 # Claude Code (multi-account via CLAUDE_CONFIG_DIR)
 # ----------------------------------------------------------
 # One-time setup:

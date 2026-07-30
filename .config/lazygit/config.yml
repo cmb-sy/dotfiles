@@ -1,0 +1,30 @@
+# lazygit is the secondary tool here: Claude Code stages, commits and pushes,
+# so this config optimises for reading -- seeing which files changed and what
+# the diff says -- rather than for authoring commits.
+
+gui:
+  # The five side panels are fixed and cannot be hidden, so instead let
+  # whichever one has focus grow and the rest collapse. Without this, a repo
+  # with 15 changed files shows about 6 of them while Branches and Stash sit
+  # empty above and below.
+  expandFocusedSidePanel: true
+  expandedSidePanelWeight: 3
+
+  # Frees the bottom-right corner for the diff. The log shows the git commands
+  # lazygit runs, which matters when lazygit is doing the work -- here it is
+  # not. Set back to true to inspect what a keypress actually ran.
+  showCommandLog: false
+
+  # Whether local is ahead of or behind its upstream, with the count. Claude
+  # Code commits in another pane, so this is the fastest way to see that there
+  # is something unpushed.
+  showDivergenceFromBaseBranch: arrowAndNumber
+
+  # Fuzzy rather than substring matching, so `/` finds a file in a long list
+  # without typing a contiguous fragment of the path.
+  filterMode: fuzzy
+
+os:
+  # Pinned rather than inherited from $EDITOR: a lazygit started before the
+  # shell exported EDITOR=nvim would otherwise still open plain vim.
+  editPreset: nvim
