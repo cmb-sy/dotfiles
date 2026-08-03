@@ -97,13 +97,15 @@ vim.api.nvim_create_autocmd("BufReadPost", {
 -- ---------------------------------------------------------------------------
 -- Memo
 --
--- A floating scratchpad over whatever is on screen, holding the running notes
--- in the Obsidian vault. Toggled rather than opened so the same key puts it
--- away, and saved on close because a scratchpad that asks about unsaved
--- changes is not a scratchpad.
+-- A floating scratchpad over whatever is on screen. Toggled rather than
+-- opened so the same key puts it away, and saved on close because a
+-- scratchpad that asks about unsaved changes is not a scratchpad.
+--
+-- Kept beside this config and tracked, so it follows to another machine. Note
+-- that this repo is public: anything written here is published on push.
 -- ---------------------------------------------------------------------------
 
-local memo_path = vim.fn.expand("~/develop/obsidian/メモ/memo.md")
+local memo_path = vim.fn.expand("~/dotfiles/.config/nvim/memo.md")
 local memo_win = nil
 
 function _G.toggle_memo()
@@ -341,6 +343,60 @@ require("lazy").setup({
         },
       },
     },
+  },
+  {
+    -- Marks changed lines in the sign column, so reading a file shows what
+    -- moved without switching to lazygit. The point of this whole setup is
+    -- seeing what Claude Code did, and this puts that on the same screen.
+    "lewis6991/gitsigns.nvim",
+    event = { "BufReadPre", "BufNewFile" },
+    opts = {
+      -- ASCII, like everywhere else: the terminal font has no Nerd Font glyphs.
+      signs = {
+        add = { text = "+" },
+        change = { text = "~" },
+        delete = { text = "_" },
+        topdelete = { text = "^" },
+        changedelete = { text = "%" },
+        untracked = { text = ":" },
+      },
+      on_attach = function(buf)
+        local gs = require("gitsigns")
+        local function map(key, fn, desc)
+          vim.keymap.set("n", key, fn, { buffer = buf, desc = desc })
+        end
+        -- ]c / [c is the long-standing pair for moving between diff hunks.
+        map("]c", function() gs.nav_hunk("next") end, "Next changed hunk")
+        map("[c", function() gs.nav_hunk("prev") end, "Previous changed hunk")
+        map("<leader>hp", gs.preview_hunk, "Preview this hunk")
+        map("<leader>hd", gs.diffthis, "Diff this file against HEAD")
+      end,
+    },
+  },
+  {
+    -- Draws markdown as headings, tables and rules instead of leaving ## and **
+    -- as literal characters. Most of what gets read here is markdown -- SKILL.md,
+    -- CLAUDE.md, docs -- so this lands on the common case.
+    "MeanderingProgrammer/render-markdown.nvim",
+    dependencies = { "nvim-treesitter/nvim-treesitter" },
+    ft = { "markdown" },
+    opts = {
+      heading = {
+        -- Depth as repeated hashes rather than Nerd Font blocks.
+        icons = { "# ", "## ", "### ", "#### ", "##### ", "###### " },
+      },
+      code = { style = "normal" },
+      bullet = { icons = { "-", "*", "+" } },
+      checkbox = { unchecked = { icon = "[ ]" }, checked = { icon = "[x]" } },
+    },
+  },
+  {
+    -- Pins the enclosing heading or function to the top line while scrolling,
+    -- so a long file does not lose the reader partway down.
+    "nvim-treesitter/nvim-treesitter-context",
+    dependencies = { "nvim-treesitter/nvim-treesitter" },
+    event = { "BufReadPost", "BufNewFile" },
+    opts = { max_lines = 3, multiline_threshold = 1 },
   },
   {
     -- Every mapping here carries a `desc`, which this turns into a menu: press
