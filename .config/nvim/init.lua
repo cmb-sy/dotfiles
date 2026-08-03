@@ -277,6 +277,22 @@ require("lazy").setup({
     },
   },
   {
+    -- Every mapping here carries a `desc`, which this turns into a menu: press
+    -- the leader and the choices appear, rather than having to remember them.
+    -- The recurring question in this setup has been "what can I press", so the
+    -- answer lives on the keyboard instead of in a document.
+    "folke/which-key.nvim",
+    event = "VeryLazy",
+    keys = {
+      { "<leader>?", function() require("which-key").show({ global = true }) end, desc = "Show every key" },
+    },
+    opts = {
+      preset = "helix",
+      -- Nerd Font glyphs by default, and the terminal font has none.
+      icons = { mappings = false, separator = "->", group = "+" },
+    },
+  },
+  {
     -- Jumping to a file by name beats walking a tree once a repo is large,
     -- and grep finds the code when only a phrase from it is remembered.
     "nvim-telescope/telescope.nvim",
