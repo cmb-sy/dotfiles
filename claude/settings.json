@@ -326,7 +326,8 @@
     "superpowers@claude-plugins-official": true,
     "typescript-lsp@claude-plugins-official": true,
     "ui-ux-pro-max@ui-ux-pro-max-skill": true,
-    "worktrunk@worktrunk": true
+    "worktrunk@worktrunk": true,
+    "vercel@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
     "openai-codex": {
