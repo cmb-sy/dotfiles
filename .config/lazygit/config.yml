@@ -15,9 +15,10 @@ gui:
   # not. Set back to true to inspect what a keypress actually ran.
   showCommandLog: false
 
-  # Whether local is ahead of or behind its upstream, with the count. Claude
-  # Code commits in another pane, so this is the fastest way to see that there
-  # is something unpushed.
+  # How far a branch has drifted from the base branch, with the count -- the
+  # worktrees here sit on feature branches for days, and this says how much
+  # main has moved underneath them. Not the same as ahead/behind the remote:
+  # lazygit shows that against the upstream in the branches panel already.
   showDivergenceFromBaseBranch: arrowAndNumber
 
   # Fuzzy rather than substring matching, so `/` finds a file in a long list
