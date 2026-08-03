@@ -50,6 +50,11 @@ vim.o.confirm = true
 -- history lives in ~/.local/state/nvim/undo, never beside the file.
 vim.o.undofile = true
 
+-- Declared up here rather than beside the memo code below, because the Esc
+-- mapping closes over memo_win and a local declared later is invisible to it.
+local memo_path = vim.fn.expand("~/dotfiles/.config/nvim/memo.md")
+local memo_win = nil
+
 -- Esc goes back to the tree, treating it as the place you browse from and the
 -- file window as somewhere you visit. Also clears the leftover search
 -- highlight, which hlsearch otherwise leaves lit with no key to dismiss it.
@@ -58,6 +63,11 @@ vim.o.undofile = true
 vim.keymap.set("n", "<Esc>", function()
   vim.cmd("nohlsearch")
   if vim.bo.filetype == "neo-tree" then
+    return
+  end
+  -- Inside the memo, do nothing further: jumping to the tree would leave the
+  -- float open behind it with focus somewhere else. Space closes the memo.
+  if memo_win and vim.api.nvim_get_current_win() == memo_win then
     return
   end
   for _, win in ipairs(vim.api.nvim_list_wins()) do
@@ -105,9 +115,6 @@ vim.api.nvim_create_autocmd("BufReadPost", {
 -- that this repo is public: anything written here is published on push.
 -- ---------------------------------------------------------------------------
 
-local memo_path = vim.fn.expand("~/dotfiles/.config/nvim/memo.md")
-local memo_win = nil
-
 function _G.toggle_memo()
   if memo_win and vim.api.nvim_win_is_valid(memo_win) then
     local buf = vim.api.nvim_win_get_buf(memo_win)
@@ -131,8 +138,8 @@ function _G.toggle_memo()
   local buf = vim.fn.bufadd(memo_path)
   vim.fn.bufload(buf)
 
-  local width = math.min(96, math.floor(vim.o.columns * 0.7))
-  local height = math.min(28, math.floor(vim.o.lines * 0.6))
+  local width = math.min(124, math.floor(vim.o.columns * 0.82))
+  local height = math.min(42, math.floor(vim.o.lines * 0.78))
   memo_win = vim.api.nvim_open_win(buf, true, {
     relative = "editor",
     width = width,
@@ -147,11 +154,11 @@ function _G.toggle_memo()
   vim.wo[memo_win].signcolumn = "no"
   vim.wo[memo_win].wrap = true
 
-  -- Buffer-local so they only close the float, and only from normal mode --
-  -- otherwise space could not be typed into the memo itself.
-  for _, key in ipairs({ "<Space>", "q", "<Esc>" }) do
-    vim.keymap.set("n", key, _G.toggle_memo, { buffer = buf, desc = "Close the memo" })
-  end
+  -- Space is the only way out, so the memo cannot be dismissed by reflex while
+  -- reading it. Buffer-local and normal-mode only, so space still types a
+  -- space inside the memo. `q` is deliberately not bound: it starts a macro
+  -- recording in normal mode, and Esc is handled by the global mapping below.
+  vim.keymap.set("n", "<Space>", _G.toggle_memo, { buffer = buf, desc = "Close the memo" })
 end
 
 vim.keymap.set("n", "<leader>m", _G.toggle_memo, { desc = "Memo (toggle)" })
