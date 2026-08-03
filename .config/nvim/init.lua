@@ -94,6 +94,66 @@ vim.api.nvim_create_autocmd("BufReadPost", {
 -- the terminal font and delete the icon overrides below.
 -- ---------------------------------------------------------------------------
 
+-- ---------------------------------------------------------------------------
+-- Memo
+--
+-- A floating scratchpad over whatever is on screen, holding the running notes
+-- in the Obsidian vault. Toggled rather than opened so the same key puts it
+-- away, and saved on close because a scratchpad that asks about unsaved
+-- changes is not a scratchpad.
+-- ---------------------------------------------------------------------------
+
+local memo_path = vim.fn.expand("~/develop/obsidian/メモ/memo.md")
+local memo_win = nil
+
+function _G.toggle_memo()
+  if memo_win and vim.api.nvim_win_is_valid(memo_win) then
+    local buf = vim.api.nvim_win_get_buf(memo_win)
+    if vim.bo[buf].modified then
+      vim.api.nvim_win_call(memo_win, function()
+        pcall(vim.cmd, "silent write")
+      end)
+    end
+    pcall(vim.api.nvim_win_close, memo_win, false)
+    memo_win = nil
+    return
+  end
+
+  -- Absent on a machine without the vault checked out, so make it rather than
+  -- failing.
+  if vim.fn.filereadable(memo_path) == 0 then
+    vim.fn.mkdir(vim.fn.fnamemodify(memo_path, ":h"), "p")
+    vim.fn.writefile({ "# memo", "" }, memo_path)
+  end
+
+  local buf = vim.fn.bufadd(memo_path)
+  vim.fn.bufload(buf)
+
+  local width = math.min(96, math.floor(vim.o.columns * 0.7))
+  local height = math.min(28, math.floor(vim.o.lines * 0.6))
+  memo_win = vim.api.nvim_open_win(buf, true, {
+    relative = "editor",
+    width = width,
+    height = height,
+    row = math.floor((vim.o.lines - height) / 2 - 1),
+    col = math.floor((vim.o.columns - width) / 2),
+    border = "rounded",
+    title = " memo ",
+    title_pos = "center",
+  })
+  vim.wo[memo_win].number = false
+  vim.wo[memo_win].signcolumn = "no"
+  vim.wo[memo_win].wrap = true
+
+  -- Buffer-local so they only close the float, and only from normal mode --
+  -- otherwise space could not be typed into the memo itself.
+  for _, key in ipairs({ "<Space>", "q", "<Esc>" }) do
+    vim.keymap.set("n", key, _G.toggle_memo, { buffer = buf, desc = "Close the memo" })
+  end
+end
+
+vim.keymap.set("n", "<leader>m", _G.toggle_memo, { desc = "Memo (toggle)" })
+
 -- Turns preview on for the tree, and gives it somewhere to draw. Global so the
 -- plugin spec's event handler and the window-enter autocmd share one copy.
 --
@@ -245,6 +305,12 @@ require("lazy").setup({
           -- Preview into the window on the right rather than a floating box,
           -- so it reads as "the file next to the tree" rather than a popup.
           ["P"] = { "toggle_preview", config = { use_float = false } },
+          -- Space normally expands a folder here, which Enter already does, so
+          -- it is free for the memo. Leaving it on toggle_node would also make
+          -- the tree the one place the leader key does not work.
+          ["<space>"] = function()
+            _G.toggle_memo()
+          end,
         },
       },
 
