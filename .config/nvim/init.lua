@@ -15,12 +15,11 @@ vim.o.number = true      -- line numbers
 vim.o.cursorline = true  -- highlight the line the cursor sits on
 vim.o.scrolloff = 4      -- keep context visible above and below
 
--- Render with the terminal's 16 ANSI colours instead of a 24-bit palette of
--- our own, so this matches lazygit and everything else in the terminal.
--- Ghostty overrides the Catppuccin base with a custom palette, so a stock
--- catppuccin plugin for nvim would NOT match; inheriting the terminal does.
--- Cost: coarser highlighting, since there are 16 colours rather than millions.
-vim.o.termguicolors = false
+-- 24-bit colour. Inheriting the terminal's 16 ANSI colours matched lazygit
+-- exactly, but 16 colours cannot separate a type from a function from a
+-- string, so everything read as one wall of near-white. Matching the tool next
+-- door mattered less than telling code apart.
+vim.o.termguicolors = true
 
 -- Show whitespace. Mixed indentation and trailing spaces are invisible
 -- otherwise, and they are the usual reason a file "looks wrong".
@@ -95,6 +94,54 @@ vim.api.nvim_create_autocmd("BufReadPost", {
 -- the terminal font and delete the icon overrides below.
 -- ---------------------------------------------------------------------------
 
+-- Turns preview on for the tree, and gives it somewhere to draw. Global so the
+-- plugin spec's event handler and the window-enter autocmd share one copy.
+--
+-- Deferred, because a window opened from inside a render is undone by the time
+-- it finishes, and preview has to come after the window it draws into exists.
+-- Every step reaches into neo-tree's internals, so all of them are guarded: if
+-- a later version moves them, the tree still works and `P` still previews by
+-- hand.
+function _G.neotree_start_preview(state)
+  vim.defer_fn(function()
+    local ok, preview = pcall(require, "neo-tree.sources.common.preview")
+    if not ok or preview.is_active() then
+      return
+    end
+    if vim.bo.filetype ~= "neo-tree" then
+      return
+    end
+    -- `nvim .` hands the tree the only window there is, and preview draws into
+    -- a neighbour rather than making one, so it would have nowhere to put the
+    -- file under the cursor.
+    if #vim.api.nvim_list_wins() == 1 then
+      local tree_win = vim.api.nvim_get_current_win()
+      vim.cmd("botright vnew")
+      pcall(vim.api.nvim_set_current_win, tree_win)
+    end
+    if not state then
+      local ok_m, manager = pcall(require, "neo-tree.sources.manager")
+      state = ok_m and manager.get_state("filesystem") or nil
+    end
+    if not state then
+      return
+    end
+    -- Normally filled in by the keymap dispatcher from the mapping's `config`;
+    -- calling toggle directly means supplying it here, and preview reads it
+    -- unconditionally.
+    state.config = { use_float = false }
+    pcall(preview.toggle, state)
+  end, 50)
+end
+
+vim.api.nvim_create_autocmd("WinEnter", {
+  callback = function()
+    if vim.bo.filetype == "neo-tree" then
+      _G.neotree_start_preview(nil)
+    end
+  end,
+})
+
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 if not (vim.uv or vim.loop).fs_stat(lazypath) then
   vim.fn.system({
@@ -105,6 +152,51 @@ end
 vim.opt.rtp:prepend(lazypath)
 
 require("lazy").setup({
+  {
+    -- Colourscheme. Mocha is the flavour Ghostty's theme is built on, so nvim
+    -- and the terminal stay in the same family even though Ghostty overrides
+    -- part of the palette. Loaded at startup rather than lazily, since every
+    -- other highlight is defined against it.
+    "catppuccin/nvim",
+    name = "catppuccin",
+    lazy = false,
+    priority = 1000,
+    opts = {
+      flavour = "mocha",
+      -- Ghostty paints a faint circuit pattern behind the terminal; an opaque
+      -- editor background would cover it up.
+      transparent_background = true,
+      styles = { comments = { "italic" }, keywords = { "bold" } },
+    },
+    config = function(_, opts)
+      require("catppuccin").setup(opts)
+      vim.cmd.colorscheme("catppuccin")
+    end,
+  },
+  {
+    -- Parses the file rather than pattern-matching it, so a function name, a
+    -- type and a string get separate colours instead of all landing on
+    -- "identifier". This is what actually makes code scannable.
+    "nvim-treesitter/nvim-treesitter",
+    branch = "master",
+    build = ":TSUpdate",
+    event = { "BufReadPost", "BufNewFile" },
+    opts = {
+      -- Only the languages in this repo, installed ahead of time. `auto_install`
+      -- is off deliberately: it compiles a parser on first sight of a new
+      -- filetype, which stalls the editor at exactly the wrong moment.
+      ensure_installed = {
+        "lua", "bash", "python", "json", "yaml", "toml", "markdown",
+        "markdown_inline", "gitcommit", "diff", "vim", "vimdoc",
+      },
+      auto_install = false,
+      highlight = { enable = true },
+      indent = { enable = true },
+    },
+    config = function(_, opts)
+      require("nvim-treesitter.configs").setup(opts)
+    end,
+  },
   {
     -- Sidebar file tree. Loads on first use rather than at startup, so opening
     -- a commit message from lazygit stays instant.
@@ -156,56 +248,16 @@ require("lazy").setup({
         },
       },
 
-      -- Preview already follows the cursor once it is running -- it listens for
-      -- the cursor-moved event -- but it starts off, so the tree would open
-      -- beside a blank window until `P` was pressed. Start it on the first
-      -- render instead. Waiting for the render matters: the state exists before
-      -- its node tree does, and preview reads that tree.
+      -- Preview follows the cursor once it is running -- it listens for the
+      -- cursor-moved event -- but it starts off, and opening a file with Enter
+      -- ends it. Restart it whenever the tree has focus and preview is not
+      -- running, so browsing always pages the file beside the tree the way
+      -- lazygit does, rather than only until the first file is opened.
       --
-      -- Armed once per opening, not once per render, so that pressing `P` to
-      -- turn preview off is not undone by the next refresh. Closing the tree
-      -- re-arms it.
+      -- Hooked on both events because they cover different moments: the render
+      -- is the tree first appearing, the window-enter is coming back to it.
       event_handlers = {
-        {
-          event = "after_render",
-          handler = function(state)
-            if vim.g.neotree_preview_armed then
-              return
-            end
-            local ok, preview = pcall(require, "neo-tree.sources.common.preview")
-            if not ok or preview.is_active() then
-              return
-            end
-            vim.g.neotree_preview_armed = true
-
-            -- Deferred: a window opened from inside the render is undone by
-            -- the time it finishes, and preview has to come after the window
-            -- it draws into exists.
-            vim.defer_fn(function()
-              -- `nvim .` hands the tree the only window there is, and preview
-              -- draws into a neighbour rather than creating one, so it would
-              -- have nowhere to put the file under the cursor. Open an empty
-              -- one on the right and hand focus back to the tree.
-              if #vim.api.nvim_list_wins() == 1 then
-                local tree_win = vim.api.nvim_get_current_win()
-                vim.cmd("botright vnew")
-                pcall(vim.api.nvim_set_current_win, tree_win)
-              end
-
-              -- Normally filled in by the keymap dispatcher from the mapping's
-              -- `config`; calling toggle directly means supplying it here, and
-              -- preview reads it unconditionally.
-              state.config = { use_float = false }
-              pcall(preview.toggle, state)
-            end, 50)
-          end,
-        },
-        {
-          event = "neo_tree_window_after_close",
-          handler = function()
-            vim.g.neotree_preview_armed = false
-          end,
-        },
+        { event = "after_render", handler = function(state) _G.neotree_start_preview(state) end },
       },
       default_component_configs = {
         icon = {
