@@ -13,6 +13,15 @@ theme = light:Catppuccin Latte,dark:Catppuccin Mocha
 # ---------------------------------------------------------------------------
 background = #1E1233
 foreground = #F0F6FF
+
+# Faint circuit traces behind the text. The file is mostly transparent (under
+# 4% of pixels carry ink, at about a tenth opacity), so it lifts the flat
+# background rather than competing with anything on top of it. Regenerate or
+# retune with terminal/ghostty/make-background.py; drop these three lines to
+# go back to a plain background.
+background-image = ~/.config/ghostty/background.png
+background-image-fit = cover
+background-image-repeat = false
 cursor-color = #8FDBFF
 # Steady, not blinking: on a highlighted row in a TUI (lazygit's selected
 # line) a blinking block reads as the text itself flickering.
