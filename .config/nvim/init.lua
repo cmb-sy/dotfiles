@@ -246,24 +246,42 @@ require("lazy").setup({
     -- Parses the file rather than pattern-matching it, so a function name, a
     -- type and a string get separate colours instead of all landing on
     -- "identifier". This is what actually makes code scannable.
+    --
+    -- On the main branch. master is frozen -- last commit 2026-03 -- and inside
+    -- that frozen state its python query matched a node ("except*", exception
+    -- groups) the pinned python parser did not know, which failed the whole
+    -- query and left .py files with no highlighting and a stack trace.
+    -- Reinstalling could not fix it: the parser was already at the pinned
+    -- revision. main keeps parsers and queries in step.
+    --
+    -- main is a different plugin: it installs parsers and ships queries, and
+    -- nothing else. Highlighting is Neovim's, enabled per filetype below. It
+    -- also does not support lazy-loading, hence lazy = false.
     "nvim-treesitter/nvim-treesitter",
-    branch = "master",
+    branch = "main",
+    lazy = false,
     build = ":TSUpdate",
-    event = { "BufReadPost", "BufNewFile" },
-    opts = {
-      -- Only the languages in this repo, installed ahead of time. `auto_install`
-      -- is off deliberately: it compiles a parser on first sight of a new
-      -- filetype, which stalls the editor at exactly the wrong moment.
-      ensure_installed = {
+    config = function()
+      require("nvim-treesitter").setup()
+
+      -- Only the languages in this repo. Installing is a no-op once they are
+      -- present, so this costs nothing on later starts.
+      require("nvim-treesitter").install({
         "lua", "bash", "python", "json", "yaml", "toml", "markdown",
         "markdown_inline", "gitcommit", "diff", "vim", "vimdoc",
-      },
-      auto_install = false,
-      highlight = { enable = true },
-      indent = { enable = true },
-    },
-    config = function(_, opts)
-      require("nvim-treesitter.configs").setup(opts)
+      })
+
+      -- Highlighting comes from Neovim, not the plugin, and is off until asked
+      -- for. Guarded: a filetype whose parser is missing would otherwise throw
+      -- on every open.
+      vim.api.nvim_create_autocmd("FileType", {
+        callback = function(args)
+          local lang = vim.treesitter.language.get_lang(args.match)
+          if lang and vim.treesitter.language.add(lang) then
+            pcall(vim.treesitter.start, args.buf, lang)
+          end
+        end,
+      })
     end,
   },
   {

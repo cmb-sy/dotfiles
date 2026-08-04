@@ -14,6 +14,9 @@ brew 'yarn'
 brew 'git'
 brew 'lazygit'
 brew 'neovim'
+# nvim-treesitter's main branch compiles parsers with this CLI; without it a
+# fresh machine gets no treesitter highlighting at all.
+brew 'tree-sitter-cli'
 brew 'ripgrep'
 brew 'bat'
 brew 'mise'
