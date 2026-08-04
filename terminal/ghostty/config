@@ -22,6 +22,9 @@ foreground = #F0F6FF
 background-image = ~/.config/ghostty/background.png
 background-image-fit = cover
 background-image-repeat = false
+# One knob for the whole image. The file peaks at 69/255 alpha, so 1.0 is
+# already restrained; lower this to fade it further rather than regenerating.
+background-image-opacity = 1.0
 cursor-color = #8FDBFF
 # Steady, not blinking: on a highlighted row in a TUI (lazygit's selected
 # line) a blinking block reads as the text itself flickering.
