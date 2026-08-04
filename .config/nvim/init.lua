@@ -98,10 +98,10 @@ vim.api.nvim_create_autocmd("BufReadPost", {
 -- lazy.nvim clones itself on first launch, so a fresh machine needs nothing
 -- beyond git. Versions are pinned in lazy-lock.json, which is committed.
 --
--- Icons are ASCII throughout. The terminal's font is Monaspace Neon with a
--- HackGen fallback, neither of which carries Nerd Font glyphs, so the usual
--- icon sets would render as boxes. To try them anyway, install a Nerd Font as
--- the terminal font and delete the icon overrides below.
+-- Icons are left at their plugin defaults, which are Nerd Font glyphs.
+-- terminal/ghostty/config maps the private-use ranges they live in to FiraCode
+-- Nerd Font; without that mapping they would all render as boxes, since
+-- neither Monaspace Neon nor HackGen carries those codepoints.
 -- ---------------------------------------------------------------------------
 
 -- ---------------------------------------------------------------------------
@@ -271,7 +271,13 @@ require("lazy").setup({
     -- a commit message from lazygit stays instant.
     "nvim-neo-tree/neo-tree.nvim",
     branch = "v3.x",
-    dependencies = { "nvim-lua/plenary.nvim", "MunifTanjim/nui.nvim" },
+    dependencies = {
+      "nvim-lua/plenary.nvim",
+      "MunifTanjim/nui.nvim",
+      -- File-type icons, coloured per type. Depends on the terminal carrying
+      -- Nerd Font glyphs, which terminal/ghostty/config now maps explicitly.
+      "nvim-tree/nvim-web-devicons",
+    },
     cmd = "Neotree",
     keys = {
       { "<leader>e", "<Cmd>Neotree toggle<CR>", desc = "Toggle file tree" },
@@ -309,7 +315,11 @@ require("lazy").setup({
         },
       },
       window = {
-        width = 34,
+        width = 38,
+        -- Grows when a name would be cut off. The deepest paths here are
+        -- claude/agents/implementation-review-*.md, which a fixed width
+        -- truncated to the point of being unreadable.
+        auto_expand_width = true,
         mappings = {
           -- Preview into the window on the right rather than a floating box,
           -- so it reads as "the file next to the tree" rather than a popup.
@@ -335,18 +345,18 @@ require("lazy").setup({
         { event = "after_render", handler = function(state) _G.neotree_start_preview(state) end },
       },
       default_component_configs = {
-        icon = {
-          folder_closed = "+",
-          folder_open = "-",
-          folder_empty = "-",
-          default = " ",
+        -- Icons and git symbols left at their defaults, which are Nerd Font
+        -- glyphs coloured per file type.
+        indent = {
+          with_markers = true,
+          indent_marker = "│",
+          last_indent_marker = "└",
+          with_expanders = true,
         },
         git_status = {
-          symbols = {
-            added = "A", modified = "M", deleted = "D", renamed = "R",
-            untracked = "?", ignored = "I", unstaged = "U", staged = "S",
-            conflict = "C",
-          },
+          -- Ignored files are dimmed rather than labelled: nearly a third of
+          -- this repo is ignored, and a column of "I" was reading as content.
+          symbols = { ignored = "" },
         },
       },
     },
@@ -358,15 +368,6 @@ require("lazy").setup({
     "lewis6991/gitsigns.nvim",
     event = { "BufReadPre", "BufNewFile" },
     opts = {
-      -- ASCII, like everywhere else: the terminal font has no Nerd Font glyphs.
-      signs = {
-        add = { text = "+" },
-        change = { text = "~" },
-        delete = { text = "_" },
-        topdelete = { text = "^" },
-        changedelete = { text = "%" },
-        untracked = { text = ":" },
-      },
       on_attach = function(buf)
         local gs = require("gitsigns")
         local function map(key, fn, desc)
@@ -388,13 +389,7 @@ require("lazy").setup({
     dependencies = { "nvim-treesitter/nvim-treesitter" },
     ft = { "markdown" },
     opts = {
-      heading = {
-        -- Depth as repeated hashes rather than Nerd Font blocks.
-        icons = { "# ", "## ", "### ", "#### ", "##### ", "###### " },
-      },
       code = { style = "normal" },
-      bullet = { icons = { "-", "*", "+" } },
-      checkbox = { unchecked = { icon = "[ ]" }, checked = { icon = "[x]" } },
     },
   },
   {
@@ -415,11 +410,7 @@ require("lazy").setup({
     keys = {
       { "<leader>?", function() require("which-key").show({ global = true }) end, desc = "Show every key" },
     },
-    opts = {
-      preset = "helix",
-      -- Nerd Font glyphs by default, and the terminal font has none.
-      icons = { mappings = false, separator = "->", group = "+" },
-    },
+    opts = { preset = "helix" },
   },
   {
     -- Jumping to a file by name beats walking a tree once a repo is large,
