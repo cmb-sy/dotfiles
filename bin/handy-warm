@@ -1,0 +1,133 @@
+#!/usr/bin/env python3
+"""Keep the ollama prompt cache warm for Handy's voice post-processing.
+
+Handy sends a 1274-token system prompt with every transcription. Evaluating it
+cold takes about 3.2s on an M1 Pro, against 0.03s when ollama still has the
+prefix cached -- and generation for a short utterance is only 0.25s. So the
+wait after speaking is almost entirely prompt evaluation, and it comes back
+every time the cache lapses between dictations. Measured: 5.2s cold, 0.44s
+warm, same input.
+
+This sends one throwaway request on a timer so the prefix stays cached and the
+model stays resident. Run by macos/com.snakashima.handy-warm.plist.
+
+The prompt is read out of Handy's own settings rather than rebuilt from
+handy/ja_light_tidy.prompt.txt: apply-settings.py inlines the glossary when it
+writes it, and a prompt that differs by even one character is a different
+prefix and would not hit the cache. Reading the live value also means this
+keeps working after the prompt is edited.
+
+Exits quietly when warming would be pointless -- Handy not running, a provider
+other than local ollama selected, post-processing off, ollama not up -- so it
+never loads a 3GB model for nothing.
+"""
+
+import json
+import os
+import pathlib
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.request
+
+SETTINGS = pathlib.Path(
+    os.path.expanduser("~/Library/Application Support/com.pais.handy/settings_store.json")
+)
+OLLAMA = "http://localhost:11434"
+KEEP_ALIVE = "30m"      # longer than the timer, so the model never falls out
+TIMEOUT = 120           # a cold first run has to evaluate the whole prompt
+LOG_EVERY = 3600        # only report success once an hour; this runs on a timer
+
+
+def quiet_exit(reason: str) -> None:
+    """Nothing to warm. Not an error, so say nothing and leave."""
+    del reason
+    sys.exit(0)
+
+
+def handy_running() -> bool:
+    # The binary is lowercase `handy` inside Handy.app; pgrep -x is
+    # case-sensitive and matching the wrong case silently reports "not running".
+    return subprocess.run(
+        ["/usr/bin/pgrep", "-x", "handy"], capture_output=True
+    ).returncode == 0
+
+
+def main() -> None:
+    if not handy_running():
+        quiet_exit("handy not running")
+    if not SETTINGS.exists():
+        quiet_exit("no settings")
+
+    try:
+        settings = json.loads(SETTINGS.read_text(encoding="utf-8")).get("settings", {})
+    except (OSError, json.JSONDecodeError):
+        quiet_exit("settings unreadable")
+
+    if not settings.get("post_process_enabled"):
+        quiet_exit("post-processing off")
+    # Only the local provider benefits: a hosted one has no cache here to keep.
+    if settings.get("post_process_provider_id") != "custom":
+        quiet_exit("not the local provider")
+
+    model = (settings.get("post_process_models") or {}).get("custom")
+    if not model:
+        quiet_exit("no local model selected")
+
+    selected = settings.get("post_process_selected_prompt_id")
+    prompt = next(
+        (p.get("prompt") for p in settings.get("post_process_prompts", [])
+         if p.get("id") == selected and p.get("prompt")),
+        None,
+    )
+    if not prompt:
+        quiet_exit("no prompt")
+
+    body = json.dumps({
+        "model": model,
+        "stream": False,
+        "keep_alive": KEEP_ALIVE,
+        # A single token is enough to make ollama evaluate and cache the prefix.
+        "options": {"num_predict": 1},
+        "messages": [
+            {"role": "system", "content": prompt},
+            {"role": "user", "content": "ok"},
+        ],
+    }).encode()
+
+    started = time.time()
+    try:
+        with urllib.request.urlopen(
+            urllib.request.Request(f"{OLLAMA}/api/chat", body,
+                                   {"Content-Type": "application/json"}),
+            timeout=TIMEOUT,
+        ) as response:
+            result = json.load(response)
+    except (urllib.error.URLError, OSError, json.JSONDecodeError) as err:
+        # ollama being down is the common case here (not started yet, or
+        # restarting), so this is worth seeing but not worth alarming about.
+        print(f"handy-warm: {type(err).__name__}: {err}", file=sys.stderr)
+        sys.exit(0)
+
+    prefill_ms = result.get("prompt_eval_duration", 0) // 1_000_000
+    elapsed_ms = int((time.time() - started) * 1000)
+
+    # A warm hit evaluates the prefix in tens of milliseconds; a cold one takes
+    # seconds. Report the cold ones, since a run of them means the timer is not
+    # keeping up with whatever is evicting the cache.
+    stamp = pathlib.Path("/tmp/handy-warm.last")
+    was_cold = prefill_ms > 500
+    due = True
+    try:
+        due = (time.time() - stamp.stat().st_mtime) > LOG_EVERY
+    except OSError:
+        pass
+    if was_cold or due:
+        state = "cold" if was_cold else "warm"
+        print(f"handy-warm: {state}, prefill {prefill_ms}ms, total {elapsed_ms}ms, {model}")
+        stamp.touch()
+
+
+if __name__ == "__main__":
+    main()

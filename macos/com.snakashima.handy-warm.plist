@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Handy sends a 1274-token system prompt with every voice transcription. Cold,
+  ollama takes about 3.2s just to evaluate it on an M1 Pro; with the prefix
+  still cached it takes 0.03s, and generating a short utterance is only 0.25s.
+  Measured end to end: 5.2s cold against 0.44s warm for identical input. So the
+  wait after speaking is prompt evaluation, not the model being large -- trying
+  smaller models made the output wrong without fixing the wait.
+
+  This pings ollama with that same prompt every 3 minutes so the prefix stays
+  cached and the model stays resident. Three minutes is under ollama's 5-minute
+  default keep-alive, so the model cannot lapse between runs.
+
+  Costs roughly 3GB of resident memory while Handy is running. bin/handy-warm
+  exits without loading anything when Handy is closed, post-processing is off,
+  or a hosted provider is selected.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.snakashima.handy-warm</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/snakashima/dotfiles/bin/handy-warm</string>
+    </array>
+    <key>StartInterval</key>
+    <integer>180</integer>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/tmp/handy-warm.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/handy-warm.log</string>
+</dict>
+</plist>
