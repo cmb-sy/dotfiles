@@ -119,17 +119,31 @@ print(','.join(bad) if bad else 'OK')
     [ "$(grep -cE 'transition:|animation:' "$TPL")" -eq 0 ]
 }
 
-@test "ページ幅は 82rem" {
-    run grep -cF 'max-width: 82rem' "$TPL"
-    [ "$status" -eq 0 ]
-    [ "$output" -ge 1 ]
+@test "ページ幅が 70-82rem に収まっている" {
+    run python3 -c "
+import re
+s = open('$TPL', encoding='utf-8').read()
+v = float(re.search(r'\.wrap \{[^}]*max-width: ([\d.]+)rem', s, re.S).group(1))
+print('OK' if 70 <= v <= 82 else f'{v}rem')
+"
+    [ "$output" = "OK" ]
 }
 
-@test "文章の行長が 36em で止まっている" {
-    # The wide layout is for columns of information, not long lines of text.
-    run grep -cF '36em' "$TPL"
-    [ "$status" -eq 0 ]
-    [ "$output" -ge 1 ]
+@test "文章の行長に上限がある（30-45em）" {
+    # In Japanese one em is one full-width character, so this is a character
+    # count. Too long and the sweep back to the next line tires the eye; too
+    # short and the text looks stranded on a wide page.
+    run python3 -c "
+import re
+s = open('$TPL', encoding='utf-8').read()
+m = re.search(r'\.body > p[^{]*\{[^}]*max-width: ([\d.]+)em', s)
+if not m:
+    print('no cap')
+else:
+    v = float(m.group(1))
+    print('OK' if 30 <= v <= 45 else f'{v}em')
+"
+    [ "$output" = "OK" ]
 }
 
 @test "重要度の縦線が 3px 以上ある" {
@@ -172,10 +186,75 @@ print(','.join(bad) if bad else 'OK')
     [ "$output" -ge 3 ]
 }
 
+@test "図の矢印が生成される（行末に取り残されない）" {
+    # A standalone arrow element is a flex item that can end a wrapped line by
+    # itself. Generating it from the following step ties the two together.
+    run grep -cF '.flow .step + .step::after' "$TPL"
+    [ "$status" -eq 0 ]
+    # And the manual class must not exist, or a page using both doubles up.
+    [ "$(grep -cE '\.flow \.arrow' "$TPL")" -eq 0 ]
+    [ "$(grep -cE 'class="arrow"' "$TPL")" -eq 0 ]
+}
+
+@test "本文に空のカラムを作らない（幅が余って見えない）" {
+    # The old two-column body never filled its second column, so an opened row
+    # was a narrow strip of text beside a wide blank.
+    [ "$(grep -cE '\.body > \* \{ grid-column' "$TPL")" -eq 0 ]
+    run grep -cE '\.body > p, \.body > ul' "$TPL"
+    [ "$status" -eq 0 ]
+}
+
 @test "inline SVG がトークンで色付けされる（テーマに追従する）" {
     run grep -cE 'svg (text|\.stroke|\.fill)' "$TPL"
     [ "$status" -eq 0 ]
     [ "$output" -ge 2 ]
+}
+
+@test "日本語が文節で折り返される（単語の途中で切れない）" {
+    # Japanese may break between almost any two characters, so the default wrap
+    # splits words down the middle. auto-phrase needs the content language to be
+    # known, so lang="ja" is part of the fix, not decoration.
+    run grep -cF 'word-break: auto-phrase' "$TPL"
+    [ "$status" -eq 0 ]
+    run grep -cF 'line-break: strict' "$TPL"
+    [ "$status" -eq 0 ]
+    run grep -cF 'class="wrap" lang="ja"' "$TPL"
+    [ "$status" -eq 0 ]
+}
+
+@test "コードは文節で折り返さない" {
+    # Phrase breaking inside a path or a command would put the break in a place
+    # the reader cannot distinguish from the real text.
+    run grep -cE 'pre, code \{ word-break: normal' "$TPL"
+    [ "$status" -eq 0 ]
+}
+
+@test "行の見出しが太く大きい" {
+    # The row title is the heading of its row; it was inheriting the body weight.
+    run grep -cE '\.title \{[^}]*font-weight: 600' "$TPL"
+    [ "$status" -eq 0 ]
+    run python3 -c "
+import re
+s = open('$TPL', encoding='utf-8').read()
+m = re.search(r'\.title \{([^}]*)\}', s)
+size = re.search(r'font-size: ([\d.]+)rem', m.group(1))
+print('OK' if size and float(size.group(1)) >= 1.15 else 'small')
+"
+    [ "$output" = "OK" ]
+}
+
+@test "節の見出しが薄すぎない" {
+    # h2 was the faintest token at the smallest size, which reads as absent.
+    run python3 -c "
+import re
+s = open('$TPL', encoding='utf-8').read()
+m = re.search(r'\n  h2 \{(.*?)\n  \}', s, re.S).group(1)
+size = float(re.search(r'font-size: ([\d.]+)rem', m).group(1))
+weight = int(re.search(r'font-weight: (\d+)', m).group(1))
+faint = '--faint' in m
+print('OK' if size >= 0.82 and weight >= 600 and not faint else f'size={size} weight={weight} faint={faint}')
+"
+    [ "$output" = "OK" ]
 }
 
 @test "スクリプトに依存しない（mermaid 等を読み込まない）" {
