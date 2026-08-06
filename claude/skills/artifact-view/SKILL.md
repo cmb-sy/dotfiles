@@ -29,18 +29,18 @@ user-invocable: true
 
 ## 手順
 
-1. **`artifact-design` skill をロードする**（必須）。デザインの投資量をタスクに合わせて決めるため
-2. `${XDG_CACHE_HOME:-$HOME/.cache}/claude-view/<slug>.html` に書く。`<slug>` は**話題ごとに安定した名前**（`harness-status.html` など）。同じ話題なら必ず同じ名前を使い回す
-3. `view-html <file>` で開く
+1. `template.html`（このスキルのディレクトリ内）をコピーして中身を差し替える。**デザインは毎回考え直さない。** 確定した見た目なので、そこに内容を流し込む
+   ```bash
+   D="${XDG_CACHE_HOME:-$HOME/.cache}/claude-view"
+   mkdir -p "$D"
+   cp ~/dotfiles/claude/skills/artifact-view/template.html "$D/<slug>.html"
+   ```
+2. `<slug>` は**話題ごとに安定した名前**（`harness-status.html` など）。同じ話題なら必ず同じ名前を使い回す
+3. `view-html "$D/<slug>.html"` で開く
 
-```bash
-mkdir -p "${XDG_CACHE_HOME:-$HOME/.cache}/claude-view"
-view-html "${XDG_CACHE_HOME:-$HOME/.cache}/claude-view/harness-status.html"
-```
+`view-html`（`bin/view-html`）は既定ブラウザで開く。**同じファイルを再度渡すと、既存タブを探して再読み込みし前面に出す。** `open` を直に使うと同じ URL でも新しいタブが増え、更新のたびに古いページが並んでどれが最新か分からなくなる。
 
-`view-html`（`bin/view-html`）は既定ブラウザで開く。**同じファイルを再度渡すと、既存タブを探して再読み込みし前面に出す。** `open` を直に使うと同じ URL でも新しいタブが増えるため、更新のたびに古いページが並んでどれが最新か分からなくなる。
-
-- 出力は `opened:` / `reloaded:` / `opened (via open):` のいずれか。`reloaded` ならタブは増えていない
+- 出力は `opened:` / `reloaded:` / `opened (via open):` のいずれか
 - ブラウザ未起動・自動化許可なし・非対応ブラウザでは `open` にフォールバックする
 - `--print-url` は URL だけ出してブラウザを開かない
 
@@ -54,47 +54,51 @@ view-html "${XDG_CACHE_HOME:-$HOME/.cache}/claude-view/harness-status.html"
 
 保存先を `~/.cache` に置くのは、セッションをまたいでも同じパスを指せるようにするため。scratchpad はセッションごとに変わるので、「さっきのページを更新して」に応えられなくなる。
 
+## 崩してはいけない設計
+
+`template.html` に実装済み。内容に合わせて増減してよいが、以下は変えない。
+
+| 項目 | 決まり | 理由 |
+|---|---|---|
+| テーマ | **明るい地色を既定にし、`prefers-color-scheme` に追従しない。** ダークは `:root[data-theme="dark"]` のトグル時のみ | この Mac は OS がダークモード。追従すると、地色をどれだけ持ち上げても暗いまま表示される |
+| 本文の書体 | ゴシック体（Hiragino Sans）。見出しのみ明朝体 W600 | 明朝は本文サイズだと線が細く、薄く見える |
+| 基準の文字サイズ | `18px` | |
+| ページ幅 | `82rem` | |
+| 文章の行長 | `42em` で止める（`.body` の 1 カラム目） | 幅を活かす目的は「情報を横に並べること」で、行を長くすることではない |
+| 行の構成 | `番号 / タイトル / 状態 / ›` の 4 カラム。状態は右端で縦に揃える | 走査は縦方向に行われる |
+| セクション | `<details>` で包み、`open` 属性を付けない | `summary` 行が唯一の走査面になる |
+| 重要度 | `high` / `mid` / `low` クラスで 3px の縦線と状態ラベルに色を付ける | 1px では色が視認できない |
+| 文字色 | 補足テキストは主文字の 1 段下（`--dim`）まで。3 段下げない | 「文字が薄い」の主因は補足テキスト側 |
+
+**色を変えたら WCAG 比を実測する。** 主要な文字は AAA（7.0 以上）、色つきの要素は AA（4.5 以上）を下回らせない。
+
+```bash
+python3 -c '
+def lum(h):
+    h=h.lstrip("#"); c=[int(h[i:i+2],16)/255 for i in (0,2,4)]
+    c=[(x/12.92 if x<=0.03928 else ((x+0.055)/1.055)**2.4) for x in c]
+    return 0.2126*c[0]+0.7152*c[1]+0.0722*c[2]
+def ratio(a,b):
+    la,lb=lum(a),lum(b); return (max(la,lb)+0.05)/(min(la,lb)+0.05)
+print(round(ratio("#ffffff","#3c3452"), 2))'
+```
+
+## タイトル
+
+**ユーザーの依頼文をそのまま、または短く言い直したものを `<title>` に書く。** こちらで話題を言い換えて抽象化しない。ユーザー自身の言葉で探せることが目的。更新時にタイトルは変えない。
+
 ## URL で共有したいとき（`--share`）
 
-**共有を明示的に頼まれたときだけ** `Artifact` ツールで公開する。ローカルファイルは自分しか開けないため、URL を渡す必要がある場合に限る。
+**共有を明示的に頼まれたときだけ** `Artifact` ツールで公開する。ローカルファイルは自分しか開けないため、URL を渡す必要がある場合に限る。公開の前に `artifact-design` skill をロードする。
 
 - 同じ会話なら、**同じ file_path** で再発行すれば URL は変わらない
 - 過去の会話で作ったページは `action: "list"` で URL を探し、`url` パラメータに渡す。渡さないと新しい URL が発行されて元のページが取り残される
 - `favicon` は必須で、再発行では変えない
 - **公開したアカウントでログインしていないと `Page not found` になる。** 複数アカウントを使い分けている場合、どちらで公開したかを伝える
 
-## 構造の規約
-
-**セクションは `<details>` で包み、既定は閉じておく。** `open` 属性を付けない。
-
-```html
-<details class="high">
-  <summary>
-    <span class="id">#11</span>
-    <span class="head">
-      <span class="title">done-criteria 欠落で Audit Gate が実行不能</span>
-      <span class="state">憲法と矛盾</span>
-    </span>
-  </summary>
-  <div class="body">…</div>
-</details>
-```
-
-- **`summary` 行が唯一の走査面**になる。識別子・要点・状態だけを置き、そこだけ読んで全体像が掴めるようにする
-- 開いた状態で置くのは、冒頭の要約とスコア・件数の一覧だけ
-- 既定の三角は `summary::-webkit-details-marker { display: none }` と `list-style: none` の**両方**で消す（ブラウザによって効く側が違う）
-- `summary:focus-visible` に見える輪郭を与える
-
-`<details>` は HTML 標準で JavaScript 不要。開閉状態がアクセシビリティツリーに正しく載る。
-
-## タイトル
-
-**ユーザーの依頼文をそのまま、または短く言い直したものを `<title>` に書く。** こちらで話題を言い換えて抽象化しない。ユーザー自身の言葉で探せることが目的。更新時にタイトルは変えない。
-
 ## 制約
 
 - **1 ファイルで自己完結させる。** CSS と JS はインライン、画像は data URI。外部 CDN を参照するとオフラインで壊れ、ローカルページから外部へ通信が漏れる
-- **両テーマを設計する。** 色はカスタムプロパティに置き、`@media (prefers-color-scheme: dark)` と `:root[data-theme="dark"]` / `[data-theme="light"]` の**両方向**を定義する。コンポーネントのスタイルを media query の中に書くと上書きが届かなくなる
 - 横に広い要素（表・コードブロック・図）は `overflow-x: auto` の入れ物に入れる。本文が横スクロールしてはいけない
 - **PII を載せない。** 氏名・社員番号・メール・電話番号はマスキングする。共有した時点で外に出る
 - 指定した書体が入っているか確認する。無ければ黙って別の書体に落ちる
@@ -106,7 +110,9 @@ view-html "${XDG_CACHE_HOME:-$HOME/.cache}/claude-view/harness-status.html"
 | 更新のたびに新しいファイル名を使う | ページが増え、どれが最新か分からなくなる |
 | `open` を直に呼ぶ | 同じ URL でもタブが増殖する |
 | 保存先を scratchpad にする | 別セッションから同じページを更新できない |
+| `prefers-color-scheme: dark` を足す | OS がダークモードなので、暗いページが表示される |
 | `open` 属性を付ける | 折りたたみの意味がなくなり、ターミナルと同じ壁になる |
+| 幅を活かすために行長を伸ばす | 一行が長くなり読めなくなる |
 | タイトルを話題ごとに言い換える | ユーザーが探せなくなる |
 | 頼まれていないのに HTML 化する | 会話の流れが切れる |
 | 共有を頼まれていないのに公開する | 不要な URL が残る |
