@@ -2,48 +2,58 @@
 
 <style>
   /* ------------------------------------------------------------------ *
-   * Design tokens
+   * Design tokens -- tuned for long reading without eye strain
    *
    * A light page by default, and deliberately NOT following
    * prefers-color-scheme: this machine runs the OS in dark mode, so
    * following it serves the dark variant no matter how far it is lifted.
    * Dark stays available for the viewer's explicit toggle.
    *
-   * Violet is the hue this repo's terminal already uses, at full chroma so
-   * it reads as a colour rather than a grey. Severity has its own three
-   * tones, kept separate from the accent.
+   * Three choices here exist to reduce strain, and each looks like a
+   * mistake without the reason:
+   *
+   *   1. The ground is off-white, not #fff. Pure white is the maximum
+   *      luminance the display can emit and is what makes a page feel
+   *      glaring in a dim room.
+   *   2. Text is dark grey, not black. Pure black on pure white is 21:1,
+   *      and that much contrast produces halation -- the glyphs bloom and
+   *      leave afterimages. Body text is held near 12:1: well past AAA
+   *      (7:1) but short of the range that strains.
+   *   3. Hues lean warm and the accent is desaturated. Blue focuses less
+   *      precisely than red or green (chromatic aberration), so blue-heavy
+   *      light makes the eye keep hunting for focus.
    * ------------------------------------------------------------------ */
   :root {
-    --ground:    #ffffff;
-    --raised:    #f5f2fc;   /* hover, panels that sit above the ground */
-    --sunken:    #faf8ff;   /* code blocks, the score panel */
-    --rule:      #d5cde8;
-    --rule-soft: #e9e4f4;
-    --ink:       #14111c;   /* primary text */
-    --dim:       #3c3452;   /* secondary text -- one step down, not three */
-    --faint:     #6b6383;   /* labels, captions */
-    --accent:    #6524d4;
-    --sev-high:  #c30f42;
-    --sev-mid:   #8f5b00;
-    --sev-low:   #0d7550;
+    --ground:    #f0eee8;   /* 86% luminance, not 100% */
+    --raised:    #e7e4db;   /* hover, panels above the ground */
+    --sunken:    #f6f4ef;   /* code blocks, the summary panel */
+    --rule:      #d4d0c5;
+    --rule-soft: #e2ded4;
+    --ink:       #2c2b31;   /* primary text, ~12:1 -- not black */
+    --dim:       #4a4854;   /* secondary text, one step down, not three */
+    --faint:     #676473;   /* labels, captions */
+    --accent:    #5b3ba6;
+    --sev-high:  #a5284a;
+    --sev-mid:   #775310;
+    --sev-low:   #1b6a4b;
 
     --serif: "Hiragino Mincho ProN", "Yu Mincho", Georgia, serif;
     --sans: "Hiragino Sans", "Yu Gothic", -apple-system, sans-serif;
     --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
   }
   :root[data-theme="dark"] {
-    --ground:    #201d29;
-    --raised:    #2a2635;
-    --sunken:    #191622;
-    --rule:      #423c52;
-    --rule-soft: #332e40;
-    --ink:       #f7f5fc;
-    --dim:       #cdc7da;
-    --faint:     #9b94ac;
-    --accent:    #c4a7ff;
-    --sev-high:  #ff8098;
-    --sev-mid:   #ffc75c;
-    --sev-low:   #63e0a8;
+    --ground:    #23222b;
+    --raised:    #2c2b35;
+    --sunken:    #1c1b23;
+    --rule:      #45434f;
+    --rule-soft: #35333d;
+    --ink:       #dedae4;   /* not white, for the same reason */
+    --dim:       #b8b3c0;
+    --faint:     #8f8a99;
+    --accent:    #b9a3e8;
+    --sev-high:  #e89aa8;
+    --sev-mid:   #d9b978;
+    --sev-low:   #8fd3b4;
   }
 
   body {
@@ -51,10 +61,15 @@
     background: var(--ground);
     color: var(--ink);
     /* Gothic for running text: Mincho's thin strokes read as washed out at
-       body size. Mincho stays on the title, where the scale carries it. */
+       body size, and thin strokes make the eye work to resolve them. Mincho
+       stays on the title, where the scale carries it. */
     font-family: var(--sans);
-    font-size: 18px;
-    line-height: 1.9;
+    /* Larger type and open leading both cut accommodative effort: bigger
+       glyphs need less focusing work, and generous line spacing keeps the
+       eye from landing on the wrong line and having to re-read. */
+    font-size: 19px;
+    line-height: 2;
+    letter-spacing: .02em;
   }
   .wrap {
     max-width: 82rem;
@@ -72,7 +87,7 @@
     grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
     gap: 3.5rem;
     align-items: start;
-    border-top: 2px solid var(--ink);
+    border-top: 1px solid var(--rule);
     padding-top: 1.5rem;
   }
   @media (max-width: 60rem) {
@@ -97,7 +112,7 @@
     letter-spacing: .01em;
     text-wrap: balance;
   }
-  .lede { margin: 0; color: var(--dim); font-size: 1.02rem; max-width: 34em; }
+  .lede { margin: 0; color: var(--dim); font-size: 1.02rem; max-width: 30em; }
 
   h2 {
     margin: 0 0 1rem;
@@ -138,11 +153,11 @@
   /* ---- Rows, not cards ----
      The state sits in its own right-hand column so the fields line up down
      the page instead of stacking inside each row. */
-  .list { border-top: 2px solid var(--ink); }
+  .list { border-top: 1px solid var(--rule); }
   details { border-bottom: 1px solid var(--rule-soft); }
   summary {
     cursor: pointer;
-    padding: 1.15rem 0 1.15rem 1.35rem;
+    padding: 1.35rem 0 1.35rem 1.5rem;
     position: relative;
     list-style: none;
     display: grid;
@@ -196,19 +211,20 @@
     font-size: .9rem;
     color: var(--faint);
     text-align: right;
-    transition: transform .15s ease;
   }
-  details[open] > summary .caret { transform: rotate(90deg); }
-  @media (prefers-reduced-motion: reduce) { .caret { transition: none; } }
+  /* Swapped, not rotated: no animation to track. */
+  details[open] > summary .caret::before { content: "\2304"; }
+  details:not([open]) > summary .caret::before { content: "\203A"; }
 
   /* The row spans the page, but prose keeps a readable measure: the point of
      the wide layout is columns of information, not 80-em lines of text. */
   .body {
-    padding: .35rem 0 1.9rem 1.35rem;
+    padding: .5rem 0 2.1rem 1.5rem;
     display: grid;
-    grid-template-columns: minmax(0, 42em) minmax(0, 1fr);
-    gap: 1.1rem 2.5rem;
+    grid-template-columns: minmax(0, 36em) minmax(0, 1fr);
+    gap: 1.2rem 2.5rem;
     font-size: 1rem;
+    line-height: 1.95;
     color: var(--dim);
   }
   .body > * { grid-column: 1; }
@@ -291,7 +307,7 @@
           <span class="id">#11</span>
           <span class="title">項目のタイトル。summary 行だけ読んで全体像が掴めるように書く</span>
           <span class="state">状態ラベル</span>
-          <span class="caret">›</span>
+          <span class="caret"></span>
         </summary>
         <div class="body">
           <p class="note">なぜ問題なのかを一文で。事実の列挙ではなく意味を書く。</p>
@@ -308,7 +324,7 @@
           <span class="id">#13</span>
           <span class="title">重要度の低い項目</span>
           <span class="state">backlog</span>
-          <span class="caret">›</span>
+          <span class="caret"></span>
         </summary>
         <div class="body">
           <p>短い項目は本文一段でよい。</p>

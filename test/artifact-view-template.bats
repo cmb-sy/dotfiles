@@ -58,10 +58,65 @@ print(','.join(sorted(missing)) if missing else 'OK')
     [ "$status" -eq 0 ]
 }
 
-@test "基準の文字サイズは 18px" {
-    run grep -cF 'font-size: 18px' "$TPL"
+@test "基準の文字サイズは 19px 以上" {
+    run grep -cE 'font-size: (19|2[0-9])px' "$TPL"
     [ "$status" -eq 0 ]
     [ "$output" -ge 1 ]
+}
+
+@test "地色が純白ではない（画面の最大輝度を避ける）" {
+    # Pure white is the brightest the display can go, and is what makes a page
+    # feel glaring in a dim room.
+    run python3 -c "
+import re
+s = open('$TPL', encoding='utf-8').read()
+block = re.search(r':root\s*\{(.*?)\}', s, re.S).group(1)
+g = dict(re.findall(r'(--[a-z-]+)\s*:\s*(#[0-9a-fA-F]{6})', block))['--ground']
+
+def lum(h):
+    c = [int(h[i:i+2], 16) / 255 for i in (1, 3, 5)]
+    c = [(x / 12.92 if x <= 0.03928 else ((x + 0.055) / 1.055) ** 2.4) for x in c]
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+
+print('OK' if lum(g) <= 0.92 else f'{lum(g)*100:.0f}%>92%')
+"
+    [ "$status" -eq 0 ]
+    [ "$output" = "OK" ]
+}
+
+@test "本文のコントラストが高すぎない（ハレーションを避ける）" {
+    # Contrast is not a "higher is better" axis. Black on white is 21:1 and the
+    # glyphs bloom; body text is held inside 10-13:1, past AAA but short of the
+    # range that strains. Checked in both themes.
+    run python3 -c "
+import re
+s = open('$TPL', encoding='utf-8').read()
+
+def lum(h):
+    c = [int(h[i:i+2], 16) / 255 for i in (1, 3, 5)]
+    c = [(x / 12.92 if x <= 0.03928 else ((x + 0.055) / 1.055) ** 2.4) for x in c]
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+
+def ratio(a, b):
+    la, lb = lum(a), lum(b)
+    return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
+
+bad = []
+for name, pat in (('light', r':root\s*\{(.*?)\}'),
+                  ('dark', r':root\[data-theme=\"dark\"\]\s*\{(.*?)\}')):
+    tok = dict(re.findall(r'(--[a-z-]+)\s*:\s*(#[0-9a-fA-F]{6})',
+                          re.search(pat, s, re.S).group(1)))
+    r = ratio(tok['--ground'], tok['--ink'])
+    if not 10.0 <= r <= 13.5:
+        bad.append(f'{name}={r:.2f}')
+print(','.join(bad) if bad else 'OK')
+"
+    [ "$status" -eq 0 ]
+    [ "$output" = "OK" ]
+}
+
+@test "アニメーションを持たない（追視の負担を作らない）" {
+    [ "$(grep -cE 'transition:|animation:' "$TPL")" -eq 0 ]
 }
 
 @test "ページ幅は 82rem" {
@@ -70,9 +125,9 @@ print(','.join(sorted(missing)) if missing else 'OK')
     [ "$output" -ge 1 ]
 }
 
-@test "文章の行長が 42em で止まっている" {
+@test "文章の行長が 36em で止まっている" {
     # The wide layout is for columns of information, not long lines of text.
-    run grep -cF '42em' "$TPL"
+    run grep -cF '36em' "$TPL"
     [ "$status" -eq 0 ]
     [ "$output" -ge 1 ]
 }
