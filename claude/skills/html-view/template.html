@@ -248,13 +248,76 @@
   }
   pre code { font-size: .82rem; color: var(--dim); }
 
-  /* Wide content always scrolls inside its own box, never the page body. */
+  /* ---- Tables ----
+     For anything with two or more axes: prose describing a grid of values makes
+     the reader rebuild the grid in their head. Wide tables scroll inside their
+     own box, never the page body. */
   .scroll-x { overflow-x: auto; }
-  table { border-collapse: collapse; font-size: .95rem; }
-  th, td { text-align: left; padding: .5rem .9rem; border-bottom: 1px solid var(--rule-soft); }
-  th { font-family: var(--mono); font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); font-weight: 400; }
+  table { border-collapse: collapse; font-size: .95rem; width: 100%; }
+  caption {
+    text-align: left;
+    font-family: var(--mono);
+    font-size: .72rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--faint);
+    padding-bottom: .5rem;
+  }
+  th, td { text-align: left; padding: .55rem .9rem; border-bottom: 1px solid var(--rule-soft); vertical-align: baseline; }
+  thead th { border-bottom: 1px solid var(--rule); }
+  th {
+    font-family: var(--mono);
+    font-size: .72rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--faint);
+    font-weight: 400;
+    white-space: nowrap;
+  }
   td { color: var(--dim); }
-  .num { font-variant-numeric: tabular-nums; text-align: right; }
+  td:first-child { color: var(--ink); }
+  /* Digits only line up in a column when they are tabular. */
+  .num { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+  .good { color: var(--sev-low); }
+  .warn { color: var(--sev-mid); }
+  .bad  { color: var(--sev-high); }
+
+  /* ---- Flow: boxes joined by arrows ----
+     For sequence and dependency, where the shape is the message: "A must
+     happen before B" is a picture, and a sentence makes the reader draw it.
+     Plain CSS, so it prints and needs no script. */
+  figure { margin: 0; display: flex; flex-direction: column; gap: .6rem; }
+  figcaption {
+    font-family: var(--mono);
+    font-size: .72rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+  .flow { display: flex; flex-wrap: wrap; align-items: center; gap: .55rem; }
+  .flow.down { flex-direction: column; align-items: flex-start; }
+  .flow .step {
+    border: 1px solid var(--rule);
+    background: var(--sunken);
+    padding: .5rem .85rem;
+    font-size: .92rem;
+    line-height: 1.5;
+    color: var(--ink);
+  }
+  /* A blocked or failing node carries the severity hue on its left edge, the
+     same signal the rows use. */
+  .flow .step.blocked { border-left: 3px solid var(--sev-high); }
+  .flow .step.pending { border-left: 3px solid var(--sev-mid); }
+  .flow .step.done    { border-left: 3px solid var(--sev-low); }
+  .flow .arrow { font-family: var(--mono); color: var(--faint); font-size: .95rem; }
+  .flow .label { font-family: var(--mono); font-size: .72rem; color: var(--faint); }
+
+  /* Inline SVG is the escape hatch for a diagram the boxes cannot express.
+     Drive its colours from the tokens so it follows the theme. */
+  svg { max-width: 100%; height: auto; }
+  svg text { font-family: var(--sans); font-size: 13px; fill: var(--ink); }
+  svg .stroke { stroke: var(--rule); fill: none; }
+  svg .fill { fill: var(--sunken); }
 
   footer {
     font-family: var(--mono);
@@ -332,6 +395,36 @@
       </details>
 
     </div>
+  </section>
+
+  <!-- 表と図の書式見本。使わないなら section ごと削除する。
+       判断基準は SKILL.md の「図と表の使い分け」に従う。 -->
+  <section>
+    <h2>見出し</h2>
+
+    <div class="scroll-x">
+      <table>
+        <caption>表の説明</caption>
+        <thead>
+          <tr><th>項目</th><th class="num">変更前</th><th class="num">変更後</th><th>判定</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>比較対象</td><td class="num">6.50</td><td class="num">10.07</td><td class="good">達成</td></tr>
+          <tr><td>比較対象</td><td class="num">5.64</td><td class="num">6.93</td><td class="warn">要注意</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <figure>
+      <figcaption>図の説明</figcaption>
+      <div class="flow">
+        <span class="step done">完了した工程</span>
+        <span class="arrow">→</span>
+        <span class="step blocked">止まっている工程</span>
+        <span class="arrow">→</span>
+        <span class="step pending">待ちの工程</span>
+      </div>
+    </figure>
   </section>
 
   <footer>

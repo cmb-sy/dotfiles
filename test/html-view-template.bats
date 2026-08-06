@@ -152,6 +152,38 @@ print(','.join(bad) if bad else 'OK')
     [ "$output" -ge 1 ]
 }
 
+@test "表の部品が揃っている（見出し・桁揃え・良否）" {
+    # A table without tabular-nums does not line its digits up, which is most of
+    # the reason to use a table for numbers at all.
+    run grep -cF 'font-variant-numeric: tabular-nums' "$TPL"
+    [ "$status" -eq 0 ]
+    run grep -cF 'caption' "$TPL"
+    [ "$status" -eq 0 ]
+    run grep -cE '\.(good|warn|bad)\s*\{' "$TPL"
+    [ "$status" -eq 0 ]
+    [ "$output" -ge 3 ]
+}
+
+@test "図の部品が揃っている（箱と矢印・状態つき）" {
+    run grep -cE '\.flow\s' "$TPL"
+    [ "$status" -eq 0 ]
+    run grep -cE '\.flow \.step\.(blocked|pending|done)' "$TPL"
+    [ "$status" -eq 0 ]
+    [ "$output" -ge 3 ]
+}
+
+@test "inline SVG がトークンで色付けされる（テーマに追従する）" {
+    run grep -cE 'svg (text|\.stroke|\.fill)' "$TPL"
+    [ "$status" -eq 0 ]
+    [ "$output" -ge 2 ]
+}
+
+@test "スクリプトに依存しない（mermaid 等を読み込まない）" {
+    # No external script can load from a local file, and vendoring a diagram
+    # library would dwarf the page it draws on.
+    [ "$(grep -ciE '<script|mermaid' "$TPL")" -eq 0 ]
+}
+
 # bats derives an internal function name by transliterating the title, and
 # non-ASCII collapses -- two titles differing only in Japanese become the same
 # identifier and the file fails to load. Hence the ASCII light/dark markers.
