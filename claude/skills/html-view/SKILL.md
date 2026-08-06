@@ -1,5 +1,5 @@
 ---
-name: artifact-view
+name: html-view
 description: >-
   情報を使い捨ての HTML ページとして見たいと明示的に頼まれたときに使う。
   「HTML で見せて」「ブラウザで見たい」「見やすくして」「さっきのページを更新して」等が該当。
@@ -10,7 +10,7 @@ argument-hint: "[--share] [見せたい内容の指定]"
 user-invocable: true
 ---
 
-# Artifact View — 使い捨て HTML で見せる
+# HTML View — 使い捨て HTML で見せる
 
 ターミナルのテキストでは読みにくい情報を、ローカルの HTML ファイルとしてブラウザに出す。同じ話題の情報が更新されたら、**新しいページを作らず同じページを同じタブで更新する**。
 
@@ -33,7 +33,7 @@ user-invocable: true
    ```bash
    D="${XDG_CACHE_HOME:-$HOME/.cache}/claude-view"
    mkdir -p "$D"
-   cp ~/dotfiles/claude/skills/artifact-view/template.html "$D/<slug>.html"
+   cp ~/dotfiles/claude/skills/html-view/template.html "$D/<slug>.html"
    ```
 2. `<slug>` は**話題ごとに安定した名前**（`harness-status.html` など）。同じ話題なら必ず同じ名前を使い回す
 3. `view-html "$D/<slug>.html"` で開く
@@ -74,7 +74,7 @@ user-invocable: true
 | 重要度 | `high` / `mid` / `low` クラスで 3px の縦線と状態ラベルに色を付ける | 1px では色が視認できない |
 | 補足テキストの色 | 主文字の 1 段下（`--dim`）まで。3 段下げない | 「文字が薄い」の主因は補足テキスト側 |
 
-**色を変えたら実測する。** 判定は `bats test/artifact-view-template.bats` が行う（本文の上下限、地色の輝度、`--dim` の AAA、アクセントと重要度の AA を検査）。手元で 1 組だけ確かめたいときは次を使う。
+**色を変えたら実測する。** 判定は `bats test/html-view-template.bats` が行う（本文の上下限、地色の輝度、`--dim` の AAA、アクセントと重要度の AA を検査）。手元で 1 組だけ確かめたいときは次を使う。
 
 ```bash
 python3 -c '

@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# The artifact-view template carries design decisions that are easy to undo by
+# The html-view template carries design decisions that are easy to undo by
 # accident -- following the OS theme, opening the details, letting prose run the
 # full page width. These check the ones that have a right answer.
 #
@@ -7,8 +7,8 @@
 # so assertions here use [ ] and grep exit status only.
 
 REPO_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
-TPL="$REPO_DIR/claude/skills/artifact-view/template.html"
-SKILL="$REPO_DIR/claude/skills/artifact-view/SKILL.md"
+TPL="$REPO_DIR/claude/skills/html-view/template.html"
+SKILL="$REPO_DIR/claude/skills/html-view/SKILL.md"
 
 @test "template.html が存在する" {
     [ -f "$TPL" ]
