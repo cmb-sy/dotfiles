@@ -165,6 +165,55 @@ print(','.join(bad) if bad else 'OK')
     [ "$output" = "OK" ]
 }
 
+@test "開いた本文が地色と別の面に見える" {
+    # A panel at 1.14:1 against the ground reads as no panel at all. The fill
+    # plus a rule is what makes it a surface, and the text on it still has to
+    # clear AAA for body copy and AA for captions.
+    run python3 -c "
+import re
+s = open('$TPL', encoding='utf-8').read()
+
+def lum(h):
+    c = [int(h[i:i+2], 16) / 255 for i in (1, 3, 5)]
+    c = [(x / 12.92 if x <= 0.03928 else ((x + 0.055) / 1.055) ** 2.4) for x in c]
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+
+def ratio(a, b):
+    la, lb = lum(a), lum(b)
+    return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
+
+body = re.search(r'\n  \.body \{(.*?)\n  \}', s, re.S).group(1)
+bad = []
+if 'background:' not in body:
+    bad.append('no background')
+if 'border' not in body:
+    bad.append('no rule')
+for name, pat in (('dark', r':root\s*\{(.*?)\n  \}'),
+                  ('light', r':root\[data-theme=\"light\"\]\s*\{(.*?)\n  \}')):
+    tok = dict(re.findall(r'(--[a-z-]+)\s*:\s*(#[0-9a-fA-F]{6})',
+                          re.search(pat, s, re.S).group(1)))
+    sep = ratio(tok['--ground'], tok['--raised'])
+    if sep < 1.15:
+        bad.append(f'{name}:sep={sep:.2f}')
+    if ratio(tok['--raised'], tok['--dim']) < 7.0:
+        bad.append(f'{name}:dim')
+    if ratio(tok['--raised'], tok['--faint']) < 4.5:
+        bad.append(f'{name}:faint')
+print(','.join(bad) if bad else 'OK')
+"
+    [ "$output" = "OK" ]
+}
+
+@test "見出しに明朝体を使わない" {
+    # Thin strokes at heading size read as washed out; one gothic family
+    # throughout also keeps a heading consistent with the text it heads.
+    # Only a declaration counts -- the comment explaining the choice names the
+    # family too, and that is not a defect.
+    [ "$(grep -cE 'font-family:[^;]*(Mincho|Yu Mincho)' "$TPL")" -eq 0 ]
+    [ "$(grep -cE '(font-family|--serif):[^;]*serif;' "$TPL" | grep -v sans-serif)" -eq 0 ]
+    [ "$(grep -cF 'var(--serif)' "$TPL")" -eq 0 ]
+}
+
 @test "重要度の縦線が 3px 以上ある" {
     run grep -cE 'width: [3-9]px' "$TPL"
     [ "$status" -eq 0 ]
