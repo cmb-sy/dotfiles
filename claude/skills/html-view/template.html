@@ -275,6 +275,22 @@
     text-wrap: pretty;
   }
 
+  /* ---- Which files a row is about ----
+     Small, faint and monospace: findable when looked for, quiet when not. Goes
+     directly under the row's opening note, before the detail. */
+  .files {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .15rem .9rem;
+    font-family: var(--mono);
+    font-size: .78rem;
+    line-height: 1.7;
+    color: var(--faint);
+    letter-spacing: 0;
+  }
+  .files b { font-weight: 400; color: var(--dim); }   /* the file being changed */
+  .files .at { color: var(--faint); }                  /* a line or symbol ref */
+
   code { font-family: var(--mono); font-size: .85em; color: var(--ink); }
   pre {
     margin: 0;
@@ -439,6 +455,10 @@
         </summary>
         <div class="body">
           <p class="note">なぜ問題なのかを一文で。事実の列挙ではなく意味を書く。</p>
+          <div class="files">
+            <span><b>path/to/edited-file.ts</b> <span class="at">:42</span></span>
+            <span><b>path/to/another.css</b></span>
+          </div>
           <ul>
             <li>根拠・実測値・欠落しているものなど</li>
           </ul>

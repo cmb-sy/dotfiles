@@ -246,6 +246,53 @@ print(','.join(bad) if bad else 'OK')
     [ "$output" -ge 3 ]
 }
 
+@test "ファイルパスの部品がある（控えめに読める）" {
+    # The first thing a reader looks for in a row is which file it is about.
+    # Small, monospace and faint: findable when looked for, quiet when not.
+    run python3 -c "
+import re
+s = open('$TPL', encoding='utf-8').read()
+m = re.search(r'\n  \.files \{(.*?)\n  \}', s, re.S)
+if not m:
+    print('missing')
+else:
+    b = m.group(1)
+    size = float(re.search(r'font-size: ([\d.]+)rem', b).group(1))
+    bad = []
+    if 'var(--mono)' not in b:
+        bad.append('not mono')
+    if 'var(--faint)' not in b:
+        bad.append('not faint')
+    if size > 0.85:
+        bad.append(f'{size}rem too large')
+    print(','.join(bad) if bad else 'OK')
+"
+    [ "$output" = "OK" ]
+}
+
+@test "図表を既定にする指針が SKILL.md にある" {
+    # Without a trigger list the rule degrades to "use them when obvious", which
+    # is where it started.
+    run grep -cF '既定を図表側に置く' "$SKILL"
+    [ "$status" -eq 0 ]
+    # The trigger table must actually list cases, not just state the principle.
+    run python3 -c "
+import re
+s = open('$SKILL', encoding='utf-8').read()
+sec = re.search(r'既定を図表側に置く.*?(?=\n情報の型)', s, re.S)
+rows = len(re.findall(r'^\| .+ \| .+ \|$', sec.group(0), re.M)) if sec else 0
+print('OK' if rows >= 6 else f'{rows} rows')
+"
+    [ "$output" = "OK" ]
+}
+
+@test "ファイルパスの規約が SKILL.md にある" {
+    run grep -cF '触ったファイルのパスを添える' "$SKILL"
+    [ "$status" -eq 0 ]
+    run grep -cF 'リポジトリ相対パス' "$SKILL"
+    [ "$status" -eq 0 ]
+}
+
 @test "図の部品が揃っている（箱と矢印・状態つき）" {
     run grep -cE '\.flow\s' "$TPL"
     [ "$status" -eq 0 ]
