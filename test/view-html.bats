@@ -56,6 +56,47 @@ teardown() {
     echo "$output" | grep -qF "a%23b.html"
 }
 
+@test "--print-url は二重引用符を %22 にエンコードする（AppleScript 文字列の脱出防止）" {
+    mv "$TMP/page.html" "$TMP/a\"b.html"
+    run "$VIEW" --print-url "$TMP/a\"b.html"
+    [ "$status" -eq 0 ]
+    echo "$output" | grep -qF "a%22b.html"
+    # A surviving raw quote would close the AppleScript string literal.
+    [ "$(echo "$output" | grep -cF '"')" -eq 0 ]
+}
+
+@test "--print-url はバックスラッシュを %5C にエンコードする" {
+    mv "$TMP/page.html" "$TMP/a\\b.html"
+    run "$VIEW" --print-url "$TMP/a\\b.html"
+    [ "$status" -eq 0 ]
+    echo "$output" | grep -qF "a%5Cb.html"
+    [ "$(echo "$output" | grep -cF '\')" -eq 0 ]
+}
+
+@test "--print-url は改行を %0A にエンコードする" {
+    printf '<title>t</title>\n' > "$TMP/$(printf 'a\nb').html"
+    run "$VIEW" --print-url "$TMP/$(printf 'a\nb').html"
+    [ "$status" -eq 0 ]
+    echo "$output" | grep -qF "a%0Ab.html"
+    # One line only: an unencoded newline would split the URL.
+    [ "$(printf '%s' "$output" | grep -c '')" -eq 1 ]
+}
+
+@test "--print-url は非 ASCII をパーセントエンコードする（ブラウザの URL 表記に合わせる）" {
+    mv "$TMP/page.html" "$TMP/日本語.html"
+    run "$VIEW" --print-url "$TMP/日本語.html"
+    [ "$status" -eq 0 ]
+    echo "$output" | grep -qF "%E6%97%A5%E6%9C%AC%E8%AA%9E.html"
+}
+
+@test "AppleScript に URL を文字列補間していない（argv 経由で渡している）" {
+    # `is "$target"` in the script text is the injection shape this must avoid.
+    [ "$(grep -cF 'is "$target"' "$VIEW")" -eq 0 ]
+    run grep -c 'item 1 of argv' "$VIEW"
+    [ "$status" -eq 0 ]
+    [ "$output" -ge 2 ]
+}
+
 @test "--print-url はブラウザを起動しない（open を呼ばない）" {
     # A stub `open` earlier on PATH would be invoked if the script fell through
     # to the launch path; the marker file proves it did not.

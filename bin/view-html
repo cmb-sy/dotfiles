@@ -33,15 +33,13 @@ file=$1
 dir=$(cd "$(dirname "$file")" && pwd)
 abs="$dir/$(basename "$file")"
 
-# Percent-encode the characters that actually break a file:// URL. Kept to a
-# small set on purpose: encoding everything would mangle the path separators.
+# Percent-encode with urllib rather than a hand-rolled substitution list. A
+# partial list is a hazard here twice over: the URL is compared against what the
+# browser reports, and a filename holding a quote or backslash would otherwise
+# reach the AppleScript source. Non-ASCII matters too -- browsers report file
+# URLs percent-encoded, so a raw Japanese path would never match a tab.
 encode() {
-    local s=$1
-    s=${s//%/%25}
-    s=${s// /%20}
-    s=${s//\#/%23}
-    s=${s//\?/%3F}
-    printf 'file://%s' "$s"
+    python3 -c 'import sys, urllib.parse; print("file://" + urllib.parse.quote(sys.argv[1]))' "$1"
 }
 url=$(encode "$abs")
 
@@ -81,51 +79,63 @@ app_for() {
 
 # Chromium and Safari expose different tab APIs, so the script differs. Both
 # return "reloaded" or "opened" on stdout; anything else means fall back.
+#
+# The URL arrives through argv, never interpolated into the script text: a
+# filename may contain a double quote, which would otherwise close the string
+# literal and let the rest of the name run as AppleScript. The app name IS
+# interpolated, but it comes from app_for()'s fixed list, and a dictionary
+# command like `reload` cannot compile against a variable application.
 chromium_script() {
     local app=$1 target=$2
-    osascript <<EOF 2>/dev/null
-tell application "$app"
-    repeat with w in windows
-        set i to 0
-        repeat with t in tabs of w
-            set i to i + 1
-            if URL of t is "$target" then
-                tell t to reload
-                set active tab index of w to i
-                set index of w to 1
-                activate
-                return "reloaded"
-            end if
+    osascript - "$target" <<EOF 2>/dev/null
+on run argv
+    set target to item 1 of argv
+    tell application "$app"
+        repeat with w in windows
+            set i to 0
+            repeat with t in tabs of w
+                set i to i + 1
+                if URL of t is target then
+                    tell t to reload
+                    set active tab index of w to i
+                    set index of w to 1
+                    activate
+                    return "reloaded"
+                end if
+            end repeat
         end repeat
-    end repeat
-    open location "$target"
-    activate
-    return "opened"
-end tell
+        open location target
+        activate
+        return "opened"
+    end tell
+end run
 EOF
 }
 
 safari_script() {
     local target=$1
-    osascript <<EOF 2>/dev/null
-tell application "Safari"
-    repeat with w in windows
-        repeat with t in tabs of w
-            if URL of t is "$target" then
-                -- Safari has no reload command for a tab; re-assigning the URL
-                -- is the documented way to refresh it.
-                set URL of t to "$target"
-                set current tab of w to t
-                set index of w to 1
-                activate
-                return "reloaded"
-            end if
+    osascript - "$target" <<'EOF' 2>/dev/null
+on run argv
+    set target to item 1 of argv
+    tell application "Safari"
+        repeat with w in windows
+            repeat with t in tabs of w
+                if URL of t is target then
+                    -- Safari has no reload command for a tab; re-assigning the
+                    -- URL is the documented way to refresh it.
+                    set URL of t to target
+                    set current tab of w to t
+                    set index of w to 1
+                    activate
+                    return "reloaded"
+                end if
+            end repeat
         end repeat
-    end repeat
-    tell window 1 to set current tab to (make new tab with properties {URL:"$target"})
-    activate
-    return "opened"
-end tell
+        tell window 1 to set current tab to (make new tab with properties {URL:target})
+        activate
+        return "opened"
+    end tell
+end run
 EOF
 }
 
