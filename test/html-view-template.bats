@@ -20,6 +20,22 @@ SKILL="$REPO_DIR/claude/skills/html-view/SKILL.md"
     [ "$output" -ge 1 ]
 }
 
+@test "対象を選択式で確定する手順がある" {
+    # Guessing what to render produces a page the user did not ask for, and the
+    # cost lands on them: they have to read it to find out it is wrong.
+    run grep -cF 'AskUserQuestion' "$SKILL"
+    [ "$status" -eq 0 ]
+    run grep -cF '直前のやり取り' "$SKILL"
+    [ "$status" -eq 0 ]
+    # The section must come before the build steps, or it gets read too late.
+    run python3 -c "
+s = open('$SKILL', encoding='utf-8').read()
+ask, build = s.find('## 対象の確定'), s.find('## 手順')
+print('OK' if 0 < ask < build else f'ask={ask} build={build}')
+"
+    [ "$output" = "OK" ]
+}
+
 @test "OS のテーマに追従しない（prefers-color-scheme の media query がない）" {
     # The machine runs the OS in dark mode; following it serves a dark page no
     # matter how far the ground is lifted. Only the at-rule is forbidden -- the
