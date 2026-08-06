@@ -140,16 +140,18 @@
     letter-spacing: .01em;
     text-wrap: balance;
   }
-  .lede { margin: 0; color: var(--dim); font-size: 1.02rem; text-wrap: pretty; }
+  .lede { margin: 0; color: var(--dim); font-size: 1.12rem; text-wrap: pretty; }
 
+  /* Section headings carry the page's structure, so they take the primary text
+     colour and a size that reads as a heading rather than a label. */
   h2 {
-    margin: 0 0 1rem;
+    margin: 0 0 1.1rem;
     font-family: var(--mono);
-    font-size: .84rem;
-    letter-spacing: .18em;
+    font-size: 1.1rem;
+    letter-spacing: .1em;
     text-transform: uppercase;
     font-weight: 600;
-    color: var(--dim);
+    color: var(--ink);
   }
 
   /* ---- Summary panel: label / marks / number ----
@@ -165,7 +167,7 @@
     border-bottom: 1px solid var(--rule-soft);
   }
   .srow:last-of-type { border-bottom: 0; }
-  .srow .label { font-size: 1rem; }
+  .srow .label { font-size: 1.05rem; }
   .marks { font-family: var(--mono); font-size: .95rem; letter-spacing: .3em; color: var(--accent); }
   .marks .off { color: var(--faint); opacity: .35; }
   .srow .n {
@@ -175,7 +177,7 @@
     color: var(--dim);
     text-align: right;
   }
-  .tally { margin: 1rem 0 0; font-size: .95rem; color: var(--dim); }
+  .tally { margin: 1rem 0 0; font-size: 1.02rem; color: var(--dim); }
   .tally b { font-family: var(--mono); font-weight: 600; color: var(--ink); }
 
   /* ---- Rows, not cards ----
@@ -254,7 +256,7 @@
     display: flex;
     flex-direction: column;
     gap: 1.2rem;
-    font-size: 1rem;
+    font-size: 1.08rem;
     line-height: 1.95;
     color: var(--dim);
   }
@@ -316,7 +318,7 @@
      the reader rebuild the grid in their head. Wide tables scroll inside their
      own box, never the page body. */
   .scroll-x { overflow-x: auto; }
-  table { border-collapse: collapse; font-size: .95rem; width: 100%; }
+  table { border-collapse: collapse; font-size: 1.02rem; width: 100%; }
   caption {
     text-align: left;
     font-family: var(--mono);
@@ -364,7 +366,7 @@
     border: 1px solid var(--rule);
     background: var(--sunken);
     padding: .5rem .85rem;
-    font-size: .92rem;
+    font-size: 1rem;
     line-height: 1.5;
     color: var(--ink);
   }

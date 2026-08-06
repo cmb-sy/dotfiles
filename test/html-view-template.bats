@@ -75,6 +75,21 @@ print(','.join(sorted(missing)) if missing else 'OK')
     [ "$status" -eq 0 ]
 }
 
+@test "説明の文字が基準サイズを下回らない" {
+    # Body copy in an opened row is the text that actually gets read; below the
+    # base size it reads as fine print.
+    run python3 -c "
+import re
+s = open('$TPL', encoding='utf-8').read()
+body = re.search(r'\n  \.body \{(.*?)\n  \}', s, re.S).group(1)
+v = float(re.search(r'font-size: ([\d.]+)rem', body).group(1))
+lede = float(re.search(r'\.lede \{[^}]*font-size: ([\d.]+)rem', s).group(1))
+bad = [n for n, x in (('body', v), ('lede', lede)) if x < 1.0]
+print(','.join(bad) if bad else 'OK')
+"
+    [ "$output" = "OK" ]
+}
+
 @test "基準の文字サイズは 19px 以上" {
     run grep -cE 'font-size: (19|2[0-9])px' "$TPL"
     [ "$status" -eq 0 ]
@@ -363,8 +378,9 @@ print('OK' if size and float(size.group(1)) >= 1.15 else 'small')
     [ "$output" = "OK" ]
 }
 
-@test "節の見出しが薄すぎない" {
-    # h2 was the faintest token at the smallest size, which reads as absent.
+@test "節の見出しが見出しとして読める（大きさと主文字色）" {
+    # h2 sets the page structure; at label size in a secondary colour it reads as
+    # absent, so it takes --ink and a heading-sized step.
     run python3 -c "
 import re
 s = open('$TPL', encoding='utf-8').read()
@@ -372,7 +388,7 @@ m = re.search(r'\n  h2 \{(.*?)\n  \}', s, re.S).group(1)
 size = float(re.search(r'font-size: ([\d.]+)rem', m).group(1))
 weight = int(re.search(r'font-weight: (\d+)', m).group(1))
 faint = '--faint' in m
-print('OK' if size >= 0.82 and weight >= 600 and not faint else f'size={size} weight={weight} faint={faint}')
+print('OK' if size >= 1.0 and weight >= 600 and '--ink' in m else f'size={size} weight={weight} ink={"--ink" in m}')
 "
     [ "$output" = "OK" ]
 }
