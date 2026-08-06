@@ -121,7 +121,7 @@
     letter-spacing: .01em;
     text-wrap: balance;
   }
-  .lede { margin: 0; color: var(--dim); font-size: 1.02rem; max-width: 30em; text-wrap: pretty; }
+  .lede { margin: 0; color: var(--dim); font-size: 1.02rem; text-wrap: pretty; }
 
   h2 {
     margin: 0 0 1rem;
@@ -236,12 +236,8 @@
     line-height: 1.95;
     color: var(--dim);
   }
-  /* Prose only. 40em is ~40 full-width characters -- long enough not to look
-     stranded on a wide page, short enough that the sweep back to the next line
-     stays easy. */
-  .body > p, .body > ul, .body > ol { max-width: 40em; }
-  /* Tables, diagrams and code are why the page is wide. Let them have it. */
-  .body > pre, .body > figure, .body > .scroll-x, .body > table { max-width: none; }
+  /* No measure cap here on purpose: prose runs the full width of the row rather
+     than wrapping into a narrow column. The page's own max-width is the bound. */
   .body p { margin: 0; }
   .body ul { margin: 0; padding-left: 1.2rem; }
   .body li { margin: .2rem 0; }

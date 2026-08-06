@@ -145,19 +145,21 @@ print('OK' if 70 <= v <= 82 else f'{v}rem')
     [ "$output" = "OK" ]
 }
 
-@test "文章の行長に上限がある（30-45em）" {
-    # In Japanese one em is one full-width character, so this is a character
-    # count. Too long and the sweep back to the next line tires the eye; too
-    # short and the text looks stranded on a wide page.
+@test "本文に行長の上限を付けない（幅いっぱいに流す）" {
+    # A capped measure left prose as a narrow column against a wide blank. The
+    # page's own max-width is the bound now, so no em cap may reappear inside
+    # .body or on .lede.
     run python3 -c "
 import re
 s = open('$TPL', encoding='utf-8').read()
-m = re.search(r'\.body > p[^{]*\{[^}]*max-width: ([\d.]+)em', s)
-if not m:
-    print('no cap')
-else:
-    v = float(m.group(1))
-    print('OK' if 30 <= v <= 45 else f'{v}em')
+bad = []
+body = re.search(r'\n  \.body \{.*?(?=\n  footer \{)', s, re.S)
+if body and re.search(r'max-width: [\d.]+em', body.group(0)):
+    bad.append('body')
+lede = re.search(r'\.lede \{[^}]*\}', s)
+if lede and re.search(r'max-width: [\d.]+em', lede.group(0)):
+    bad.append('lede')
+print(','.join(bad) if bad else 'OK')
 "
     [ "$output" = "OK" ]
 }
@@ -213,11 +215,16 @@ else:
 }
 
 @test "本文に空のカラムを作らない（幅が余って見えない）" {
-    # The old two-column body never filled its second column, so an opened row
-    # was a narrow strip of text beside a wide blank.
-    [ "$(grep -cE '\.body > \* \{ grid-column' "$TPL")" -eq 0 ]
-    run grep -cE '\.body > p, \.body > ul' "$TPL"
-    [ "$status" -eq 0 ]
+    # The old body was a two-column grid whose second column nothing ever
+    # filled, so an opened row was a narrow strip of text beside a wide blank.
+    # Checked on the declaration, not on whichever rule happened to implement it.
+    run python3 -c "
+import re
+s = open('$TPL', encoding='utf-8').read()
+body = re.search(r'\n  \.body \{(.*?)\n  \}', s, re.S).group(1)
+print('grid-columns' if 'grid-template-columns' in body else 'OK')
+"
+    [ "$output" = "OK" ]
 }
 
 @test "inline SVG がトークンで色付けされる（テーマに追従する）" {
