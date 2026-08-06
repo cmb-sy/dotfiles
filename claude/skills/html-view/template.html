@@ -2,58 +2,77 @@
 
 <style>
   /* ------------------------------------------------------------------ *
-   * Design tokens -- tuned for long reading without eye strain
+   * Design tokens -- blue-based dark, tuned for long reading
    *
-   * A light page by default, and deliberately NOT following
-   * prefers-color-scheme: this machine runs the OS in dark mode, so
-   * following it serves the dark variant no matter how far it is lifted.
-   * Dark stays available for the viewer's explicit toggle.
+   * Dark is the default here and prefers-color-scheme is deliberately not
+   * consulted: the theme is a decision, not something to inherit. Light
+   * remains on the viewer's explicit toggle.
    *
-   * Three choices here exist to reduce strain, and each looks like a
-   * mistake without the reason:
+   * Three choices exist to reduce strain, and each looks like a mistake
+   * without the reason:
    *
-   *   1. The ground is off-white, not #fff. Pure white is the maximum
-   *      luminance the display can emit and is what makes a page feel
-   *      glaring in a dim room.
-   *   2. Text is dark grey, not black. Pure black on pure white is 21:1,
-   *      and that much contrast produces halation -- the glyphs bloom and
-   *      leave afterimages. Body text is held near 12:1: well past AAA
-   *      (7:1) but short of the range that strains.
-   *   3. Hues lean warm and the accent is desaturated. Blue focuses less
-   *      precisely than red or green (chromatic aberration), so blue-heavy
-   *      light makes the eye keep hunting for focus.
+   *   1. Text is off-white, never #fff, and the ground is never #000 or
+   *      #fff either. Pure black on pure white is 21:1, and that much
+   *      contrast makes glyphs bloom and leave afterimages. Body text is
+   *      held inside 10-13:1 -- well past AAA (7:1), short of the range
+   *      that strains -- in both themes.
+   *   2. The ground carries the blue, the text does not. Blue focuses less
+   *      precisely than red or green (chromatic aberration), so a blue-heavy
+   *      *emitting* surface makes the eye hunt; a dark blue ground emits
+   *      little, while near-neutral text stays easy to resolve.
+   *   3. Secondary text sits one step below primary, not three. Washed-out
+   *      supporting text is the usual reason a page reads as faint.
    * ------------------------------------------------------------------ */
   :root {
-    --ground:    #f0eee8;   /* 86% luminance, not 100% */
-    --raised:    #e7e4db;   /* hover, panels above the ground */
-    --sunken:    #f6f4ef;   /* code blocks, the summary panel */
-    --rule:      #d4d0c5;
-    --rule-soft: #e2ded4;
-    --ink:       #2c2b31;   /* primary text, ~12:1 -- not black */
-    --dim:       #4a4854;   /* secondary text, one step down, not three */
-    --faint:     #676473;   /* labels, captions */
-    --accent:    #5b3ba6;
-    --sev-high:  #a5284a;
-    --sev-mid:   #775310;
-    --sev-low:   #1b6a4b;
+    --ground:    #161d2f;
+    --raised:    #1f283e;   /* hover, panels above the ground */
+    --sunken:    #111726;   /* code blocks, the summary panel */
+    --rule:      #33405c;
+    --rule-soft: #26314a;
+    --ink:       #dbe2f0;   /* primary text, ~13:1 -- not white */
+    --dim:       #b0bad0;   /* secondary text, one step down */
+    --faint:     #8290ab;   /* labels, captions */
+    --accent:    #7fb0ff;
+    --sev-high:  #ff8a9d;
+    --sev-mid:   #f2c266;
+    --sev-low:   #5fd6a8;
+
+    /* Syntax tokens. Highlighting is baked into the markup at build time --
+       no script can load from a local file, and a page that needs one to be
+       readable is worse than a page with plain code. */
+    --tok-comment: #7c8ba8;
+    --tok-string:  #8bd6a4;
+    --tok-keyword: #b39bff;
+    --tok-number:  #f0b57a;
+    --tok-name:    #7fc7ff;
+    --tok-type:    #f2d98a;
+    --tok-punct:   #9aa7c2;
 
     --serif: "Hiragino Mincho ProN", "Yu Mincho", Georgia, serif;
     --sans: "Hiragino Sans", "Yu Gothic", -apple-system, sans-serif;
     --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
   }
-  :root[data-theme="dark"] {
-    --ground:    #23222b;
-    --raised:    #2c2b35;
-    --sunken:    #1c1b23;
-    --rule:      #45434f;
-    --rule-soft: #35333d;
-    --ink:       #dedae4;   /* not white, for the same reason */
-    --dim:       #b8b3c0;
-    --faint:     #8f8a99;
-    --accent:    #b9a3e8;
-    --sev-high:  #e89aa8;
-    --sev-mid:   #d9b978;
-    --sev-low:   #8fd3b4;
+  :root[data-theme="light"] {
+    --ground:    #f7f8fc;
+    --raised:    #eceff7;
+    --sunken:    #f1f3fa;
+    --rule:      #c9d0e2;
+    --rule-soft: #dee3ef;
+    --ink:       #2a3140;   /* ~12:1, for the same reason as the dark side */
+    --dim:       #3b4356;
+    --faint:     #5a6273;
+    --accent:    #2b53b8;
+    --sev-high:  #b81f42;
+    --sev-mid:   #7d5600;
+    --sev-low:   #106b4c;
+
+    --tok-comment: #5c6780;
+    --tok-string:  #106b4c;
+    --tok-keyword: #6b3fd0;
+    --tok-number:  #9a5000;
+    --tok-name:    #1e5aa8;
+    --tok-type:    #7a5a00;
+    --tok-punct:   #4a5468;
   }
 
   body {
@@ -260,6 +279,15 @@
     line-height: 1.75;
   }
   pre code { font-size: .82rem; color: var(--dim); }
+  /* Emitted by bin/highlight-code. Absent classes just inherit, so an
+     unhighlighted block stays readable rather than turning invisible. */
+  pre code .c { color: var(--tok-comment); font-style: italic; }
+  pre code .s { color: var(--tok-string); }
+  pre code .k { color: var(--tok-keyword); }
+  pre code .m { color: var(--tok-number); }
+  pre code .n { color: var(--tok-name); }
+  pre code .t { color: var(--tok-type); }
+  pre code .o { color: var(--tok-punct); }
 
   /* ---- Tables ----
      For anything with two or more axes: prose describing a grid of values makes

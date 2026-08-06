@@ -43,8 +43,9 @@ print('OK' if 0 < ask < build else f'ask={ask} build={build}')
     [ "$(grep -cE '@media[^{]*prefers-color-scheme' "$TPL")" -eq 0 ]
 }
 
-@test "ダークは data-theme のトグルで用意されている" {
-    run grep -cF ':root[data-theme="dark"]' "$TPL"
+@test "ライトは data-theme のトグルで用意されている" {
+    # Dark is the default; light stays reachable but is not inherited from the OS.
+    run grep -cF ':root[data-theme="light"]' "$TPL"
     [ "$status" -eq 0 ]
     [ "$output" -ge 1 ]
 }
@@ -53,7 +54,7 @@ print('OK' if 0 < ask < build else f'ask={ask} build={build}')
     run python3 -c "
 import re, sys
 s = open('$TPL', encoding='utf-8').read()
-blocks = re.findall(r':root(?:\[data-theme=\"dark\"\])?\s*\{(.*?)\}', s, re.S)
+blocks = re.findall(r':root(?:\[data-theme=\"light\"\])?\s*\{(.*?)\}', s, re.S)
 sets = [set(re.findall(r'(--[a-z-]+)\s*:', b)) for b in blocks[:2]]
 light, dark = sets[0], sets[1]
 missing = (light - {'--serif', '--sans', '--mono'}) - dark
@@ -80,9 +81,9 @@ print(','.join(sorted(missing)) if missing else 'OK')
     [ "$output" -ge 1 ]
 }
 
-@test "地色が純白ではない（画面の最大輝度を避ける）" {
-    # Pure white is the brightest the display can go, and is what makes a page
-    # feel glaring in a dim room.
+@test "地色が純白でも純黒でもない" {
+    # Pure white is the brightest the display can emit; pure black maximises the
+    # ratio against any text on it. Both ends are where halation lives.
     run python3 -c "
 import re
 s = open('$TPL', encoding='utf-8').read()
@@ -94,7 +95,7 @@ def lum(h):
     c = [(x / 12.92 if x <= 0.03928 else ((x + 0.055) / 1.055) ** 2.4) for x in c]
     return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
 
-print('OK' if lum(g) <= 0.92 else f'{lum(g)*100:.0f}%>92%')
+print('OK' if 0.002 <= lum(g) <= 0.92 else f'{lum(g)*100:.2f}%')
 "
     [ "$status" -eq 0 ]
     [ "$output" = "OK" ]
@@ -118,8 +119,8 @@ def ratio(a, b):
     return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
 
 bad = []
-for name, pat in (('light', r':root\s*\{(.*?)\}'),
-                  ('dark', r':root\[data-theme=\"dark\"\]\s*\{(.*?)\}')):
+for name, pat in (('dark', r':root\s*\{(.*?)\}'),
+                  ('light', r':root\[data-theme=\"light\"\]\s*\{(.*?)\}')):
     tok = dict(re.findall(r'(--[a-z-]+)\s*:\s*(#[0-9a-fA-F]{6})',
                           re.search(pat, s, re.S).group(1)))
     r = ratio(tok['--ground'], tok['--ink'])
@@ -280,6 +281,56 @@ print('OK' if size >= 0.82 and weight >= 600 and not faint else f'size={size} we
     [ "$output" = "OK" ]
 }
 
+@test "コードの色がトークンで定義され、両テーマで読める" {
+    # Highlighting is baked into the markup, so the colours are ordinary tokens
+    # and have to clear AA against the code block's own ground, not the page's.
+    run python3 -c "
+import re
+s = open('$TPL', encoding='utf-8').read()
+
+def lum(h):
+    c = [int(h[i:i+2], 16) / 255 for i in (1, 3, 5)]
+    c = [(x / 12.92 if x <= 0.03928 else ((x + 0.055) / 1.055) ** 2.4) for x in c]
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+
+def ratio(a, b):
+    la, lb = lum(a), lum(b)
+    return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
+
+bad = []
+for name, pat in (('dark', r':root\s*\{(.*?)\n  \}'),
+                  ('light', r':root\[data-theme=\"light\"\]\s*\{(.*?)\n  \}')):
+    tok = dict(re.findall(r'(--[a-z-]+)\s*:\s*(#[0-9a-fA-F]{6})',
+                          re.search(pat, s, re.S).group(1)))
+    toks = [k for k in tok if k.startswith('--tok-')]
+    if len(toks) < 7:
+        bad.append(f'{name}:only {len(toks)} tokens')
+        continue
+    for k in toks:
+        r = ratio(tok['--sunken'], tok[k])
+        if r < 4.5:
+            bad.append(f'{name}:{k}={r:.2f}')
+print(','.join(bad) if bad else 'OK')
+"
+    [ "$output" = "OK" ]
+}
+
+@test "コードの色クラスが highlight-code の出力と一致する" {
+    # The CSS names and the generator's class names are two lists that must
+    # agree; if they drift the page renders code with no colour at all.
+    run python3 -c "
+import re, subprocess
+css = set(re.findall(r'pre code \.([a-z]) \{', open('$TPL', encoding='utf-8').read()))
+out = subprocess.run(['$REPO_DIR/bin/highlight-code', '--lang', 'python'],
+                     input='# c\nx = \"s\"\nif 1: pass\n',
+                     capture_output=True, text=True).stdout
+emitted = set(re.findall(r'class=\"([a-z])\"', out))
+missing = emitted - css
+print(','.join(sorted(missing)) if missing else 'OK')
+"
+    [ "$output" = "OK" ]
+}
+
 @test "スクリプトに依存しない（mermaid 等を読み込まない）" {
     # No external script can load from a local file, and vendoring a diagram
     # library would dwarf the page it draws on.
@@ -289,7 +340,7 @@ print('OK' if size >= 0.82 and weight >= 600 and not faint else f'size={size} we
 # bats derives an internal function name by transliterating the title, and
 # non-ASCII collapses -- two titles differing only in Japanese become the same
 # identifier and the file fails to load. Hence the ASCII light/dark markers.
-@test "light テーマの文字コントラストが WCAG を満たす" {
+@test "dark テーマの文字コントラストが WCAG を満たす（既定）" {
     run python3 -c "
 import re
 s = open('$TPL', encoding='utf-8').read()
@@ -321,11 +372,11 @@ print(','.join(bad) if bad else 'OK')
     [ "$output" = "OK" ]
 }
 
-@test "dark テーマの文字コントラストも WCAG を満たす" {
+@test "light テーマの文字コントラストも WCAG を満たす（トグル）" {
     run python3 -c "
 import re
 s = open('$TPL', encoding='utf-8').read()
-block = re.search(r':root\[data-theme=\"dark\"\]\s*\{(.*?)\}', s, re.S).group(1)
+block = re.search(r':root\[data-theme=\"light\"\]\s*\{(.*?)\}', s, re.S).group(1)
 tok = dict(re.findall(r'(--[a-z-]+)\s*:\s*(#[0-9a-fA-F]{6})', block))
 
 def lum(h):

@@ -1,0 +1,117 @@
+#!/usr/bin/env python3
+"""Wrap code in span classes so an html-view page can colour it.
+
+No script can load from a local file, so highlighting has to be in the markup
+before the page is opened -- and a page that needs JavaScript to be readable is
+worse than a page with plain code.
+
+Reads code on stdin, writes HTML on stdout. The class names are single letters
+matching the CSS in claude/skills/html-view/template.html:
+
+    c comment   s string   k keyword   m number
+    n name      t type     o operator/punctuation
+
+Everything else is emitted unclassed, so it inherits the block's colour rather
+than disappearing. If pygments is missing or the language is unknown, the code
+comes back escaped but unhighlighted -- degraded, never broken, because a failed
+highlight must not cost the page its content.
+
+    highlight-code --lang terraform < portal.tf
+    pbpaste | highlight-code --lang python
+    highlight-code --list | grep -i terra
+"""
+
+import argparse
+import html
+import sys
+
+
+# Pygments splits tokens far finer than a page needs. Longest prefix wins, so
+# Comment.Preproc lands on 'c' without being listed.
+TOKEN_CLASSES = [
+    ("Comment", "c"),
+    ("Literal.String", "s"),
+    ("String", "s"),
+    ("Literal.Number", "m"),
+    ("Number", "m"),
+    ("Keyword", "k"),
+    ("Operator", "o"),
+    ("Punctuation", "o"),
+    ("Name.Builtin", "t"),
+    ("Name.Class", "t"),
+    ("Name.Decorator", "t"),
+    ("Name.Function", "n"),
+    ("Name.Tag", "n"),
+    ("Name.Attribute", "n"),
+    ("Name.Variable", "n"),
+    ("Generic.Emph", "c"),
+]
+
+
+def class_for(token_type) -> str:
+    name = str(token_type).removeprefix("Token.")
+    best = ""
+    for prefix, cls in TOKEN_CLASSES:
+        if (name == prefix or name.startswith(prefix + ".")) and len(prefix) > len(best):
+            best, result = prefix, cls
+    return result if best else ""
+
+
+def plain(code: str) -> str:
+    return html.escape(code, quote=False)
+
+
+def highlight(code: str, lang: str) -> str:
+    try:
+        from pygments import lex
+        from pygments.lexers import get_lexer_by_name
+        from pygments.util import ClassNotFound
+    except ImportError:
+        return plain(code)
+
+    try:
+        lexer = get_lexer_by_name(lang, stripnl=False, ensurenl=False)
+    except ClassNotFound:
+        print(f"highlight-code: unknown language {lang!r}, emitting plain",
+              file=sys.stderr)
+        return plain(code)
+
+    out = []
+    for token_type, value in lex(code, lexer):
+        if not value:
+            continue
+        escaped = html.escape(value, quote=False)
+        cls = class_for(token_type)
+        # Whitespace inside a span is invisible either way; leaving it bare
+        # keeps the markup readable when someone views the page source.
+        out.append(f'<span class="{cls}">{escaped}</span>'
+                   if cls and value.strip() else escaped)
+    return "".join(out)
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(add_help=True, description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--lang", default="text",
+                    help="language name as pygments knows it (see --list)")
+    ap.add_argument("--list", action="store_true",
+                    help="print the language names available and exit")
+    args = ap.parse_args()
+
+    if args.list:
+        try:
+            from pygments.lexers import get_all_lexers
+        except ImportError:
+            sys.exit("highlight-code: pygments is not installed")
+        for name, aliases, _, _ in sorted(get_all_lexers()):
+            print(f"{aliases[0] if aliases else '?':<20} {name}")
+        return
+
+    code = sys.stdin.read()
+    if not code:
+        return
+    sys.stdout.write(highlight(code, args.lang))
+
+
+if __name__ == "__main__":
+    main()
