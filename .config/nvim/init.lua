@@ -9,6 +9,18 @@
 -- Must precede lazy.nvim: plugin specs capture the leader when they register
 -- their keys, so setting it later leaves those mappings on the old prefix.
 vim.g.mapleader = " "
+-- Cmd+/ toggles the comment on the line or selection. The terminal cannot send
+-- Cmd+/, so Ghostty translates it to CSI 21;3~ (alt+F10) -- chosen because herdr
+-- forwards F1..F12 chords and drops F13+. Neovim renames a modified function key
+-- into the extended range, and that sequence arrives as <F58>: measured, not
+-- guessed, because <M-F10> silently matches nothing.
+-- gc/gcc are built into Neovim 0.10+, so there is no plugin behind this.
+vim.keymap.set("n", "<F58>", "gcc", { remap = true, desc = "Toggle comment (Cmd+/)" })
+vim.keymap.set("x", "<F58>", "gc", { remap = true, desc = "Toggle comment (Cmd+/)" })
+-- <C-o> runs one normal-mode command and returns to insert, so typing continues
+-- where it left off.
+vim.keymap.set("i", "<F58>", "<C-o>gcc", { remap = true, desc = "Toggle comment (Cmd+/)" })
+
 vim.g.maplocalleader = " "
 
 vim.o.number = true      -- line numbers
@@ -428,7 +440,21 @@ require("lazy").setup({
     keys = {
       { "<leader>?", function() require("which-key").show({ global = true }) end, desc = "Show every key" },
     },
-    opts = { preset = "helix" },
+    opts = {
+      preset = "helix",
+      -- The helix preset caps the window at 30-60 columns with almost no
+      -- padding, which is a hint strip rather than something to read. User opts
+      -- are merged after the preset, so these win. Values under 1 are a
+      -- fraction of the screen.
+      win = {
+        width = { min = 58, max = 0.7 },
+        height = { min = 14, max = 0.8 },
+        padding = { 1, 3 },
+        border = "rounded",
+        title_pos = "left",
+      },
+      layout = { width = { min = 46 }, spacing = 4 },
+    },
   },
   {
     -- Jumping to a file by name beats walking a tree once a repo is large,

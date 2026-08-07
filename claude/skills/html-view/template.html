@@ -277,6 +277,33 @@
     text-wrap: pretty;
   }
 
+  /* ---- The five things every item has to answer ----
+     Slots, not prose: a missing one leaves a visible gap, so it cannot be
+     skipped quietly the way a paragraph can omit a point. Order is fixed --
+     you cannot judge a choice before you know what it does, and you cannot
+     tell a decision from a default until you see what else was on the table. */
+  .aspects {
+    display: grid;
+    grid-template-columns: 9.5rem minmax(0, 1fr);
+    gap: .5rem 1.4rem;
+    margin: 0;
+    align-items: baseline;
+  }
+  .aspects dt {
+    font-family: var(--mono);
+    font-size: .8rem;
+    letter-spacing: .06em;
+    color: var(--faint);
+    padding-top: .15rem;
+  }
+  .aspects dd { margin: 0; }
+  /* The consequence slot is the one readers act on, so it keeps primary ink. */
+  .aspects dd.breaks { color: var(--ink); }
+  @media (max-width: 60rem) {
+    .aspects { grid-template-columns: 1fr; gap: .1rem; }
+    .aspects dd { padding-bottom: .5rem; }
+  }
+
   /* ---- Which files a row is about ----
      Small, faint and monospace: findable when looked for, quiet when not. Goes
      directly under the row's opening note, before the detail. */
@@ -460,6 +487,36 @@
           <div class="files">
             <span><b>path/to/edited-file.ts</b> <span class="at">:42</span></span>
             <span><b>path/to/another.css</b></span>
+          </div>
+          <dl class="aspects">
+            <dt>前提</dt>
+            <dd>読者が知らないと話が始まらない概念。専門用語は初出時に一言注釈を付ける。</dd>
+            <dt>実装</dt>
+            <dd>実際に何をしているか。ファイル名・関数名・既定値まで下ろす。</dd>
+            <dt>なぜこの選択か</dt>
+            <dd>他の道がある中でこれを選んだ理由。</dd>
+            <dt>無いと壊れるもの</dt>
+            <dd class="breaks">これが欠けたとき何が起きるか。具体的な事象で書く。</dd>
+            <dt>採らなかった案</dt>
+            <dd>他に何があり、なぜ選ばなかったか。2 つ以上あるなら下の表にする。</dd>
+          </dl>
+          <div class="scroll-x">
+            <table>
+              <caption>採らなかった案</caption>
+              <thead><tr><th>案</th><th>難点</th></tr></thead>
+              <tbody>
+                <tr><td>代替案</td><td>なぜ採らなかったか</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="scroll-x">
+            <table>
+              <caption>想定される反論</caption>
+              <thead><tr><th>反論</th><th class="num">数字</th><th>回答</th></tr></thead>
+              <tbody>
+                <tr><td>コストが増えないか</td><td class="num">+$0</td><td>無料枠に収まる根拠</td></tr>
+              </tbody>
+            </table>
           </div>
           <ul>
             <li>根拠・実測値・欠落しているものなど</li>
