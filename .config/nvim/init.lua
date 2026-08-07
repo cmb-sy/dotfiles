@@ -59,19 +59,31 @@ local ime = { label = "", busy = false }
 local IME_POLL_INSERT_MS = 400
 local IME_POLL_IDLE_MS = 2000
 
+local function ime_redraw()
+  -- redrawstatus alone marks the line dirty and leaves the paint sitting until
+  -- something else flushes it, so the ruler can sit on the previous value until
+  -- the next change. Asking for the flush explicitly is what makes the label
+  -- follow a switch made while the editor is idle.
+  if not pcall(vim.api.nvim__redraw, { statusline = true, flush = true }) then
+    vim.cmd("redrawstatus!")
+  end
+end
+
 local function ime_refresh()
   if ime.busy then return end
   ime.busy = true
-  vim.system({ "input-source", "--label" }, { text = true }, function(res)
+  -- If the spawn fails synchronously the callback never runs, and a busy flag
+  -- left standing would silence every later poll -- the indicator would freeze
+  -- on whatever it last showed, which is the failure that looks like it works.
+  local ok = pcall(vim.system, { "input-source", "--label" }, { text = true }, function(res)
     ime.busy = false
     local out = (res.stdout or ""):gsub("%s+", "")
     if out ~= "" and out ~= ime.label then
       ime.label = out
-      -- The ruler is only repainted on demand; without this the label lags a
-      -- keystroke behind the actual state.
-      vim.schedule(function() vim.cmd("redrawstatus!") end)
+      vim.schedule(ime_redraw)
     end
   end)
+  if not ok then ime.busy = false end
 end
 
 -- Japanese is the state worth shouting about: it is the one that makes Esc feed

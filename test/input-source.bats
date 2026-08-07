@@ -142,6 +142,84 @@ print(','.join(problems) if problems else 'OK')
     [ "$output" = "OK" ]
 }
 
+@test "IME を切り替えると画面の表示が追従する" {
+    # The end-to-end behaviour, and the only test that would have caught the two
+    # bugs here: a busy flag left standing silences every later poll, and a
+    # repaint that is never flushed leaves the ruler on the previous value.
+    #
+    # Run under tmux because a pty's byte stream cannot answer "what is on
+    # screen" -- Neovim sends differential updates, so an unchanged cell is
+    # never re-sent and a time-sliced scan of the stream misses it.
+    if ! command -v tmux >/dev/null 2>&1; then skip "tmux が無い環境"; fi
+    SCREEN="$REPO_DIR/test/helpers/tmux-screen.sh"
+    SESSION="ime-bats-$$"
+    before=$("$IS")
+    printf 'local x = 1\n' > "$BATS_TEST_TMPDIR/t.lua"
+
+    label_now() {
+        "$SCREEN" grab "$SESSION" | grep -oE '[Aあカ]  [0-9]+,[0-9]+' | tail -1 | cut -c1
+    }
+
+    "$IS" --set com.apple.keylayout.ABC
+    "$SCREEN" start "$SESSION" "nvim $BATS_TEST_TMPDIR/t.lua"
+    sleep 4
+    first=$(label_now)
+
+    # Switched from outside, with no keystroke sent: the indicator has to notice
+    # on its own, which is the whole point of polling.
+    "$IS" --set com.apple.inputmethod.Kotoeri.RomajiTyping.Japanese
+    sleep 4
+    second=$(label_now)
+
+    "$IS" --set com.apple.keylayout.ABC
+    sleep 4
+    third=$(label_now)
+
+    "$SCREEN" stop "$SESSION"
+    "$IS" --set "$before"
+
+    [ "$first" = "A" ]
+    [ "$second" = "あ" ]
+    [ "$third" = "A" ]
+}
+
+@test "spawn に失敗しても busy が残らない" {
+    # A busy flag that sticks freezes the indicator on its last value, which
+    # looks like it is working. Checked structurally because the failing spawn
+    # cannot be provoked from outside.
+    run python3 -c "
+import re
+s = open('$REPO_DIR/.config/nvim/init.lua', encoding='utf-8').read()
+fn = re.search(r'local function ime_refresh\\((.*?)\\nend', s, re.S).group(1)
+bad = []
+if 'pcall(vim.system' not in fn:
+    bad.append('spawn not guarded')
+# Cleared on the failure path as well as in the callback.
+if fn.count('ime.busy = false') < 2:
+    bad.append('busy cleared only once')
+print(','.join(bad) if bad else 'OK')
+"
+    [ "$output" = "OK" ]
+}
+
+@test "再描画が端末へ flush される" {
+    # redrawstatus marks the line dirty and leaves the paint sitting; without an
+    # explicit flush the ruler shows the previous value until something else
+    # repaints.
+    run python3 -c "
+import re
+s = open('$REPO_DIR/.config/nvim/init.lua', encoding='utf-8').read()
+fn = re.search(r'local function ime_redraw\\((.*?)\\nend', s, re.S)
+if not fn:
+    print('no ime_redraw')
+else:
+    body = fn.group(1)
+    ok = 'flush = true' in body and 'pcall' in body and 'redrawstatus' in body
+    print('OK' if ok else 'missing flush or fallback')
+"
+    [ "$output" = "OK" ]
+}
+
 @test "ポーリングが止まらない（編集中でなくても更新される）" {
     # The source can be switched from normal mode too, and a stale indicator is
     # worse than none: it says "A" while the next key produces あ. So the timer
