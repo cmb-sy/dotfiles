@@ -9,6 +9,56 @@
 -- Must precede lazy.nvim: plugin specs capture the leader when they register
 -- their keys, so setting it later leaves those mappings on the old prefix.
 vim.g.mapleader = " "
+-- ---------------------------------------------------------------------------
+-- IME indicator in the ruler
+--
+-- Neovim cannot see the input method: it sits above the terminal and hands down
+-- finished characters, so the editor cannot tell whether the next keystroke will
+-- produce "a" or "あ". bin/input-source asks the OS.
+--
+-- Polled, not watched, because there is no event to subscribe to from inside a
+-- terminal. The call costs ~35ms, so it only runs while it can change something:
+-- in insert mode, and once when entering or leaving it. Idle cost is zero.
+-- ---------------------------------------------------------------------------
+local ime = { label = "", busy = false }
+
+local function ime_refresh()
+  if ime.busy then return end
+  ime.busy = true
+  vim.system({ "input-source", "--label" }, { text = true }, function(res)
+    ime.busy = false
+    local out = (res.stdout or ""):gsub("%s+", "")
+    if out ~= "" and out ~= ime.label then
+      ime.label = out
+      -- The ruler is only repainted on demand; without this the label lags a
+      -- keystroke behind the actual state.
+      vim.schedule(function() vim.cmd("redrawstatus!") end)
+    end
+  end)
+end
+
+_G.ime_label = function()
+  return ime.label
+end
+
+vim.api.nvim_create_autocmd({ "InsertEnter", "InsertLeave", "FocusGained" }, {
+  callback = ime_refresh,
+  desc = "Refresh the IME indicator when the state can have changed",
+})
+
+local ime_timer = vim.uv.new_timer()
+ime_timer:start(400, 400, function()
+  -- Only insert mode can change it from the keyboard, so polling elsewhere
+  -- spends 35ms of process startup to learn nothing.
+  if vim.fn.mode():find("^i") then vim.schedule(ime_refresh) end
+end)
+
+-- %= pushes the rest to the right edge; the width is fixed so the ruler does not
+-- jump between one-cell "A" and two-cell "あ".
+vim.o.ruler = true
+vim.o.rulerformat = "%28(%=%{v:lua.ime_label()} %l,%c%V %P%)"
+ime_refresh()
+
 -- Cmd+/ toggles the comment on the line or selection. The terminal cannot send
 -- Cmd+/, so Ghostty translates it to CSI 21;3~ (alt+F10) -- chosen because herdr
 -- forwards F1..F12 chords and drops F13+. Neovim renames a modified function key

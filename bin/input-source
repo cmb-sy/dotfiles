@@ -1,0 +1,39 @@
+#!/bin/bash
+# Run input-source.swift as a compiled binary, building it on first use.
+#
+# `#!/usr/bin/swift` recompiles on every invocation -- about 2.4s here -- so a
+# status line that polls it would stall the editor. Compiling once and caching
+# takes the same call down to milliseconds.
+#
+# The cache is keyed on the source's mtime, so editing the .swift rebuilds it
+# without any manual step.
+
+set -euo pipefail
+
+src="${BASH_SOURCE[0]%/*}/input-source.swift"
+cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/dotfiles-bin"
+bin="$cache_dir/input-source"
+
+needs_build=false
+if [[ ! -x $bin ]]; then
+    needs_build=true
+elif [[ $src -nt $bin ]]; then
+    needs_build=true
+fi
+
+if $needs_build; then
+    mkdir -p "$cache_dir"
+    # Build beside the target and move into place, so a concurrent caller never
+    # execs a half-written binary.
+    tmp=$(mktemp "$cache_dir/.input-source.XXXXXX")
+    if ! swiftc -O -o "$tmp" "$src" 2>"$tmp.log"; then
+        echo "input-source: build failed" >&2
+        cat "$tmp.log" >&2
+        rm -f "$tmp" "$tmp.log"
+        exit 1
+    fi
+    rm -f "$tmp.log"
+    mv -f "$tmp" "$bin"
+fi
+
+exec "$bin" "$@"
