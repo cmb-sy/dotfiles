@@ -93,7 +93,19 @@ setopt interactive_comments # Allow `#` comments on the command line
 # ----------------------------------------------------------
 # Completion styling
 # ----------------------------------------------------------
-autoload -Uz compinit && compinit
+# compinit audits every directory in $fpath for unsafe permissions, and that
+# audit is half the shell's startup time (34ms of 50ms here). The dump file
+# records when it last ran; auditing once a day keeps the check while paying for
+# it once, and -C on the other runs skips straight to loading the dump.
+autoload -Uz compinit
+_zcompdump="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/zcompdump-${ZSH_VERSION}"
+mkdir -p "${_zcompdump:h}"
+if [[ -n ${_zcompdump}(#qN.mh-24) ]]; then
+  compinit -C -d "$_zcompdump"      # audited within the day: load the dump
+else
+  compinit -d "$_zcompdump"         # stale or missing: full audit, rewrite it
+fi
+unset _zcompdump
 zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'       # Case-insensitive
 zstyle ':completion:*:default' menu select=2              # Arrow-key menu
 zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"   # Colored listings

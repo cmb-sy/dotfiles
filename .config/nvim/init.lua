@@ -152,6 +152,11 @@ vim.api.nvim_create_autocmd("VimLeavePre", {
 
 -- %= pushes the group to the right edge. The width is generous so a two-cell
 -- label and its padding never squeeze the line and column readout.
+-- The default 4s makes anything on CursorHold -- inline blame, diagnostics --
+-- look like it is not working. This also sets how often the swap file is
+-- written, which is a benefit rather than a cost.
+vim.o.updatetime = 250
+
 vim.o.ruler = true
 vim.o.rulerformat = "%32(%=%{%v:lua.ime_ruler()%} %l,%c%V %P%)"
 ime_refresh()
@@ -618,6 +623,11 @@ require("lazy").setup({
     },
     opts = {
       preset = "helix",
+      -- The popup exists to be read while deciding, so waiting before showing it
+      -- only makes the decision slower. The default holds it back 200ms to stay
+      -- out of the way of people who already know the key -- but those people
+      -- have finished typing before it appears either way.
+      delay = 0,
       -- The helix preset caps the window at 30-60 columns with almost no
       -- padding, which is a hint strip rather than something to read. User opts
       -- are merged after the preset, so these win. Values under 1 are a

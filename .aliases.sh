@@ -33,6 +33,12 @@ alias dimg='docker images'
 # taking over the current one (terminal/herdr/config.toml).
 alias lg='lazygit'
 
+# nvim, and nvim on the current directory. The dot is part of the alias name,
+# so `nv.` needs no space -- which is the point, since `nvim .` is the way the
+# tree gets opened and it is typed constantly.
+alias nv='nvim'
+alias nv.='nvim .' 
+
 # ----------------------------------------------------------
 # Terminal workspace
 # ----------------------------------------------------------
