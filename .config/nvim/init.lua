@@ -15,11 +15,19 @@ vim.g.mapleader = " "
 -- into the extended range, and that sequence arrives as <F58>: measured, not
 -- guessed, because <M-F10> silently matches nothing.
 -- gc/gcc are built into Neovim 0.10+, so there is no plugin behind this.
-vim.keymap.set("n", "<F58>", "gcc", { remap = true, desc = "Toggle comment (Cmd+/)" })
-vim.keymap.set("x", "<F58>", "gc", { remap = true, desc = "Toggle comment (Cmd+/)" })
+--
+-- Two keys, because two paths deliver it. Ghostty's own binding wins once its
+-- config is reloaded and sends the chord; until then, and in any terminal
+-- speaking the kitty keyboard protocol, Cmd+/ arrives as <D-/> directly. Both
+-- names are measured through a pty, and an unmapped <D-/> types itself into the
+-- buffer, so leaving it out is visible rather than merely inert.
 -- <C-o> runs one normal-mode command and returns to insert, so typing continues
 -- where it left off.
-vim.keymap.set("i", "<F58>", "<C-o>gcc", { remap = true, desc = "Toggle comment (Cmd+/)" })
+for _, key in ipairs({ "<F58>", "<D-/>" }) do
+  vim.keymap.set("n", key, "gcc", { remap = true, desc = "Toggle comment (Cmd+/)" })
+  vim.keymap.set("x", key, "gc", { remap = true, desc = "Toggle comment (Cmd+/)" })
+  vim.keymap.set("i", key, "<C-o>gcc", { remap = true, desc = "Toggle comment (Cmd+/)" })
+end
 
 vim.g.maplocalleader = " "
 

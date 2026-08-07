@@ -73,26 +73,29 @@ font-codepoint-map = U+3400-U+4DBF,U+20000-U+2A6DF=HackGen
 # the mapping, which would have shown as boxes for exactly the file types that
 # happened to fall in the gaps.
 #   regenerate: see the derivation in git history for this file
+# Both ends of a range need the U+ prefix. Ghostty rejects U+E000-E00A and
+# drops the whole line, so the mapping silently does nothing; run
+# `ghostty +validate-config` after editing these.
 font-family = FiraCode Nerd Font
-font-codepoint-map = U+E000-E00A,U+E0A0-E0D4,U+E200-E2A9,U+E21C,U+E271=FiraCode Nerd Font
-font-codepoint-map = U+E28B-E28C,U+E2A6,U+E300-E3E3,U+E5FA-E6B7,U+E600-E6B8=FiraCode Nerd Font
-font-codepoint-map = U+E700-E8EF,U+E702-E7BA,U+E80F-E81E,U+E838-E865,U+E8B3=FiraCode Nerd Font
-font-codepoint-map = U+E8D1-E8D9,U+E8EB,U+EA60-EC1E,U+EAC4,U+EAE8-EAEB=FiraCode Nerd Font
-font-codepoint-map = U+EB9C,U+EBC6-EBC8,U+EBE8-EBF6,U+ED00-EFCE,U+EDCA=FiraCode Nerd Font
-font-codepoint-map = U+EDFE,U+EE72,U+EEB6,U+EEF6,U+F000-F2FF=FiraCode Nerd Font
-font-codepoint-map = U+F001-F005,U+F019,U+F031,U+F054,U+F06D-F076=FiraCode Nerd Font
-font-codepoint-map = U+F0AD,U+F0C6,U+F0EC-F108,U+F129,U+F15B=FiraCode Nerd Font
-font-codepoint-map = U+F179-F17C,U+F1AB-F1B2,U+F1D8,U+F20E,U+F23E=FiraCode Nerd Font
-font-codepoint-map = U+F296,U+F2B8,U+F2D0,U+F2EC-F381,U+F300-F375=FiraCode Nerd Font
-font-codepoint-map = U+F400-F533,U+F410,U+F423,U+F462,U+F487-F49B=FiraCode Nerd Font
-font-codepoint-map = U+F4AE,U+F0001-F1AF0,U+F006F,U+F00A8-F00BA,U+F019A-F01A7=FiraCode Nerd Font
-font-codepoint-map = U+F0219-F022C,U+F02A2,U+F031B-F0331,U+F035B,U+F042B-F0431=FiraCode Nerd Font
+font-codepoint-map = U+E000-U+E00A,U+E0A0-U+E0D4,U+E200-U+E2A9,U+E21C,U+E271=FiraCode Nerd Font
+font-codepoint-map = U+E28B-U+E28C,U+E2A6,U+E300-U+E3E3,U+E5FA-U+E6B7,U+E600-U+E6B8=FiraCode Nerd Font
+font-codepoint-map = U+E700-U+E8EF,U+E702-U+E7BA,U+E80F-U+E81E,U+E838-U+E865,U+E8B3=FiraCode Nerd Font
+font-codepoint-map = U+E8D1-U+E8D9,U+E8EB,U+EA60-U+EC1E,U+EAC4,U+EAE8-U+EAEB=FiraCode Nerd Font
+font-codepoint-map = U+EB9C,U+EBC6-U+EBC8,U+EBE8-U+EBF6,U+ED00-U+EFCE,U+EDCA=FiraCode Nerd Font
+font-codepoint-map = U+EDFE,U+EE72,U+EEB6,U+EEF6,U+F000-U+F2FF=FiraCode Nerd Font
+font-codepoint-map = U+F001-U+F005,U+F019,U+F031,U+F054,U+F06D-U+F076=FiraCode Nerd Font
+font-codepoint-map = U+F0AD,U+F0C6,U+F0EC-U+F108,U+F129,U+F15B=FiraCode Nerd Font
+font-codepoint-map = U+F179-U+F17C,U+F1AB-U+F1B2,U+F1D8,U+F20E,U+F23E=FiraCode Nerd Font
+font-codepoint-map = U+F296,U+F2B8,U+F2D0,U+F2EC-U+F381,U+F300-U+F375=FiraCode Nerd Font
+font-codepoint-map = U+F400-U+F533,U+F410,U+F423,U+F462,U+F487-U+F49B=FiraCode Nerd Font
+font-codepoint-map = U+F4AE,U+F0001-U+F1AF0,U+F006F,U+F00A8-U+F00BA,U+F019A-U+F01A7=FiraCode Nerd Font
+font-codepoint-map = U+F0219-U+F022C,U+F02A2,U+F031B-U+F0331,U+F035B,U+F042B-U+F0431=FiraCode Nerd Font
 font-codepoint-map = U+F0483,U+F04C6,U+F04D9,U+F0565,U+F057C=FiraCode Nerd Font
-font-codepoint-map = U+F05C0-F05CA,U+F0627,U+F0673,U+F06A9,U+F06D3-F06E2=FiraCode Nerd Font
-font-codepoint-map = U+F0718-F072B,U+F07D4-F07E2,U+F0858-F0868,U+F08C7,U+F08E8=FiraCode Nerd Font
-font-codepoint-map = U+F099D,U+F0A0A-F0A16,U+F0AAE,U+F0BC4,U+F0CB9=FiraCode Nerd Font
+font-codepoint-map = U+F05C0-U+F05CA,U+F0627,U+F0673,U+F06A9,U+F06D3-U+F06E2=FiraCode Nerd Font
+font-codepoint-map = U+F0718-U+F072B,U+F07D4-U+F07E2,U+F0858-U+F0868,U+F08C7,U+F08E8=FiraCode Nerd Font
+font-codepoint-map = U+F099D,U+F0A0A-U+F0A16,U+F0AAE,U+F0BC4,U+F0CB9=FiraCode Nerd Font
 font-codepoint-map = U+F0DD6,U+F0EBE,U+F0EEB,U+F1049,U+F1106=FiraCode Nerd Font
-font-codepoint-map = U+F111B,U+F121A,U+F125F,U+F13FF,U+F1997-F1998=FiraCode Nerd Font
+font-codepoint-map = U+F111B,U+F121A,U+F125F,U+F13FF,U+F1997-U+F1998=FiraCode Nerd Font
 
 # ---------------------------------------------------------------------------
 # Window

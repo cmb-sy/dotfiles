@@ -49,18 +49,47 @@ INIT="$REPO_DIR/.config/nvim/init.lua"
         *)      expect="UNMEASURED" ;;
     esac
     [ "$expect" != "UNMEASURED" ]
+    # Presence only: whether all three modes are covered is checked live below,
+    # against the running editor rather than against the shape of the source.
     run grep -cF "\"$expect\"" "$INIT"
     [ "$status" -eq 0 ]
-    [ "$output" -ge 3 ]
+    [ "$output" -ge 1 ]
 }
 
-@test "コメント切替が normal / visual / insert の3モードにある" {
+@test "コメント切替が両経路 x 3モードにある" {
+    # Two delivery paths: Ghostty's chord once its config is reloaded, and the
+    # kitty keyboard protocol's <D-/> otherwise. An unmapped <D-/> types itself
+    # into the buffer, so a gap here is worse than inert.
     run bash -c "nvim --headless -c 'redir! > $BATS_TEST_TMPDIR/m.txt' \
-        -c 'silent map <F58>' -c 'silent map! <F58>' -c 'redir END' -c 'qa' 2>&1"
+        -c 'silent map <F58>' -c 'silent map! <F58>' \
+        -c 'silent map <D-/>' -c 'silent map! <D-/>' -c 'redir END' -c 'qa' 2>&1"
     [ "$status" -eq 0 ]
-    grep -qE '^n +<F58>' "$BATS_TEST_TMPDIR/m.txt"
-    grep -qE '^x +<F58>' "$BATS_TEST_TMPDIR/m.txt"
-    grep -qE '^i +<F58>' "$BATS_TEST_TMPDIR/m.txt"
+    for mode in n x i; do
+        grep -qE "^$mode +<F58>" "$BATS_TEST_TMPDIR/m.txt"
+        grep -qE "^$mode +<D-/>" "$BATS_TEST_TMPDIR/m.txt"
+    done
+}
+
+@test "Ghostty の設定に検証エラーがない" {
+    # An invalid value is dropped with a warning nobody reads, and the setting
+    # then does nothing at all -- which is how 19 font-codepoint-map lines sat
+    # rejected while looking correct.
+    G="/Applications/Ghostty.app/Contents/MacOS/ghostty"
+    command -v ghostty >/dev/null 2>&1 && G=ghostty
+    if [ ! -x "$G" ] && ! command -v ghostty >/dev/null 2>&1; then
+        skip "ghostty が無い環境"
+    fi
+    run bash -c "'$G' +validate-config 2>&1 | grep -c 'invalid value'"
+    [ "$output" -eq 0 ]
+}
+
+@test "font-codepoint-map の範囲が両端に U+ を持つ" {
+    # Ghostty rejects U+E000-E00A; the end of a range needs the prefix too.
+    CFG="$REPO_DIR/terminal/ghostty/config"
+    [ "$(grep -cE 'font-codepoint-map = .*U\+[0-9A-Fa-f]+-[0-9A-Fa-f]+' "$CFG")" -eq 0 ]
+    run grep -cE 'font-codepoint-map = .*U\+[0-9A-Fa-f]+-U\+[0-9A-Fa-f]+' "$CFG"
+    [ "$status" -eq 0 ]
+    [ "$output" -ge 15 ]
 }
 
 @test "init.lua がエラーなく読み込まれる" {
