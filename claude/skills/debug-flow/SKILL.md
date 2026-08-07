@@ -147,13 +147,13 @@ Phase 8: Integrate ────────────── worktrunk:worktrun
 
 ## Audit Gate Protocol
 
-各フェーズ完了後に Audit Gate を実行する。以下はクイックリファレンス。完全な仕様は `./references/audit-gate-protocol.md` を参照。
+各フェーズ完了後に Audit Gate を実行する。以下はクイックリファレンス。完全な仕様は `../_shared/audit-gate-protocol.md` を参照。
 
 ### 共通手順（全フェーズ共通）
 1. 成果物パスを `artifacts` に記録
 2. `./done-criteria/phase-N-{name}.md` を Read で読み込む
 3. Evidence Plan が存在する場合、該当アクティビティの collection 要件が Executor に注入済みか確認
-4. Audit Agent を起動（`--swarm` 有効時は Audit Team。詳細は後述「Audit Team」セクション + `./references/audit-gate-protocol.md` セクション 2, 10 参照）
+4. Audit Agent を起動（`--swarm` 有効時は Audit Team。詳細は後述「Audit Team」セクション + `../_shared/audit-gate-protocol.md` セクション 2, 10 参照）
 5. 返却値の JSON 有効性を検証（不正なら1回再起動、2回目不正で PAUSE）
 6. verdict に基づき遷移:
    - PASS: quality_warnings をユーザーに提示し、`observations[]` を `project-state.json` の `phase_observations[]` に追記し、次フェーズへ
@@ -162,7 +162,7 @@ Phase 8: Integrate ────────────── worktrunk:worktrun
    - FAIL + attempt >= max_retries: 累積診断レポート提示 → PAUSE
 
 ### Audit Team（`--swarm` 有効時）
-`--swarm` 有効時、inspection 基準を含む Phase 1-7 の Audit Gate をエージェントチーム（3メンバー: automated-verifier, inspection-verifier, evidence-verifier）で実行する。メンバー間で findings を相互検証し、合意した verdict を返却する。Phase 8 は automated のみのため単一エージェント。詳細は `./references/audit-gate-protocol.md` セクション 10 を参照。
+`--swarm` 有効時、inspection 基準を含む Phase 1-7 の Audit Gate をエージェントチーム（3メンバー: automated-verifier, inspection-verifier, evidence-verifier）で実行する。メンバー間で findings を相互検証し、合意した verdict を返却する。Phase 8 は automated のみのため単一エージェント。詳細は `../_shared/audit-gate-protocol.md` セクション 10 を参照。
 
 ### Phase 8: Audit Gate Lite
 Phase 8 は Agent を起動せず、`./done-criteria/phase-8-integrate.md` の基準をオーケストレーターが直接検証。
@@ -181,7 +181,7 @@ Phase 6/7 でコード変更がある場合、Phase 6/7 の Audit Gate の前に
 4. /code-review（または /test-review）を再実行
 5. findings があれば修正 → Step 2 に戻る
 6. findings がなければ Phase 6/7 Audit Gate へ
-詳細は `./references/audit-gate-protocol.md` セクション 8 を参照。
+詳細は `../_shared/audit-gate-protocol.md` セクション 8 を参照。
 
 ## Phase Details
 
