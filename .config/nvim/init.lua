@@ -334,6 +334,23 @@ end
 
 vim.keymap.set("n", "<leader>m", _G.toggle_memo, { desc = "Memo (toggle)" })
 
+-- The vim basics, reachable from the popup so they can be found without knowing
+-- them first. Ordinary keymaps rather than which-key spec entries: which-key
+-- reads a keymap's desc on its own, and these then work even if the popup does
+-- not appear.
+for _, m in ipairs({
+  { "i", "i", "入力を始める" },
+  { "w", "<Cmd>write<CR>", "保存" },
+  { "q", "<Cmd>quit<CR>", "閉じる" },
+  { "x", "<Cmd>wq<CR>", "保存して閉じる" },
+  { "d", "<Cmd>quit!<CR>", "保存せず捨てる" },
+  { "a", "<Cmd>qall<CR>", "全部閉じる（ツリーも一緒に）" },
+  { "u", "u", "元に戻す" },
+  { "r", "<C-r>", "やり直す" },
+}) do
+  vim.keymap.set("n", "<leader>v" .. m[1], m[2], { desc = m[3] })
+end
+
 -- Turns preview on for the tree, and gives it somewhere to draw. Global so the
 -- plugin spec's event handler and the window-enter autocmd share one copy.
 --
@@ -615,6 +632,40 @@ require("lazy").setup({
         row = _G.float_style.row,
       },
       layout = { width = { min = 46 }, spacing = 4 },
+      -- The popup is the only cheatsheet that appears without being asked for,
+      -- so the vim basics live here too rather than only in the memo.
+      --
+      -- Two kinds of entry. Under <leader>v are the ones worth running from a
+      -- prefix -- save, quit, undo -- which execute when pressed. The rest are
+      -- descriptions attached to built-in keys: pressing hjkl through a
+      -- three-key prefix would be absurd, but naming them means "Show every
+      -- key" reads as a reference instead of a list of raw keycaps.
+      spec = {
+        -- The runnable ones are real keymaps set below, so they exist whether
+        -- or not which-key gets around to processing this spec; only the group
+        -- label comes from here.
+        { "<leader>v", group = "vim コマンド" },
+
+        -- Built-in keys, described rather than remapped.
+        { "i", desc = "入力を始める", mode = "n" },
+        { "a", desc = "カーソルの次から入力", mode = "n" },
+        { "o", desc = "下に行を足して入力", mode = "n" },
+        { "u", desc = "元に戻す", mode = "n" },
+        { "x", desc = "1 文字消す", mode = "n" },
+        { "dd", desc = "1 行消す", mode = "n" },
+        { "yy", desc = "1 行コピー", mode = "n" },
+        { "p", desc = "貼り付け", mode = "n" },
+        { "w", desc = "次の単語へ", mode = "n" },
+        { "b", desc = "前の単語へ", mode = "n" },
+        { "0", desc = "行頭へ", mode = "n" },
+        { "$", desc = "行末へ", mode = "n" },
+        { "gg", desc = "ファイル先頭へ", mode = "n" },
+        { "G", desc = "ファイル末尾へ", mode = "n" },
+        { "%", desc = "対応する括弧へ", mode = "n" },
+        { "/", desc = "検索", mode = "n" },
+        { "n", desc = "次の検索結果", mode = "n" },
+        { "gc", desc = "コメント切替（Cmd+/ と同じ）", mode = { "n", "x" } },
+      },
     },
   },
   {

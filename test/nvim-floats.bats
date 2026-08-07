@@ -13,6 +13,25 @@
 
 REPO_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
 
+# Opening the real memo.md leaves a swap file behind if the editor is killed,
+# and that swap then blocks the user's own session with E325. An isolated state
+# directory per test keeps the suite out of the way.
+setup() {
+    export XDG_STATE_HOME="$BATS_TEST_TMPDIR/state"
+    mkdir -p "$XDG_STATE_HOME"
+}
+
+# Runs a lua snippet in the real config and returns what it wrote. Written to a
+# file rather than inlined: the snippet passes through bats, bash and -c
+# quoting, and escaping quotes across all three is how the last two versions of
+# these tests broke.
+run_lua() {
+    printf '%s\n' "$1" > "$BATS_TEST_TMPDIR/snippet.lua"
+    nvim --headless -c 'Lazy! load which-key.nvim' \
+         -c "luafile $BATS_TEST_TMPDIR/snippet.lua" -c 'qa!' 2>&1
+    cat "$BATS_TEST_TMPDIR/out.txt" 2>/dev/null
+}
+
 # Runs lua in the real config and writes each returned line to a file.
 nvim_lua() {
     nvim --headless -c 'Lazy! load which-key.nvim' -c "lua $1" -c 'qa!' 2>&1
@@ -120,5 +139,67 @@ nvim_lua() {
       ' -c 'qa!' 2>&1"
     [ "$status" -eq 0 ]
     run cat "$BATS_TEST_TMPDIR/b.txt"
+    [ "$output" = "OK" ]
+}
+
+@test "popup に vim コマンドが並ぶ" {
+    # The popup is the only cheatsheet that appears without being asked for, so
+    # the basics have to be reachable from it. Real keymaps, not which-key spec
+    # entries -- the spec is processed lazily and the mappings did not exist
+    # when this was written that way.
+    run run_lua '
+local want = { i = "入力", w = "保存", q = "閉じる", u = "元に戻す", r = "やり直す" }
+local got, bad = {}, {}
+for _, m in ipairs(vim.api.nvim_get_keymap("n")) do
+  local k = m.lhs:match("^ v(.)$")
+  if k then got[k] = m.desc or "" end
+end
+for k, frag in pairs(want) do
+  if not got[k] then
+    bad[#bad + 1] = "missing " .. k
+  elseif not got[k]:find(frag, 1, true) then
+    bad[#bad + 1] = k .. "=" .. got[k]
+  end
+end
+vim.fn.writefile({ #bad == 0 and "OK" or table.concat(bad, ",") }, vim.env.BATS_TEST_TMPDIR .. "/out.txt")
+'
+    [ "$output" = "OK" ]
+}
+
+@test "popup の vim コマンドに日本語の説明が付いている" {
+    # A keymap without desc shows as a raw rhs in the popup, which teaches
+    # nothing -- the point of listing them is that they are readable.
+    run run_lua '
+local bad = {}
+for _, m in ipairs(vim.api.nvim_get_keymap("n")) do
+  if m.lhs:match("^ v.$") then
+    local d = m.desc or ""
+    -- A multibyte character means it was written for a reader, not copied
+    -- from the right-hand side.
+    if not d:find("[\128-\255]") then bad[#bad + 1] = m.lhs .. "=" .. d end
+  end
+end
+vim.fn.writefile({ #bad == 0 and "OK" or table.concat(bad, ",") }, vim.env.BATS_TEST_TMPDIR .. "/out.txt")
+'
+    [ "$output" = "OK" ]
+}
+
+@test "組み込みキーの説明が which-key に登録されている" {
+    # hjkl and dd cannot be run through a three-key prefix, so they are
+    # described rather than remapped: "Show every key" then reads as a reference
+    # instead of a list of raw keycaps.
+    run python3 -c "
+import re
+s = open('$REPO_DIR/.config/nvim/init.lua', encoding='utf-8').read()
+spec = re.search(r'spec = \{(.*?)\n      \},', s, re.S)
+if not spec:
+    print('no spec')
+else:
+    body = spec.group(1)
+    # A description-only entry has no rhs: { \"dd\", desc = ... }
+    described = re.findall(r'\{ \"([^\"]+)\", desc = ', body)
+    missing = [k for k in ('dd', 'yy', 'gg', 'w', 'b') if k not in described]
+    print(','.join(missing) if missing else 'OK')
+"
     [ "$output" = "OK" ]
 }
