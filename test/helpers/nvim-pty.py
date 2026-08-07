@@ -22,7 +22,10 @@ import os
 import pty
 import re
 import select
+import shutil
+import signal
 import sys
+import tempfile
 import time
 
 # Written by a real terminal in response to Neovim's startup queries.
@@ -50,12 +53,45 @@ ESCAPES = re.compile(
 ERROR_PATTERN = re.compile(r"E\d{3,4}:|Lua callback|stack traceback|Error executing")
 
 
+def reap(pid: int, fd: int) -> None:
+    """Wait briefly, then kill. A blocking waitpid hangs forever when Neovim
+    refuses to quit -- a modified buffer, a prompt -- and a hung test is worse
+    than a failing one, because nothing says which test it was."""
+    deadline = time.time() + 3
+    while time.time() < deadline:
+        try:
+            done, _ = os.waitpid(pid, os.WNOHANG)
+        except ChildProcessError:
+            return
+        if done:
+            return
+        time.sleep(0.1)
+    for sig in (signal.SIGTERM, signal.SIGKILL):
+        try:
+            os.kill(pid, sig)
+        except ProcessLookupError:
+            return
+        time.sleep(0.3)
+        try:
+            done, _ = os.waitpid(pid, os.WNOHANG)
+            if done:
+                return
+        except ChildProcessError:
+            return
+
+
 def run(target: str, keys: list[str], dwell: float) -> dict:
+    # An isolated state directory, so a killed run cannot leave a swap file
+    # behind that then blocks the real editor with E325 the next time the same
+    # file is opened. Undo history and shada are separated for the same reason.
+    state = tempfile.mkdtemp(prefix="nvim-pty-state-")
+
     pid, fd = pty.fork()
     if pid == 0:
         os.environ["TERM"] = "xterm-256color"
         os.environ["LINES"] = "24"
         os.environ["COLUMNS"] = "100"
+        os.environ["XDG_STATE_HOME"] = state
         os.execvp("nvim", ["nvim", target])
 
     buf = bytearray()
@@ -89,11 +125,9 @@ def run(target: str, keys: list[str], dwell: float) -> dict:
     drain(0.8)
     os.write(fd, b":qa!\r")
     drain(1.5)
+    reap(pid, fd)
 
-    try:
-        os.waitpid(pid, 0)
-    except ChildProcessError:
-        pass
+    shutil.rmtree(state, ignore_errors=True)
 
     text = ESCAPES.sub("", buf.decode("utf-8", "replace"))
     return {"errors": sorted(set(ERROR_PATTERN.findall(text))), "text": text}

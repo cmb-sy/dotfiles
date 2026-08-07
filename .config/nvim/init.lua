@@ -10,6 +10,40 @@
 -- their keys, so setting it later leaves those mappings on the old prefix.
 vim.g.mapleader = " "
 -- ---------------------------------------------------------------------------
+-- Floating window style
+--
+-- Every float this config opens -- the memo, the keymap popup -- reads from
+-- here, so the two cannot drift into looking like different applications.
+-- Plugins that draw their own float get pointed at the same highlight groups.
+-- ---------------------------------------------------------------------------
+_G.float_style = {
+  border = "rounded",
+  title_pos = "center",
+  -- Centred, so a float always appears in the same place whichever one it is.
+  col = 0.5,
+  row = 0.5,
+  -- Breathing room inside the border: { vertical, horizontal }.
+  padding = { 1, 3 },
+}
+
+local function float_highlights()
+  -- A plugin with its own groups renders in its own colours as soon as a theme
+  -- defines them differently. Linking keeps one source of truth.
+  for _, pair in ipairs({
+    { "WhichKeyNormal", "NormalFloat" },
+    { "WhichKeyBorder", "FloatBorder" },
+    { "WhichKeyTitle", "FloatTitle" },
+  }) do
+    vim.api.nvim_set_hl(0, pair[1], { link = pair[2] })
+  end
+end
+float_highlights()
+vim.api.nvim_create_autocmd("ColorScheme", {
+  callback = float_highlights,
+  desc = "Keep plugin floats on the shared float colours after a theme change",
+})
+
+-- ---------------------------------------------------------------------------
 -- IME indicator in the ruler
 --
 -- Neovim cannot see the input method: it sits above the terminal and hands down
@@ -266,15 +300,18 @@ function _G.toggle_memo()
     relative = "editor",
     width = width,
     height = height,
-    row = math.floor((vim.o.lines - height) / 2 - 1),
-    col = math.floor((vim.o.columns - width) / 2),
-    border = "rounded",
+    row = math.floor((vim.o.lines - height) * _G.float_style.row - 1),
+    col = math.floor((vim.o.columns - width) * _G.float_style.col),
+    border = _G.float_style.border,
     title = " memo ",
-    title_pos = "center",
+    title_pos = _G.float_style.title_pos,
   })
   vim.wo[memo_win].number = false
   vim.wo[memo_win].signcolumn = "no"
   vim.wo[memo_win].wrap = true
+  -- nvim_open_win has no padding option, so the horizontal breathing room the
+  -- popup gets from its layout is drawn as an empty gutter here instead.
+  vim.wo[memo_win].statuscolumn = string.rep(" ", _G.float_style.padding[2])
 
   -- Space is the only way out, so the memo cannot be dismissed by reflex while
   -- reading it. Buffer-local and normal-mode only, so space still types a
@@ -559,9 +596,11 @@ require("lazy").setup({
       win = {
         width = { min = 58, max = 0.7 },
         height = { min = 14, max = 0.8 },
-        padding = { 1, 3 },
-        border = "rounded",
-        title_pos = "left",
+        padding = _G.float_style.padding,
+        border = _G.float_style.border,
+        title_pos = _G.float_style.title_pos,
+        col = _G.float_style.col,
+        row = _G.float_style.row,
       },
       layout = { width = { min = 46 }, spacing = 4 },
     },
