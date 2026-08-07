@@ -109,7 +109,7 @@ IS="$REPO_DIR/bin/input-source"
         -c 'lua vim.fn.writefile({ vim.o.rulerformat, tostring(vim.o.ruler) }, \"$BATS_TEST_TMPDIR/rf.txt\")' \
         -c 'qa' 2>&1"
     [ "$status" -eq 0 ]
-    grep -qF 'v:lua.ime_label()' "$BATS_TEST_TMPDIR/rf.txt"
+    grep -qF 'v:lua.ime_ruler()' "$BATS_TEST_TMPDIR/rf.txt"
     # %= right-aligns it, so the label sits at the bottom right rather than
     # pushing the line/column readout around.
     grep -qF '%=' "$BATS_TEST_TMPDIR/rf.txt"
@@ -142,23 +142,83 @@ print(','.join(problems) if problems else 'OK')
     [ "$output" = "OK" ]
 }
 
-@test "ポーリングが insert の間だけ動く" {
-    # Outside insert nothing on the keyboard can change the IME, so a poll there
-    # spends process startup to learn nothing. Checked as a property -- the timer
-    # is started and stopped by the mode's own events -- rather than by naming
-    # whichever call implements it; the previous version of this test asserted
-    # the presence of vim.fn.mode(), which was the bug.
+@test "ポーリングが止まらない（編集中でなくても更新される）" {
+    # The source can be switched from normal mode too, and a stale indicator is
+    # worse than none: it says "A" while the next key produces あ. So the timer
+    # never stops -- it only changes interval, fast where it matters.
     run python3 -c "
 import re
 s = open('$REPO_DIR/.config/nvim/init.lua', encoding='utf-8').read()
 bad = []
-if not re.search(r'InsertEnter.*?ime_timer:start', s, re.S):
-    bad.append('not started on InsertEnter')
-if not re.search(r'InsertLeave.*?ime_timer:stop', s, re.S):
-    bad.append('not stopped on InsertLeave')
+if not re.search(r'InsertEnter.*?ime_poll_every\\(IME_POLL_INSERT_MS\\)', s, re.S):
+    bad.append('no fast interval on InsertEnter')
+if not re.search(r'InsertLeave.*?ime_poll_every\\(IME_POLL_IDLE_MS\\)', s, re.S):
+    bad.append('no idle interval on InsertLeave')
+# Started once at load, so it runs before any mode change happens.
+if not re.search(r'ime_refresh\\(\\)\\nime_poll_every\\(IME_POLL_IDLE_MS\\)', s):
+    bad.append('not started at load')
+# Only shutdown may stop it outright.
+stops = re.findall(r'ime_timer:stop\\(\\)', s)
+if len(stops) != 2:
+    bad.append(f'{len(stops)} stop calls (expect retime + VimLeavePre)')
 print(','.join(bad) if bad else 'OK')
 "
     [ "$output" = "OK" ]
+}
+
+@test "insert のほうが間隔が短い" {
+    run python3 -c "
+import re
+s = open('$REPO_DIR/.config/nvim/init.lua', encoding='utf-8').read()
+ins = int(re.search(r'IME_POLL_INSERT_MS = (\\d+)', s).group(1))
+idle = int(re.search(r'IME_POLL_IDLE_MS = (\\d+)', s).group(1))
+print('OK' if ins < idle and idle <= 3000 else f'insert={ins} idle={idle}')
+"
+    [ "$output" = "OK" ]
+}
+
+@test "ラベルが色付きブロックで描画される" {
+    # A terminal cannot make one element's font bigger, so prominence comes from
+    # colour and padding. Asserted on the rendered string rather than on how the
+    # concatenation is written -- checking for a literal '" "' passed nothing and
+    # failed the moment the spaces moved inside the adjacent literals.
+    run bash -c "nvim --headless \
+        -c 'lua vim.fn.writefile({ _G.ime_ruler(\"あ\"), _G.ime_ruler(\"A\"), _G.ime_ruler(\"\") }, \"$BATS_TEST_TMPDIR/r.txt\")' \
+        -c 'qa' 2>&1"
+    [ "$status" -eq 0 ]
+    run python3 -c "
+lines = open('$BATS_TEST_TMPDIR/r.txt', encoding='utf-8').read().splitlines()
+ja, alpha, empty = lines[0], lines[1], lines[2] if len(lines) > 2 else ''
+bad = []
+# Japanese is the loud one: it is the state that makes Esc feed commands to the
+# input method.
+if '%#IMEJapanese#' not in ja:
+    bad.append('ja not highlighted')
+if '%#IMEAlpha#' not in alpha:
+    bad.append('alpha not highlighted')
+for name, text, ch in (('ja', ja, 'あ'), ('alpha', alpha, 'A')):
+    if ' ' + ch + ' ' not in text:
+        bad.append(name + ' not padded')
+    if not text.endswith('%*'):
+        bad.append(name + ' highlight not closed')
+# Nothing to show yet must render nothing, not an empty coloured block.
+if empty != '':
+    bad.append('empty label renders ' + repr(empty))
+print(','.join(bad) if bad else 'OK')
+"
+    [ "$output" = "OK" ]
+}
+
+@test "両ハイライト群が実際に定義されている" {
+    # A ruler referencing an undefined group renders unstyled, silently.
+    run bash -c "nvim --headless \
+        -c 'lua local o = {} for _, g in ipairs({ \"IMEJapanese\", \"IMEAlpha\" }) do
+              local h = vim.api.nvim_get_hl(0, { name = g, link = false })
+              o[#o+1] = g .. \"=\" .. tostring(vim.tbl_isempty(h) == false) end
+            vim.fn.writefile(o, \"$BATS_TEST_TMPDIR/hl.txt\")' -c 'qa' 2>&1"
+    [ "$status" -eq 0 ]
+    grep -qxF 'IMEJapanese=true' "$BATS_TEST_TMPDIR/hl.txt"
+    grep -qxF 'IMEAlpha=true' "$BATS_TEST_TMPDIR/hl.txt"
 }
 
 @test "タイマーのコールバックが Vimscript を呼ばない" {

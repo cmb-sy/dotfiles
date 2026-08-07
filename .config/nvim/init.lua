@@ -16,11 +16,14 @@ vim.g.mapleader = " "
 -- finished characters, so the editor cannot tell whether the next keystroke will
 -- produce "a" or "あ". bin/input-source asks the OS.
 --
--- Polled, not watched, because there is no event to subscribe to from inside a
--- terminal. The call costs ~35ms, so it only runs while it can change something:
--- in insert mode, and once when entering or leaving it. Idle cost is zero.
+-- Polled, because a terminal offers no event to subscribe to. The call costs
+-- ~35ms, so the interval follows what is at stake: fast while inserting, slow
+-- otherwise -- but never off, since the source can be switched from normal mode
+-- too and a stale indicator is worse than none.
 -- ---------------------------------------------------------------------------
 local ime = { label = "", busy = false }
+local IME_POLL_INSERT_MS = 400
+local IME_POLL_IDLE_MS = 2000
 
 local function ime_refresh()
   if ime.busy then return end
@@ -37,42 +40,76 @@ local function ime_refresh()
   end)
 end
 
-_G.ime_label = function()
-  return ime.label
+-- Japanese is the state worth shouting about: it is the one that makes Esc feed
+-- normal-mode commands to the input method. Alphabet stays quiet.
+local function ime_set_highlights()
+  local normal = vim.api.nvim_get_hl(0, { name = "Normal", link = false })
+  local warn = vim.api.nvim_get_hl(0, { name = "DiagnosticWarn", link = false })
+  vim.api.nvim_set_hl(0, "IMEJapanese", {
+    fg = normal.bg or "#1e1e2e",
+    bg = warn.fg or "#f9e2af",
+    bold = true,
+  })
+  vim.api.nvim_set_hl(0, "IMEAlpha", { link = "Comment" })
+end
+ime_set_highlights()
+vim.api.nvim_create_autocmd("ColorScheme", {
+  callback = ime_set_highlights,
+  desc = "Keep the IME indicator readable after a theme change",
+})
+
+-- The label argument exists so the rendering can be asserted on its output; the
+-- ruler calls it with none and gets the polled state.
+_G.ime_ruler = function(label)
+  label = label or ime.label
+  if label == "" then return "" end
+  local group = label == "A" and "IMEAlpha" or "IMEJapanese"
+  -- Padded, because a coloured block reads at a glance where a bare letter does
+  -- not -- the closest a terminal gets to making one element bigger.
+  return "%#" .. group .. "# " .. label .. " %*"
 end
 
--- The timer only runs while inserting, which is the only time the keyboard can
--- change the input source. Gating it this way rather than checking the mode
--- inside the callback also keeps Vimscript out of the timer: a libuv callback
--- runs in a fast event context, where vim.fn.mode() raises E5560.
 local ime_timer = vim.uv.new_timer()
+
+-- A libuv callback runs in a fast event context, where vim.fn.* raises E5560,
+-- so the callback does nothing but hand back to the main loop.
+local function ime_poll_every(ms)
+  ime_timer:stop()
+  ime_timer:start(ms, ms, function() vim.schedule(ime_refresh) end)
+end
 
 vim.api.nvim_create_autocmd("InsertEnter", {
   callback = function()
     ime_refresh()
-    ime_timer:start(400, 400, function() vim.schedule(ime_refresh) end)
+    ime_poll_every(IME_POLL_INSERT_MS)
   end,
-  desc = "Poll the IME indicator while inserting",
+  desc = "Poll the IME indicator faster while inserting",
 })
 
-vim.api.nvim_create_autocmd({ "InsertLeave", "VimLeavePre" }, {
+vim.api.nvim_create_autocmd("InsertLeave", {
   callback = function()
-    ime_timer:stop()
     ime_refresh()
+    ime_poll_every(IME_POLL_IDLE_MS)
   end,
-  desc = "Stop polling once out of insert, and catch the state on the way out",
+  desc = "Back to the slow interval once out of insert",
 })
 
-vim.api.nvim_create_autocmd("FocusGained", {
+vim.api.nvim_create_autocmd({ "FocusGained", "VimResume" }, {
   callback = ime_refresh,
   desc = "The source can have changed while another app had focus",
 })
 
--- %= pushes the rest to the right edge; the width is fixed so the ruler does not
--- jump between one-cell "A" and two-cell "あ".
+vim.api.nvim_create_autocmd("VimLeavePre", {
+  callback = function() ime_timer:stop() end,
+  desc = "Do not leave a timer running into shutdown",
+})
+
+-- %= pushes the group to the right edge. The width is generous so a two-cell
+-- label and its padding never squeeze the line and column readout.
 vim.o.ruler = true
-vim.o.rulerformat = "%28(%=%{v:lua.ime_label()} %l,%c%V %P%)"
+vim.o.rulerformat = "%32(%=%{%v:lua.ime_ruler()%} %l,%c%V %P%)"
 ime_refresh()
+ime_poll_every(IME_POLL_IDLE_MS)
 
 -- Cmd+/ toggles the comment on the line or selection. The terminal cannot send
 -- Cmd+/, so Ghostty translates it to CSI 21;3~ (alt+F10) -- chosen because herdr
