@@ -34,19 +34,7 @@ audit: required
 - **fail_diagnosis_hint**: FAIL ステップ名とエラーを確認し、ブラウザ操作の失敗（セレクタ不一致、タイムアウト）かアプリケーションエラー（HTTP 5xx、例外）かを切り分ける。アプリケーションバグの修正は最大2回まで試行し、修正不能なら PAUSE とする。VRT 差分が意図した変更である場合はベースライン更新の判断をユーザーに確認する。flaky のみの検出は smoke-test 側の判定で PASS 扱いであり、レポートに記録されていれば本基準では FAIL としない
 - **depends_on_artifacts**: [smoke-test-report.md]
 
-### D7-03: 設計書の UI 要件がシナリオに対応している
-- **severity**: blocker
-- **verify_type**: inspection
-- **verification**:
-  1. 設計書（`--design` で渡されたパス）から UI 関連の要件（画面、ページ、フォーム、コンポーネント、ビュー）を列挙する
-  2. レポートの Step 2 テーブルからシナリオを列挙する
-  3. 各 UI 要件に対応するシナリオが1件以上存在するか照合する
-  4. 対応シナリオが存在しない UI 要件をリストアップする
-- **pass_condition**: 手順1の列挙結果が0件（UI 要件を持たない変更）、または手順4のリストが0件
-- **fail_diagnosis_hint**: 未対応の UI 要件を特定し、該当画面への遷移とフォーム操作のシナリオを追加して smoke-test を再実行する。設計書に UI 要件が無いのに本フェーズが実行されている場合は `--smoke` の明示指定によるものであり、手順1が0件で PASS となる
-- **depends_on_artifacts**: [docs/plans/*-design.md, smoke-test-report.md]
-
-### D7-04: スキップした場合はスキップ判定が記録されている
+### D7-03: スキップした場合はスキップ判定が記録されている
 - **severity**: quality
 - **verify_type**: automated
 - **verification**:
@@ -56,6 +44,19 @@ audit: required
   4. 設計書に UI 関連キーワードが含まれる場合、自動有効化の提案に対してユーザーがスキップを選択した記録が存在するか確認する
 - **pass_condition**: 手順2で N/A と記録されていること、または手順3の両根拠が記録されていること、または手順4のユーザー判断が記録されていること
 - **fail_diagnosis_hint**: スキップ根拠が記録されていない場合、設計書を `Grep` で UI 関連キーワード走査し、ヒットするならユーザーに smoke-test 実行の要否を確認する。ヒットしないならスキップ判定とその根拠を記録して Phase 8 へ進む
+- **depends_on_artifacts**: [docs/plans/*-design.md, smoke-test-report.md]
+
+### D7-04: 設計書由来のテスト観点がシナリオに対応している
+- **severity**: blocker
+- **verify_type**: inspection
+- **verification**:
+  1. 設計書（`--design` で渡されたパス）の「テスト観点」または「Test Perspectives」セクションから各観点を列挙する
+  2. 設計書の Investigation Record 内の Must-Verify Checklist から各項目を列挙する
+  3. レポートの Step 2 テーブルと Evidence Log からシナリオを列挙する
+  4. 手順1・手順2の各項目に対応するシナリオが1件以上存在するか照合する
+  5. 対応シナリオが存在しない観点・チェックリスト項目をリストアップする
+- **pass_condition**: 手順1と手順2の列挙結果がいずれも0件（設計書に両セクションが存在しない）、または手順5のリストが0件
+- **fail_diagnosis_hint**: 未対応の観点を特定し、該当する操作シナリオを追加して smoke-test を再実行する。照合対象は smoke-test が `--design` から実際に抽出する3種（テスト観点セクション / Must-Verify Checklist / Impact Analysis）に限る。設計書に両セクションが無いのに本フェーズが実行されている場合は `--smoke` の明示指定によるものであり、手順1・2が0件で PASS となる
 - **depends_on_artifacts**: [docs/plans/*-design.md, smoke-test-report.md]
 - **forward_check**: Phase 8 (Code Review) の入力としてスモークテスト通過済みコードが渡される
 
