@@ -12,10 +12,10 @@ audit: required
 - **verify_type**: automated
 - **verification**:
   1. レビュー結果ファイル（`artifacts/reviews/phase-2-review.json` またはレビューログ）を読み取る
-  2. requirements, design-judgment, feasibility, consistency の4観点の実行記録が存在するか確認する
-  3. 各観点の findings リストが返却されているか確認する（未返却・実行途中終了の観点を検出する）
-- **pass_condition**: 記録された観点数が4、かつ findings 未返却の観点が0件
-- **fail_diagnosis_hint**: 欠落している観点を特定し、/spec-review の起動引数を確認する。`--ui` 指定時の追加観点は4観点の数に含めない。観点の指定漏れかレビューエージェントの中断かを切り分ける
+  2. requirements, design-judgment, feasibility, consistency の4観点それぞれの実行記録が存在するか確認する（`--ui` 指定時の追加観点は判定に含めない）
+  3. 記録のある全観点について findings リストが返却されているか確認する（未返却・実行途中終了の観点を検出する）
+- **pass_condition**: 手順2の4観点すべての実行記録が存在し、手順3で findings 未返却の観点が0件
+- **fail_diagnosis_hint**: 欠落している観点を特定し、/spec-review の起動引数を確認する。観点の指定漏れかレビューエージェントの中断かを切り分ける
 - **depends_on_artifacts**: [artifacts/reviews/]
 
 ### D2-02: 承認された指摘が設計書に反映されている
@@ -47,10 +47,11 @@ audit: required
 - **verify_type**: automated
 - **verification**:
   1. `git status --porcelain -- docs/plans/*-design.md` を実行し、設計書が未コミット変更リストに含まれないことを確認する
-  2. `Glob(".agents/handover/**/project-state.json")` と `Glob(".agents/handover/**/handover.md")` で handover 成果物を検索する
-  3. project-state.json の `phase_summaries` に `spec-review` キーが存在するか確認する
-- **pass_condition**: 手順1の出力行数が0、手順2の各 Glob 結果が1件以上、手順3のキーが存在すること
-- **fail_diagnosis_hint**: 設計書が未コミットなら `git add` + `git commit` が抜けている。handover 成果物が無い場合は Phase 2 完了時の `/handover` 実行を確認する。`phase_summaries` にキーが無い場合は project-state.json の `pipeline` フィールド未設定で Phase Summary 生成がスキップされた可能性がある
+  2. `git branch --show-current` で現ブランチ名を取得し、`Glob(".agents/handover/<現ブランチ名>/**/project-state.json")` と `Glob(".agents/handover/<現ブランチ名>/**/handover.md")` で handover 成果物を検索する
+  3. 手順2の project-state.json の `phase_summaries` に `spec-review` キーが存在するか確認する
+  4. `git log -1 --format=%cI -- docs/plans/*-design.md` でフェーズ完了コミットの committer date を取得し、project-state.json の `generated_at` がそれ以降であることを確認する
+- **pass_condition**: 手順1の出力行数が0、手順2の各 Glob 結果が1件以上、手順3のキーが存在し、手順4で `generated_at` >= フェーズ完了コミットの committer date
+- **fail_diagnosis_hint**: 設計書が未コミットなら `git add` + `git commit` が抜けている。現ブランチ配下に handover 成果物が無い場合は Phase 2 完了時の `/handover` 実行を確認する（他ブランチ配下の成果物は判定に使わない）。`phase_summaries` にキーが無い場合は project-state.json の `pipeline` フィールド未設定で Phase Summary 生成がスキップされた可能性がある。手順4が不成立なら handover が Phase 2 のレビュー修正より前に実行された古い成果物である
 - **depends_on_artifacts**: [docs/plans/*-design.md, .agents/handover/]
 - **forward_check**: Phase 3 (Plan) の入力としてレビュー通過済み設計書パスが渡される
 
