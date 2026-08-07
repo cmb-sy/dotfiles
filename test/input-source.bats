@@ -116,11 +116,61 @@ IS="$REPO_DIR/bin/input-source"
     grep -qxF 'true' "$BATS_TEST_TMPDIR/rf.txt"
 }
 
-@test "ポーリングが insert モードに限定されている" {
-    # Outside insert mode nothing on the keyboard can change the IME, so a poll
-    # there spends process startup to learn nothing.
-    run grep -cF 'vim.fn.mode():find("^i")' "$REPO_DIR/.config/nvim/init.lua"
+@test "実画面でエラーを出さずにラベルを描画する" {
+    # --headless cannot catch either half of this. The ruler only exists on a
+    # screen, and a libuv callback that calls a Vimscript function raises E5560
+    # on the first keystroke while every headless check still passes.
+    printf 'local x = 1\n' > "$BATS_TEST_TMPDIR/t.lua"
+    run python3 "$REPO_DIR/test/helpers/nvim-pty.py" "$BATS_TEST_TMPDIR/t.lua"
     [ "$status" -eq 0 ]
+    printf '%s' "$output" > "$BATS_TEST_TMPDIR/out.json"
+
+    run python3 -c "
+import json, re, subprocess
+d = json.load(open('$BATS_TEST_TMPDIR/out.json'))
+problems = []
+if d['errors']:
+    problems.append('errors=' + ','.join(d['errors']))
+want = subprocess.run(['$REPO_DIR/bin/input-source', '--label'],
+                      capture_output=True, text=True).stdout.strip()
+# The label has to be the live one, not merely present: a stale cached value
+# would still render something.
+if not re.search(r'(?:^|\\s)' + re.escape(want) + r'\\s+\\d+,\\d+', d['text']):
+    problems.append('label ' + want + ' not on screen')
+print(','.join(problems) if problems else 'OK')
+"
+    [ "$output" = "OK" ]
+}
+
+@test "ポーリングが insert の間だけ動く" {
+    # Outside insert nothing on the keyboard can change the IME, so a poll there
+    # spends process startup to learn nothing. Checked as a property -- the timer
+    # is started and stopped by the mode's own events -- rather than by naming
+    # whichever call implements it; the previous version of this test asserted
+    # the presence of vim.fn.mode(), which was the bug.
+    run python3 -c "
+import re
+s = open('$REPO_DIR/.config/nvim/init.lua', encoding='utf-8').read()
+bad = []
+if not re.search(r'InsertEnter.*?ime_timer:start', s, re.S):
+    bad.append('not started on InsertEnter')
+if not re.search(r'InsertLeave.*?ime_timer:stop', s, re.S):
+    bad.append('not stopped on InsertLeave')
+print(','.join(bad) if bad else 'OK')
+"
+    [ "$output" = "OK" ]
+}
+
+@test "タイマーのコールバックが Vimscript を呼ばない" {
+    # A libuv callback runs in a fast event context: vim.fn.* raises E5560 there,
+    # and only on the first tick, so it survives every headless check.
+    run python3 -c "
+import re
+s = open('$REPO_DIR/.config/nvim/init.lua', encoding='utf-8').read()
+body = re.search(r'ime_timer:start\\([^)]*,\\s*function\\((.*?)end\\)', s, re.S)
+print('no timer' if not body else ('vim.fn in callback' if 'vim.fn.' in body.group(1) else 'OK'))
+"
+    [ "$output" = "OK" ]
 }
 
 @test "ラベルが変わったときだけ再描画する" {

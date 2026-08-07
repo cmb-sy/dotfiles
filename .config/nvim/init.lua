@@ -41,17 +41,32 @@ _G.ime_label = function()
   return ime.label
 end
 
-vim.api.nvim_create_autocmd({ "InsertEnter", "InsertLeave", "FocusGained" }, {
-  callback = ime_refresh,
-  desc = "Refresh the IME indicator when the state can have changed",
+-- The timer only runs while inserting, which is the only time the keyboard can
+-- change the input source. Gating it this way rather than checking the mode
+-- inside the callback also keeps Vimscript out of the timer: a libuv callback
+-- runs in a fast event context, where vim.fn.mode() raises E5560.
+local ime_timer = vim.uv.new_timer()
+
+vim.api.nvim_create_autocmd("InsertEnter", {
+  callback = function()
+    ime_refresh()
+    ime_timer:start(400, 400, function() vim.schedule(ime_refresh) end)
+  end,
+  desc = "Poll the IME indicator while inserting",
 })
 
-local ime_timer = vim.uv.new_timer()
-ime_timer:start(400, 400, function()
-  -- Only insert mode can change it from the keyboard, so polling elsewhere
-  -- spends 35ms of process startup to learn nothing.
-  if vim.fn.mode():find("^i") then vim.schedule(ime_refresh) end
-end)
+vim.api.nvim_create_autocmd({ "InsertLeave", "VimLeavePre" }, {
+  callback = function()
+    ime_timer:stop()
+    ime_refresh()
+  end,
+  desc = "Stop polling once out of insert, and catch the state on the way out",
+})
+
+vim.api.nvim_create_autocmd("FocusGained", {
+  callback = ime_refresh,
+  desc = "The source can have changed while another app had focus",
+})
 
 -- %= pushes the rest to the right edge; the width is fixed so the ruler does not
 -- jump between one-cell "A" and two-cell "あ".
