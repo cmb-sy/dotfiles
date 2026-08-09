@@ -2,7 +2,7 @@
 	name = kunst
 	email = 63276819+cmb-sy@users.noreply.github.com
 [include]
-	path = ${HOME}/gitconfig.local
+	path = ~/.gitconfig.local
 [alias]
 	a = add
 	aa = add --all
@@ -55,9 +55,3 @@
 
 [url "https://github.com/"]
 	insteadOf = git@github.com:
-[difftool "sourcetree"]
-	cmd = opendiff \"$LOCAL\" \"$REMOTE\"
-	path = 
-[mergetool "sourcetree"]
-	cmd = /Applications/Sourcetree.app/Contents/Resources/opendiff-w.sh \"$LOCAL\" \"$REMOTE\" -ancestor \"$BASE\" -merge \"$MERGED\"
-	trustExitCode = true
