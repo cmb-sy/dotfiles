@@ -6,9 +6,15 @@
   Secure Input Mode for a password prompt and fail to disable it afterward.
   While enabled, the holding app exclusively receives all keyboard input,
   silently blocking other apps' global hotkeys (e.g. Typeless/Handy voice
-  input via Karabiner Caps Lock). This agent polls every 60s and sends a
-  notification (never kills the app) if Secure Input has been held by the
-  same process for 2+ minutes. See bin/secure-input-watch.
+  input via Karabiner Caps Lock). This agent polls every 60s. When Ghostty
+  holds Secure Input because its "Secure Keyboard Entry" menu toggle is
+  persisted ON, it clicks that menu item to release it -- which needs
+  Accessibility permission for osascript, or the click silently fails.
+  Otherwise it only notifies (never kills the app) once the same process has
+  held Secure Input for 2+ minutes. See bin/secure-input-watch.
+
+  The program path below is a placeholder; setup/install.zsh substitutes the
+  repo path into it at install time, so the repo can live anywhere.
 -->
 <plist version="1.0">
 <dict>
@@ -16,7 +22,7 @@
     <string>com.snakashima.secure-input-watch</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/snakashima/dotfiles/bin/secure-input-watch</string>
+        <string>__DOTFILES__/bin/secure-input-watch</string>
     </array>
     <key>StartInterval</key>
     <integer>60</integer>
