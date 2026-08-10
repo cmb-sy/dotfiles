@@ -158,6 +158,9 @@ print(','.join(problems) if problems else 'OK')
     # screen" -- Neovim sends differential updates, so an unchanged cell is
     # never re-sent and a time-sliced scan of the stream misses it.
     if ! command -v tmux >/dev/null 2>&1; then skip "tmux が無い環境"; fi
+    # Reads Japanese off the screen, so grep and cut have to agree that あ is
+    # one character. Under a C locale they work in bytes and match a third of it.
+    export LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
     SCREEN="$REPO_DIR/test/helpers/tmux-screen.sh"
     SESSION="ime-bats-$$"
     before=$("$IS")

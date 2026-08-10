@@ -160,13 +160,17 @@ jobs:
       # The locale is pinned because bats builds a shell function name out of
       # each test description, and most of ours are Japanese. How a non-ASCII
       # description is encoded depends on how bash slices the string, which
-      # follows the locale -- so leaving it to the runner's default decides
-      # whether the names bats generates are the names it can find again.
+      # follows the locale.
+      #
+      # C, not UTF-8, and do not "fix" this back: the runner drives bats with
+      # bash 3.2, where a multibyte name encodes down to its first byte, so 日
+      # and 本 collide and one test silently replaces the other. C encodes
+      # byte-wise, which cannot collide. UTF-8 here cost 135 of 267 tests.
       # ----------------------------------------------------------
       - name: Run bats tests
         env:
-          LC_ALL: en_US.UTF-8
-          LANG: en_US.UTF-8
+          LC_ALL: C
+          LANG: C
         run: |
           export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
           bats test/
