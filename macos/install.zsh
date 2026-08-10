@@ -1,8 +1,8 @@
 #!/bin/zsh
 
-source "${HOME}/dotfiles/setup/util.zsh"
+source "${0:A:h:h}/setup/util.zsh"
 
-MACOS_DIR="$(util::repo_dir)/macos"
+MACOS_DIR="${0:A:h}"
 
 util::info "Applying macOS settings..."
 

@@ -2,22 +2,25 @@
 # claude/hooks/stop-failure-handler.sh のテスト。
 # herdr は実行しないため、herdr / jq をシェル関数でモックする。
 
+load "helpers/common"
+
 SCRIPT="${BATS_TEST_DIRNAME}/../claude/hooks/stop-failure-handler.sh"
 
 setup() {
-  HERDR_CALLS="$(mktemp -d)/herdr-calls.log"
+  make_tmpdir
+  HERDR_CALLS="$TEST_TMPDIR/herdr-calls.log"
   export HERDR_CALLS
 }
 
 teardown() {
-  rm -f "$HERDR_CALLS"
+  rm -rf "$TEST_TMPDIR"
 }
 
 # stop-failure-handler.sh hardcodes $HOME/.claude/stop-failure-debug.log, so
 # point HOME at a throwaway dir and read the log from there.
 run_handler_isolated() {  # $1=stdin payload, $2=HERDR_PANE_ID (optional)
   local fake_home
-  fake_home="$(mktemp -d)"
+  fake_home="$(mktemp -d /private/tmp/dotfiles-test.XXXXXX)"
   mkdir -p "$fake_home/.claude"
   herdr() { printf '%s %s %s\n' "$1" "$2" "$3" >> "$HERDR_CALLS"; }
   export -f herdr

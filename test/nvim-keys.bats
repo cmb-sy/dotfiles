@@ -5,11 +5,9 @@
 #
 # The chain is Ghostty -> herdr -> Neovim, and each link renames the key:
 #   Cmd+/  ->  CSI 21;3~ (alt+F10)  ->  forwarded, unbound in herdr  ->  <F58>
-#
-# bash 3.2 note: a mid-test [[ ]] is excluded from errexit and passes silently,
-# so assertions here use [ ] and grep exit status only.
 
-REPO_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
+load "helpers/common"
+
 KEYS="$REPO_DIR/terminal/ghostty/keybindings.conf"
 HERDR="$REPO_DIR/terminal/herdr/config.toml"
 INIT="$REPO_DIR/.config/nvim/init.lua"
@@ -93,9 +91,13 @@ INIT="$REPO_DIR/.config/nvim/init.lua"
 }
 
 @test "init.lua がエラーなく読み込まれる" {
+    # Counts nvim's own error codes rather than demanding total silence: on a
+    # machine with no treesitter parsers built yet every start prints download
+    # notices, and those are progress, not breakage.
     run bash -c "nvim --headless -c 'qa' 2>&1"
     [ "$status" -eq 0 ]
-    [ -z "$output" ]
+    errors=$(printf '%s\n' "$output" | grep -cE 'E[0-9]+:') || errors=0
+    [ "$errors" -eq 0 ]
 }
 
 @test "which-key の窓が helix 既定より大きい" {

@@ -50,6 +50,12 @@ for legacy in .Brewfile .bin .docs .git .macos .claude-old; do
 done
 
 #----------------------------------------------------------
+# Machine-local git overrides live outside the repo, so .gitconfig's
+# `[include] path = ~/.gitconfig.local` has a file to resolve.
+#----------------------------------------------------------
+[[ -f "${HOME}/.gitconfig.local" ]] || touch "${HOME}/.gitconfig.local"
+
+#----------------------------------------------------------
 # .config symlinks
 #----------------------------------------------------------
 mkdir -p "${HOME}/.config"

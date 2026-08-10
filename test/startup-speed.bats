@@ -6,14 +6,14 @@
 # The budgets are deliberately loose. They exist to catch something going badly
 # wrong, not to fail on a busy machine -- a test that flakes gets ignored, and
 # an ignored test guards nothing.
-#
-# bash 3.2 note: a mid-test [[ ]] is excluded from errexit and passes silently,
-# so assertions here use [ ] and grep exit status only.
 
-REPO_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
+load "helpers/common"
 
 # Median of five runs, in milliseconds. The median rather than the mean, so one
 # scheduling hiccup does not decide the result.
+#
+# The budgets below are skipped on CI: a shared runner measures the runner, not
+# the config, and a budget that flakes there would train everyone to ignore it.
 median_ms() {
     python3 -c "
 import subprocess, sys, time, statistics
@@ -28,12 +28,14 @@ print(int(statistics.median(xs)))
 }
 
 @test "nvim の起動が 120ms 以内" {
+    [ -n "$CI" ] && skip "wall-clock budget, local only"
     run median_ms nvim --headless -c qa
     [ "$status" -eq 0 ]
     [ "$output" -lt 120 ]
 }
 
 @test "設定の追加コストが素の nvim の 4 倍以内" {
+    [ -n "$CI" ] && skip "wall-clock budget, local only"
     # A ratio rather than an absolute number: it stays meaningful on a slower
     # machine, where every measurement grows together.
     configured=$(median_ms nvim --headless -c qa)
@@ -43,6 +45,7 @@ print(int(statistics.median(xs)))
 }
 
 @test "対話 zsh の起動が 200ms 以内" {
+    [ -n "$CI" ] && skip "wall-clock budget, local only"
     run median_ms zsh -i -c exit
     [ "$status" -eq 0 ]
     [ "$output" -lt 200 ]

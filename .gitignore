@@ -24,3 +24,6 @@ claude/skills/pptx-dev/scripts/uv.lock
 
 # R session history, dropped into whatever directory R was started in
 .Rhistory
+
+# python bytecode cache, written when a test imports test/helpers/wcag.py
+__pycache__/

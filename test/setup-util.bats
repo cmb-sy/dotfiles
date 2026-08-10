@@ -1,6 +1,8 @@
 #!/usr/bin/env bats
 # Tests for util::link in setup/util.zsh (run via zsh -c).
 
+load "helpers/common"
+
 UTIL="${BATS_TEST_DIRNAME}/../setup/util.zsh"
 
 run_link() {  # $1=src $2=dst
@@ -8,11 +10,12 @@ run_link() {  # $1=src $2=dst
 }
 
 setup() {
-  TMP="$(mktemp -d)"
+  make_tmpdir
+  TMP="$TEST_TMPDIR"
   echo "real" > "$TMP/src.txt"
 }
 
-teardown() { rm -rf "$TMP"; }
+teardown() { rm -rf "$TEST_TMPDIR"; }
 
 @test "creates symlink when dst is absent" {
   run run_link "$TMP/src.txt" "$TMP/dst"

@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 # Static checks for server/ assets; must pass without a real Linux host.
 
-REPO_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
+load "helpers/common"
 
 @test "packages.txt が存在し、コメント以外の行が5行以上ある" {
   run bash -c "grep -cv -e '^#' -e '^$' '$REPO_DIR/server/packages.txt'"
@@ -10,6 +10,7 @@ REPO_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
 }
 
 @test "cloud-init.yaml が valid YAML である" {
+  python3 -c 'import yaml' 2>/dev/null || skip "PyYAML not installed"
   run python3 -c "import yaml,sys; yaml.safe_load(open('$REPO_DIR/server/cloud-init.yaml'))"
   [ "$status" -eq 0 ]
 }
@@ -51,9 +52,19 @@ REPO_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
 }
 
 @test "setup/install.zsh は Linux では server/install.zsh へ委譲する" {
-  # Assert an exec delegation right after the Linux check, not a mere string mention.
-  # The line-start anchor rejects commented-out exec lines.
-  run bash -c "grep -A4 'uname -s.*Linux' '$REPO_DIR/setup/install.zsh' | grep -Ec '^[[:space:]]*exec zsh.*server/install\.zsh'"
+  # Assert a delegating call right after the Linux check, not a mere string mention.
+  # The line-start anchor rejects commented-out lines.
+  run bash -c "grep -A4 'uname -s.*Linux' '$REPO_DIR/setup/install.zsh' | grep -Ec '^[[:space:]]*zsh .*server/install\.zsh'"
+  [ "$status" -eq 0 ]
+  [ "$output" -ge 1 ]
+}
+
+@test "setup/install.zsh の Linux 委譲は exec せず呼び出し元へ戻る" {
+  # setup.zsh sources this file, so exec would replace that process and drop the
+  # rest of setup.zsh. The branch must end with the return/exit idiom instead.
+  run bash -c "grep -Ec '^[[:space:]]*exec ' '$REPO_DIR/setup/install.zsh'"
+  [ "$output" -eq 0 ]
+  run bash -c "grep -A4 'uname -s.*Linux' '$REPO_DIR/setup/install.zsh' | grep -Ec '^[[:space:]]*return 0 2>/dev/null \|\| exit 0'"
   [ "$status" -eq 0 ]
   [ "$output" -ge 1 ]
 }

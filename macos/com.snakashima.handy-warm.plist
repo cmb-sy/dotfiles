@@ -15,6 +15,9 @@
   Costs roughly 3GB of resident memory while Handy is running. bin/handy-warm
   exits without loading anything when Handy is closed, post-processing is off,
   or a hosted provider is selected.
+
+  The program path below is a placeholder; setup/install.zsh substitutes the
+  repo path into it at install time, so the repo can live anywhere.
 -->
 <plist version="1.0">
 <dict>
@@ -22,7 +25,7 @@
     <string>com.snakashima.handy-warm</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/snakashima/dotfiles/bin/handy-warm</string>
+        <string>__DOTFILES__/bin/handy-warm</string>
     </array>
     <key>StartInterval</key>
     <integer>180</integer>

@@ -8,11 +8,9 @@
 # These tests never change the input source. Switching it mid-test would leave
 # the machine in a Japanese state if a test aborted, and the label logic can be
 # checked without touching the live setting.
-#
-# bash 3.2 note: a mid-test [[ ]] is excluded from errexit and passes silently,
-# so assertions here use [ ] and grep exit status only.
 
-REPO_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
+load "helpers/common"
+
 IS="$REPO_DIR/bin/input-source"
 
 @test "実行可能である" {
@@ -38,6 +36,7 @@ IS="$REPO_DIR/bin/input-source"
 }
 
 @test "2 回目以降はキャッシュされたバイナリで速い" {
+    [ -n "$CI" ] && skip "wall-clock budget, local only"
     # A status line polling a 2.4s script-mode swift call would stall the editor;
     # the cache is the whole reason this wrapper exists.
     "$IS" >/dev/null                      # make sure it is built
@@ -55,6 +54,10 @@ IS="$REPO_DIR/bin/input-source"
     "$IS" >/dev/null
     [ -x "$cache" ]
     before=$(stat -f %m "$cache")
+    # The wrapper compares mtimes with -nt, which is whole seconds. On a cold
+    # cache the build above lands in the same second as the touch, so without
+    # this the source never reads as newer and no rebuild is triggered.
+    sleep 1
     touch "$REPO_DIR/bin/input-source.swift"
     "$IS" >/dev/null
     after=$(stat -f %m "$cache")
@@ -117,6 +120,7 @@ IS="$REPO_DIR/bin/input-source"
 }
 
 @test "実画面でエラーを出さずにラベルを描画する" {
+    [ -n "$CI" ] && skip "needs GUI/tmux, local only"
     # --headless cannot catch either half of this. The ruler only exists on a
     # screen, and a libuv callback that calls a Vimscript function raises E5560
     # on the first keystroke while every headless check still passes.
@@ -143,6 +147,9 @@ print(','.join(problems) if problems else 'OK')
 }
 
 @test "IME を切り替えると画面の表示が追従する" {
+    # Switches the machine to Kotoeri, which only exists as an enabled input
+    # source on a real desktop session.
+    [ -n "$CI" ] && skip "needs GUI/tmux, local only"
     # The end-to-end behaviour, and the only test that would have caught the two
     # bugs here: a busy flag left standing silences every later poll, and a
     # repaint that is never flushed leaves the ruler on the previous value.
@@ -151,6 +158,9 @@ print(','.join(problems) if problems else 'OK')
     # screen" -- Neovim sends differential updates, so an unchanged cell is
     # never re-sent and a time-sliced scan of the stream misses it.
     if ! command -v tmux >/dev/null 2>&1; then skip "tmux が無い環境"; fi
+    # Reads Japanese off the screen, so grep and cut have to agree that あ is
+    # one character. Under a C locale they work in bytes and match a third of it.
+    export LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
     SCREEN="$REPO_DIR/test/helpers/tmux-screen.sh"
     SESSION="ime-bats-$$"
     before=$("$IS")

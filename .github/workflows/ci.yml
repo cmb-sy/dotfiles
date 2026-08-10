@@ -85,7 +85,7 @@ jobs:
         run: |
           set -e
           export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
-          for cmd in gh jq fd fzf sheldon starship uv yarn git mise tmux; do
+          for cmd in gh jq fd fzf sheldon starship uv yarn git mise tmux bats; do
             if ! command -v "$cmd" >/dev/null 2>&1; then
               echo "FAIL: $cmd not on PATH"
               exit 1
@@ -152,3 +152,31 @@ jobs:
             exit 1
           fi
           echo "OK: .vscode/settings.json has no volatile VS Code keys"
+
+      # ----------------------------------------------------------
+      # Step 7: bats test suite
+      # GUI/tmux-bound tests self-skip via $CI.
+      #
+      # The locale is pinned because bats builds a shell function name out of
+      # each test description, and most of ours are Japanese. How a non-ASCII
+      # description is encoded depends on how bash slices the string, which
+      # follows the locale.
+      #
+      # C, not UTF-8, and do not "fix" this back: the runner drives bats with
+      # bash 3.2, where a multibyte name encodes down to its first byte, so 日
+      # and 本 collide and one test silently replaces the other. C encodes
+      # byte-wise, which cannot collide. UTF-8 here cost 135 of 267 tests.
+      # ----------------------------------------------------------
+      - name: Run bats tests
+        env:
+          LC_ALL: C
+          LANG: C
+        run: |
+          export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+          # .zshrc looks for the repo at $DOTFILES, falling back to ~/dotfiles,
+          # which does not exist here -- without this an interactive zsh sources
+          # no aliases and the tests for them see an empty shell.
+          export DOTFILES="$PWD"
+          bash --version | head -1
+          command -v bats && bats --version
+          bats test/
