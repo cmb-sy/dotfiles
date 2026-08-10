@@ -3,8 +3,20 @@ claude/slackcli
 claude/package.json
 claude/package-lock.json
 
-# Local-only learning notes
-docs/
+# Local-only learning notes. Docs that code points at are excepted below, so a
+# fresh clone does not have dangling references; everything else stays local.
+# `docs/*` not `docs/`: git cannot re-include a file whose parent directory is
+# excluded, so each level is excluded by glob and re-included by name.
+docs/*
+!docs/debug/
+docs/debug/*
+!docs/debug/2026-06-23-caps-lock-rogue-dictation.md
+!docs/superpowers/
+docs/superpowers/*
+!docs/superpowers/specs/
+docs/superpowers/specs/*
+!docs/superpowers/specs/2026-06-22-claude-tts-design.md
+!docs/superpowers/specs/2026-07-11-oci-claude-server-design.md
 
 # pptx-dev: python venv + per-session artifacts
 claude/skills/pptx-dev/scripts/.venv/
