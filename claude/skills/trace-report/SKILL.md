@@ -18,7 +18,7 @@ trace.jsonl を読み込み、パイプラインの実行状況・レビュー�
 | 引数 | 動作 |
 |------|------|
 | (なし) | 現在のセッションの trace.jsonl を分析 |
-| `--all` | `.claude/handover/` 配下の全 trace.jsonl を集約分析 |
+| `--all` | `.agents/handover/` 配下の全 trace.jsonl を集約分析 |
 | `--branch <name>` | 指定ブランチの全セッションの trace.jsonl を集約分析 |
 
 ## trace.jsonl の検出
@@ -39,10 +39,10 @@ trace.jsonl を読み込み、パイプラインの実行状況・レビュー�
 
 ```bash
 # --all の場合
-find .claude/handover -name trace.jsonl 2>/dev/null
+find .agents/handover -name trace.jsonl 2>/dev/null
 
 # --branch <name> の場合
-find .claude/handover/<name> -name trace.jsonl 2>/dev/null
+find .agents/handover/<name> -name trace.jsonl 2>/dev/null
 ```
 
 複数ファイルが見つかった場合は全て結合して分析する。
