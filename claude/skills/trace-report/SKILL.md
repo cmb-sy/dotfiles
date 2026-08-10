@@ -27,8 +27,8 @@ trace.jsonl を読み込み、パイプラインの実行状況・レビュー�
 
 1. Bash で現在のセッションの trace.jsonl を検出する:
    ```bash
-   source ~/.dotfiles/claude/skills/handover/scripts/handover-lib.sh
-   session_dir=$(find_active_session_dir 2>/dev/null)
+   source ~/dotfiles/claude/skills/handover/scripts/handover-lib.sh
+   session_dir=$(find_active_session_dir "$(pwd)" 2>/dev/null)
    if [[ -n "$session_dir" ]]; then
      echo "${session_dir}/trace.jsonl"
    fi

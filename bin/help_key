@@ -1,6 +1,6 @@
 #!/bin/bash
 # Display all custom keybindings across tools
-# Usage: help_key [wezterm|ghostty|cmux|claude|shell|voice|all]
+# Usage: help_key [wezterm|ghostty|herdr|cmux|claude|shell|voice|all]
 
 BOLD='\033[1m'
 CYAN='\033[36m'
@@ -33,12 +33,10 @@ show_wezterm() {
   kv "Cmd+0"              "Reset font size"
 
   group "Tools"
-  kv "Alt+Cmd+H"          "Show this keybindings list"
   kv "Cmd+Shift+P"        "Command palette"
   kv "Cmd+F"              "Search scrollback"
   kv "Cmd+Shift+F"        "Directory: fuzzy cd (whole scope)"
   kv "Alt+Cmd+F"          "Directory: fuzzy cd (whole scope)"
-  kv "Ctrl+Shift+O"       "Project sessionizer (dev)"
   kv "Ctrl+Shift+X"       "Copy mode"
   kv "Ctrl+Shift+Space"   "Quick select (URLs, paths)"
 }
@@ -62,7 +60,26 @@ show_ghostty() {
   kv "Cmd+F"              "Search scrollback"
   kv "Cmd+Shift+F"        "Fuzzy cd (zsh fzf, whole scope)"
   kv "Cmd+Ctrl+F"         "Toggle fullscreen"
+  kv "Cmd+/"              "Toggle comment in nvim"
+  kv "Cmd+Ctrl+G"         "lazygit in a herdr pane"
   kv "Shift+Enter"        "Newline (Claude Code, etc.)"
+}
+
+show_herdr() {
+  section "herdr (inside Ghostty)"
+
+  group "Tabs"
+  kv "Cmd+Shift+[ / ]"    "Previous / Next tab"
+  kv "Cmd+Opt+Left/Right" "Previous / Next tab"
+  kv "fn+Cmd+Left/Right"  "Previous / Next tab (Karabiner remap)"
+  kv "Cmd+Opt+T"          "New tab"
+
+  group "Workspaces"
+  kv "Cmd+Opt+Up / Down"  "Previous / Next workspace"
+  kv "fn+Cmd+Up / Down"   "Previous / Next workspace (Karabiner remap)"
+
+  group "Tools"
+  kv "Cmd+Ctrl+G"         "lazygit in a throwaway pane (closes on exit)"
 }
 
 show_cmux() {
@@ -112,7 +129,7 @@ show_shell() {
 
   group "Dev Tools"
   kv "dev"                  "Project sessionizer (fzf + nvim)"
-  kv "help_key / Alt+Cmd+H" "Show this keybindings list"
+  kv "help_key"             "Show this keybindings list"
 
   group "Fuzzy search (fzf)"
   kv "Cmd+Shift+F / cdg"     "Directory: fuzzy cd (whole scope)"
@@ -152,6 +169,7 @@ show_voice() {
 case "${1:-all}" in
   wezterm)  show_wezterm ;;
   ghostty)  show_ghostty ;;
+  herdr)    show_herdr ;;
   cmux)     show_cmux ;;
   claude)   show_claude ;;
   shell|sh) show_shell ;;
@@ -159,6 +177,7 @@ case "${1:-all}" in
   all)
     show_wezterm
     show_ghostty
+    show_herdr
     show_cmux
     show_claude
     show_shell
@@ -166,7 +185,7 @@ case "${1:-all}" in
     echo ""
     ;;
   *)
-    echo "Usage: help_key [wezterm|ghostty|cmux|claude|shell|voice|all]"
+    echo "Usage: help_key [wezterm|ghostty|herdr|cmux|claude|shell|voice|all]"
     exit 1
     ;;
 esac

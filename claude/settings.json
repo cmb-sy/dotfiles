@@ -60,7 +60,6 @@
       "Bash(go:*)",
       "Bash(dart:*)",
       "Bash(fvm flutter:*)",
-      "Bash(fvm flutter test:*)",
       "Bash(node:*)",
       "Bash(npm:*)",
       "Bash(npx:*)",
@@ -99,7 +98,6 @@
       "Bash(prettier:*)",
       "Bash(ruff:*)",
       "Bash(docker:*)",
-      "Bash(docker compose:*)",
       "Bash(kubectl get:*)",
       "Bash(kubectl describe:*)",
       "Bash(kubectl logs:*)",
@@ -151,8 +149,6 @@
       "Bash(timeout:*)",
       "Bash(openssl:*)",
       "Bash(base64:*)",
-      "Bash(sha256:*)",
-      "Bash(epoch:*)",
       "Bash(nkf:*)",
       "Bash(file:*)",
       "Bash(stat:*)",
@@ -160,11 +156,9 @@
       "Bash(df:*)",
       "Bash(ghq:*)",
       "Bash(delta:*)",
-      "Bash(gibo:*)",
       "WebFetch(domain:*)",
       "Edit",
-      "Write",
-      "mcp__pencil"
+      "Write"
     ],
     "deny": [
       "Bash(sops:*)",
