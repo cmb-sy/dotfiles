@@ -40,7 +40,7 @@
 #   - claude/hooks/stop.sh : state file (~/.cache/claude-tts.last-transcript) 更新
 #     (herdr フォールバック時のみ使用。--transcript の手動指定にも state file は不要)
 #   - karabiner/karabiner.json : F1 → voice-out バインド
-#   - bin/lib/voice.sh : sanitize_text と TTS backend の定義 (test/voice-lib.bats)
+#   - bin/lib/voice.sh : sanitize_text と TTS backend の定義
 #   - test/voice-out.bats : pane 解決と sanitize の自動テスト
 #   - docs/superpowers/specs/2026-06-22-claude-tts-design.md : 設計書
 
