@@ -46,7 +46,7 @@
 	user = cmb-sy
 [init]
 	defaultBranch = main
-	templatedir = ~/dotfiles/git
+	templatedir = ~/dotfiles/git/template
 [filter "lfs"]
 	clean = git-lfs clean -- %f
 	smudge = git-lfs smudge -- %f
