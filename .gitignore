@@ -16,6 +16,7 @@ docs/superpowers/*
 !docs/superpowers/specs/
 docs/superpowers/specs/*
 !docs/superpowers/specs/2026-06-22-claude-tts-design.md
+!docs/superpowers/specs/2026-07-09-tcp-keepalive-firewall-timeout-design.md
 !docs/superpowers/specs/2026-07-11-oci-claude-server-design.md
 
 # pptx-dev: python venv + per-session artifacts
