@@ -13,6 +13,16 @@ make_tmpdir() {
   export TEST_TMPDIR
 }
 
+# Throwaway git repo with one commit; prints its path. Callers rm -rf it.
+make_tmp_git_repo() {
+  local dir
+  dir="$(mktemp -d /private/tmp/dotfiles-test.XXXXXX)"
+  git -C "$dir" init -q -b main
+  git -C "$dir" -c user.email="test@example.com" -c user.name="test" \
+    commit -q --allow-empty -m "init"
+  echo "$dir"
+}
+
 # Lets inline `python3 -c` in a .bats file do `import wcag`.
 PYTHONPATH="$REPO_DIR/test/helpers${PYTHONPATH:+:$PYTHONPATH}"
 export PYTHONPATH
