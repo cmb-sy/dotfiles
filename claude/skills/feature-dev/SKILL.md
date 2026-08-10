@@ -23,69 +23,17 @@ user-invocable: true
 - 失敗修正や直前作業の継続は同一エージェント continuation を優先し、独立 verification や方針変更時は fresh context を使う
 - non-trivial な実装は、実装担当とは独立した verification を通してから完了扱いにする
 
-## Resume Gate（最優先で評価）
+## Pipeline Gates（起動時に必読）
 
-起動時に以下を確認:
-1. `.agents/handover/` 配下に現在ブランチの READY セッションが存在するか
-2. 複数 READY セッションがある場合、タイムスタンプ（fingerprint）が最新のものを選択
-3. 存在する場合、`project-state.json` の `pipeline` が `"feature-dev"` と一致するか
+Resume Gate（中断した実行の再開判定）と Mandatory Audit Gate（フェーズ遷移の絶対条件）の仕様は
+`../_shared/pipeline-gates.md` を Read で読み込み、Phase 1 着手前に適用する。本スキルが与えるパラメータ:
 
-一致する場合 → **Resume Mode** で起動する（Phase 1 からの通常フローをスキップ）。
-一致しない場合 → 通常の新規起動。
-
-### Resume Mode 実行フロー
-
-1. `project-state.json` を読み込む
-2. `args` からフラグを復元する（`--codex`, `--e2e`, `--smoke`, `--doc`, `--ui`, `--iterations`, `--swarm`）
-3. `phase_observations[]` + `session_notes[]` から soft context を表示する:
-   - `relates_to_phase` が `current_phase` 以降 → 全件表示
-   - `relates_to_phase` が `current_phase` より前 → `directive` / `concern` のみ
-   - 表示順: directive → concern → insight → quality → warning
-4. 再開位置を表示し、ユーザー承認を得る:
-   ```
-   Pipeline: feature-dev ({復元されたフラグ})
-   現在: Phase {N} {name}（{status}）
-
-   [前セッションからの引き継ぎ]
-   - ⚠ {session_notes / phase_observations の要約}
-
-   [監査状態]
-   - Phase {N} Audit: {状態} / attempt {M} of {max_retries}
-
-   この状態から再開します。よろしいですか？
-   ```
-5. 承認後、`current_phase` のフェーズから作業を続行する
-6. 以降は通常のフェーズ遷移ルール・監査ゲートに従う
-
-### フェーズ途中 vs フェーズ間の再開
-
-- **フェーズ途中**（`active_tasks` に `in_progress` あり）: 残タスクから再開。完了時に done-criteria で監査
-- **フェーズ間**（前フェーズ完了、次フェーズ未開始）: 前フェーズの監査ゲートが PASS 済みか確認。未実施なら監査から実行
-
-### Resume Mode で「やらないこと」
-
-- Phase 1 からのやり直し（`completed_phases` はスキップ）
-- 完了済みフェーズの再監査（コミット SHA が git log に存在すれば信頼）
-- 新規起動時の引数パース（`args` は `project-state.json` から復元）
+- pipeline 識別子: `feature-dev`
+- 復元するフラグ: `--codex`, `--e2e`, `--smoke`, `--doc`, `--ui`, `--iterations`, `--swarm`
+- done-criteria: `./done-criteria/phase-N-{name}.md`
 
 <HARD-GATE>
-## Mandatory Audit Gate — フェーズ遷移の絶対条件
-
 フェーズ遷移は Audit Gate を経由しなければならない。例外なし。
-
-各フェーズの作業完了後、次フェーズへ遷移する前に:
-1. `./done-criteria/phase-N-{name}.md` を Read で読み込む
-2. frontmatter の `audit` フィールドを確認する
-3. `audit: required` → phase-auditor を Agent ツールで起動し、PASS verdict を得る
-4. `audit: lite` → オーケストレーターが done-criteria の基準を直接検証する
-5. `audit` 未定義 → `required` として扱う
-
-以下はスキップの理由にならない:
-- 「前のフェーズで十分に検証した」
-- 「シンプルな変更だから不要」
-- 「レビュースキルが既に品質を確認した」
-- 「時間/トークンを節約したい」
-
 phase-auditor の verdict なしに Phase N+1 のアナウンスや作業開始を行った場合、
 それは**プロトコル違反**である。
 </HARD-GATE>
@@ -465,20 +413,20 @@ pipeline state に以下を追加:
 
 ## Autonomy Summary
 
-| Phase | Mode | 自動遷移 | GATE 条件 |
-|-------|------|---------|-----------|
-| 1: Design | INTERACTIVE | worktree 作成済み かつ 設計書コミット済み | テスト失敗 -> PAUSE |
-| 2: Spec Review | INTERACTIVE | レビュー全観点パス | -- |
-| 3: Plan | AUTONOMOUS | 計画書コミット済み | -- |
-| 4: Plan Review | INTERACTIVE | レビュー全観点パス | -- |
-| 5: Execute | AUTONOMOUS+GATE | 全タスク完了 | 3回失敗 -> PAUSE |
-| 6: Doc Audit | INTERACTIVE | 全 finding 処理済み | Audit Gate FAIL -> PAUSE |
-| 7: Smoke Test | AUTONOMOUS+GATE | PASS | FAIL/PAUSE -> PAUSE |
-| 8: Code Review | INTERACTIVE | 修正完了 | -- |
-| 9: Test Review | INTERACTIVE | 修正完了 | -- |
-| 10: Integrate | INTERACTIVE | 選択完了 | -- |
+| Phase | 役割 | Mode | 自動遷移 | GATE 条件 |
+|-------|------|------|---------|-----------|
+| 1: Design | 起点 | INTERACTIVE | worktree 作成済み かつ 設計書コミット済み | テスト失敗 -> PAUSE |
+| 2: Spec Review | 設計レビュー | INTERACTIVE | レビュー全観点パス | -- |
+| 3: Plan | 計画 | AUTONOMOUS | 計画書コミット済み | -- |
+| 4: Plan Review | 計画レビュー | INTERACTIVE | レビュー全観点パス | -- |
+| 5: Execute | Execute | AUTONOMOUS+GATE | 全タスク完了 | 3回失敗 -> PAUSE |
+| 6: Doc Audit | -- | INTERACTIVE | 全 finding 処理済み | Audit Gate FAIL -> PAUSE |
+| 7: Smoke Test | Smoke Test | AUTONOMOUS+GATE | PASS | FAIL/PAUSE -> PAUSE |
+| 8: Code Review | コードレビュー | INTERACTIVE | 修正完了 | -- |
+| 9: Test Review | テストレビュー | INTERACTIVE | 修正完了 | -- |
+| 10: Integrate | Integrate | INTERACTIVE | 選択完了 | -- |
 
-詳細は Read tool で `./references/autonomy-gates.md`（このスキルのディレクトリからの相対パス）を読み込んで参照。
+詳細は Read tool で `../_shared/autonomy-gates.md` を読み込んで参照。判定表は「役割」列で引く。
 
 ## Error Handling
 
