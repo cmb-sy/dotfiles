@@ -91,12 +91,13 @@ INIT="$REPO_DIR/.config/nvim/init.lua"
 }
 
 @test "init.lua がエラーなく読み込まれる" {
-    # Asserts nvim printed nothing at all, so it cannot run where treesitter has
-    # no parsers built yet and prints download notices on every start.
-    [ -n "$CI" ] && skip "needs GUI/tmux, local only"
+    # Counts nvim's own error codes rather than demanding total silence: on a
+    # machine with no treesitter parsers built yet every start prints download
+    # notices, and those are progress, not breakage.
     run bash -c "nvim --headless -c 'qa' 2>&1"
     [ "$status" -eq 0 ]
-    [ -z "$output" ]
+    errors=$(printf '%s\n' "$output" | grep -cE 'E[0-9]+:') || errors=0
+    [ "$errors" -eq 0 ]
 }
 
 @test "which-key の窓が helix 既定より大きい" {

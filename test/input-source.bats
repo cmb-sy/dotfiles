@@ -36,7 +36,7 @@ IS="$REPO_DIR/bin/input-source"
 }
 
 @test "2 回目以降はキャッシュされたバイナリで速い" {
-    [ -n "$CI" ] && skip "needs GUI/tmux, local only"
+    [ -n "$CI" ] && skip "wall-clock budget, local only"
     # A status line polling a 2.4s script-mode swift call would stall the editor;
     # the cache is the whole reason this wrapper exists.
     "$IS" >/dev/null                      # make sure it is built

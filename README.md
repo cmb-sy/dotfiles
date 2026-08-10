@@ -68,7 +68,7 @@ CI=true zsh setup/install.zsh
 CI=true bats test/
 ```
 
-`bats test/` runs everything. Tests that need a desktop session -- a live input
-source, a real screen, or a wall-clock budget that only means something on a
-quiet machine -- skip themselves when `$CI` is set, so the suite is green on a
-runner without pretending those checks ran there.
+`bats test/` runs everything. Two kinds of test skip themselves when `$CI` is
+set: those needing a desktop session (a live input source, a real screen) and
+the wall-clock budgets, which only mean something on a quiet machine. The suite
+is green on a runner without pretending those checks ran there.
