@@ -32,6 +32,23 @@ if util::confirm "Install packages from Brewfile?"; then
 fi
 
 #----------------------------------------------------------
+# Python packages (tests + bin/highlight-code)
+#
+# Homebrew cannot express these: its pygments formula is a private virtualenv
+# exposing only the pygmentize CLI, and pyyaml has no formula at all. Both must
+# be importable by the python3 on PATH, so install them against that
+# interpreter with uv (from the Brewfile above).
+#----------------------------------------------------------
+if util::confirm "Install python packages (pygments, pyyaml)?"; then
+  if util::has uv; then
+    uv pip install --quiet --python "$(command -v python3)" pygments pyyaml \
+      || util::warning "python packages failed; highlight-code and server tests will skip."
+  else
+    util::warning "uv not found; skipping python packages (install the Brewfile first)."
+  fi
+fi
+
+#----------------------------------------------------------
 # VSCode Extensions
 #----------------------------------------------------------
 if util::confirm "Install VSCode extensions?"; then
