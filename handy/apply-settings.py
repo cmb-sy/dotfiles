@@ -44,13 +44,11 @@ DEFAULT_CLOUD_MODEL = "gpt-oss-120b"
 # Local whisper-turbo cannot reliably auto-detect language on short or accented utterances, so
 # bilingual on local is unstable in practice. Lock per session instead, or use cloud for mixing.
 # "auto" is Handy's own default literal (Contents/Resources/resources/default_settings.json).
-# Rebind "cancel current recording" from the default Escape to the C key.
-# Safe: Handy registers the cancel hotkey only while recording and unregisters it on stop
-# (src-tauri/src/shortcut/handler.rs "only fires when recording"), so typing "c" normally is
-# untouched when not dictating. "c" is the handy_keys string for the C key per
-# src/lib/utils/keyboard.ts (KeyC -> "c"). Chosen over Backspace because external keyboards'
-# "delete" key did not cancel.
-CANCEL_BINDING = "c"
+# Cancel the current recording with Escape, which is also Handy's own default.
+# Handy registers this hotkey only while recording and unregisters it on stop
+# (src-tauri/src/shortcut/handler.rs "only fires when recording"), so Escape keeps its
+# normal meaning in editors whenever you are not dictating.
+CANCEL_BINDING = "escape"
 
 
 def die(msg: str) -> "NoReturn":
