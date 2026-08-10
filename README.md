@@ -19,6 +19,7 @@ handy/               # Voice input (Handy + ollama) post-processing config
 claude/              # Claude Code configuration (skills, agents, hooks)
 bin/                 # Custom scripts
 setup/               # Setup scripts
+test/                # bats test suite (run with `bats test/`)
 docs/                # Architecture notes & learnings
 ```
 
@@ -52,6 +53,8 @@ GitHub Actions runs `setup/setup.zsh` on a `macOS-latest` runner on every push a
 - `~/.claude/skills` SKILL.md inventory (≥ 20)
 - `~/.claude/settings.json` is valid JSON
 - no legacy bad symlinks (`~/.git`, `~/.Brewfile`, etc.)
+- no machine-local keys in `.vscode/settings.json`
+- the `bats` suite in `test/`
 
 ```bash
 gh workflow run CI --ref main   # manual trigger
@@ -62,4 +65,10 @@ Reproduce locally:
 
 ```bash
 CI=true zsh setup/install.zsh
+CI=true bats test/
 ```
+
+`bats test/` runs everything. Tests that need a desktop session -- a live input
+source, a real screen, or a wall-clock budget that only means something on a
+quiet machine -- skip themselves when `$CI` is set, so the suite is green on a
+runner without pretending those checks ran there.

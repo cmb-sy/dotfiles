@@ -24,8 +24,11 @@ setup() {
 # these tests broke.
 run_lua() {
     printf '%s\n' "$1" > "$BATS_TEST_TMPDIR/snippet.lua"
+    # Drop nvim's stderr: on a machine with no parsers built yet, treesitter
+    # prints download notices that would land in the assertion. A real failure
+    # still shows, as the snippet then writes no out.txt.
     nvim --headless -c 'Lazy! load which-key.nvim' \
-         -c "luafile $BATS_TEST_TMPDIR/snippet.lua" -c 'qa!' 2>&1
+         -c "luafile $BATS_TEST_TMPDIR/snippet.lua" -c 'qa!' 2>/dev/null
     cat "$BATS_TEST_TMPDIR/out.txt" 2>/dev/null
 }
 

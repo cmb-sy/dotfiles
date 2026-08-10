@@ -152,3 +152,15 @@ jobs:
             exit 1
           fi
           echo "OK: .vscode/settings.json has no volatile VS Code keys"
+
+      - name: Install bats
+        run: brew install bats-core
+
+      # ----------------------------------------------------------
+      # Step 7: bats test suite
+      # GUI/tmux-bound tests self-skip via $CI.
+      # ----------------------------------------------------------
+      - name: Run bats tests
+        run: |
+          export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+          bats test/

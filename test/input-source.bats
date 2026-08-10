@@ -36,6 +36,7 @@ IS="$REPO_DIR/bin/input-source"
 }
 
 @test "2 回目以降はキャッシュされたバイナリで速い" {
+    [ -n "$CI" ] && skip "needs GUI/tmux, local only"
     # A status line polling a 2.4s script-mode swift call would stall the editor;
     # the cache is the whole reason this wrapper exists.
     "$IS" >/dev/null                      # make sure it is built
@@ -53,6 +54,10 @@ IS="$REPO_DIR/bin/input-source"
     "$IS" >/dev/null
     [ -x "$cache" ]
     before=$(stat -f %m "$cache")
+    # The wrapper compares mtimes with -nt, which is whole seconds. On a cold
+    # cache the build above lands in the same second as the touch, so without
+    # this the source never reads as newer and no rebuild is triggered.
+    sleep 1
     touch "$REPO_DIR/bin/input-source.swift"
     "$IS" >/dev/null
     after=$(stat -f %m "$cache")
@@ -115,6 +120,7 @@ IS="$REPO_DIR/bin/input-source"
 }
 
 @test "実画面でエラーを出さずにラベルを描画する" {
+    [ -n "$CI" ] && skip "needs GUI/tmux, local only"
     # --headless cannot catch either half of this. The ruler only exists on a
     # screen, and a libuv callback that calls a Vimscript function raises E5560
     # on the first keystroke while every headless check still passes.
@@ -141,6 +147,9 @@ print(','.join(problems) if problems else 'OK')
 }
 
 @test "IME を切り替えると画面の表示が追従する" {
+    # Switches the machine to Kotoeri, which only exists as an enabled input
+    # source on a real desktop session.
+    [ -n "$CI" ] && skip "needs GUI/tmux, local only"
     # The end-to-end behaviour, and the only test that would have caught the two
     # bugs here: a busy flag left standing silences every later poll, and a
     # repaint that is never flushed leaves the ruler on the previous value.
