@@ -5,11 +5,9 @@
 #
 # The chain is Ghostty -> herdr -> Neovim, and each link renames the key:
 #   Cmd+/  ->  CSI 21;3~ (alt+F10)  ->  forwarded, unbound in herdr  ->  <F58>
-#
-# bash 3.2 note: a mid-test [[ ]] is excluded from errexit and passes silently,
-# so assertions here use [ ] and grep exit status only.
 
-REPO_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
+load "helpers/common"
+
 KEYS="$REPO_DIR/terminal/ghostty/keybindings.conf"
 HERDR="$REPO_DIR/terminal/herdr/config.toml"
 INIT="$REPO_DIR/.config/nvim/init.lua"

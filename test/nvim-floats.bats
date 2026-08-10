@@ -7,11 +7,8 @@
 # Read from the running editor rather than from the source: which-key merges a
 # preset under the user's options, so what the source says and what the window
 # gets are two different things.
-#
-# bash 3.2 note: a mid-test [[ ]] is excluded from errexit and passes silently,
-# so assertions here use [ ] and grep exit status only.
 
-REPO_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
+load "helpers/common"
 
 # Opening the real memo.md leaves a swap file behind if the editor is killed,
 # and that swap then blocks the user's own session with E325. An isolated state

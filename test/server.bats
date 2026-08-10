@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 # Static checks for server/ assets; must pass without a real Linux host.
 
-REPO_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
+load "helpers/common"
 
 @test "packages.txt が存在し、コメント以外の行が5行以上ある" {
   run bash -c "grep -cv -e '^#' -e '^$' '$REPO_DIR/server/packages.txt'"

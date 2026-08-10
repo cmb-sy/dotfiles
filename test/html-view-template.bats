@@ -2,38 +2,14 @@
 # The html-view template carries design decisions that are easy to undo by
 # accident -- following the OS theme, opening the details, letting prose run the
 # full page width. These check the ones that have a right answer.
-#
-# bash 3.2 note: a mid-test [[ ]] is excluded from errexit and passes silently,
-# so assertions here use [ ] and grep exit status only.
+# The SKILL.md prose is checked separately, in html-view-skill.bats.
 
-REPO_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
+load "helpers/common"
+
 TPL="$REPO_DIR/claude/skills/html-view/template.html"
-SKILL="$REPO_DIR/claude/skills/html-view/SKILL.md"
 
 @test "template.html が存在する" {
     [ -f "$TPL" ]
-}
-
-@test "SKILL.md が template.html を参照している" {
-    run grep -cF 'template.html' "$SKILL"
-    [ "$status" -eq 0 ]
-    [ "$output" -ge 1 ]
-}
-
-@test "対象を選択式で確定する手順がある" {
-    # Guessing what to render produces a page the user did not ask for, and the
-    # cost lands on them: they have to read it to find out it is wrong.
-    run grep -cF 'AskUserQuestion' "$SKILL"
-    [ "$status" -eq 0 ]
-    run grep -cF '直前のやり取り' "$SKILL"
-    [ "$status" -eq 0 ]
-    # The section must come before the build steps, or it gets read too late.
-    run python3 -c "
-s = open('$SKILL', encoding='utf-8').read()
-ask, build = s.find('## 対象の確定'), s.find('## 手順')
-print('OK' if 0 < ask < build else f'ask={ask} build={build}')
-"
-    [ "$output" = "OK" ]
 }
 
 @test "OS のテーマに追従しない（prefers-color-scheme の media query がない）" {
@@ -100,17 +76,9 @@ print(','.join(bad) if bad else 'OK')
     # Pure white is the brightest the display can emit; pure black maximises the
     # ratio against any text on it. Both ends are where halation lives.
     run python3 -c "
-import re
-s = open('$TPL', encoding='utf-8').read()
-block = re.search(r':root\s*\{(.*?)\}', s, re.S).group(1)
-g = dict(re.findall(r'(--[a-z-]+)\s*:\s*(#[0-9a-fA-F]{6})', block))['--ground']
-
-def lum(h):
-    c = [int(h[i:i+2], 16) / 255 for i in (1, 3, 5)]
-    c = [(x / 12.92 if x <= 0.03928 else ((x + 0.055) / 1.055) ** 2.4) for x in c]
-    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
-
-print('OK' if 0.002 <= lum(g) <= 0.92 else f'{lum(g)*100:.2f}%')
+import wcag
+g = wcag.tokens(open('$TPL', encoding='utf-8').read(), 'dark')['--ground']
+print('OK' if 0.002 <= wcag.lum(g) <= 0.92 else f'{wcag.lum(g)*100:.2f}%')
 "
     [ "$status" -eq 0 ]
     [ "$output" = "OK" ]
@@ -121,26 +89,14 @@ print('OK' if 0.002 <= lum(g) <= 0.92 else f'{lum(g)*100:.2f}%')
     # glyphs bloom; body text is held inside 10-13:1, past AAA but short of the
     # range that strains. Checked in both themes.
     run python3 -c "
-import re
+import wcag
 s = open('$TPL', encoding='utf-8').read()
-
-def lum(h):
-    c = [int(h[i:i+2], 16) / 255 for i in (1, 3, 5)]
-    c = [(x / 12.92 if x <= 0.03928 else ((x + 0.055) / 1.055) ** 2.4) for x in c]
-    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
-
-def ratio(a, b):
-    la, lb = lum(a), lum(b)
-    return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
-
 bad = []
-for name, pat in (('dark', r':root\s*\{(.*?)\}'),
-                  ('light', r':root\[data-theme=\"light\"\]\s*\{(.*?)\}')):
-    tok = dict(re.findall(r'(--[a-z-]+)\s*:\s*(#[0-9a-fA-F]{6})',
-                          re.search(pat, s, re.S).group(1)))
-    r = ratio(tok['--ground'], tok['--ink'])
+for theme in ('dark', 'light'):
+    tok = wcag.tokens(s, theme)
+    r = wcag.ratio(tok['--ground'], tok['--ink'])
     if not 10.0 <= r <= 13.5:
-        bad.append(f'{name}={r:.2f}')
+        bad.append(f'{theme}={r:.2f}')
 print(','.join(bad) if bad else 'OK')
 "
     [ "$status" -eq 0 ]
@@ -185,35 +141,23 @@ print(','.join(bad) if bad else 'OK')
     # plus a rule is what makes it a surface, and the text on it still has to
     # clear AAA for body copy and AA for captions.
     run python3 -c "
-import re
+import re, wcag
 s = open('$TPL', encoding='utf-8').read()
-
-def lum(h):
-    c = [int(h[i:i+2], 16) / 255 for i in (1, 3, 5)]
-    c = [(x / 12.92 if x <= 0.03928 else ((x + 0.055) / 1.055) ** 2.4) for x in c]
-    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
-
-def ratio(a, b):
-    la, lb = lum(a), lum(b)
-    return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
-
 body = re.search(r'\n  \.body \{(.*?)\n  \}', s, re.S).group(1)
 bad = []
 if 'background:' not in body:
     bad.append('no background')
 if 'border' not in body:
     bad.append('no rule')
-for name, pat in (('dark', r':root\s*\{(.*?)\n  \}'),
-                  ('light', r':root\[data-theme=\"light\"\]\s*\{(.*?)\n  \}')):
-    tok = dict(re.findall(r'(--[a-z-]+)\s*:\s*(#[0-9a-fA-F]{6})',
-                          re.search(pat, s, re.S).group(1)))
-    sep = ratio(tok['--ground'], tok['--raised'])
+for theme in ('dark', 'light'):
+    tok = wcag.tokens(s, theme)
+    sep = wcag.ratio(tok['--ground'], tok['--raised'])
     if sep < 1.15:
-        bad.append(f'{name}:sep={sep:.2f}')
-    if ratio(tok['--raised'], tok['--dim']) < 7.0:
-        bad.append(f'{name}:dim')
-    if ratio(tok['--raised'], tok['--faint']) < 4.5:
-        bad.append(f'{name}:faint')
+        bad.append(f'{theme}:sep={sep:.2f}')
+    if wcag.ratio(tok['--raised'], tok['--dim']) < 7.0:
+        bad.append(f'{theme}:dim')
+    if wcag.ratio(tok['--raised'], tok['--faint']) < 4.5:
+        bad.append(f'{theme}:faint')
 print(','.join(bad) if bad else 'OK')
 "
     [ "$output" = "OK" ]
@@ -283,94 +227,6 @@ else:
     print(','.join(bad) if bad else 'OK')
 "
     [ "$output" = "OK" ]
-}
-
-@test "深さの 4 パラメータが SKILL.md にある" {
-    # Depth is not one dial. Reader/decision and item structure set the
-    # direction, verification sets the cost, and the bounds control variance.
-    run python3 -c "
-import re
-s = open('$SKILL', encoding='utf-8').read()
-need = ['読者と判断', '項目の構成', '情報源と検証', '分量の上下限']
-print(','.join(n for n in need if n not in s) or 'OK')
-"
-    [ "$output" = "OK" ]
-}
-
-@test "5 スロットが template と SKILL.md の両方に揃っている" {
-    # The slots are the mechanism; the prose only names them. If the template
-    # loses one, the page silently stops asking for it.
-    run python3 -c "
-import re
-tpl = open('$TPL', encoding='utf-8').read()
-skl = open('$SKILL', encoding='utf-8').read()
-slots = ['前提', '実装', 'なぜこの選択か', '無いと壊れるもの', '採らなかった案']
-dl = re.search(r'<dl class=\"aspects\">(.*?)</dl>', tpl, re.S)
-bad = []
-if not dl:
-    bad.append('no dl')
-else:
-    dts = re.findall(r'<dt>([^<]+)</dt>', dl.group(1))
-    if len(dts) != 5:
-        bad.append(f'{len(dts)} slots')
-    bad += [f'tpl:{x}' for x in slots if x not in dts]
-bad += [f'skill:{x}' for x in slots if x not in skl]
-print(','.join(bad) if bad else 'OK')
-"
-    [ "$output" = "OK" ]
-}
-
-@test "一次情報がタスク別に具体化されている" {
-    # This is the parameter that actually moves effort, and it is the one that
-    # decays into "check your sources" if the per-task table is dropped.
-    run python3 -c "
-import re
-s = open('$SKILL', encoding='utf-8').read()
-sec = re.search(r'### ③ 情報源と検証(.*?)(?=\n### )', s, re.S)
-if not sec:
-    print('missing section')
-else:
-    body = sec.group(1)
-    rows = len(re.findall(r'^\| .+ \| .+ \| .+ \|$', body, re.M)) - 1   # minus header
-    kinds = ['PR レビュー', '技術選定', '障害', '設計レビュー', '学習教材']
-    miss = [k for k in kinds if k not in body]
-    print(f'rows={rows}' if rows < 5 else (','.join(miss) if miss else 'OK'))
-"
-    [ "$output" = "OK" ]
-}
-
-@test "分量に上限と下限の両方がある" {
-    # A floor alone invites padding; a ceiling alone invites skimping.
-    run python3 -c "
-import re
-s = open('$SKILL', encoding='utf-8').read()
-sec = re.search(r'### ④ 分量の上下限(.*?)(?=\n### )', s, re.S).group(1)
-print('OK' if '下限' in sec and '上限' in sec and re.search(r'\d+ 行', sec) else 'incomplete')
-"
-    [ "$output" = "OK" ]
-}
-
-@test "図表を既定にする指針が SKILL.md にある" {
-    # Without a trigger list the rule degrades to "use them when obvious", which
-    # is where it started.
-    run grep -cF '既定を図表側に置く' "$SKILL"
-    [ "$status" -eq 0 ]
-    # The trigger table must actually list cases, not just state the principle.
-    run python3 -c "
-import re
-s = open('$SKILL', encoding='utf-8').read()
-sec = re.search(r'既定を図表側に置く.*?(?=\n情報の型)', s, re.S)
-rows = len(re.findall(r'^\| .+ \| .+ \|$', sec.group(0), re.M)) if sec else 0
-print('OK' if rows >= 6 else f'{rows} rows')
-"
-    [ "$output" = "OK" ]
-}
-
-@test "ファイルパスの規約が SKILL.md にある" {
-    run grep -cF '触ったファイルのパスを添える' "$SKILL"
-    [ "$status" -eq 0 ]
-    run grep -cF 'リポジトリ相対パス' "$SKILL"
-    [ "$status" -eq 0 ]
 }
 
 @test "図の部品が揃っている（箱と矢印・状態つき）" {
@@ -462,31 +318,19 @@ print('OK' if size >= 1.0 and weight >= 600 and '--ink' in m else f'size={size} 
     # Highlighting is baked into the markup, so the colours are ordinary tokens
     # and have to clear AA against the code block's own ground, not the page's.
     run python3 -c "
-import re
+import wcag
 s = open('$TPL', encoding='utf-8').read()
-
-def lum(h):
-    c = [int(h[i:i+2], 16) / 255 for i in (1, 3, 5)]
-    c = [(x / 12.92 if x <= 0.03928 else ((x + 0.055) / 1.055) ** 2.4) for x in c]
-    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
-
-def ratio(a, b):
-    la, lb = lum(a), lum(b)
-    return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
-
 bad = []
-for name, pat in (('dark', r':root\s*\{(.*?)\n  \}'),
-                  ('light', r':root\[data-theme=\"light\"\]\s*\{(.*?)\n  \}')):
-    tok = dict(re.findall(r'(--[a-z-]+)\s*:\s*(#[0-9a-fA-F]{6})',
-                          re.search(pat, s, re.S).group(1)))
+for theme in ('dark', 'light'):
+    tok = wcag.tokens(s, theme)
     toks = [k for k in tok if k.startswith('--tok-')]
     if len(toks) < 7:
-        bad.append(f'{name}:only {len(toks)} tokens')
+        bad.append(f'{theme}:only {len(toks)} tokens')
         continue
     for k in toks:
-        r = ratio(tok['--sunken'], tok[k])
+        r = wcag.ratio(tok['--sunken'], tok[k])
         if r < 4.5:
-            bad.append(f'{name}:{k}={r:.2f}')
+            bad.append(f'{theme}:{k}={r:.2f}')
 print(','.join(bad) if bad else 'OK')
 "
     [ "$output" = "OK" ]
@@ -514,67 +358,34 @@ print(','.join(sorted(missing)) if missing else 'OK')
     [ "$(grep -ciE '<script|mermaid' "$TPL")" -eq 0 ]
 }
 
-# bats derives an internal function name by transliterating the title, and
-# non-ASCII collapses -- two titles differing only in Japanese become the same
-# identifier and the file fails to load. Hence the ASCII light/dark markers.
-@test "dark テーマの文字コントラストが WCAG を満たす（既定）" {
+# Both themes answer to the same thresholds; only the :root block differs.
+check_theme_contrast() {
     run python3 -c "
-import re
-s = open('$TPL', encoding='utf-8').read()
-block = re.search(r':root\s*\{(.*?)\}', s, re.S).group(1)
-tok = dict(re.findall(r'(--[a-z-]+)\s*:\s*(#[0-9a-fA-F]{6})', block))
-
-def lum(h):
-    c = [int(h[i:i+2], 16) / 255 for i in (1, 3, 5)]
-    c = [(x / 12.92 if x <= 0.03928 else ((x + 0.055) / 1.055) ** 2.4) for x in c]
-    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
-
-def ratio(a, b):
-    la, lb = lum(a), lum(b)
-    return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
-
+import wcag
+tok = wcag.tokens(open('$TPL', encoding='utf-8').read(), '$1')
 g = tok['--ground']
 bad = []
 # Primary and secondary text carry the page: hold them to AAA.
 for k in ('--ink', '--dim'):
-    if ratio(g, tok[k]) < 7.0:
-        bad.append(f'{k}={ratio(g, tok[k]):.2f}<7')
+    if wcag.ratio(g, tok[k]) < 7.0:
+        bad.append(f'{k}={wcag.ratio(g, tok[k]):.2f}<7')
 # Accent, severity tones and captions only need AA.
 for k in ('--accent', '--sev-high', '--sev-mid', '--sev-low', '--faint'):
-    if ratio(g, tok[k]) < 4.5:
-        bad.append(f'{k}={ratio(g, tok[k]):.2f}<4.5')
+    if wcag.ratio(g, tok[k]) < 4.5:
+        bad.append(f'{k}={wcag.ratio(g, tok[k]):.2f}<4.5')
 print(','.join(bad) if bad else 'OK')
 "
     [ "$status" -eq 0 ]
     [ "$output" = "OK" ]
 }
 
+# bats derives an internal function name by transliterating the title, and
+# non-ASCII collapses -- two titles differing only in Japanese become the same
+# identifier and the file fails to load. Hence the ASCII light/dark markers.
+@test "dark テーマの文字コントラストが WCAG を満たす（既定）" {
+    check_theme_contrast dark
+}
+
 @test "light テーマの文字コントラストも WCAG を満たす（トグル）" {
-    run python3 -c "
-import re
-s = open('$TPL', encoding='utf-8').read()
-block = re.search(r':root\[data-theme=\"light\"\]\s*\{(.*?)\}', s, re.S).group(1)
-tok = dict(re.findall(r'(--[a-z-]+)\s*:\s*(#[0-9a-fA-F]{6})', block))
-
-def lum(h):
-    c = [int(h[i:i+2], 16) / 255 for i in (1, 3, 5)]
-    c = [(x / 12.92 if x <= 0.03928 else ((x + 0.055) / 1.055) ** 2.4) for x in c]
-    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
-
-def ratio(a, b):
-    la, lb = lum(a), lum(b)
-    return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
-
-g = tok['--ground']
-bad = []
-for k in ('--ink', '--dim'):
-    if ratio(g, tok[k]) < 7.0:
-        bad.append(f'{k}={ratio(g, tok[k]):.2f}<7')
-for k in ('--accent', '--sev-high', '--sev-mid', '--sev-low', '--faint'):
-    if ratio(g, tok[k]) < 4.5:
-        bad.append(f'{k}={ratio(g, tok[k]):.2f}<4.5')
-print(','.join(bad) if bad else 'OK')
-"
-    [ "$status" -eq 0 ]
-    [ "$output" = "OK" ]
+    check_theme_contrast light
 }

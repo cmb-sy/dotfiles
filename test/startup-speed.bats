@@ -6,11 +6,8 @@
 # The budgets are deliberately loose. They exist to catch something going badly
 # wrong, not to fail on a busy machine -- a test that flakes gets ignored, and
 # an ignored test guards nothing.
-#
-# bash 3.2 note: a mid-test [[ ]] is excluded from errexit and passes silently,
-# so assertions here use [ ] and grep exit status only.
 
-REPO_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
+load "helpers/common"
 
 # Median of five runs, in milliseconds. The median rather than the mean, so one
 # scheduling hiccup does not decide the result.

@@ -2,11 +2,9 @@
 # Checks for bin/highlight-code. The failure that matters most is silent: if the
 # highlighter throws or emits raw HTML, a page either loses its code or gains a
 # script tag.
-#
-# bash 3.2 note: a mid-test [[ ]] is excluded from errexit and passes silently,
-# so assertions here use [ ] and grep exit status only.
 
-REPO_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
+load "helpers/common"
+
 HL="$REPO_DIR/bin/highlight-code"
 
 @test "実行可能である" {

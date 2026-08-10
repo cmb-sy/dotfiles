@@ -8,11 +8,9 @@
 # These tests never change the input source. Switching it mid-test would leave
 # the machine in a Japanese state if a test aborted, and the label logic can be
 # checked without touching the live setting.
-#
-# bash 3.2 note: a mid-test [[ ]] is excluded from errexit and passes silently,
-# so assertions here use [ ] and grep exit status only.
 
-REPO_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
+load "helpers/common"
+
 IS="$REPO_DIR/bin/input-source"
 
 @test "実行可能である" {

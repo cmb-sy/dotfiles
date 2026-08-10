@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 # Static checks for setup/install.zsh guard conditions.
 
-REPO_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
+load "helpers/common"
 
 # setup.zsh sources install.zsh with FORCE=1, so a `[[ ${FORCE} != 1 ]]` guard
 # would skip this block on the one path that installs a fresh Mac. Only CI skips.

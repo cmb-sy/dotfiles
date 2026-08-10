@@ -2,7 +2,7 @@
 # test/skill-refs.bats — every relative reference in a SKILL.md must exist.
 # Guards against the feature-dev case: 11 references that never existed.
 
-REPO_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
+load "helpers/common"
 
 @test "SKILL.md relative references resolve to real files" {
   missing=0

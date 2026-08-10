@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 
-REPO_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
+load "helpers/common"
 
 @test "user plists carry no hardcoded user path" {
   count=$(grep -c '/Users/' "$REPO_DIR/macos/com.snakashima.handy-warm.plist" || true)
@@ -23,9 +23,9 @@ REPO_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
 }
 
 @test "plist placeholder substitution produces loadable plists" {
-  tmp="$(mktemp -d /private/tmp/plist-test.XXXXXX)"
+  make_tmpdir
   for name in handy-warm secure-input-watch; do
-    out="$tmp/$name.plist"
+    out="$TEST_TMPDIR/$name.plist"
     sed "s|__DOTFILES__|$REPO_DIR|g" "$REPO_DIR/macos/com.snakashima.$name.plist" > "$out"
     plutil -lint "$out"
     grep -qF "$REPO_DIR/bin/$name" "$out"
@@ -33,5 +33,5 @@ REPO_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
     placeholders=$(grep -c '__DOTFILES__' "$out" || true)
     [ "$placeholders" -eq 0 ]
   done
-  rm -rf "$tmp"
+  rm -rf "$TEST_TMPDIR"
 }
