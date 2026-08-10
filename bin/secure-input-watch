@@ -21,7 +21,7 @@
 
 set -euo pipefail
 
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+HERE="${BASH_SOURCE[0]%/*}"
 . "$HERE/lib/voice.sh"
 
 CHECK_SWIFT="$HERE/secure-input-check.swift"

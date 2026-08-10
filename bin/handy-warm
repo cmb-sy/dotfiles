@@ -44,21 +44,30 @@ def quiet_exit(reason: str) -> None:
     sys.exit(0)
 
 
+def die(message: str) -> None:
+    """A broken checkout or environment. Not a Handy state, so say so."""
+    print(f"handy-warm: {message}", file=sys.stderr)
+    sys.exit(1)
+
+
 def voice_lib(expr: str) -> subprocess.CompletedProcess:
     """Run one shell expression with bin/lib/voice.sh sourced.
 
     Handy's settings path and its process check are defined once, in the shell
     lib the voice-input scripts share; re-stating them here would let them drift.
+
+    A lib that cannot be sourced is fatal: its failure would otherwise arrive as
+    a non-zero status and read as "Handy is not running", i.e. a quiet no-op.
     """
     if not LIB.exists():
-        # A broken checkout, not a Handy state: a quiet exit would read as
-        # "nothing to warm" and hide it.
-        print(f"handy-warm: missing {LIB}", file=sys.stderr)
-        sys.exit(1)
-    return subprocess.run(
-        ["/bin/sh", "-c", f'. "$0" || exit 1\n{expr}', str(LIB)],
+        die(f"missing {LIB}")
+    result = subprocess.run(
+        ["/bin/sh", "-c", f'. "$0"\n{expr}', str(LIB)],
         capture_output=True, text=True,
     )
+    if result.stderr.strip():
+        die(f"cannot source {LIB}: {result.stderr.strip()}")
+    return result
 
 
 def main() -> None:
@@ -66,7 +75,9 @@ def main() -> None:
         quiet_exit("handy not running")
 
     settings_path = pathlib.Path(voice_lib('printf %s "$HANDY_SETTINGS"').stdout)
-    if not settings_path.name or not settings_path.exists():
+    if not settings_path.name:
+        die("HANDY_SETTINGS resolved to nothing")
+    if not settings_path.exists():
         quiet_exit("no settings")
 
     try:

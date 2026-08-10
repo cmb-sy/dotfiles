@@ -40,10 +40,11 @@
 #   - claude/hooks/stop.sh : state file (~/.cache/claude-tts.last-transcript) 更新
 #     (herdr フォールバック時のみ使用。--transcript の手動指定にも state file は不要)
 #   - karabiner/karabiner.json : F1 → voice-out バインド
-#   - test/voice-out.bats : pane 解決の自動テスト (sanitize は test/voice-lib.bats)
+#   - bin/lib/voice.sh : sanitize_text と TTS backend の定義 (test/voice-lib.bats)
+#   - test/voice-out.bats : pane 解決と sanitize の自動テスト
 #   - docs/superpowers/specs/2026-06-22-claude-tts-design.md : 設計書
 
-. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/voice.sh" || exit 1
+. "${BASH_SOURCE[0]%/*}/lib/voice.sh" || exit 1
 
 # Karabiner (F1) は最小 launchd env で起動するため PATH を明示する (ai-format と同方式)
 ensure_launchd_path
