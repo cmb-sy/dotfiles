@@ -4,7 +4,7 @@ description: >-
   作業や判断を終えた直後に、その内容を問題（クイズ）形式で振り返って理解のギャップを
   可視化したいときに使う。日付・自由記述テキストのいずれからも出題でき、
   4 軸（技術的理解 / 意義北極星 / 判断根拠 / リスク）で自己診断する。
-  --weekly/--monthly で期間の学習定着度レビュー（reflect_log 分析+弱点再出題。旧 reflect-review を吸収）。
+  --weekly/--monthly で期間の学習定着度レビュー（reflect_log 分析+弱点再出題）。
 argument-hint: "[YYYY-MM-DD | \"今やったことの説明\"] [--quick] [--weekly | --monthly]"
 user-invocable: true
 ---
@@ -294,7 +294,7 @@ Tips: ...
 
 ---
 
-## review モード（--weekly / --monthly、旧 reflect-review）
+## review モード（--weekly / --monthly）
 
 reflect_log の累積データを分析して成長を言語化し、正答率が低い問題を再出題して定着を確認する。`--weekly` は直近7日、`--monthly` は直近30日を対象とする。
 
