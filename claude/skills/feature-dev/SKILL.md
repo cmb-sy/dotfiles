@@ -34,7 +34,9 @@ Resume Gate（中断した実行の再開判定）と Mandatory Audit Gate（フ
 
 <HARD-GATE>
 フェーズ遷移は Audit Gate を経由しなければならない。例外なし。
-phase-auditor の verdict なしに Phase N+1 のアナウンスや作業開始を行った場合、
+done-criteria が `audit: required` なら phase-auditor を起動し PASS verdict を得る。
+`audit: lite` ならオーケストレーターが基準を直接検証する。どちらも省略・スキップは禁止。
+必要な verdict / 検証なしに Phase N+1 のアナウンスや作業開始を行った場合、
 それは**プロトコル違反**である。
 </HARD-GATE>
 
@@ -117,7 +119,7 @@ Phase 10: Integrate ──── worktrunk:worktrunk [INTERACTIVE]
    - FAIL + attempt >= max_retries: 累積診断レポート提示 → PAUSE
 
 ### Audit Team（`--swarm` 有効時）
-`--swarm` 有効時、inspection 基準を含む Phase 1-9 の Audit Gate をエージェントチーム（3メンバー: automated-verifier, inspection-verifier, evidence-verifier）で実行する。メンバー間で findings を相互検証し、合意した verdict を返却する。Phase 10 は automated のみのため単一エージェント。詳細は `../_shared/audit-gate-protocol.md` セクション 10 を参照。
+`--swarm` 有効時、inspection 基準を含む Phase 1-9 の Audit Gate をエージェントチーム（3メンバー: automated-verifier, inspection-verifier, evidence-verifier）で実行する。メンバー間で findings を相互検証し、合意した verdict を返却する。Phase 10 は `audit: lite` のため Audit Team を使わない（下記 Audit Gate Lite）。詳細は `../_shared/audit-gate-protocol.md` セクション 10 を参照。
 
 ### Phase 10: Audit Gate Lite
 Phase 10 は Agent を起動せず、`./done-criteria/phase-10-integrate.md` の基準をオーケストレーターが直接検証。

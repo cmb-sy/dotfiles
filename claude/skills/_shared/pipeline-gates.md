@@ -66,7 +66,7 @@ description: >-
 フェーズ遷移は Audit Gate を経由しなければならない。例外なし。
 
 各フェーズの作業完了後、次フェーズへ遷移する前に:
-1. `./done-criteria/phase-N-{name}.md` を Read で読み込む
+1. 呼び出し元が宣言した done-criteria のパスを Read で読み込む
 2. frontmatter の `audit` フィールドを確認する
 3. `audit: required` → phase-auditor を Agent ツールで起動し、PASS verdict を得る
 4. `audit: lite` → オーケストレーターが done-criteria の基準を直接検証する

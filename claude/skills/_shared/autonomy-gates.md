@@ -27,7 +27,7 @@ description: >-
 | 起点成果物が worktree 内にコミット済み | AUTO | 次フェーズへ自動遷移 |
 | ユーザーが中断を指示 | STOP | クリーンアップ不要で終了 |
 
-### 設計レビューフェーズ
+### 設計レビューフェーズ（feature-dev）
 
 | Situation | Action | Rationale |
 |-----------|--------|-----------|

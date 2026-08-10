@@ -1,7 +1,7 @@
 ---
 name: audit-gate-protocol
 description: >-
-  feature-dev パイプラインの Audit Gate プロトコル。Phase 完了後の監査フロー、
+  パイプライン系スキル（feature-dev / debug-flow）共通の Audit Gate プロトコル。Phase 完了後の監査フロー、
   Fix Dispatch 戦略、Re-gate + Re-review ループ、PAUSE 復帰の全手順を定義する。
 ---
 
@@ -13,6 +13,19 @@ done-criteria の `audit: required` フェーズで phase-auditor を起動せ�
 パイプラインの品質保証は無効となる。
 </HARD-GATE>
 
+フェーズ番号と基準 ID（`D5-02` 等）は呼び出し元スキルごとに異なる。本ファイルは**フェーズの役割**で規定し、
+番号・基準 ID には踏み込まない。自スキルのどのフェーズがどの役割かは、各スキルの Autonomy Summary の
+「役割」列を参照する。基準の実体は各スキルの done-criteria に定義される。
+
+## 呼び出し元スキルが定義するもの
+
+| 項目 | 内容 |
+|------|------|
+| pipeline 識別子 | handover の `pipeline` に記録するスキル名 |
+| フェーズ ⇄ 役割の対応 | 各スキルの Autonomy Summary の「役割」列 |
+| done-criteria | フェーズごとの基準ファイル（`audit`・`max_retries`・基準 ID を含む） |
+| 有効フェーズ | フラグに応じて実行されるフェーズの集合 |
+
 ## 1. Audit Gate フロー
 
 Phase N 完了後、以下の 6 ステップで Audit Gate を実行する。
@@ -21,13 +34,13 @@ Phase N 完了後、以下の 6 ステップで Audit Gate を実行する。
 ### Phase N 完了後: Audit Gate
 
 1. 成果物パスを `artifacts` に記録する
-2. `done-criteria/phase-N-{name}.md` を Read で読み込む
+2. 該当フェーズの done-criteria を Read で読み込む
 3. Evidence Plan から該当アクティビティタイプの collection 要件が
    Executor に注入済みであることを確認
 4. Audit Agent を起動:
    - `--swarm` 無効時: 単一の `phase-auditor` を Agent ツールで起動（Audit Context を注入）
    - `--swarm` 有効時 かつ inspection 基準あり: Audit Team を起動（後述セクション 10 参照）
-   - `--swarm` 有効時 かつ inspection 基準なし（Phase 10 等）: 単一の `phase-auditor`
+   - `--swarm` 有効時 かつ inspection 基準なし: 単一の `phase-auditor`
 5. 返却値の JSON 有効性と必須フィールドを検証
    - 不正な場合: 1回だけ再起動（fix loop とは別カウント）
    - 2回目も不正: PAUSE
@@ -57,7 +70,7 @@ name: {phase_name}
 attempt: {current_attempt}
 
 ### Done Criteria
-{phase-N-done.md の全文}
+{該当フェーズの done-criteria の全文}
 
 ### Evidence Plan
 {evidence-plan.md の全文、または "未生成" }
@@ -73,7 +86,7 @@ attempt: {current_attempt}
 - api-access: {true | false}
 
 ### Pipeline Configuration
-active_phases: [1, 2, 3, 4, 5, 7, 9]
+active_phases: [{フラグに応じて有効なフェーズ番号}]
 next_phase: {N+1 or skip先}
 
 ### Cumulative Diagnosis (attempt 2+ only)
@@ -84,18 +97,18 @@ next_phase: {N+1 or skip先}
 
 修正はオーケストレーターが **そのフェーズで使った既存のサブエージェント/スキル** に再委任する。
 
-| Phase | Fix Executor | Fix Dispatch 戦略 |
-|-------|-------------|-------------------|
-| 1 Design | オーケストレーター自身 | 設計書を修正。不足情報があれば探索エージェント（code-explorer, impact-analyzer 等）を再起動 |
-| 2 Spec Review | オーケストレーター自身 | 設計書を修正 |
-| 3 Plan | オーケストレーター自身 | 計画書を修正 |
-| 4 Plan Review | オーケストレーター自身 | 計画書を修正 |
-| 5 Execute | `feature-implementer` | fix_instructions をタスク単位に分解し、`subagent_type: "feature-implementer"` で起動（TDD skills 自動注入） |
-| 6 Doc Audit | オーケストレーター / doc-check / `feature-implementer` | 修正種別で振り分け: depends-on→Edit、内容更新→doc-check、新規作成→feature-implementer |
-| 7 Smoke Test | `feature-implementer` | Phase 5 の `feature-implementer` を再起動 |
-| 8 Code Review | `feature-implementer` | Phase 5 の `feature-implementer` を再起動 |
-| 9 Test Review | `feature-implementer` | Phase 5 の `feature-implementer` を再起動 |
-| 10 Integrate | オーケストレーター自身 | Audit Gate Lite のため Agent 不要 |
+| 役割 | Fix Executor | Fix Dispatch 戦略 |
+|------|-------------|-------------------|
+| 起点（Design / RCA） | オーケストレーター自身 | 起点成果物を修正。不足情報があれば探索エージェント（code-explorer, impact-analyzer 等）を再起動 |
+| 設計レビュー | オーケストレーター自身 | 設計書を修正 |
+| 計画 | オーケストレーター自身 | 計画書を修正 |
+| 計画レビュー | オーケストレーター自身 | 計画書を修正 |
+| Execute | `feature-implementer` | fix_instructions をタスク単位に分解し、`subagent_type: "feature-implementer"` で起動（TDD skills 自動注入） |
+| Doc Audit（feature-dev） | オーケストレーター / doc-check / `feature-implementer` | 修正種別で振り分け: depends-on→Edit、内容更新→doc-check、新規作成→feature-implementer |
+| Smoke Test | `feature-implementer` | Execute フェーズの `feature-implementer` を再起動 |
+| コードレビュー | `feature-implementer` | Execute フェーズの `feature-implementer` を再起動 |
+| テストレビュー | `feature-implementer` | Execute フェーズの `feature-implementer` を再起動 |
+| Integrate | オーケストレーター自身 | Audit Gate Lite のため Agent 不要 |
 
 ## 4. Fix Context テンプレート
 
@@ -133,12 +146,13 @@ fix_status の挙動:
 
 ## 5. INTERACTIVE フェーズでの Audit Gate 位置
 
-Phase 2, 4, 7, 8 は既にレビューループを持つ。Audit Gate は **既存レビューループ完了後に 1 回だけ** 実行する。レビュー自体の再実行は行わない。
+レビュー系の役割（設計レビュー / 計画レビュー / コードレビュー / テストレビュー）は既にレビューループを持つ。
+Audit Gate は **既存レビューループ完了後に 1 回だけ** 実行する。レビュー自体の再実行は行わない。
 
 ```
-Phase 2: /spec-review 実行 → findings ループ（既存） → PASS
-         → Audit Gate（D2-01〜D2-05 を検証）
-         → PASS → Phase 3 へ
+設計レビュー: /spec-review 実行 → findings ループ（既存） → PASS
+         → Audit Gate（該当フェーズの done-criteria の全基準を検証）
+         → PASS → 次フェーズへ
          → FAIL → 修正 → 再監査（レビュー自体は再実行しない）
 ```
 
@@ -158,7 +172,7 @@ Audit Gate が PAUSE に到達した後、ユーザーが介入して再開す�
 
 ```json
 {
-  "pipeline": "feature-dev",
+  "pipeline": "{pipeline 識別子}",
   "current_phase": 5,
   "audit_state": {
     "current_attempt": 2,
@@ -166,8 +180,8 @@ Audit Gate が PAUSE に到達した後、ユーザーが介入して再開す�
     "cumulative_diagnosis": [
       {
         "attempt": 1,
-        "failed_criteria": ["D5-05", "D5-07"],
-        "details": { "D5-05": "...", "D5-07": "..." },
+        "failed_criteria": ["{基準ID}", "{基準ID}"],
+        "details": { "{基準ID}": "..." },
         "diff_from_previous": null
       }
     ],
@@ -184,13 +198,14 @@ Audit Gate が PAUSE に到達した後、ユーザーが介入して再開す�
     "worktree_path": "...",
     "branch_name": "..."
   },
-  "args": { "codex": false, "e2e": false, "smoke": true, "doc": false, "ui": false, "iterations": 3, "swarm": false }
+  "args": { "各スキルの Options に定義されたフラグ": "復元可能な値" }
 }
 ```
 
-## 8. Phase 5 Re-gate + Re-review ループ
+## 8. Execute Re-gate + Re-review ループ
 
-Phase 5 以降でコード変更が発生した場合、GitHub PR の「push fix -> CI -> re-review」サイクルを再現する。CI（Phase 5/6/7 Re-gate）だけでなく、レビュー自体も再実行する。
+Execute 以降でコード変更が発生した場合、GitHub PR の「push fix -> CI -> re-review」サイクルを再現する。
+CI（Execute / Doc Audit / Smoke Test の Re-gate）だけでなく、レビュー自体も再実行する。
 
 ### 8.1 GitHub PR フローとの対比
 
@@ -200,40 +215,40 @@ GitHub PR:
     → push fix → CI → re-review → changes requested
     → push fix → CI → re-review → approved → merge
 
-feature-dev:
-  Phase 5 → Audit → [Phase 6] → [Phase 7] → Phase 8(review) → findings → fix
-    → Phase 5 Re-gate → [Phase 6 Re-gate] → [Phase 7 Re-gate] → /code-review(re-review) → findings → fix
-    → Phase 5 Re-gate → [Phase 6 Re-gate] → [Phase 7 Re-gate] → /code-review(re-review) → no findings
-    → Phase 8 Audit Gate → Phase 10(merge)
+パイプライン:
+  Execute → Audit → [Doc Audit] → [Smoke Test] → コードレビュー → findings → fix
+    → Execute Re-gate → [Doc Audit Re-gate] → [Smoke Test Re-gate] → /code-review(re-review) → findings → fix
+    → Execute Re-gate → [Doc Audit Re-gate] → [Smoke Test Re-gate] → /code-review(re-review) → no findings
+    → コードレビュー Audit Gate → Integrate(merge)
 ```
 
-| GitHub PR | feature-dev |
+| GitHub PR | パイプライン |
 |-----------|-------------|
 | push | コード変更（fix 適用） |
-| CI | Phase 5 Re-gate + Phase 6 Re-gate + Phase 7 Re-gate |
+| CI | Execute Re-gate + Doc Audit Re-gate + Smoke Test Re-gate |
 | review / re-review | /code-review（または /test-review） |
-| approve | Phase 8/9 Audit Gate |
-| merge | Phase 10 |
+| approve | コードレビュー / テストレビューの Audit Gate |
+| merge | Integrate |
 
 ### 8.2 フロー詳細
 
 ```
-Phase 8: /code-review → findings → 修正適用
+コードレビュー: /code-review → findings → 修正適用
   |
   +-- git diff でコード変更を検知
   |
   +-- コード変更あり → Re-review ループ開始
   |    |
-  |    +-- Step 1: Phase 5 Audit Gate 再実行（full mode）
+  |    +-- Step 1: Execute の Audit Gate 再実行（full mode）
   |    |    +-- PASS -> Step 2
-  |    |    +-- FAIL -> Fix -> Phase 5 Re-gate 再実行 -> (max_retries -> PAUSE)
+  |    |    +-- FAIL -> Fix -> Execute Re-gate 再実行 -> (max_retries -> PAUSE)
   |    |
-  |    +-- Step 2: Phase 6 Re-gate（--doc 有効時のみ、lightweight）
+  |    +-- Step 2: Doc Audit Re-gate（--doc 有効時のみ、lightweight）
   |    |    +-- doc-audit.sh --range <fix-commit>..HEAD 実行
   |    |    +-- 影響なし -> Step 3
   |    |    +-- 影響あり -> doc-check のみ実行（Layer 2 再実行なし）-> Step 3
   |    |
-  |    +-- Step 3: Phase 7 Audit Gate 再実行（--smoke 有効時）
+  |    +-- Step 3: Smoke Test の Audit Gate 再実行（--smoke 有効時）
   |    |    +-- PASS -> Step 4
   |    |    +-- FAIL -> Fix -> Step 1 に戻る（コード変更が発生するため）
   |    |
@@ -242,67 +257,64 @@ Phase 8: /code-review → findings → 修正適用
   |    |    +-- findings あり -> ユーザー承認 -> 修正適用
   |    |         -> Step 1 に戻る（コード変更が発生するため）
   |    |
-  |    +-- Step 5: Phase 8 Audit Gate（D8-01...D8-03）
+  |    +-- Step 5: コードレビューの Audit Gate
   |
   +-- コード変更なし
-       +-- Phase 8 Audit Gate のみ
+       +-- コードレビューの Audit Gate のみ
 ```
 
-Phase 9 も同様（/code-review の代わりに /test-review）。
+テストレビューも同様（/code-review の代わりに /test-review）。
 
 ### 8.3 ループ終了条件
 
 Re-review ループは以下のいずれかで終了する:
 
-1. **正常終了**: Phase 5 Re-gate PASS -> Phase 6 Re-gate PASS -> Phase 7 Re-gate PASS -> re-review で findings なし -> Phase 8 Audit Gate へ
-2. **PAUSE（Re-gate 失敗）**: Phase 5 or Phase 7 の Re-gate が max_retries に到達
-3. **PAUSE（Re-gate escalation）**: Phase 5 Re-gate で escalation が発生
+1. **正常終了**: Execute Re-gate PASS -> Doc Audit Re-gate PASS -> Smoke Test Re-gate PASS -> re-review で findings なし -> コードレビューの Audit Gate へ
+2. **PAUSE（Re-gate 失敗）**: Execute or Smoke Test の Re-gate が max_retries に到達
+3. **PAUSE（Re-gate escalation）**: Execute Re-gate で escalation が発生
 4. **PAUSE（re-review 繰り返し）**: re-review が 3 回連続で findings を出す場合、PAUSE して根本的な設計見直しを促す
 
 ### 8.4 Re-gate の attempt カウンタ
 
-- Re-gate は呼び出し元（Phase 8/9）の attempt とは独立したカウンタを持つ
+- Re-gate は呼び出し元（コードレビュー / テストレビュー）の attempt とは独立したカウンタを持つ
 - 各 Re-review ループの開始時に Re-gate の attempt はリセットされる
-- max_retries は Phase 5/7 の done-criteria ファイルに定義された値を使用
+- max_retries は Execute / Smoke Test の done-criteria に定義された値を使用
 
 ### 8.5 Evidence 再収集
 
 Re-gate 実行時、Evidence Plan の collection 要件も再適用される:
 
-- Phase 5 Re-gate: implementation アクティビティのエビデンスを再収集
-- Phase 6 Re-gate: doc-maintenance アクティビティのエビデンスを再収集（lightweight: doc-audit.sh + doc-check のみ）
-- Phase 7 Re-gate: smoke-test アクティビティのエビデンスを再収集
+- Execute Re-gate: implementation アクティビティのエビデンスを再収集
+- Doc Audit Re-gate: doc-maintenance アクティビティのエビデンスを再収集（lightweight: doc-audit.sh + doc-check のみ）
+- Smoke Test Re-gate: smoke-test アクティビティのエビデンスを再収集
 - エビデンスファイルは上書き（最新の状態が常に反映される）
 
 ### 8.6 Re-gate + Re-review が解決する問題
 
-| Phase | リスク | 検出手段 |
-|-------|--------|---------|
-| Phase 8 | 修正でビルドが壊れる | Phase 5 Re-gate D5-02 |
-| Phase 8 | 修正で既存テストが FAIL | Phase 5 Re-gate D5-04 |
-| Phase 8 | 修正でコンポーネント境界を破壊 | Phase 5 Re-gate D5-06 |
-| Phase 8 | 修正でドキュメントが乖離する | Phase 6 Re-gate |
-| Phase 8 | 修正で UI が壊れる | Phase 7 Re-gate |
-| Phase 8 | 修正が新たなセキュリティ問題を導入 | re-review（security 観点） |
-| Phase 8 | 修正が新たなパフォーマンス問題を導入 | re-review（performance 観点） |
-| Phase 9 | テスト追加で既存テストとの競合 | Phase 5 Re-gate D5-04 |
-| Phase 9 | テスト修正がトレーサビリティを破壊 | Phase 5 Re-gate D5-07 |
+| 発生元 | リスク | 検出手段 |
+|--------|--------|---------|
+| コードレビュー | 修正でビルドが壊れる | Execute Re-gate（ビルド/コンパイル基準） |
+| コードレビュー | 修正で既存テストが FAIL | Execute Re-gate（全テスト PASS 基準） |
+| コードレビュー | 修正でコンポーネント境界を破壊 | Execute Re-gate（設計整合性の inspection 基準） |
+| コードレビュー | 修正でドキュメントが乖離する | Doc Audit Re-gate |
+| コードレビュー | 修正で UI が壊れる | Smoke Test Re-gate |
+| コードレビュー | 修正が新たなセキュリティ問題を導入 | re-review（security 観点） |
+| コードレビュー | 修正が新たなパフォーマンス問題を導入 | re-review（performance 観点） |
+| テストレビュー | テスト追加で既存テストとの競合 | Execute Re-gate（全テスト PASS 基準） |
+| テストレビュー | テスト修正がトレーサビリティを破壊 | Execute Re-gate（タスク ⇄ コード変更の対応基準） |
 
-## 9. Audit Gate Lite（Phase 10）
+## 9. Audit Gate Lite（Integrate）
 
-Phase 10 は Audit Agent を起動しない。オーケストレーターが直接検証する。
+Integrate フェーズの done-criteria は `audit: lite` である。Audit Agent を起動せず、オーケストレーターが
+基準を直接検証する（git コマンド等での確認、および inspection 基準がある場合は自身の判定）。
 
-| ID | 基準 | verify_type |
-|----|------|-------------|
-| D10-01 | ユーザーが統合方法を選択済み | automated |
-| D10-02 | 選択されたアクションが完了（merge commit / PR URL / branch 存在） | automated |
-| D10-03 | マージコンフリクトがない + 未コミット変更がない | automated |
-
-全基準が automated であり Audit Agent の judgment が不要なため、Agent を起動せずオーケストレーターが git コマンド等で直接検証する。
+基準の実体は各スキルの Integrate フェーズの done-criteria に定義される。統合方法の選択・実行完了・
+コンフリクト有無といった機械的に確認できる項目が中心のため、Agent の judgment を必要としない。
 
 ## 10. Audit Team（`--swarm` 有効時）
 
-`--swarm` フラグ有効時、inspection 基準を含むフェーズ（Phase 1-9）の Audit Gate をエージェントチームで実行する。automated 基準のみのフェーズ（Phase 10）は単一エージェントのまま。
+`--swarm` フラグ有効時、inspection 基準を含むフェーズの Audit Gate をエージェントチームで実行する。
+automated 基準のみのフェーズは単一エージェントのまま。`audit: lite` の Integrate フェーズは対象外。
 
 ### 10.1 チーム構成
 
@@ -374,23 +386,16 @@ Member C（evidence-verifier）:
 
 ### 10.5 適用条件
 
-| Phase | inspection 基準数 | Audit Team 適用 |
-|-------|-----------------|----------------|
-| Phase 1 | 3（D1-02, D1-03, D1-05） | Yes |
-| Phase 2 | 3（D2-03, D2-04, D2-05） | Yes |
-| Phase 3 | 4（D3-02, D3-03, D3-04, D3-05） | Yes |
-| Phase 4 | 2（D4-03, D4-04） | Yes |
-| Phase 5 | 6（D5-01, D5-05, D5-06, D5-07, D5-08, D5-09） | Yes — 最も恩恵大 |
-| Phase 6 | 8（D6-06, D6-07, D6-08, D6-09, D6-10, D6-11, D6-12, D6-13） | Yes |
-| Phase 7 | 1（D7-03） | Yes |
-| Phase 8 | 1（D8-02） | Yes |
-| Phase 9 | 2（D9-02, D9-03） | Yes |
-| Phase 10 | 0 | No — 単一エージェント（Audit Gate Lite） |
+適用の判定は done-criteria の実体で行う。フェーズ番号で固定しない。
 
-**Phase 6 (Doc Audit) 基準割り当て:**
-- automated-verifier: D6-01, D6-02, D6-03, D6-04, D6-05
-- inspection-verifier: D6-06, D6-07, D6-08, D6-09
-- evidence-verifier: D6-10, D6-11, D6-12, D6-13
+| 条件 | Audit Team 適用 |
+|------|----------------|
+| done-criteria に inspection 基準が 1 件以上ある | Yes。inspection 基準が多いフェーズ（Execute 等）が最も恩恵を受ける |
+| done-criteria が automated 基準のみ | No — 単一 phase-auditor |
+| done-criteria が `audit: lite`（Integrate） | No — オーケストレーターが直接検証（セクション 9） |
+
+メンバーへの基準割り当ては verify_type で決まる（セクション 10.1）。automated → Member A、
+inspection → Member B、Layer 2 evidence の再検証 → Member C。
 
 ### 10.6 単一エージェントとの使い分け
 
