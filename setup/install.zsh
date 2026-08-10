@@ -9,7 +9,9 @@ source "${SCRIPT_DIR}/util.zsh"
 #----------------------------------------------------------
 if [[ "$(uname -s)" == "Linux" ]]; then
   util::info "Linux detected: delegating to server/install.zsh"
-  exec zsh "${REPO_DIR}/server/install.zsh"
+  zsh "${REPO_DIR}/server/install.zsh"
+  # return when sourced (setup.zsh does), exit when run directly
+  return 0 2>/dev/null || exit 0
 fi
 
 util::info "Starting dotfiles installation..."
@@ -44,9 +46,11 @@ if util::confirm "Install Cursor extensions?"; then
 fi
 
 #----------------------------------------------------------
-# macOS settings (skip password prompt when FORCE=1)
+# macOS settings
+#
+# Skipped in CI: the runner does not need the defaults and some need sudo.
 #----------------------------------------------------------
-if [[ ${FORCE} != 1 ]] && util::confirm "Apply macOS settings?"; then
+if ! util::is_ci && util::confirm "Apply macOS settings?"; then
   source "${REPO_DIR}/macos/install.zsh"
 fi
 
