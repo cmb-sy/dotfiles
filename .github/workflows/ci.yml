@@ -173,4 +173,10 @@ jobs:
           LANG: C
         run: |
           export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+          # .zshrc looks for the repo at $DOTFILES, falling back to ~/dotfiles,
+          # which does not exist here -- without this an interactive zsh sources
+          # no aliases and the tests for them see an empty shell.
+          export DOTFILES="$PWD"
+          bash --version | head -1
+          command -v bats && bats --version
           bats test/

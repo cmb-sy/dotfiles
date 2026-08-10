@@ -18,6 +18,7 @@ HL="$REPO_DIR/bin/highlight-code"
 }
 
 @test "コメント・文字列・キーワードに class が付く" {
+    python3 -c 'import pygments' 2>/dev/null || skip "pygments not installed"
     run bash -c "printf '# note\nx = \"s\"\nif x: pass\n' | '$HL' --lang python"
     [ "$status" -eq 0 ]
     echo "$output" | grep -qF 'class="c"'
@@ -60,12 +61,16 @@ HL="$REPO_DIR/bin/highlight-code"
 }
 
 @test "terraform を扱える（画面で使う言語）" {
+    python3 -c 'import pygments' 2>/dev/null || skip "pygments not installed"
     run bash -c "printf 'variable \"env\" {\n  type = string\n}\n' | '$HL' --lang terraform"
     [ "$status" -eq 0 ]
     echo "$output" | grep -qF 'class='
 }
 
 @test "--list は言語名を返す" {
+    # --list is the one path that hard-errors without pygments, by design: it
+    # has nothing to fall back to.
+    python3 -c 'import pygments' 2>/dev/null || skip "pygments not installed"
     run bash -c "'$HL' --list"
     [ "$status" -eq 0 ]
     echo "$output" | grep -qF 'terraform'
