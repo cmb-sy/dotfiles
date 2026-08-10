@@ -19,6 +19,15 @@ skill_lineage_notes() {
     "$REPO_DIR/claude/skills" --include=SKILL.md
 }
 
+# A record that something was removed. A rule about a still-reachable legacy
+# path is a condition, so it says what to do (「なら」「場合」「使わない」)
+# rather than that the old thing is gone.
+skill_removal_notes() {
+  grep -rnoE '.{0,12}[はをも]廃止.{0,12}' \
+    "$REPO_DIR/claude/skills" --include=SKILL.md |
+    grep -vE 'なら|場合|とき|使わない'
+}
+
 @test "no SKILL.md carries a dated change note" {
   found="$(skill_dated_notes || true)"
   echo "$found"
@@ -28,6 +37,13 @@ skill_lineage_notes() {
 
 @test "no SKILL.md describes what it absorbed or replaced" {
   found="$(skill_lineage_notes || true)"
+  echo "$found"
+  hits=$(echo "$found" | grep -c . ) || hits=0
+  [ "$hits" -eq 0 ]
+}
+
+@test "no SKILL.md records that something was removed" {
+  found="$(skill_removal_notes || true)"
   echo "$found"
   hits=$(echo "$found" | grep -c . ) || hits=0
   [ "$hits" -eq 0 ]
