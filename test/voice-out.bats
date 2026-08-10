@@ -1,62 +1,58 @@
 #!/usr/bin/env bats
+# test/voice-out.bats — sanitize_text from the lib, pane resolution from the
+# script. voice-out only runs its main flow when executed, so sourcing it here
+# defines the helpers without speaking.
 
-load_voice_out() {
-  # Extract and eval only the sanitize function; running voice-out itself would call say
-  eval "$(sed -n '/^sanitize()/,/^}/p' "${BATS_TEST_DIRNAME}/../bin/voice-out")"
-}
-
-# Extract log() + resolve_focused_pane_id() + load_from_visible_pane() only.
-# These call `herdr` (not say/afplay), so tests mock `herdr` as a shell function
-# instead of running the live binary.
-load_pane_resolver() {
-  eval "$(sed -n '/^log()/,/^}/p' "${BATS_TEST_DIRNAME}/../bin/voice-out")"
-  eval "$(sed -n '/^resolve_focused_pane_id()/,/^}/p' "${BATS_TEST_DIRNAME}/../bin/voice-out")"
-  eval "$(sed -n '/^load_from_visible_pane()/,/^}/p' "${BATS_TEST_DIRNAME}/../bin/voice-out")"
-}
+load "helpers/common"
 
 setup() {
-  load_voice_out
+  . "$REPO_DIR/bin/lib/voice.sh"
+}
+
+load_voice_out() {
+  . "$REPO_DIR/bin/voice-out"
 }
 
 @test "replaces code block with placeholder" {
-  result=$(sanitize $'```sh\necho hi\n```')
+  result=$(printf '%s' $'```sh\necho hi\n```' | sanitize_text)
   [ "$result" = "コードブロック省略。" ]
 }
 
 @test "replaces table with placeholder" {
-  result=$(sanitize $'| a | b |\n|---|---|\n| 1 | 2 |')
+  result=$(printf '%s' $'| a | b |\n|---|---|\n| 1 | 2 |' | sanitize_text)
   [ "$result" = "表省略。" ]
 }
 
 @test "replaces long URL with link placeholder" {
-  result=$(sanitize "see https://github.com/example/repo/pull/12345 ok")
-  [[ "$result" == *"リンク。"* ]]
+  result=$(printf '%s' "see https://github.com/example/repo/pull/12345 ok" | sanitize_text)
+  printf '%s' "$result" | grep -qF "リンク。"
 }
 
 @test "strips markdown heading symbols" {
-  result=$(sanitize $'# Title\n## Subtitle')
-  [[ "$result" != *"#"* ]]
+  result=$(printf '%s' $'# Title\n## Subtitle' | sanitize_text)
+  hits=$(printf '%s' "$result" | grep -cF '#') || hits=0
+  [ "$hits" -eq 0 ]
 }
 
 @test "strips bold markers but keeps content" {
-  result=$(sanitize "**重要**な点")
+  result=$(printf '%s' "**重要**な点" | sanitize_text)
   [ "$result" = "重要な点" ]
 }
 
 @test "empty input produces empty output" {
-  result=$(sanitize "")
+  result=$(printf '%s' "" | sanitize_text)
   [ -z "$result" ]
 }
 
 @test "collapses 3+ consecutive newlines into 2" {
-  result=$(sanitize $'a\n\n\n\nb')
+  result=$(printf '%s' $'a\n\n\n\nb' | sanitize_text)
   [ "$result" = $'a\n\nb' ]
 }
 
 # --- resolve_focused_pane_id / load_from_visible_pane (mocked herdr) ---
 
 @test "resolve_focused_pane_id: single pane in the focused workspace" {
-  load_pane_resolver
+  load_voice_out
   herdr() {
     case "$1 $2" in
       "workspace list") printf '{"result":{"workspaces":[{"workspace_id":"w1","focused":false},{"workspace_id":"w2","focused":true}]}}' ;;
@@ -68,7 +64,7 @@ setup() {
 }
 
 @test "resolve_focused_pane_id: prefers the individually-focused pane in a multi-pane workspace" {
-  load_pane_resolver
+  load_voice_out
   herdr() {
     case "$1 $2" in
       "workspace list") printf '{"result":{"workspaces":[{"workspace_id":"w1","focused":true}]}}' ;;
@@ -80,7 +76,7 @@ setup() {
 }
 
 @test "resolve_focused_pane_id: falls back to first pane when none report focused" {
-  load_pane_resolver
+  load_voice_out
   herdr() {
     case "$1 $2" in
       "workspace list") printf '{"result":{"workspaces":[{"workspace_id":"w1","focused":true}]}}' ;;
@@ -92,7 +88,7 @@ setup() {
 }
 
 @test "resolve_focused_pane_id: fails when no workspace is focused" {
-  load_pane_resolver
+  load_voice_out
   herdr() {
     case "$1 $2" in
       "workspace list") printf '{"result":{"workspaces":[{"workspace_id":"w1","focused":false}]}}' ;;
@@ -105,7 +101,7 @@ setup() {
 }
 
 @test "resolve_focused_pane_id: fails when herdr is unavailable" {
-  load_pane_resolver
+  load_voice_out
   unset -f herdr 2>/dev/null
   # Shadow PATH lookup too, in case a real herdr binary is installed on this machine
   command() { [ "$1" = "-v" ] && [ "$2" = "herdr" ] && return 1; builtin command "$@"; }
@@ -115,7 +111,7 @@ setup() {
 }
 
 @test "load_from_visible_pane: populates TEXT from herdr pane read" {
-  load_pane_resolver
+  load_voice_out
   herdr() {
     case "$1 $2" in
       "workspace list") printf '{"result":{"workspaces":[{"workspace_id":"w1","focused":true}]}}' ;;
@@ -128,7 +124,7 @@ setup() {
 }
 
 @test "load_from_visible_pane: returns failure when pane read is empty" {
-  load_pane_resolver
+  load_voice_out
   herdr() {
     case "$1 $2" in
       "workspace list") printf '{"result":{"workspaces":[{"workspace_id":"w1","focused":true}]}}' ;;
