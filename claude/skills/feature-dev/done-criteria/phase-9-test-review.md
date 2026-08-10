@@ -67,13 +67,13 @@ audit: required
 - **verify_type**: automated
 - **verification**:
   1. 本フェーズがスキップされた場合、本基準は N/A として verdict に記録する
-  2. `git status --porcelain -- . ':(exclude).agents/'` を実行し、未コミット変更が0件であることを確認する。Phase 9 の変更対象はドキュメントに限定されないためリポジトリ全体を対象とし、handover 自身の書き出し先である `.agents/` のみ除外する
-  3. `git branch --show-current` で現ブランチ名を取得し、`Glob(".agents/handover/<現ブランチ名>/**/project-state.json")` と `Glob(".agents/handover/<現ブランチ名>/**/handover.md")` で handover 成果物を検索する
-     - チーム実行（`--swarm`）では handover がブランチ分離を適用しないため、`.agents/handover/<team-name>/**/project-state.json` と `.agents/handover/<team-name>/**/handover.md` も探索対象に含め、いずれかの経路で見つかれば成立とする
-  4. 手順3の project-state.json の `phase_summaries` に `test-review` キーが存在するか確認する
-  5. `git log -1 --format=%cI -- . ':(exclude).agents/'` でフェーズ完了コミットの committer date を取得し、project-state.json の `generated_at` がそれ以降であることを確認する。handover 成果物のコミットを基準にすると、その直前に書かれた `generated_at` が常に古くなるため、手順2と同じ pathspec で除外する
-- **pass_condition**: 手順1で N/A と記録されていること、または（手順2の出力行数が0、手順3の各 Glob 結果が1件以上、手順4のキーが存在し、手順5で `generated_at` >= フェーズ完了コミットの committer date）
-- **fail_diagnosis_hint**: 未コミット変更があれば `git add` + `git commit` が抜けている（`.agents/` 配下は除外済みのため、handover 成果物をコミットするかどうかは本基準の判定に影響しない）。現ブランチ配下に handover 成果物が無い場合は Phase 9 完了時の `/handover` 実行を確認する（他ブランチ配下の成果物は判定に使わない）。`phase_summaries` にキーが無い場合は project-state.json の `pipeline` フィールド未設定で Phase Summary 生成がスキップされた可能性がある。手順5が不成立なら handover がテストレビュー修正より前に実行された古い成果物である
+  2. `git status --porcelain -- ':/' ':(exclude,top).agents/'` を実行し、未コミット変更が0件であることを確認する。Phase 9 の変更対象はドキュメントに限定されないためリポジトリ全体を対象とし、handover 自身の書き出し先である `.agents/` のみ除外する
+  3. `Glob(".agents/handover/**/project-state.json")` で現リポジトリの handover 成果物を列挙する。`--swarm` ではブランチ名も team name もディレクトリ名として当てにできないため、名前で絞り込まず列挙する
+  4. 列挙された各ファイルの `generated_at` を読み、最も新しいものを対象とする。列挙結果が0件なら対象が存在しないため本基準は FAIL とする
+  5. 対象が `phase_summaries` に `test-review` キーを持つことを確認する
+  6. `git log -1 --format=%cI -- ':/' ':(exclude,top).agents/'` が返す日時が対象の `generated_at` 以前であることを確認する。handover 成果物のコミットを基準にすると、その直前に書かれた `generated_at` が常に古くなるため `.agents/` を除外する
+- **pass_condition**: 手順1で N/A と記録されていること、または（手順2の出力行数が0、手順3の列挙結果が1件以上、手順5のキーが存在し、手順6で `generated_at` >= フェーズ完了コミットの committer date）
+- **fail_diagnosis_hint**: 未コミット変更があれば `git add` + `git commit` が抜けている（`.agents/` 配下は除外済みのため、handover 成果物をコミットするかどうかは本基準の判定に影響しない）。handover 成果物が1件も無い場合は Phase 9 完了時の `/handover` 実行を確認する。`phase_summaries` にキーが無い場合は project-state.json の `pipeline` フィールド未設定で Phase Summary 生成がスキップされた可能性がある。手順6が不成立なら最新の handover がテストレビュー修正より前に実行された古い成果物である
 - **depends_on_artifacts**: [.agents/handover/]
 - **forward_check**: Phase 10 (Integrate) の入力としてテストレビュー済みコードとブランチ名が渡される
 

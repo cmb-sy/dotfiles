@@ -10,7 +10,8 @@ load "helpers/common"
 }
 
 @test "cloud-init.yaml が valid YAML である" {
-  python3 -c 'import yaml' 2>/dev/null || skip "PyYAML not installed"
+  python3 -c 'import yaml' 2>/dev/null || \
+    skip "PyYAML missing: run setup/install.zsh's python deps step"
   run python3 -c "import yaml,sys; yaml.safe_load(open('$REPO_DIR/server/cloud-init.yaml'))"
   [ "$status" -eq 0 ]
 }

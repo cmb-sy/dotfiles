@@ -4,7 +4,7 @@ description: >-
   技術情報を「集めて得る」ときに使う情報収集スキル。watch モード（GitHub /
   サービス changelog / エンジニア発信 / ニュース / dotfiles peer を横断観測し
   Obsidian にダイジェスト蓄積）と research モード（トピックを Web + 自リポジトリ
-  横断で深掘り）を持つ。旧 peer-watch を吸収。フラグは本文の「起動」を参照。
+  横断で深掘り）を持つ。フラグは本文の「起動」を参照。
 argument-hint: "[watch [--only <scope>] [--target X] | research <topic> | peers [--user <handle>]] [--days N] [--dry-run]"
 user-invocable: true
 ---
@@ -27,7 +27,7 @@ user-invocable: true
 /gain watch                             # 全ウォッチを直接実行
 /gain watch --only <scope> [--target X] # 単一スコープ、対象指定
 /gain research <topic>                  # 深掘りを直接実行
-/gain peers [--user <handle>] [--days N] [--dry-run]  # 旧 peer-watch 互換
+/gain peers [--user <handle>] [--days N] [--dry-run]  # dotfiles peer 観測（採用ワークフロー）
 ```
 
 - `<scope>`: `peers | github | services | engineers | sns | news`
@@ -59,7 +59,7 @@ AskUserQuestion は 1 問最大 4 択のため 2 段構成にする。
 
 ## watch: peers スコープ（dotfiles 採用ワークフロー）
 
-旧 peer-watch の挙動を保持する。出力先は `dotfiles/docs/peer-watch/YYYY-MM-DD.md`（Obsidian ではない。採用対象が dotfiles 設定のため設定とバージョン管理を共にする）。
+出力先は `dotfiles/docs/peer-watch/YYYY-MM-DD.md`（Obsidian ではない。採用対象が dotfiles 設定のため設定とバージョン管理を共にする）。
 
 **基準日:** `dotfiles/docs/peer-watch/` の最新ファイルの `date` frontmatter を読み、その「後で」バケットを次回再提示候補として合流させる。
 

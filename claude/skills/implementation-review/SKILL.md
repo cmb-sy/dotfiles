@@ -152,41 +152,11 @@ Codex の出力はフリーテキストの可能性がある。JSON `{"findings"
 
 ## Phase 2.5: Consensus Vote（`iterations > 1` の場合のみ）
 
-`iterations == 1` の場合、本 Phase をスキップし Phase 3 へ進む。
+投票の仕様は `../_shared/consensus-vote.md` を参照する。本スキルが与えるパラメータ:
 
-**開始時アナウンス:** 「Phase 2.5: Consensus Vote (iterations=N)」
-
-### 投票アルゴリズム
-
-観点ごとに以下を実行する:
-
-1. **基準イテレーション選択**: findings 数が最多のイテレーションを基準（base）とする
-2. **投票**: base の各 finding について、他イテレーションに意味的に同一の finding があるかチェックする。`vote_count` が `ceil(iterations / 2)` 以上なら `consensus = true`
-3. **補完**: base にないが他イテレーション間で過半数一致する finding を追加採用する
-
-### Semantic Similarity 判定
-
-2つの findings が「同じ問題を指摘している」かの判定基準:
-
-1. **同一 section**: findings の `section` フィールドが一致または近接する
-2. **意味的類似**: description の核心（何が問題か）が一致する。完全一致は不要
-3. **severity は不問**: 同じ問題でも severity が異なることがある。consensus に入った場合は最も高い severity を採用する
-
-判定はメインエージェント（スキル実行者）自身が行う。findings は構造化 JSON で返されるため、section の一致で候補を絞り、description を比較する。
-
-### エラーハンドリング
-
-| 状態 | 処理 |
-|------|------|
-| 成功イテレーション >= 2 | 成功分のみで投票（過半数基準は成功数ベース） |
-| 成功イテレーション == 1 | 投票不可。フォールバック: 単一結果をそのまま使用。ユーザーに警告表示 |
-| 成功イテレーション == 0 | 全失敗。既存のエラーハンドリングに移行 |
-| findings 0 件のイテレーション | 「問題なし」と投票したとみなす。他の finding の vote_count は下がる |
-| consensus_findings が 0 件 | レビュー「合格」として Phase 3 へ進む |
-
-### 出力
-
-consensus_findings を Phase 3 に渡す。各 finding に `vote_count` フィールドを付与する。
+- 観点集合: clarity / feasibility / consistency
+- 投票対象外: Codex レビュー、`ui_enabled` 時の UI spec レビュー
+- 位置キー: `section`
 
 ## Phase 3: Report
 

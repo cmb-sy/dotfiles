@@ -3,7 +3,7 @@ name: github-issues
 description: >-
   GitHub Issue を一覧・作成・更新・クローズ・コメントしたいとき、および PR 作成+Projects 登録を
   一気通貫で行いたいときに使う `gh` CLI ベースのスキル。対象組織は Resily、デフォルト assignee は cmb-sy。
-  ファイル I/O・Obsidian 連携は持たない。旧 github-ops を吸収（pr サブコマンド）。
+  ファイル I/O・Obsidian 連携は持たない。
 argument-hint: "list | create | close <number> | comment <number> | update <number> | pr [--content <text>] [--project <number>] [--draft] [--skip-project] [自然言語の指示]"
 user-invocable: true
 ---
@@ -25,7 +25,7 @@ user-invocable: true
 | `update` | `update <number>` / 「更新」「タイトル変更」 | 既存 issue を編集 |
 | `close` | `close <number>` / 「クローズ」「閉じる」 | issue をクローズ |
 | `comment` | `comment <number>` / 「コメント」 | issue にコメント追加 |
-| `pr` | `pr` / 「PR 作成」「プルリク」「Projects 登録」 | PR 作成 + GitHub Projects 登録（旧 github-ops） |
+| `pr` | `pr` / 「PR 作成」「プルリク」「Projects 登録」 | PR 作成 + GitHub Projects 登録 |
 
 破壊的・外部可視の操作（create / close / comment / update）は、**実行前に内容を提示してユーザー確認を取る**。list は確認不要。
 
@@ -323,7 +323,7 @@ gh issue comment {number} --repo Resily/{repo} --body "{本文}"
 
 ---
 
-## pr — PR 作成 + Projects 登録（旧 github-ops）
+## pr — PR 作成 + Projects 登録
 
 セッションコンテキストまたは `--content <text>` から PR を構成して作成/更新し、選んだ GitHub Project にアイテム登録する。既存アイテムには対話的操作（ステータス変更/サブタスク/コメント/DONE）を提供する。
 

@@ -24,7 +24,6 @@ never loads a 3GB model for nothing.
 """
 
 import json
-import os
 import pathlib
 import subprocess
 import sys
@@ -32,9 +31,7 @@ import time
 import urllib.error
 import urllib.request
 
-SETTINGS = pathlib.Path(
-    os.path.expanduser("~/Library/Application Support/com.pais.handy/settings_store.json")
-)
+LIB = pathlib.Path(__file__).resolve().parent / "lib" / "voice.sh"
 OLLAMA = "http://localhost:11434"
 KEEP_ALIVE = "30m"      # longer than the timer, so the model never falls out
 TIMEOUT = 120           # a cold first run has to evaluate the whole prompt
@@ -47,22 +44,44 @@ def quiet_exit(reason: str) -> None:
     sys.exit(0)
 
 
-def handy_running() -> bool:
-    # The binary is lowercase `handy` inside Handy.app; pgrep -x is
-    # case-sensitive and matching the wrong case silently reports "not running".
-    return subprocess.run(
-        ["/usr/bin/pgrep", "-x", "handy"], capture_output=True
-    ).returncode == 0
+def die(message: str) -> None:
+    """A broken checkout or environment. Not a Handy state, so say so."""
+    print(f"handy-warm: {message}", file=sys.stderr)
+    sys.exit(1)
+
+
+def voice_lib(expr: str) -> subprocess.CompletedProcess:
+    """Run one shell expression with bin/lib/voice.sh sourced.
+
+    Handy's settings path and its process check are defined once, in the shell
+    lib the voice-input scripts share; re-stating them here would let them drift.
+
+    A lib that cannot be sourced is fatal: its failure would otherwise arrive as
+    a non-zero status and read as "Handy is not running", i.e. a quiet no-op.
+    """
+    if not LIB.exists():
+        die(f"missing {LIB}")
+    result = subprocess.run(
+        ["/bin/sh", "-c", f'. "$0"\n{expr}', str(LIB)],
+        capture_output=True, text=True,
+    )
+    if result.stderr.strip():
+        die(f"cannot source {LIB}: {result.stderr.strip()}")
+    return result
 
 
 def main() -> None:
-    if not handy_running():
+    if voice_lib("handy_running").returncode != 0:
         quiet_exit("handy not running")
-    if not SETTINGS.exists():
+
+    settings_path = pathlib.Path(voice_lib('printf %s "$HANDY_SETTINGS"').stdout)
+    if not settings_path.name:
+        die("HANDY_SETTINGS resolved to nothing")
+    if not settings_path.exists():
         quiet_exit("no settings")
 
     try:
-        settings = json.loads(SETTINGS.read_text(encoding="utf-8")).get("settings", {})
+        settings = json.loads(settings_path.read_text(encoding="utf-8")).get("settings", {})
     except (OSError, json.JSONDecodeError):
         quiet_exit("settings unreadable")
 

@@ -32,6 +32,23 @@ if util::confirm "Install packages from Brewfile?"; then
 fi
 
 #----------------------------------------------------------
+# Python packages (tests + bin/highlight-code)
+#
+# Homebrew cannot express these: its pygments formula is a private virtualenv
+# exposing only the pygmentize CLI, and pyyaml has no formula at all. Both must
+# be importable by the python3 on PATH, so install them against that
+# interpreter with uv (from the Brewfile above).
+#----------------------------------------------------------
+if util::confirm "Install python packages (pygments, pyyaml)?"; then
+  if util::has uv; then
+    uv pip install --quiet --python "$(command -v python3)" pygments pyyaml \
+      || util::warning "python packages failed; highlight-code and server tests will skip."
+  else
+    util::warning "uv not found; skipping python packages (install the Brewfile first)."
+  fi
+fi
+
+#----------------------------------------------------------
 # VSCode Extensions
 #----------------------------------------------------------
 if util::confirm "Install VSCode extensions?"; then
@@ -80,27 +97,6 @@ if util::confirm "Apply TCP keepalive tuning (企業ファイアウォールの�
 fi
 
 #----------------------------------------------------------
-# Karabiner-Elements (double-tap Caps Lock -> voice input)
-#----------------------------------------------------------
-if util::confirm "Set up Karabiner-Elements config?"; then
-  mkdir -p "$HOME/.config"
-  if [[ -d "${REPO_DIR}/karabiner" ]]; then
-    # Karabiner creates a real config dir on first launch; move it aside so the symlink is not created inside it
-    if [[ -e "$HOME/.config/karabiner" && ! -L "$HOME/.config/karabiner" ]]; then
-      mv "$HOME/.config/karabiner" "$HOME/.config/karabiner.bak.$(date +%s)"
-    fi
-    ln -sfn "${REPO_DIR}/karabiner" "$HOME/.config/karabiner"
-    util::info "Karabiner config linked to ~/.config/karabiner."
-    util::warning "Manual step (cannot be scripted): launch Karabiner-Elements once and grant:"
-    util::warning "  - the driver/system extension approval it prompts for on first launch"
-    util::warning "  - Input Monitoring (System Settings > Privacy & Security > Input Monitoring)"
-    util::warning "  Without these, Caps Lock -> Handy voice input silently does nothing."
-  else
-    util::info "Skip: karabiner not found."
-  fi
-fi
-
-#----------------------------------------------------------
 # Handy voice post-processing (ollama model + LOCAL default)
 #
 # Defaults to LOCAL (offline ollama) so a fresh Mac works with no API key.
@@ -138,17 +134,6 @@ if util::confirm "Set up Handy voice post-processing (ollama model + settings)?"
   util::info "To enable Cerebras cloud (faster + higher quality; no data retention/training):"
   util::info "  1) security add-generic-password -s handy-cerebras-api-key -a \"\$USER\" -w \"<KEY>\""
   util::info "  2) voice-switch cloud"
-fi
-
-#----------------------------------------------------------
-# Cursor (skills shared with Claude)
-#----------------------------------------------------------
-if util::confirm "Set up Cursor config?"; then
-  mkdir -p "$HOME/.cursor"
-  if [[ -d "${REPO_DIR}/claude/skills" ]]; then
-    ln -sfn "${REPO_DIR}/claude/skills" "$HOME/.cursor/skills"
-    util::info "Cursor skills linked (shared with Claude)."
-  fi
 fi
 
 #----------------------------------------------------------

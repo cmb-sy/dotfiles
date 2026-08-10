@@ -46,12 +46,12 @@ audit: required
 - **verify_type**: automated
 - **verification**:
   1. `git status --porcelain -- docs/plans/` を実行し、計画書とテストケース定義が未コミット変更リストに含まれないことを確認する
-  2. `git branch --show-current` で現ブランチ名を取得し、`Glob(".agents/handover/<現ブランチ名>/**/project-state.json")` と `Glob(".agents/handover/<現ブランチ名>/**/handover.md")` で handover 成果物を検索する
-     - チーム実行（`--swarm`）では handover がブランチ分離を適用しないため、`.agents/handover/<team-name>/**/project-state.json` と `.agents/handover/<team-name>/**/handover.md` も探索対象に含め、いずれかの経路で見つかれば成立とする
-  3. 手順2の project-state.json の `phase_summaries` に `plan-review` キーが存在するか確認する
-  4. `git log -1 --format=%cI -- docs/plans/*-plan.md` でフェーズ完了コミットの committer date を取得し、project-state.json の `generated_at` がそれ以降であることを確認する
-- **pass_condition**: 手順1の出力に `*-plan.md` と `*-test-cases.md` のパスが含まれないこと、手順2の各 Glob 結果が1件以上、手順3のキーが存在し、手順4で `generated_at` >= フェーズ完了コミットの committer date
-- **fail_diagnosis_hint**: 計画書が未コミットなら `git add` + `git commit` が抜けている。現ブランチ配下に handover 成果物が無い場合は Phase 4 完了時の `/handover` 実行を確認する（他ブランチ配下の成果物は判定に使わない）。手順4が不成立なら handover が Phase 4 のレビュー修正より前に実行された古い成果物である
+  2. `Glob(".agents/handover/**/project-state.json")` で現リポジトリの handover 成果物を列挙する。`--swarm` ではブランチ名も team name もディレクトリ名として当てにできないため、名前で絞り込まず列挙する
+  3. 列挙された各ファイルの `generated_at` を読み、最も新しいものを対象とする。列挙結果が0件なら対象が存在しないため本基準は FAIL とする
+  4. 対象が `phase_summaries` に `plan-review` キーを持つことを確認する
+  5. `git log -1 --format=%cI -- ':/' ':(exclude,top).agents/'` が返す日時が対象の `generated_at` 以前であることを確認する。handover 成果物のコミットを基準にすると、その直前に書かれた `generated_at` が常に古くなるため `.agents/` を除外する
+- **pass_condition**: 手順1の出力に `*-plan.md` と `*-test-cases.md` のパスが含まれないこと、手順2の列挙結果が1件以上、手順4のキーが存在し、手順5で `generated_at` >= フェーズ完了コミットの committer date
+- **fail_diagnosis_hint**: 計画書が未コミットなら `git add` + `git commit` が抜けている。handover 成果物が1件も無い場合は Phase 4 完了時の `/handover` 実行を確認する。`phase_summaries` にキーが無い場合は project-state.json の `pipeline` フィールド未設定で Phase Summary 生成がスキップされた可能性がある。手順5が不成立なら最新の handover が Phase 4 のレビュー修正より前に実行された古い成果物である
 - **depends_on_artifacts**: [docs/plans/*-plan.md, .agents/handover/]
 - **forward_check**: Phase 5 (Execute) の入力としてレビュー通過済み計画書パスが渡される
 

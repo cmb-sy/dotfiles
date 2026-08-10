@@ -164,7 +164,12 @@
       "Bash(sops:*)",
       "Bash(op:*)",
       "Bash(ssh:*)",
-      "Bash(scp:*)"
+      "Bash(scp:*)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(git clean -fdx:*)",
+      "Bash(sudo rm:*)"
     ],
     "defaultMode": "bypassPermissions"
   },
@@ -176,7 +181,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "printf '\\a' > /dev/tty 2>/dev/null; osascript -e 'display notification \"Task completed\" with title \"Claude Code\"'; [ -S \"$HOME/Library/Application Support/cmux/cmux.sock\" ] && cmux notify --title \"Claude Code\" --body \"Task completed\" 2>/dev/null || true"
+            "command": "\"${HOME}/.claude/hooks/notify.sh\" 'Task completed'"
           }
         ]
       },
@@ -185,7 +190,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "printf '\\a' > /dev/tty 2>/dev/null; osascript -e 'display notification \"Waiting for approval\" with title \"Claude Code\"'; [ -S \"$HOME/Library/Application Support/cmux/cmux.sock\" ] && cmux notify --title \"Claude Code\" --body \"Waiting for approval\" 2>/dev/null || true"
+            "command": "\"${HOME}/.claude/hooks/notify.sh\" 'Waiting for approval'"
           }
         ]
       },
@@ -194,7 +199,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "printf '\\a' > /dev/tty 2>/dev/null; osascript -e 'display notification \"Waiting for your answer\" with title \"Claude Code\"'; [ -S \"$HOME/Library/Application Support/cmux/cmux.sock\" ] && cmux notify --title \"Claude Code\" --body \"Waiting for your answer\" 2>/dev/null || true"
+            "command": "\"${HOME}/.claude/hooks/notify.sh\" 'Waiting for your answer'"
           }
         ]
       }
@@ -213,17 +218,7 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"${HOME}/.claude/hooks/pii-guard.py\"",
-            "timeout": 5
-          }
-        ]
-      },
-      {
-        "matcher": "Edit",
+        "matcher": "Write|Edit|Bash",
         "hooks": [
           {
             "type": "command",
@@ -237,11 +232,6 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${HOME}/.claude/hooks/pii-guard.py\"",
-            "timeout": 5
-          },
-          {
-            "type": "command",
             "command": "if jq -r '.tool_input.command // empty' 2>/dev/null | grep -qE '(rm[[:space:]]+-rf[[:space:]]+((/|~|\\$HOME)[[:space:]]*$|(/usr|/etc|/var|/opt|/System)(/|[[:space:]]|$))|>[[:space:]]*/dev/sd|mkfs|dd[[:space:]]+if=)'; then echo 'BLOCK: Destructive system command detected' >&2; exit 2; fi"
           }
         ]
@@ -249,6 +239,7 @@
     ],
     "SessionStart": [
       {
+        "matcher": "*",
         "hooks": [
           {
             "type": "command",
@@ -273,7 +264,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$HOME/.claude/hooks/stop.sh",
+            "command": "\"${HOME}/.claude/hooks/stop.sh\"",
             "timeout": 30,
             "async": true
           }
@@ -285,7 +276,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$HOME/.claude/hooks/stop-failure-handler.sh",
+            "command": "\"${HOME}/.claude/hooks/stop-failure-handler.sh\"",
             "timeout": 15,
             "async": true
           }
@@ -295,7 +286,7 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "~/.claude/statusline.sh",
+    "command": "\"${HOME}/.claude/statusline.sh\"",
     "padding": 0
   },
   "enabledPlugins": {

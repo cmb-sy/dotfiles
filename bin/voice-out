@@ -1,27 +1,30 @@
 #!/bin/bash
-# voice-out — 今開いているターミナル画面に見えているテキストを macOS say (Kyoko) で読み上げる。
-# デフォルトは「claude -p で音声向けに要約してから say」。--full で従来の全文読み。
+# voice-out — 今開いているターミナル画面に見えているテキストを読み上げる。
+# デフォルトは「claude -p で音声向けに要約してから読み上げ」。--full で従来の全文読み。
 #
 # 通常起動 (Karabiner: F1 経由):
 #   $HOME/dotfiles/bin/voice-out
 #     → herdr で今フォーカスされている pane を解決し、その画面に見えているテキストを取得 →
-#       claude -p (haiku) で 30 秒程度の要約に整形 → sanitize → say
+#       claude -p (haiku) で 30 秒程度の要約に整形 → sanitize → 読み上げ
 #     herdr が使えない/pane 解決に失敗した場合のみ、旧来の state file
 #     (直前 Claude 応答の transcript) にフォールバックする。
 #
 # 手動デバッグ / モード切替:
-#   voice-out --text "..."        渡された text をそのまま (sanitize あり) say
-#   voice-out --transcript PATH   指定 transcript JSONL の末尾 assistant を要約 say
-#   voice-out --full              要約せず全文を sanitize して say (画面 or state file、旧挙動と同じ優先順)
+#   voice-out --text "..."        渡された text をそのまま (sanitize あり) 読み上げ
+#   voice-out --transcript PATH   指定 transcript JSONL の末尾 assistant を要約 読み上げ
+#   voice-out --full              要約せず全文を sanitize して読み上げ (画面 or state file、旧挙動と同じ優先順)
 #
-# トグル: 既に say が走っていれば pkill して exit 0 (同じキーで再生/停止)
+# トグル: 既に発話中なら kill して exit 0 (同じキーで再生/停止)
 # 通知: 開始/停止/失敗のたびに macOS 通知バナーを出す (osascript display notification)。
 #       「押しても反応がわからない」を防ぐための最小限のフィードバック。
 # 競合: Typeless / Handy 起動中でも読み上げ続行 (feedback loop 防止は要ヘッドホン)
 # 失敗: 処理自体は best-effort だが、失敗時も通知は出す。詳細ログは
 #       CLAUDE_TTS_DEBUG=1 で /tmp/voice-out.log
 #
-# 環境変数:
+# sanitize と発話バックエンド (voicevox / say) は bin/lib/voice.sh 側にある。
+# このスクリプトが持つのは「何を読ませるか」— 取得・要約・トグル・引数解析。
+#
+# 環境変数 (実装は bin/lib/voice.sh):
 #   CLAUDE_TTS_VOICE              default: Kyoko (say フォールバック時のボイス名)
 #   CLAUDE_TTS_RATE               default: 180 wpm (say フォールバック時の話速)
 #   CLAUDE_TTS_DEBUG              set to 1 で詳細ログを /tmp/voice-out.log へ
@@ -37,124 +40,22 @@
 #   - claude/hooks/stop.sh : state file (~/.cache/claude-tts.last-transcript) 更新
 #     (herdr フォールバック時のみ使用。--transcript の手動指定にも state file は不要)
 #   - karabiner/karabiner.json : F1 → voice-out バインド
-#   - test/voice-out.bats : sanitize の自動テスト
+#   - bin/lib/voice.sh : sanitize_text と TTS backend の定義
+#   - test/voice-out.bats : pane 解決と sanitize の自動テスト
 #   - docs/superpowers/specs/2026-06-22-claude-tts-design.md : 設計書
 
-# Karabiner (F1) は最小 launchd env で起動するため PATH を明示する (ai-format と同方式)
-export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+. "${BASH_SOURCE[0]%/*}/lib/voice.sh" || exit 1
 
-VOICE="${CLAUDE_TTS_VOICE:-Kyoko}"
-RATE="${CLAUDE_TTS_RATE:-180}"
+# Karabiner (F1) は最小 launchd env で起動するため PATH を明示する (ai-format と同方式)
+ensure_launchd_path
+
 SUMMARIZE="${CLAUDE_TTS_SUMMARIZE:-1}"
 SUMMARY_MODEL="${CLAUDE_TTS_MODEL:-haiku}"
 MAX_CHARS=50000
 
-# TTS backend: "voicevox" | "say"
-# voicevox engine が localhost:50021 で起動していれば優先利用。届かなければ say にフォールバック。
-BACKEND="${CLAUDE_TTS_BACKEND:-voicevox}"
-VOICEVOX_URL="${CLAUDE_TTS_VOICEVOX_URL:-http://localhost:50021}"
-VOICEVOX_SPEAKER="${CLAUDE_TTS_VOICEVOX_SPEAKER:-8}"  # 8 = 春日部つむぎ(ノーマル)、3 = ずんだもん、13 = 青山龍星 等。engine 起動後に /speakers で正確値確認
-VOICEVOX_SPEED="${CLAUDE_TTS_VOICEVOX_SPEED:-1.0}"
-
-log() {
-  [ -n "$CLAUDE_TTS_DEBUG" ] && \
-    printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*" >> /tmp/voice-out.log
-  return 0
-}
-
 # --- 通知: F1 を押した瞬間に「反応した」ことを目に見える形で伝える ---
-# 呼び出し側は固定の短い文言のみを渡すこと (AppleScript 文字列への埋め込みのため、
-# 可変長のテキスト本文はここに渡さない)。失敗しても best-effort で無視する。
-notify() {
-  /usr/bin/osascript -e "display notification \"$1\" with title \"voice-out\"" >/dev/null 2>&1
-  return 0
-}
-
-# --- sanitize: markdown を素読みできる平文へ変換 ---
-sanitize() {
-  printf '%s' "$1" \
-    | /usr/bin/awk '
-        BEGIN { inc = 0 }
-        /^```/ {
-          if (inc == 0) { inc = 1 }
-          else          { inc = 0; print "コードブロック省略。" }
-          next
-        }
-        inc == 0 { print }
-      ' \
-    | /usr/bin/awk '
-        BEGIN { in_tbl = 0 }
-        /^\|.*\|$/ {
-          if (in_tbl == 0) { print "表省略。"; in_tbl = 1 }
-          next
-        }
-        { in_tbl = 0; print }
-      ' \
-    | /usr/bin/sed -E 's|https?://[^[:space:]]+|リンク。|g' \
-    | /usr/bin/sed -E 's/^#+[[:space:]]*//' \
-    | /usr/bin/sed -E 's/^[[:space:]]*[-*][[:space:]]+//' \
-    | /usr/bin/sed -E 's/\*\*([^*]+)\*\*/\1/g' \
-    | /usr/bin/sed -E 's/`([^`]+)`/\1/g' \
-    | /usr/bin/sed -E 's/^>[[:space:]]*//' \
-    | /usr/bin/awk '
-        BEGIN { blank = 0 }
-        /^$/ { blank++; if (blank <= 1) print; next }
-        { blank = 0; print }
-      '
-}
-
-# --- 発話バックエンド: VOICEVOX 経由で wav 生成 → afplay で再生 ---
-# 失敗 (engine 未起動・API エラー・空 wav) なら non-zero return で fall back させる
-speak_voicevox() {
-  local text="$1"
-  local wav
-  # engine の version エンドポイントで疎通確認 (1 秒で諦める)
-  /usr/bin/curl -s --max-time 1 "$VOICEVOX_URL/version" >/dev/null 2>&1 \
-    || { log "voicevox engine not reachable at $VOICEVOX_URL"; return 1; }
-  # audio_query: 合成パラメータを生成
-  local query
-  query=$(/usr/bin/curl -s --max-time 10 -X POST \
-    "$VOICEVOX_URL/audio_query?speaker=$VOICEVOX_SPEAKER" \
-    --get --data-urlencode "text=$text" 2>/dev/null)
-  [ -z "$query" ] && { log "voicevox audio_query failed"; return 1; }
-  # 速度調整 (speedScale)
-  query=$(printf '%s' "$query" \
-    | /opt/homebrew/bin/jq --arg s "$VOICEVOX_SPEED" '.speedScale = ($s | tonumber)' 2>/dev/null)
-  [ -z "$query" ] && { log "voicevox query patch failed"; return 1; }
-  # synthesis: wav を生成
-  wav=$(mktemp -t voicevox.XXXXXX) || return 1
-  /usr/bin/curl -s --max-time 30 -X POST \
-    "$VOICEVOX_URL/synthesis?speaker=$VOICEVOX_SPEAKER" \
-    -H "Content-Type: application/json" \
-    -d "$query" \
-    -o "$wav" 2>/dev/null
-  if [ ! -s "$wav" ]; then
-    log "voicevox synthesis empty"
-    rm -f "$wav"
-    return 1
-  fi
-  log "voicevox speak (speaker=$VOICEVOX_SPEAKER, speed=$VOICEVOX_SPEED, wav=${wav}, ${#text} chars)"
-  # afplay を background。終わったら wav を削除。
-  ( /usr/bin/afplay "$wav"; rm -f "$wav" ) &
-  return 0
-}
-
-# --- 発話: backend に応じて voicevox or say を呼ぶ ---
-speak() {
-  local text="$1"
-  if [ "$BACKEND" = "voicevox" ]; then
-    speak_voicevox "$text" && return 0
-    log "falling back to say"
-  fi
-  # フォールバック (もしくは BACKEND=say) → macOS say
-  printf '%s' "$text" | /usr/bin/say -v "$VOICE" -r "$RATE" &
-}
-
-# --- 走行中の発話プロセスを kill (say + afplay 両対応) ---
-kill_speaking() {
-  /usr/bin/pkill -x say 2>/dev/null
-  /usr/bin/pkill -x afplay 2>/dev/null
-}
+# lib の notify は title 込みなので、この画面用の title を固定して渡す。
+say_notify() { notify "voice-out" "$1"; }
 
 # --- summarize: Claude 応答を音声向けに 30 秒で読める要約に整形 ---
 # 失敗 (claude CLI 不在、timeout、空応答) 時は元の text をそのまま返す (best-effort)。
@@ -162,7 +63,7 @@ summarize_for_voice() {
   local input="$1"
   local claude_bin
   claude_bin="$(command -v claude 2>/dev/null)"
-  [ -x "$claude_bin" ] || { log "claude CLI not found, skipping summary"; printf '%s' "$input"; return; }
+  [ -x "$claude_bin" ] || { voice_log "claude CLI not found, skipping summary"; printf '%s' "$input"; return; }
 
   local prompt="以下はターミナル画面に今見えているテキストです (Claude Code の応答本体に加え、
 ステータスバー・罫線・プロンプト記号などの UI 装飾が混在していることがあります)。
@@ -192,10 +93,10 @@ $input"
     | "$claude_bin" -p --model "$SUMMARY_MODEL" 2>/dev/null)
 
   if [ -z "$out" ]; then
-    log "summary empty, falling back to original text"
+    voice_log "summary empty, falling back to original text"
     printf '%s' "$input"
   else
-    log "summary ok (${#out} chars)"
+    voice_log "summary ok (${#out} chars)"
     printf '%s' "$out"
   fi
 }
@@ -203,7 +104,7 @@ $input"
 # --- 末尾 assistant ターンの text ブロックを抽出 ---
 extract_latest_assistant() {
   local transcript="$1"
-  [ -f "$transcript" ] || { log "transcript not found: $transcript"; return 1; }
+  [ -f "$transcript" ] || { voice_log "transcript not found: $transcript"; return 1; }
   /usr/bin/tail -n 200 "$transcript" 2>/dev/null \
     | /opt/homebrew/bin/jq -rs '
         map(select(.type == "assistant"))
@@ -241,10 +142,10 @@ resolve_focused_pane_id() {
 load_from_visible_pane() {
   local pane_id
   pane_id="$(resolve_focused_pane_id)"
-  [ -z "$pane_id" ] && { log "no focused herdr pane resolved"; return 1; }
+  [ -z "$pane_id" ] && { voice_log "no focused herdr pane resolved"; return 1; }
   TEXT="$(herdr pane read "$pane_id" --source visible --format text 2>/dev/null)"
-  [ -z "$TEXT" ] && { log "pane read empty for $pane_id"; return 1; }
-  log "read visible pane $pane_id (${#TEXT} chars)"
+  [ -z "$TEXT" ] && { voice_log "pane read empty for $pane_id"; return 1; }
+  voice_log "read visible pane $pane_id (${#TEXT} chars)"
   return 0
 }
 
@@ -253,67 +154,75 @@ load_from_visible_pane() {
 # load_from_visible_pane が失敗した場合のフォールバック専用 (herdr 未使用時等)。
 load_from_state_file() {
   STATE_FILE="$HOME/.cache/claude-tts.last-transcript"
-  [ -f "$STATE_FILE" ] || { log "state file not found"; exit 0; }
+  [ -f "$STATE_FILE" ] || { voice_log "state file not found"; exit 0; }
   TRANSCRIPT="$(cat "$STATE_FILE" 2>/dev/null)"
-  [ -z "$TRANSCRIPT" ] && { log "transcript path empty"; exit 0; }
-  [ -f "$TRANSCRIPT" ] || { log "transcript not found: $TRANSCRIPT"; exit 0; }
+  [ -z "$TRANSCRIPT" ] && { voice_log "transcript path empty"; exit 0; }
+  [ -f "$TRANSCRIPT" ] || { voice_log "transcript not found: $TRANSCRIPT"; exit 0; }
   TEXT="$(extract_latest_assistant "$TRANSCRIPT")"
 }
 
-# --- トグル判定: 既に say or afplay が走っていれば kill して終了 ---
-if /usr/bin/pgrep -x say >/dev/null 2>&1 || /usr/bin/pgrep -x afplay >/dev/null 2>&1; then
-  log "speaking process already running, killing (toggle off)"
-  kill_speaking
-  notify "⏹ 読み上げを停止しました"
-  exit 0
-fi
-
-# Typeless / Handy 起動中でも読み上げを継続する設計とする。
-# feedback loop (TTS → スピーカー → マイク → 録音アプリの誤認識) を防ぐには
-# ヘッドホン使用を推奨。詳細は docs/debug/2026-06-23-caps-lock-rogue-dictation.md。
-
-# --- 引数解析 ---
-TEXT=""
-case "${1:-}" in
-  --text)
-    TEXT="${2:-}"
-    SUMMARIZE=0   # 直接渡されたテキストは要約せず読み上げ (デバッグ・任意発話用)
-    ;;
-  --transcript)
-    TRANSCRIPT="${2:-}"
-    [ -z "$TRANSCRIPT" ] && { log "--transcript needs path"; exit 0; }
-    TEXT="$(extract_latest_assistant "$TRANSCRIPT")"
-    ;;
-  --full)
-    load_from_visible_pane || load_from_state_file
-    SUMMARIZE=0   # --full は要約 OFF を強制
-    ;;
-  "")
-    load_from_visible_pane || load_from_state_file
-    ;;
-  *)
-    log "unknown arg: $1"
+voice_out_main() {
+  # --- トグル判定: 既に発話中なら kill して終了 ---
+  if speaking_active; then
+    voice_log "speaking process already running, killing (toggle off)"
+    kill_speaking
+    say_notify "⏹ 読み上げを停止しました"
     exit 0
-    ;;
-esac
+  fi
 
-[ -z "$TEXT" ] && { log "empty text"; notify "読み上げ失敗: 読み上げる内容が見つかりませんでした"; exit 0; }
+  # Typeless / Handy 起動中でも読み上げを継続する設計とする。
+  # feedback loop (TTS → スピーカー → マイク → 録音アプリの誤認識) を防ぐには
+  # ヘッドホン使用を推奨。詳細は docs/debug/2026-06-23-caps-lock-rogue-dictation.md。
 
-# 要約モードなら claude -p で 30 秒分に整形。失敗時は元 text を温存
-if [ "$SUMMARIZE" = "1" ]; then
-  log "summarizing for voice (model=$SUMMARY_MODEL, source=${#TEXT} chars)"
-  TEXT="$(summarize_for_voice "$TEXT")"
-  [ -z "$TEXT" ] && { log "summary returned empty"; notify "読み上げ失敗: 要約に失敗しました"; exit 0; }
+  # --- 引数解析 ---
+  TEXT=""
+  case "${1:-}" in
+    --text)
+      TEXT="${2:-}"
+      SUMMARIZE=0   # 直接渡されたテキストは要約せず読み上げ (デバッグ・任意発話用)
+      ;;
+    --transcript)
+      TRANSCRIPT="${2:-}"
+      [ -z "$TRANSCRIPT" ] && { voice_log "--transcript needs path"; exit 0; }
+      TEXT="$(extract_latest_assistant "$TRANSCRIPT")"
+      ;;
+    --full)
+      load_from_visible_pane || load_from_state_file
+      SUMMARIZE=0   # --full は要約 OFF を強制
+      ;;
+    "")
+      load_from_visible_pane || load_from_state_file
+      ;;
+    *)
+      voice_log "unknown arg: $1"
+      exit 0
+      ;;
+  esac
+
+  [ -z "$TEXT" ] && { voice_log "empty text"; say_notify "読み上げ失敗: 読み上げる内容が見つかりませんでした"; exit 0; }
+
+  # 要約モードなら claude -p で 30 秒分に整形。失敗時は元 text を温存
+  if [ "$SUMMARIZE" = "1" ]; then
+    voice_log "summarizing for voice (model=$SUMMARY_MODEL, source=${#TEXT} chars)"
+    TEXT="$(summarize_for_voice "$TEXT")"
+    [ -z "$TEXT" ] && { voice_log "summary returned empty"; say_notify "読み上げ失敗: 要約に失敗しました"; exit 0; }
+  fi
+
+  TEXT="$(printf '%s' "$TEXT" | sanitize_text)"
+  [ -z "$TEXT" ] && { voice_log "sanitized to empty"; say_notify "読み上げ失敗: 本文が空でした"; exit 0; }
+
+  if [ ${#TEXT} -gt $MAX_CHARS ]; then
+    voice_log "text too long (${#TEXT} chars), truncating to $MAX_CHARS"
+    TEXT="${TEXT:0:$MAX_CHARS}。以下、省略します。"
+  fi
+
+  voice_log "speaking (backend=$TTS_BACKEND): ${TEXT:0:80}..."
+  say_notify "🔊 読み上げ開始"
+  speak "$TEXT"
+}
+
+# Run only when executed. Sourcing (tests) just defines the functions above,
+# so the pane resolution can be exercised without triggering speech.
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+  voice_out_main "$@"
 fi
-
-TEXT="$(sanitize "$TEXT")"
-[ -z "$TEXT" ] && { log "sanitized to empty"; notify "読み上げ失敗: 本文が空でした"; exit 0; }
-
-if [ ${#TEXT} -gt $MAX_CHARS ]; then
-  log "text too long (${#TEXT} chars), truncating to $MAX_CHARS"
-  TEXT="${TEXT:0:$MAX_CHARS}。以下、省略します。"
-fi
-
-log "speaking (backend=$BACKEND): ${TEXT:0:80}..."
-notify "🔊 読み上げ開始"
-speak "$TEXT"
