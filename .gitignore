@@ -27,3 +27,8 @@ claude/skills/pptx-dev/scripts/uv.lock
 
 # python bytecode cache, written when a test imports test/helpers/wcag.py
 __pycache__/
+
+# The global gitignore drops lib/ as build output; bin/lib is tracked source.
+# Un-ignore the directory itself: git cannot re-include a file whose parent
+# directory is excluded.
+!bin/lib/

@@ -13,19 +13,14 @@
 # Handy: settings_store.json を CLI から書き換えるので Quit -> apply -> Relaunch。
 # Typeless: 設定は GUI/クラウド管理のため、外側からは起動/終了のみ制御する。
 # 両者はマイクとホットキーを取り合うので排他切替。
-#
-# Typeless の binary 名は Electron 系で揺れる可能性があるため、bundle path 経由
-# (pgrep -f /Applications/Typeless.app/Contents/MacOS/) で検出する。
 
 set -euo pipefail
 
 KEYCHAIN_SVC="handy-cerebras-api-key"
-SETTINGS="$HOME/Library/Application Support/com.pais.handy/settings_store.json"
 HERE="${0:A:h}"
 APPLY="${HERE:h}/handy/apply-settings.py"
-TYPELESS_APP="/Applications/Typeless.app"
-TYPELESS_BIN_DIR="$TYPELESS_APP/Contents/MacOS/"
-KARABINER_CLI="/Library/Application Support/org.pqrs/Karabiner-Elements/bin/karabiner_cli"
+
+. "$HERE/lib/voice.sh"
 
 die() { print -u2 "voice-switch: $*"; exit 1 }
 
@@ -41,7 +36,7 @@ set_karabiner_engine() {
 quit_handy() {
   /usr/bin/osascript -e 'quit app "Handy"' >/dev/null 2>&1 || true
   local n=0
-  while /usr/bin/pgrep -x handy >/dev/null 2>&1; do
+  while handy_running; do
     (( ++n > 50 )) && die "Handy did not quit within 5s"
     sleep 0.1
   done
@@ -49,7 +44,7 @@ quit_handy() {
 
 relaunch_handy() {
   local n=0
-  until /usr/bin/pgrep -x handy >/dev/null 2>&1; do
+  until handy_running; do
     (( n % 15 == 0 )) && { /usr/bin/open -a Handy >/dev/null 2>&1 || true; }
     (( ++n > 75 )) && { print -u2 "voice-switch: Handy did not relaunch in ~15s; run 'open -a Handy' manually"; break; }
     sleep 0.2
@@ -59,7 +54,7 @@ relaunch_handy() {
 quit_typeless() {
   /usr/bin/osascript -e 'quit app "Typeless"' >/dev/null 2>&1 || true
   local n=0
-  while /usr/bin/pgrep -f "$TYPELESS_BIN_DIR" >/dev/null 2>&1; do
+  while typeless_running; do
     (( ++n > 50 )) && die "Typeless did not quit within 5s"
     sleep 0.1
   done
@@ -67,43 +62,40 @@ quit_typeless() {
 
 wait_typeless_running() {
   local n=0
-  until /usr/bin/pgrep -f "$TYPELESS_BIN_DIR" >/dev/null 2>&1; do
+  until typeless_running; do
     (( ++n > 75 )) && { print -u2 "voice-switch: Typeless did not start in ~15s; run 'open -a Typeless' manually"; break; }
     sleep 0.2
   done
 }
 
-is_handy_running()    { /usr/bin/pgrep -x handy >/dev/null 2>&1 }
-is_typeless_running() { /usr/bin/pgrep -f "$TYPELESS_BIN_DIR" >/dev/null 2>&1 }
-
 ensure_handy_active() {
   # Switching to a Handy mode: make sure Typeless is not holding the mic/hotkeys.
-  # Guard with `if` rather than `is_typeless_running && quit_typeless`: that form
+  # Guard with `if` rather than `typeless_running && quit_typeless`: that form
   # is the function's only statement, so when Typeless is already stopped the
   # && list returns 1, the function returns 1, and set -e aborts the switch
   # silently. Every Handy-to-Handy switch hits that, since Typeless is down.
-  if is_typeless_running; then
+  if typeless_running; then
     quit_typeless
   fi
 }
 
 print_status() {
-  if is_typeless_running && is_handy_running; then
+  if typeless_running && handy_running; then
     print "engine = both (unexpected; please quit one)"
     return
   fi
-  if is_typeless_running; then
+  if typeless_running; then
     print "engine = typeless"
     print "(settings: GUI / cloud-managed by Typeless)"
     return
   fi
-  if ! is_handy_running; then
+  if ! handy_running; then
     print "engine = none"
     return
   fi
   print "engine = handy"
-  [[ -f "$SETTINGS" ]] || die "settings not found: $SETTINGS"
-  /usr/bin/python3 - "$SETTINGS" <<'PY'
+  [[ -f "$HANDY_SETTINGS" ]] || die "settings not found: $HANDY_SETTINGS"
+  /usr/bin/python3 - "$HANDY_SETTINGS" <<'PY'
 import json, sys
 s = json.load(open(sys.argv[1])).get("settings", {})
 pid = s.get("post_process_provider_id")
@@ -147,7 +139,7 @@ apply_local() {
 apply_typeless() {
   [[ -d "$TYPELESS_APP" ]] || die "Typeless.app not found at $TYPELESS_APP. Install it once:
   brew install --cask typeless"
-  is_handy_running && quit_handy
+  handy_running && quit_handy
   set_karabiner_engine typeless
   /usr/bin/open -a Typeless
   wait_typeless_running
@@ -174,11 +166,11 @@ case "${1:-status}" in
     apply_typeless
     ;;
   reapply)
-    if is_typeless_running; then
+    if typeless_running; then
       print -r -- "voice-switch: 現在 Typeless モードのため reapply は不要 (設定は GUI 管理)。"
       exit 0
     fi
-    cur="$(/usr/bin/python3 - "$SETTINGS" <<'PY'
+    cur="$(/usr/bin/python3 - "$HANDY_SETTINGS" <<'PY'
 import json, sys
 s = json.load(open(sys.argv[1])).get("settings", {})
 print(f"{s.get('post_process_provider_id','')} {s.get('selected_language','')}")

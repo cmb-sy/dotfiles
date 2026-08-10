@@ -40,8 +40,10 @@
 #   - test/voice-out.bats : sanitize の自動テスト
 #   - docs/superpowers/specs/2026-06-22-claude-tts-design.md : 設計書
 
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/voice.sh" || exit 1
+
 # Karabiner (F1) は最小 launchd env で起動するため PATH を明示する (ai-format と同方式)
-export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+ensure_launchd_path
 
 VOICE="${CLAUDE_TTS_VOICE:-Kyoko}"
 RATE="${CLAUDE_TTS_RATE:-180}"
@@ -63,12 +65,8 @@ log() {
 }
 
 # --- 通知: F1 を押した瞬間に「反応した」ことを目に見える形で伝える ---
-# 呼び出し側は固定の短い文言のみを渡すこと (AppleScript 文字列への埋め込みのため、
-# 可変長のテキスト本文はここに渡さない)。失敗しても best-effort で無視する。
-notify() {
-  /usr/bin/osascript -e "display notification \"$1\" with title \"voice-out\"" >/dev/null 2>&1
-  return 0
-}
+# lib の notify は title 込みなので、この画面用の title を固定して渡す。
+say_notify() { notify "voice-out" "$1"; }
 
 # --- sanitize: markdown を素読みできる平文へ変換 ---
 sanitize() {
@@ -264,7 +262,7 @@ load_from_state_file() {
 if /usr/bin/pgrep -x say >/dev/null 2>&1 || /usr/bin/pgrep -x afplay >/dev/null 2>&1; then
   log "speaking process already running, killing (toggle off)"
   kill_speaking
-  notify "⏹ 読み上げを停止しました"
+  say_notify "⏹ 読み上げを停止しました"
   exit 0
 fi
 
@@ -297,17 +295,17 @@ case "${1:-}" in
     ;;
 esac
 
-[ -z "$TEXT" ] && { log "empty text"; notify "読み上げ失敗: 読み上げる内容が見つかりませんでした"; exit 0; }
+[ -z "$TEXT" ] && { log "empty text"; say_notify "読み上げ失敗: 読み上げる内容が見つかりませんでした"; exit 0; }
 
 # 要約モードなら claude -p で 30 秒分に整形。失敗時は元 text を温存
 if [ "$SUMMARIZE" = "1" ]; then
   log "summarizing for voice (model=$SUMMARY_MODEL, source=${#TEXT} chars)"
   TEXT="$(summarize_for_voice "$TEXT")"
-  [ -z "$TEXT" ] && { log "summary returned empty"; notify "読み上げ失敗: 要約に失敗しました"; exit 0; }
+  [ -z "$TEXT" ] && { log "summary returned empty"; say_notify "読み上げ失敗: 要約に失敗しました"; exit 0; }
 fi
 
 TEXT="$(sanitize "$TEXT")"
-[ -z "$TEXT" ] && { log "sanitized to empty"; notify "読み上げ失敗: 本文が空でした"; exit 0; }
+[ -z "$TEXT" ] && { log "sanitized to empty"; say_notify "読み上げ失敗: 本文が空でした"; exit 0; }
 
 if [ ${#TEXT} -gt $MAX_CHARS ]; then
   log "text too long (${#TEXT} chars), truncating to $MAX_CHARS"
@@ -315,5 +313,5 @@ if [ ${#TEXT} -gt $MAX_CHARS ]; then
 fi
 
 log "speaking (backend=$BACKEND): ${TEXT:0:80}..."
-notify "🔊 読み上げ開始"
+say_notify "🔊 読み上げ開始"
 speak "$TEXT"

@@ -3,7 +3,10 @@
 # Flow: select text -> Cmd+C -> trigger ai-format -> (done sound) -> Cmd+V
 # Bound to a Karabiner shell_command, so PATH/env are set explicitly (minimal launchd session env).
 
-export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/voice.sh" || exit 1
+
+# Replace PATH rather than prepend: Karabiner's env is not worth inheriting here.
+export PATH="$VOICE_LAUNCHD_PATH"
 export USER="${USER:-$(id -un)}"
 export LANG="${LANG:-en_US.UTF-8}"
 export LC_ALL="${LC_ALL:-$LANG}"
