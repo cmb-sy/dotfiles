@@ -85,7 +85,7 @@ jobs:
         run: |
           set -e
           export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
-          for cmd in gh jq fd fzf sheldon starship uv yarn git mise tmux; do
+          for cmd in gh jq fd fzf sheldon starship uv yarn git mise tmux bats; do
             if ! command -v "$cmd" >/dev/null 2>&1; then
               echo "FAIL: $cmd not on PATH"
               exit 1
@@ -153,14 +153,20 @@ jobs:
           fi
           echo "OK: .vscode/settings.json has no volatile VS Code keys"
 
-      - name: Install bats
-        run: brew install bats-core
-
       # ----------------------------------------------------------
       # Step 7: bats test suite
       # GUI/tmux-bound tests self-skip via $CI.
+      #
+      # The locale is pinned because bats builds a shell function name out of
+      # each test description, and most of ours are Japanese. How a non-ASCII
+      # description is encoded depends on how bash slices the string, which
+      # follows the locale -- so leaving it to the runner's default decides
+      # whether the names bats generates are the names it can find again.
       # ----------------------------------------------------------
       - name: Run bats tests
+        env:
+          LC_ALL: en_US.UTF-8
+          LANG: en_US.UTF-8
         run: |
           export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
           bats test/
