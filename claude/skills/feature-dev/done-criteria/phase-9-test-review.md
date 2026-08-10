@@ -69,6 +69,7 @@ audit: required
   1. 本フェーズがスキップされた場合、本基準は N/A として verdict に記録する
   2. `git status --porcelain -- . ':(exclude).agents/'` を実行し、未コミット変更が0件であることを確認する。Phase 9 の変更対象はドキュメントに限定されないためリポジトリ全体を対象とし、handover 自身の書き出し先である `.agents/` のみ除外する
   3. `git branch --show-current` で現ブランチ名を取得し、`Glob(".agents/handover/<現ブランチ名>/**/project-state.json")` と `Glob(".agents/handover/<現ブランチ名>/**/handover.md")` で handover 成果物を検索する
+     - チーム実行（`--swarm`）では handover がブランチ分離を適用しないため、`.agents/handover/<team-name>/**/project-state.json` と `.agents/handover/<team-name>/**/handover.md` も探索対象に含め、いずれかの経路で見つかれば成立とする
   4. 手順3の project-state.json の `phase_summaries` に `test-review` キーが存在するか確認する
   5. `git log -1 --format=%cI -- . ':(exclude).agents/'` でフェーズ完了コミットの committer date を取得し、project-state.json の `generated_at` がそれ以降であることを確認する。handover 成果物のコミットを基準にすると、その直前に書かれた `generated_at` が常に古くなるため、手順2と同じ pathspec で除外する
 - **pass_condition**: 手順1で N/A と記録されていること、または（手順2の出力行数が0、手順3の各 Glob 結果が1件以上、手順4のキーが存在し、手順5で `generated_at` >= フェーズ完了コミットの committer date）
