@@ -29,3 +29,17 @@ load "helpers/common"
 @test "templatedir points at the template subdirectory" {
   grep -qF 'templatedir = ~/dotfiles/git/template' "$REPO_DIR/git/.gitconfig"
 }
+
+# The grep above cannot tell whether the split worked: git init has to copy the
+# hooks and stop copying a .gitconfig into every new repo's .git/.
+@test "git init copies the hooks and no gitconfig" {
+  make_tmpdir
+  sed "s|~/dotfiles/git/template|$REPO_DIR/git/template|" \
+    "$REPO_DIR/git/.gitconfig" > "$TEST_TMPDIR/.gitconfig"
+  env HOME="$TEST_TMPDIR" GIT_CONFIG_NOSYSTEM=1 git -C "$TEST_TMPDIR" init -q fresh
+  [ -f "$TEST_TMPDIR/fresh/.git/hooks/pre-commit" ]
+  [ -f "$TEST_TMPDIR/fresh/.git/info/exclude" ]
+  strays=$(ls -a "$TEST_TMPDIR/fresh/.git" | grep -c '^\.gitconfig$') || strays=0
+  [ "$strays" -eq 0 ]
+  rm -rf "$TEST_TMPDIR"
+}
