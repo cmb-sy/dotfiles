@@ -16,7 +16,10 @@ load "helpers/common"
 IS="$REPO_DIR/bin/input-source"
 
 teardown() {
-    [ -n "${IME_RESTORE:-}" ] && "$IS" --set "$IME_RESTORE"
+    # return 0 so the empty guard does not fail the tests that never switch.
+    if [ -n "${IME_RESTORE:-}" ]; then
+        "$IS" --set "$IME_RESTORE" || echo "restore failed: $IME_RESTORE" >&2
+    fi
     return 0
 }
 

@@ -18,18 +18,20 @@ load "helpers/common"
 }
 
 # The python step is what keeps the pygments/pyyaml skips from being permanent,
-# and the skip messages point at it by name -- so deleting it must fail here.
-# Assert on live code, not on comments.
+# and the skip messages point at it by name, so deleting it has to fail here.
 # uv against the Xcode CLT interpreter either fails on permissions or writes to
 # a tree that a CLT update wipes; both leave the tests skipping forever.
-# Run the block against stubbed interpreters instead of grepping for the paths:
-# a presence check passes even when the condition is inverted.
 #
-# The block is extracted by name so the test exercises the real code. `uv` and
-# `mise` are stubbed, and the chosen interpreter is whatever the mise stub prints.
+# Run the block rather than grepping for its paths: a presence check passes even
+# when the condition is inverted. The block is extracted by heading so the test
+# exercises live code, `uv` and `mise` are stubbed, and the interpreter under
+# test is whatever the mise stub prints.
+
 # BATS_TEST_TMPDIR, not make_tmpdir: `run` executes this in a subshell, so a
 # directory exported from here never reaches the test body that would remove it.
-# bats cleans its own per-test directory.
+# bats cleans its own per-test directory. It sits under /var/folders rather than
+# /private/tmp, which is fine here: the helper issues no rm of its own, and the
+# /private/tmp rule exists for commands that do.
 run_python_block() {  # $1 = what `mise which python3` should return
   local stub="$BATS_TEST_TMPDIR/stub"
   mkdir -p "$stub"
