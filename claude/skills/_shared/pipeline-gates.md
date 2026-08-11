@@ -81,3 +81,33 @@ description: >-
 phase-auditor の verdict なしに Phase N+1 のアナウンスや作業開始を行った場合、
 それは**プロトコル違反**である。
 </HARD-GATE>
+
+## Trace 記録
+
+各フェーズ遷移で 1 行の JSONL を追記する。`trace-report` skill はこのファイルだけを
+入力に、フェーズの所要時間・レビュー指摘の採否・エージェントの失敗を集計する。
+
+書き出し先は handover と同じセッションディレクトリ:
+
+```bash
+source "${HOME}/dotfiles/claude/skills/handover/scripts/handover-lib.sh"
+session_dir=$(find_active_session_dir "$(pwd)") || exit 0   # 記録できないだけで進行は止めない
+trace="${session_dir}/trace.jsonl"
+```
+
+記録するイベントは次の 3 種類。`ts` は ISO 8601（`date -u +%Y-%m-%dT%H:%M:%SZ`）。
+
+| event | 出すタイミング | data の必須フィールド |
+|---|---|---|
+| `phase_start` | フェーズ開始をアナウンスした直後 | `pipeline`, `phase`, `phase_name` |
+| `phase_end` | Audit Gate が PASS した直後 | `pipeline`, `phase`, `phase_name`, `duration_ms` |
+| `user_decision` | レビュー指摘の採否をユーザーが選んだ直後 | `phase`, `total_findings`, `findings_snapshot`（各要素に `selected`） |
+
+```bash
+printf '%s\n' "$(jq -nc --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  --arg pipeline feature-dev --argjson phase 5 --arg name Execute \
+  '{ts:$ts, event:"phase_start", data:{pipeline:$pipeline, phase:$phase, phase_name:$name}}')" \
+  >> "$trace"
+```
+
+記録に失敗してもフェーズ遷移は続ける。trace は観測用であり、ゲートではない。
