@@ -3,10 +3,12 @@
 # Flow: select text -> Cmd+C -> trigger ai-format -> (done sound) -> Cmd+V
 # Bound to a Karabiner shell_command, so PATH/env are set explicitly (minimal launchd session env).
 
-. "${BASH_SOURCE[0]%/*}/lib/voice.sh" || exit 1
+# %/* leaves the filename when invoked without a slash (cd bin && bash x).
+_here="${BASH_SOURCE[0]%/*}"
+[ "$_here" = "${BASH_SOURCE[0]}" ] && _here=.
+. "$_here/lib/voice.sh" || exit 1
 
-# Replace PATH rather than prepend: Karabiner's env is not worth inheriting here.
-export PATH="$VOICE_LAUNCHD_PATH"
+ensure_launchd_path
 export USER="${USER:-$(id -un)}"
 export LANG="${LANG:-en_US.UTF-8}"
 export LC_ALL="${LC_ALL:-$LANG}"

@@ -70,7 +70,7 @@ simplify は Skill invoke のため N-way 投票の対象外。`iterations` の�
 
 `iterations > 1` の場合、各エージェント（code-review-quality, code-review-security, code-review-performance, code-review-test, code-review-ai-antipattern, code-review-impact）について、同一の prompt で `iterations` 回起動する。各イテレーションは独立した Agent tool 呼び出しとし、全て `run_in_background: true` で並列起動する。
 
-### 2-7. Codex レビュー（`codex_enabled` 時のみ）
+### 2-8. Codex レビュー（`codex_enabled` 時のみ）
 
 `codex_enabled` が true の場合のみ実行する。Bash tool を `run_in_background: true` で呼び出す。
 

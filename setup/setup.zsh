@@ -35,6 +35,11 @@ LINKS=(
   "karabiner|${HOME}/.config/karabiner|dir"
   # herdr writes logs/sockets/session.json next to its config
   "terminal/herdr/config.toml|${HOME}/.config/herdr/config.toml|file"
+  # This is a global pin, and the name matters: mise auto-loads mise/config.toml,
+  # .mise/config.toml and .config/mise/config.toml from a project directory. Any
+  # of those makes every mise call inside this repo fail as untrusted, which drops
+  # python3 back to the Xcode interpreter -- the one setup refuses.
+  "setup/mise-config.toml|${HOME}/.config/mise/config.toml|file"
   ".vscode/settings.json|${HOME}/Library/Application Support/Code/User/settings.json|file"
   ".vscode/settings.json|${HOME}/Library/Application Support/Cursor/User/settings.json|file"
   # Cursor reads the same skills as Claude

@@ -33,7 +33,7 @@ trace.jsonl を読み込み、パイプラインの実行状況・レビュー�
      echo "${session_dir}/trace.jsonl"
    fi
    ```
-2. ファイルが見つからない場合 → 「trace.jsonl が見つかりません。レビュースキルでの trace 記録が有効になっているか確認してください。」と報告して終了
+2. ファイルが見つからない場合 → 「trace.jsonl が見つかりません。このセッションで feature-dev / debug-flow のフェーズ遷移が起きていないか、記録が失敗しています（記録の仕様は `../_shared/pipeline-gates.md` の Trace 記録）。」と報告して終了
 
 ### 集約分析（`--all` / `--branch`）
 

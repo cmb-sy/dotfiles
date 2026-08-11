@@ -58,15 +58,18 @@ def voice_lib(expr: str) -> subprocess.CompletedProcess:
 
     A lib that cannot be sourced is fatal: its failure would otherwise arrive as
     a non-zero status and read as "Handy is not running", i.e. a quiet no-op.
+    Distinguish it from the expression's own failure with a sentinel rather than
+    with stderr, which any unrelated warning would also fill.
     """
     if not LIB.exists():
         die(f"missing {LIB}")
+    script = f'. "$0" || exit 111\n{expr}'
     result = subprocess.run(
-        ["/bin/sh", "-c", f'. "$0"\n{expr}', str(LIB)],
+        ["/bin/sh", "-c", script, str(LIB)],
         capture_output=True, text=True,
     )
-    if result.stderr.strip():
-        die(f"cannot source {LIB}: {result.stderr.strip()}")
+    if result.returncode == 111:
+        die(f"cannot source {LIB}: {result.stderr.strip() or 'no error output'}")
     return result
 
 

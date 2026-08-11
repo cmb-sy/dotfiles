@@ -47,9 +47,11 @@ notify() {
     -e "display notification \"$2\" with title \"$1\"" >/dev/null 2>&1 || true
 }
 
-# Prepend the launchd PATH, keeping whatever the caller inherited.
+# Replace PATH rather than prepend. Karabiner and launchd hand these scripts a
+# minimal environment, and an inherited PATH can carry the working directory --
+# every binary the voice scripts call lives in VOICE_LAUNCHD_PATH already.
 ensure_launchd_path() {
-  PATH="$VOICE_LAUNCHD_PATH${PATH:+:$PATH}"
+  PATH="$VOICE_LAUNCHD_PATH"
   export PATH
 }
 

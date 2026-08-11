@@ -81,3 +81,48 @@ description: >-
 phase-auditor の verdict なしに Phase N+1 のアナウンスや作業開始を行った場合、
 それは**プロトコル違反**である。
 </HARD-GATE>
+
+## Trace 記録
+
+各フェーズ遷移とレビュー結果を 1 行の JSONL として追記する。`trace-report` skill は
+このファイルだけを入力に集計するので、**フィールド名は消費側に合わせる**（下表は
+`trace-report/SKILL.md` の jq が実際に読むキー）。
+
+書き出し先は handover と同じセッションディレクトリ:
+
+```bash
+source "${HOME}/dotfiles/claude/skills/handover/scripts/handover-lib.sh"
+session_dir=$(find_active_session_dir "$(pwd)") || exit 0   # 記録できないだけで進行は止めない
+trace="${session_dir}/trace.jsonl"
+```
+
+`ts` は ISO 8601（`date -u +%Y-%m-%dT%H:%M:%SZ`）。
+
+| event | 出すタイミング | data の必須フィールド |
+|---|---|---|
+| `phase_start` | フェーズ開始をアナウンスした直後 | `pipeline`, `phase`, `phase_name` |
+| `phase_end` | Audit Gate が PASS した直後 | `pipeline`, `phase`, `phase_name`, `duration_ms` |
+| `user_decision` | レビュー指摘の採否をユーザーが選んだ直後 | `pipeline`, `phase`, `total_findings`, `selected`（採用 id の配列）, `rejected`（却下 id の配列）, `findings_snapshot`（各要素に `id`, `category`, `description`, `selected`） |
+| `agent_end` | サブエージェントが結果を返した直後 | `agent`, `duration_ms`, `findings_count`, `parse_method`（`json_direct` か、フォールバック手段の名前） |
+| `retry` | リトライを開始した直後 | `pipeline`, `phase`, `attempt` |
+| `error` | エージェントがエラーで終了した直後 | `agent`, `phase`, `message` |
+| `handover` | handover を実行した直後 | `phase`, `reason`（context 逼迫なら `context_pressure`） |
+
+`duration_ms` は開始時刻を控えて差を取る（macOS の `date` に `%3N` は無い）:
+
+```bash
+started=$(python3 -c 'import time; print(int(time.time()*1000))')
+# ... フェーズ実行 ...
+duration_ms=$(python3 -c "import time; print(int(time.time()*1000) - $started)")
+```
+
+追記の例:
+
+```bash
+printf '%s\n' "$(jq -nc --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  --arg pipeline feature-dev --argjson phase 5 --arg name Execute --argjson d "$duration_ms" \
+  '{ts:$ts, event:"phase_end", data:{pipeline:$pipeline, phase:$phase, phase_name:$name, duration_ms:$d}}')" \
+  >> "$trace"
+```
+
+記録に失敗してもフェーズ遷移は続ける。trace は観測用であり、ゲートではない。

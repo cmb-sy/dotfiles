@@ -14,7 +14,10 @@
 #
 # Karabiner runs this in a minimal launchd env, so use absolute paths.
 
-. "${BASH_SOURCE[0]%/*}/lib/voice.sh" || exit 1
+# %/* leaves the filename when invoked without a slash (cd bin && bash x).
+_here="${BASH_SOURCE[0]%/*}"
+[ "$_here" = "${BASH_SOURCE[0]}" ] && _here=.
+. "$_here/lib/voice.sh" || exit 1
 
 HANDY_BIN="/Applications/Handy.app/Contents/MacOS/handy"
 

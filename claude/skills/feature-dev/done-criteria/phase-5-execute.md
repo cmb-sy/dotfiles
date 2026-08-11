@@ -25,7 +25,7 @@ audit: required
   1. プロジェクトのテストコマンド（`npm test`, `cargo test`, `pytest`, `go test ./...`, `bats test/` 等）を package.json / Cargo.toml / go.mod / Makefile / CLAUDE.md から特定する
   2. 特定したテストコマンドを実行し、exit code とテスト結果サマリー（total, passed, failed, skipped）を記録する
   3. 記録した実行コマンド文字列と出力サマリーを audit verdict に含める
-- **pass_condition**: 手順2の exit code が 0、failed テスト数が 0、かつ手順3で実行コマンドと出力サマリーの両方が verdict に記録されていること
+- **pass_condition**: 手順2の exit code が 0、failed テスト数が 0、かつ手順3で実行コマンドと出力サマリーの両方が verdict の `criteria_results[].diagnosis` に記録されていること
 - **fail_diagnosis_hint**: 失敗したテスト名とエラーメッセージを確認する。既存テストの退行か新規テストの初回失敗かは `git diff --name-only -- tests/` で切り分ける。テストコマンドが特定できない場合は計画書の各タスクに記述されたテスト手順を参照する
 - **depends_on_artifacts**: [docs/plans/*-plan.md, tests/]
 
@@ -36,7 +36,7 @@ audit: required
   1. プロジェクトの linter / 型チェッカー / フォーマッター（`npm run lint`, `eslint`, `tsc --noEmit`, `ruff check`, `cargo clippy`, `shellcheck` 等）を設定ファイルから特定する
   2. 特定した各コマンドを実行し、exit code と error レベルの指摘件数を記録する
   3. 記録した実行コマンド文字列と出力を audit verdict に含める
-- **pass_condition**: 手順2の全コマンドの exit code が 0 かつ error レベルの指摘が0件、かつ手順3で実行コマンドと出力が verdict に記録されていること
+- **pass_condition**: 手順2の全コマンドの exit code が 0 かつ error レベルの指摘が0件、かつ手順3で実行コマンドと出力が verdict の `criteria_results[].diagnosis` に記録されていること
 - **fail_diagnosis_hint**: 指摘のファイルパスと行番号を確認する。型エラーは型定義の不整合、lint エラーは規約違反を確認し、`--fix` で自動修正可能か判定する。該当するツールがプロジェクトに存在しない場合はその事実を verdict に記録する
 - **depends_on_artifacts**: [src/, artifacts/lint/]
 

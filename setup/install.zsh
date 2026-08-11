@@ -32,19 +32,54 @@ if util::confirm "Install packages from Brewfile?"; then
 fi
 
 #----------------------------------------------------------
+# Language runtimes (setup/mise-config.toml pins the versions; setup links it
+# to ~/.config/mise/config.toml)
+#
+# Must precede the python step: it decides which interpreter `python3` is.
+#----------------------------------------------------------
+if util::confirm "Install the runtimes mise pins (python, node, deno)?"; then
+  if util::has mise; then
+    # Failure here is not cosmetic: the python step below then falls back to an
+    # interpreter it cannot install into, so say what breaks.
+    mise install \
+      || util::warning "mise install failed; pygments/pyyaml cannot be installed and the tests that need them will skip."
+  else
+    util::warning "mise not found; skipping runtimes (install the Brewfile first)."
+  fi
+fi
+
+#----------------------------------------------------------
 # Python packages (tests + bin/highlight-code)
 #
 # Homebrew cannot express these: its pygments formula is a private virtualenv
 # exposing only the pygmentize CLI, and pyyaml has no formula at all. Both must
 # be importable by the python3 on PATH, so install them against that
 # interpreter with uv (from the Brewfile above).
+#
+# Refuse the Xcode command-line-tools interpreter: it is root-owned, so the
+# install either fails on permissions or pollutes a tree that a CLT update
+# wipes -- and either way the tests keep skipping, which is the failure this
+# step exists to prevent.
 #----------------------------------------------------------
 if util::confirm "Install python packages (pygments, pyyaml)?"; then
-  if util::has uv; then
-    uv pip install --quiet --python "$(command -v python3)" pygments pyyaml \
-      || util::warning "python packages failed; highlight-code and server tests will skip."
-  else
+  # `mise install` does not change PATH in this process, and mise activates from
+  # .zshrc, which a non-interactive setup never reads -- so ask mise directly and
+  # keep command -v only as the fallback for a machine without mise.
+  PY="$(mise which python3 2>/dev/null || command -v python3)"
+  if ! util::has uv; then
     util::warning "uv not found; skipping python packages (install the Brewfile first)."
+  elif [[ -z "${PY}" ]]; then
+    util::warning "no python3 on PATH; skipping python packages."
+  elif [[ "${PY}" == /usr/bin/python3 || "${PY}" == /Library/Developer/* || "${PY}" == /Applications/Xcode*.app/* ]]; then
+    util::warning "python3 is the Xcode CLT interpreter (${PY}); mise install did not provide one."
+  elif [[ "${PY}" == /opt/homebrew/* || "${PY}" == /usr/local/Cellar/* ]]; then
+    # Homebrew marks its interpreters externally managed, so uv refuses them
+    # outright rather than half-installing.
+    util::warning "python3 is Homebrew's (${PY}), which is externally managed; mise install did not provide one."
+  else
+    util::info "Installing pygments and pyyaml into ${PY}"
+    uv pip install --quiet --python "${PY}" pygments pyyaml \
+      || util::warning "python packages failed; highlight-code and server tests will skip."
   fi
 fi
 

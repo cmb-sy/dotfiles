@@ -1,0 +1,13 @@
+# Pins the interpreters the repo's own tooling assumes.
+#
+# python: bin/highlight-code and the bats suite import pygments and pyyaml from
+# whatever `python3` resolves to. Homebrew installs no `python3` shim, so
+# without a pin that is the Xcode command-line-tools interpreter -- root-owned
+# and wiped by CLT updates, which makes `uv pip install` fail or pollute it.
+[tools]
+deno = "latest"
+node = "20"
+# 3.13+, not 3.11.9: mise verifies GitHub artifact attestations by default, and
+# the 2024 python-build-standalone releases have none, so the install fails on a
+# clean machine (measured on the CI runner). Newer builds carry them.
+python = "3.13.9"

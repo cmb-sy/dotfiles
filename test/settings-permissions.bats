@@ -66,9 +66,16 @@ deny_count_exact() {  # $1=entry
   printf '%s\n' "$output" | grep -qF 'op:'
 }
 
-@test "deny list has grown beyond the original four" {
-  count=$(jq '.permissions.deny | length' "$SETTINGS")
-  [ "$count" -gt 4 ]
+# The prohibitions that a Bash pattern can express. CLAUDE.md also forbids
+# production database operations and deleting secrets, which deny cannot state:
+# the command shape does not reveal which database or which file. Those stay with
+# the PreToolUse hook and with judgement. A count check would pass on any four
+# unrelated additions, so name them.
+@test "the deniable prohibitions each have an entry" {
+  run deny_list
+  for needle in 'git push --force' 'git push -f' 'git reset --hard' 'git clean -fdx' 'sudo rm'; do
+    printf '%s\n' "$output" | grep -qF "$needle"
+  done
 }
 
 @test "bypassPermissions is still the default mode" {

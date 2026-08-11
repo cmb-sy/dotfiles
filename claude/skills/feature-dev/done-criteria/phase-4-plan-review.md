@@ -36,8 +36,8 @@ audit: required
 - **verification**:
   1. `Glob("docs/plans/*evidence-plan.md")` で Evidence Plan を検索し、その初回コミットを `git log --format=%H -- <evidence-plan パス>` の最終行で特定する（Phase 1 Audit Gate で生成されたコミット）
   2. `git log --oneline <初回コミット>..HEAD -- docs/plans/*-design.md` で、Evidence Plan 生成以降の設計書変更コミット件数を数える
-  3. 手順2の結果から再評価の要否を判定し（1件以上なら再評価必要、0件なら再評価不要）、その判定結果を audit verdict に記録する
-- **pass_condition**: 手順1の Glob 結果が1件以上（0件なら FAIL）、かつ手順3の要否判定結果が verdict に記録されていること
+  3. 手順2の結果から再評価の要否を判定し（1件以上なら再評価必要、0件なら再評価不要）、その判定結果を audit verdict の該当基準の `criteria_results[].diagnosis` に記録する
+- **pass_condition**: 手順1の Glob 結果が1件以上（0件なら FAIL）、かつ手順3の要否判定結果が verdict の `criteria_results[].diagnosis` に記録されていること
 - **fail_diagnosis_hint**: 手順1で Evidence Plan が見つからない場合、Phase 1 Audit Gate での初回生成が実行されていない。Evidence Plan の再評価自体は Phase 4 Audit Gate 完了後に実行されるため、この基準は要否判定までを検証する。再評価が実際に反映されたことの強制は Phase 5 (Execute) 側の管轄
 - **depends_on_artifacts**: [docs/plans/*-design.md, docs/plans/*evidence-plan.md]
 
