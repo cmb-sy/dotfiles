@@ -424,7 +424,7 @@ pipeline state に以下を追加:
 | 3: Plan | 計画 | AUTONOMOUS | 計画書コミット済み | -- |
 | 4: Plan Review | 計画レビュー | INTERACTIVE | レビュー全観点パス | -- |
 | 5: Execute | Execute | AUTONOMOUS+GATE | 全タスク完了 | 3回失敗 -> PAUSE |
-| 6: Doc Audit | -- | INTERACTIVE | 全 finding 処理済み | Audit Gate FAIL -> PAUSE |
+| 6: Doc Audit | Doc Audit | INTERACTIVE | 全 finding 処理済み | Audit Gate FAIL -> PAUSE |
 | 7: Smoke Test | Smoke Test | AUTONOMOUS+GATE | PASS | FAIL/PAUSE -> PAUSE |
 | 8: Code Review | コードレビュー | INTERACTIVE | 修正完了 | -- |
 | 9: Test Review | テストレビュー | INTERACTIVE | 修正完了 | -- |
