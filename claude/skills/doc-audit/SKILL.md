@@ -81,8 +81,23 @@ Layer 1 の JSON 結果 + Layer 0 の探索結果をエージェントにフィ�
 
 ### Layer 3: Fix
 
-統合レポートは提示するだけでなく `artifacts/doc-audit/phase-6-report.json` に書き出す
-（done-criteria の D6-07 以降がこのファイルの findings を読んで監査する）。
+統合レポートは提示するだけでなく `artifacts/doc-audit/phase-6-report.json` に書き出す。
+done-criteria がこのファイルを読んで監査するので、**キー名は監査側に合わせる**:
+
+```json
+{
+  "orphaned_docs": [
+    { "path": "docs/x.md", "status": "deleted", "user_decision": "..." }
+  ],
+  "stale_signals": [], "coherence": [], "missing_documentation": [],
+  "undocumented_business_rule": [], "undocumented_design_decision": []
+}
+```
+
+`status` は処理の結果を表す。カテゴリごとに取り得る値が違う（孤立は
+`deleted`/`linked`/`skipped`、陳腐化と内容更新は `updated`/`fixed`/`skipped`）。
+`skipped` の場合は `user_decision` にユーザーの判断理由を入れる — 監査側が
+「明示的にスキップした」ことを「未処理」と区別できない。
 
 統合レポートをユーザーに提示し、各 finding について:
 

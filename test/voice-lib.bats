@@ -88,8 +88,12 @@ voice_script_paths() {
 # Every binary the voice scripts call has to be inside that PATH, or replacing it
 # breaks voice input with nothing to show for it.
 @test "the binaries the voice scripts call are inside the launchd PATH" {
+  # claude arrives as a cask, and install.zsh drops cask lines on CI, so it is
+  # absent there by design. Everything else is a formula or ships with macOS.
+  bins="herdr jq say afplay osascript pgrep pbpaste pbcopy"
+  [ -z "$CI" ] && bins="claude $bins"
   missing=0
-  for b in claude herdr jq say afplay osascript pgrep pbpaste pbcopy; do
+  for b in $bins; do
     found=0
     for d in /opt/homebrew/bin /usr/local/bin /usr/bin /bin; do
       [ -x "$d/$b" ] && found=1
@@ -118,7 +122,10 @@ voice_script_paths() {
 
 # %/* leaves the filename when a script is invoked without a slash, which would
 # send the source at <name>/lib/voice.sh.
+# Run the real script, not a copy of its idiom: an inline re-implementation stays
+# green after the script itself regresses.
 @test "the lib resolves when a script is invoked without a slash" {
-  run bash -c "cd '$REPO_DIR/bin' && _h=voice-toggle; _d=\"\${_h%/*}\"; [ \"\$_d\" = \"\$_h\" ] && _d=.; test -f \"\$_d/lib/voice.sh\" && echo RESOLVED"
-  [ "$output" = "RESOLVED" ]
+  run bash -c "cd '$REPO_DIR/bin' && PGREP_BIN=/usr/bin/false bash voice-toggle 2>&1"
+  notfound=$(printf '%s' "$output" | grep -cF 'lib/voice.sh') || notfound=0
+  [ "$notfound" -eq 0 ]
 }

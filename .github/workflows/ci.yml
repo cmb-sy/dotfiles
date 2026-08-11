@@ -154,13 +154,10 @@ jobs:
           echo "OK: .vscode/settings.json has no volatile VS Code keys"
 
       # ----------------------------------------------------------
-      # Step 7: bats test suite
-      # GUI/tmux-bound tests self-skip via $CI.
+      # Step 7: the python packages the suite imports
       #
-      # ----------------------------------------------------------
-      # The python packages the suite imports. Without this the pygments and
-      # PyYAML tests would skip on CI and nothing would report that setup's
-      # install step had stopped working.
+      # Without this the pygments and PyYAML tests would skip on CI and nothing
+      # would report that setup's install step had stopped working.
       # ----------------------------------------------------------
       - name: Verify the python packages the tests import
         run: |
@@ -170,6 +167,10 @@ jobs:
           echo "python3 -> $PY"
           "$PY" -c 'import pygments, yaml; print("pygments", pygments.__version__)'
 
+      # ----------------------------------------------------------
+      # Step 8: bats test suite
+      # GUI/tmux-bound tests self-skip via $CI.
+      #
       # The locale is pinned because bats builds a shell function name out of
       # each test description, and most of ours are Japanese. How a non-ASCII
       # description is encoded depends on how bash slices the string, which
