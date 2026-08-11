@@ -20,12 +20,6 @@ load "helpers/common"
 # The python step is what keeps the pygments/pyyaml skips from being permanent,
 # and the skip messages point at it by name -- so deleting it must fail here.
 # Assert on live code, not on comments.
-@test "install.zsh は python パッケージを uv で導入する" {
-  code=$(grep -v '^[[:space:]]*#' "$REPO_DIR/setup/install.zsh")
-  printf '%s' "$code" | grep -qF 'uv pip install'
-  printf '%s' "$code" | grep -qF 'pygments pyyaml'
-}
-
 # uv against the Xcode CLT interpreter either fails on permissions or writes to
 # a tree that a CLT update wipes; both leave the tests skipping forever.
 # Run the block against stubbed interpreters instead of grepping for the paths:
@@ -33,21 +27,25 @@ load "helpers/common"
 #
 # The block is extracted by name so the test exercises the real code. `uv` and
 # `mise` are stubbed, and the chosen interpreter is whatever the mise stub prints.
+# BATS_TEST_TMPDIR, not make_tmpdir: `run` executes this in a subshell, so a
+# directory exported from here never reaches the test body that would remove it.
+# bats cleans its own per-test directory.
 run_python_block() {  # $1 = what `mise which python3` should return
-  make_tmpdir
-  printf '#!/bin/bash\n[ "$1" = which ] && echo "%s"\nexit 0\n' "$1" > "$TEST_TMPDIR/mise"
-  printf '#!/bin/bash\necho "UV CALLED: $*"\n' > "$TEST_TMPDIR/uv"
-  chmod +x "$TEST_TMPDIR/mise" "$TEST_TMPDIR/uv"
+  local stub="$BATS_TEST_TMPDIR/stub"
+  mkdir -p "$stub"
+  printf '#!/bin/bash\n[ "$1" = which ] && echo "%s"\nexit 0\n' "$1" > "$stub/mise"
+  printf '#!/bin/bash\necho "UV CALLED: $*"\n' > "$stub/uv"
+  chmod +x "$stub/mise" "$stub/uv"
   # util::confirm returns 0 under CI, so the block runs without a prompt.
   awk '/^# Python packages/{f=1} f' "$REPO_DIR/setup/install.zsh" \
-    | awk '/^fi$/{print; exit} {print}' > "$TEST_TMPDIR/block.zsh"
+    | awk '/^fi$/{print; exit} {print}' > "$BATS_TEST_TMPDIR/block.zsh"
   # PATH is prepended inside the command: .zshenv runs first for `zsh -c` and
   # would otherwise put the real mise ahead of the stub.
   CI=true zsh -c "
-    PATH='$TEST_TMPDIR':\$PATH
+    PATH='$stub':\$PATH
     source '$REPO_DIR/setup/util.zsh'
-    source '$TEST_TMPDIR/block.zsh'
-  " 2>&1
+    source '$BATS_TEST_TMPDIR/block.zsh'
+  "
 }
 
 @test "install.zsh は CLT の python3 を拒否する" {
@@ -55,7 +53,6 @@ run_python_block() {  # $1 = what `mise which python3` should return
   printf '%s' "$output" | grep -qF 'Xcode CLT'
   called=$(printf '%s' "$output" | grep -cF 'UV CALLED') || called=0
   [ "$called" -eq 0 ]
-  rm -rf "$TEST_TMPDIR"
 }
 
 @test "install.zsh は Homebrew の python3 を拒否する" {
@@ -63,14 +60,12 @@ run_python_block() {  # $1 = what `mise which python3` should return
   printf '%s' "$output" | grep -qF 'externally managed'
   called=$(printf '%s' "$output" | grep -cF 'UV CALLED') || called=0
   [ "$called" -eq 0 ]
-  rm -rf "$TEST_TMPDIR"
 }
 
 @test "install.zsh は mise の python3 には uv で導入する" {
   run run_python_block "$HOME/.local/share/mise/installs/python/3.13.9/bin/python3"
   printf '%s' "$output" | grep -qF 'UV CALLED'
   printf '%s' "$output" | grep -qF 'pygments pyyaml'
-  rm -rf "$TEST_TMPDIR"
 }
 
 # The pin only takes effect if the runtimes are actually installed, and it must

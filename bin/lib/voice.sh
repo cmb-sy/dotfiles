@@ -5,11 +5,11 @@
 #
 #   . "${BASH_SOURCE[0]%/*}/lib/voice.sh"   # zsh: "${0:A:h}/lib/voice.sh"
 #
-# The two lines each caller uses to find this file cannot live here -- they run
-# before it is loaded. They differ in one way on purpose: bin/secure-input-watch
-# absolutises the directory with cd/pwd because launchd starts it from an
-# arbitrary cwd and it stays resident, while the others exit long before cwd can
-# change.
+# The lines each caller uses to find this file cannot live here -- they run
+# before it is loaded. Relative is enough for all of them: launchd and Karabiner
+# invoke absolute paths, and none of the scripts cd. bin/secure-input-watch keeps
+# an absolute $HERE only because it reuses it to build other paths, where a bare
+# "." would read as a lost cwd rather than as "next to the script".
 #
 # Handy's own paths and process name live here so a change on Handy's side is
 # one edit, not a hunt through bin/.

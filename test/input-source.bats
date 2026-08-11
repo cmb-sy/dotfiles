@@ -5,13 +5,20 @@
 # label goes blank and the ruler still looks fine, so nothing tells you the
 # state you are reading is stale.
 #
-# These tests never change the input source. Switching it mid-test would leave
-# the machine in a Japanese state if a test aborted, and the label logic can be
-# checked without touching the live setting.
+# All but one test leave the live input source alone: the label logic can be
+# checked without touching it. The end-to-end test has to switch it, so it
+# records the previous value in IME_RESTORE and teardown puts it back -- a failed
+# assertion aborts the test body, which would otherwise leave the machine in a
+# Japanese state.
 
 load "helpers/common"
 
 IS="$REPO_DIR/bin/input-source"
+
+teardown() {
+    [ -n "${IME_RESTORE:-}" ] && "$IS" --set "$IME_RESTORE"
+    return 0
+}
 
 @test "実行可能である" {
     [ -x "$IS" ]
@@ -163,7 +170,7 @@ print(','.join(problems) if problems else 'OK')
     export LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
     SCREEN="$REPO_DIR/test/helpers/tmux-screen.sh"
     SESSION="ime-bats-$$"
-    before=$("$IS")
+    IME_RESTORE=$("$IS")
     printf 'local x = 1\n' > "$BATS_TEST_TMPDIR/t.lua"
 
     label_now() {
@@ -174,6 +181,8 @@ print(','.join(problems) if problems else 'OK')
     # timer, so a fixed wait races it: too short and the old label is still up,
     # and lengthening it only makes the suite slower without removing the race.
     # Returns the last value seen either way, so a timeout fails on the value.
+    # Each step below expects a label different from the one before it, so a
+    # screen that has not refreshed yet cannot satisfy the wait early.
     wait_label() {  # $1 = expected label, $2 = seconds to allow
         local deadline=$(( SECONDS + $2 )) got=
         while [ "$SECONDS" -lt "$deadline" ]; do
@@ -198,8 +207,10 @@ print(','.join(problems) if problems else 'OK')
     third=$(wait_label A 20)
 
     "$SCREEN" stop "$SESSION"
-    "$IS" --set "$before"
 
+    # teardown restores the input source, so an assertion failing here cannot
+    # leave the machine switched.
+    echo "first=$first second=$second third=$third" >&2
     [ "$first" = "A" ]
     [ "$second" = "あ" ]
     [ "$third" = "A" ]
