@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# test/skill-hygiene.bats — SKILL.md is an instruction sheet, not a changelog.
+# test/skill-hygiene.bats — a skill md is an instruction sheet, not a changelog.
 
 load "helpers/common"
 
@@ -19,7 +19,9 @@ LINEAGE = re.compile(r'旧 [A-Za-z][A-Za-z0-9_-]*')
 REMOVAL = re.compile(r'[はをも]廃止')
 LIVE = re.compile(r'以前|以降|時点|なら|場合|とき|使わない|同一視|受け付け')
 
-for path in sorted(pathlib.Path(sys.argv[1]).rglob('SKILL.md')):
+# Every md a skill loads, not only SKILL.md: shared specs, references and
+# done-criteria are read at run time too, so the rule applies there as well.
+for path in sorted(pathlib.Path(sys.argv[1]).rglob('*.md')):
     for num, line in enumerate(path.read_text().splitlines(), 1):
         bare = re.sub(r'`[^`]*`', '', line)
         for kind, pattern in (('dated', DATE), ('lineage', LINEAGE), ('removal', REMOVAL)):
@@ -37,21 +39,21 @@ skill_findings_of_kind() {
   skill_history_findings | grep "^$1 " || true
 }
 
-@test "no SKILL.md carries a dated change note" {
+@test "no skill md carries a dated change note" {
   found="$(skill_findings_of_kind dated)"
   echo "$found"
   hits=$(echo "$found" | grep -c . ) || hits=0
   [ "$hits" -eq 0 ]
 }
 
-@test "no SKILL.md describes what it absorbed or replaced" {
+@test "no skill md describes what it absorbed or replaced" {
   found="$(skill_findings_of_kind lineage)"
   echo "$found"
   hits=$(echo "$found" | grep -c . ) || hits=0
   [ "$hits" -eq 0 ]
 }
 
-@test "no SKILL.md records that something was removed" {
+@test "no skill md records that something was removed" {
   found="$(skill_findings_of_kind removal)"
   echo "$found"
   hits=$(echo "$found" | grep -c . ) || hits=0
