@@ -7,4 +7,7 @@
 [tools]
 deno = "latest"
 node = "20"
-python = "3.11.9"
+# 3.13+, not 3.11.9: mise verifies GitHub artifact attestations by default, and
+# the 2024 python-build-standalone releases have none, so the install fails on a
+# clean machine (measured on the CI runner). Newer builds carry them.
+python = "3.13.9"

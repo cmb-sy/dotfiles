@@ -165,6 +165,12 @@ jobs:
           export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
           PY="$(mise which python3 2>/dev/null || command -v python3)"
           echo "python3 -> $PY"
+          if ! "$PY" -c 'import pygments, yaml' 2>/dev/null; then
+            echo "FAIL: $PY cannot import pygments/yaml."
+            echo "setup installs them into the interpreter mise pins; check the mise install output above."
+            mise ls python || true
+            exit 1
+          fi
           "$PY" -c 'import pygments, yaml; print("pygments", pygments.__version__)'
 
       # ----------------------------------------------------------

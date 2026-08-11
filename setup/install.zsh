@@ -39,7 +39,10 @@ fi
 #----------------------------------------------------------
 if util::confirm "Install the runtimes mise pins (python, node, deno)?"; then
   if util::has mise; then
-    mise install || util::warning "mise install failed; python3 may resolve to the CLT interpreter."
+    # Failure here is not cosmetic: the python step below then falls back to an
+    # interpreter it cannot install into, so say what breaks.
+    mise install \
+      || util::warning "mise install failed; pygments/pyyaml cannot be installed and the tests that need them will skip."
   else
     util::warning "mise not found; skipping runtimes (install the Brewfile first)."
   fi
@@ -68,7 +71,11 @@ if util::confirm "Install python packages (pygments, pyyaml)?"; then
   elif [[ -z "${PY}" ]]; then
     util::warning "no python3 on PATH; skipping python packages."
   elif [[ "${PY}" == /usr/bin/python3 || "${PY}" == /Library/Developer/* || "${PY}" == /Applications/Xcode*.app/* ]]; then
-    util::warning "python3 is the Xcode CLT interpreter (${PY}); run 'mise install' first."
+    util::warning "python3 is the Xcode CLT interpreter (${PY}); mise install did not provide one."
+  elif [[ "${PY}" == /opt/homebrew/* || "${PY}" == /usr/local/Cellar/* ]]; then
+    # Homebrew marks its interpreters externally managed, so uv refuses them
+    # outright rather than half-installing.
+    util::warning "python3 is Homebrew's (${PY}), which is externally managed; mise install did not provide one."
   else
     util::info "Installing pygments and pyyaml into ${PY}"
     uv pip install --quiet --python "${PY}" pygments pyyaml \
