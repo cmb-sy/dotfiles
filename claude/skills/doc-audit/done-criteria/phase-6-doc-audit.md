@@ -57,7 +57,7 @@ audit: required
 - severity: quality
 - verify_type: inspection
 - verification:
-  1. artifacts/doc-audit/phase-6-doc-check.log の orphaned_docs カテゴリの findings を列挙
+  1. artifacts/doc-audit/phase-6-report.json の orphaned_docs カテゴリの findings を列挙
   2. 各 finding の status を確認
   3. status が "deleted", "linked", "skipped" のいずれかであること
   4. "skipped" の場合、user_decision フィールドが存在すること

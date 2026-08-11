@@ -48,5 +48,5 @@ load "helpers/common"
 # The interpreter the repo assumes must be pinned in-repo: without this file the
 # version comes from an unmanaged ~/.config/mise/config.toml.
 @test "mise 設定がリポジトリで python を固定している" {
-  grep -qF 'python = ' "$REPO_DIR/.config/mise/config.toml"
+  grep -qF 'python = ' "$REPO_DIR/setup/mise-config.toml"
 }

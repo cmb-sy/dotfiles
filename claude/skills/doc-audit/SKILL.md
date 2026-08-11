@@ -43,15 +43,21 @@ impact-analyzer:  git diff 逆依存 → depends-on 未宣言のドキュメン�
 
 スキルディレクトリからの相対パスで実行:
 
+スクリプトは JSON を標準出力に書くだけなので、**必ず成果物としてリダイレクトする**。
+done-criteria がこのファイルを読んで監査するため、残さないと証跡を辿れない。
+
 ````bash
+mkdir -p artifacts/doc-audit
+OUT=artifacts/doc-audit/phase-6-script-output.json
+
 # 全 md 対象
-bash "$(dirname "$SKILL_PATH")/scripts/doc-audit.sh" --full --json
+bash "$(dirname "$SKILL_PATH")/scripts/doc-audit.sh" --full --json | tee "$OUT"
 
 # commit 範囲指定
-bash "$(dirname "$SKILL_PATH")/scripts/doc-audit.sh" --range HEAD~5..HEAD --json
+bash "$(dirname "$SKILL_PATH")/scripts/doc-audit.sh" --range HEAD~5..HEAD --json | tee "$OUT"
 
 # undeclared チェックのみ（Audit Gate 再検証用）
-bash "$(dirname "$SKILL_PATH")/scripts/doc-audit.sh" --check-undeclared --json
+bash "$(dirname "$SKILL_PATH")/scripts/doc-audit.sh" --check-undeclared --json | tee "$OUT"
 ````
 
 ### Layer 2: Analysis
@@ -75,6 +81,9 @@ Layer 1 の JSON 結果 + Layer 0 の探索結果をエージェントにフィ�
 
 ### Layer 3: Fix
 
+統合レポートは提示するだけでなく `artifacts/doc-audit/phase-6-report.json` に書き出す
+（done-criteria の D6-07 以降がこのファイルの findings を読んで監査する）。
+
 統合レポートをユーザーに提示し、各 finding について:
 
 - **修正する** → fix_type に応じた修正を実行:
@@ -88,7 +97,9 @@ Layer 1 の JSON 結果 + Layer 0 の探索結果をエージェントにフィ�
 
 ### doc-check 連携
 
-depends-on 修正後、`/doc-check` を実行して内容更新を行う（feature-dev パイプライン内では自動実行、`/doc-audit` 単体実行時は推奨のみで自動実行しない）:
+depends-on 修正後、`/doc-check` を実行して内容更新を行う（feature-dev パイプライン内では自動実行、
+`/doc-audit` 単体実行時は推奨のみで自動実行しない）。出力は
+`artifacts/doc-audit/phase-6-doc-check.log` に残す（D6-06 がこのログを読む）:
 
 ```
 depends-on 修正完了

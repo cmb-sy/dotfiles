@@ -157,6 +157,19 @@ jobs:
       # Step 7: bats test suite
       # GUI/tmux-bound tests self-skip via $CI.
       #
+      # ----------------------------------------------------------
+      # The python packages the suite imports. Without this the pygments and
+      # PyYAML tests would skip on CI and nothing would report that setup's
+      # install step had stopped working.
+      # ----------------------------------------------------------
+      - name: Verify the python packages the tests import
+        run: |
+          set -e
+          export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+          PY="$(mise which python3 2>/dev/null || command -v python3)"
+          echo "python3 -> $PY"
+          "$PY" -c 'import pygments, yaml; print("pygments", pygments.__version__)'
+
       # The locale is pinned because bats builds a shell function name out of
       # each test description, and most of ours are Japanese. How a non-ASCII
       # description is encoded depends on how bash slices the string, which

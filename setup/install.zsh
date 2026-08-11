@@ -32,7 +32,8 @@ if util::confirm "Install packages from Brewfile?"; then
 fi
 
 #----------------------------------------------------------
-# Language runtimes (.config/mise/config.toml pins the versions)
+# Language runtimes (setup/mise-config.toml pins the versions; setup links it
+# to ~/.config/mise/config.toml)
 #
 # Must precede the python step: it decides which interpreter `python3` is.
 #----------------------------------------------------------
@@ -58,12 +59,15 @@ fi
 # step exists to prevent.
 #----------------------------------------------------------
 if util::confirm "Install python packages (pygments, pyyaml)?"; then
-  PY="$(command -v python3)"
+  # `mise install` does not change PATH in this process, and mise activates from
+  # .zshrc, which a non-interactive setup never reads -- so ask mise directly and
+  # keep command -v only as the fallback for a machine without mise.
+  PY="$(mise which python3 2>/dev/null || command -v python3)"
   if ! util::has uv; then
     util::warning "uv not found; skipping python packages (install the Brewfile first)."
   elif [[ -z "${PY}" ]]; then
     util::warning "no python3 on PATH; skipping python packages."
-  elif [[ "${PY}" == /usr/bin/python3 || "${PY}" == /Library/Developer/* ]]; then
+  elif [[ "${PY}" == /usr/bin/python3 || "${PY}" == /Library/Developer/* || "${PY}" == /Applications/Xcode*.app/* ]]; then
     util::warning "python3 is the Xcode CLT interpreter (${PY}); run 'mise install' first."
   else
     util::info "Installing pygments and pyyaml into ${PY}"

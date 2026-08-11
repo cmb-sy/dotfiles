@@ -67,6 +67,16 @@ description: >-
 | タスク失敗（1-2回目） | AUTO | リトライ |
 | タスク失敗（3回目） | PAUSE | 設計ギャップをエスカレーション |
 
+### Doc Audit フェーズ（feature-dev）
+
+| Situation | Action | Rationale |
+|-----------|--------|-----------|
+| Layer 1 の検出スクリプト実行 | AUTO | 読み取りのみ |
+| finding の修正方針の選択 | PAUSE | 削除・統合はユーザー判断を要する |
+| depends-on の修正 | AUTO | 機械的な整合修正 |
+| 全 finding 処理済み | AUTO | 次フェーズへ自動遷移 |
+| スクリプト実行失敗 | PAUSE | 検出結果なしで先に進めない |
+
 ### Smoke Test フェーズ
 
 | Situation | Action | Rationale |

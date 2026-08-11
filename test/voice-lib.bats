@@ -77,3 +77,48 @@ voice_script_paths() {
   run zsh -c ". '$REPO_DIR/bin/lib/voice.sh' && echo OK"
   [ "$output" = "OK" ]
 }
+
+# Replace, not prepend: an inherited PATH is what can carry the working
+# directory into a script Karabiner starts with a minimal environment.
+@test "ensure_launchd_path drops the inherited PATH" {
+  run bash -c "PATH=/sentinel-dir:\$PATH; . '$REPO_DIR/bin/lib/voice.sh'; ensure_launchd_path; printf '%s' \"\$PATH\""
+  [ "$output" = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin" ]
+}
+
+# Every binary the voice scripts call has to be inside that PATH, or replacing it
+# breaks voice input with nothing to show for it.
+@test "the binaries the voice scripts call are inside the launchd PATH" {
+  missing=0
+  for b in claude herdr jq say afplay osascript pgrep pbpaste pbcopy; do
+    found=0
+    for d in /opt/homebrew/bin /usr/local/bin /usr/bin /bin; do
+      [ -x "$d/$b" ] && found=1
+    done
+    if [ "$found" -eq 0 ]; then echo "OUTSIDE: $b"; missing=$((missing + 1)); fi
+  done
+  [ "$missing" -eq 0 ]
+}
+
+# A lib that cannot be sourced must be reported as such, not as "Handy is not
+# running" and not as whatever unrelated warning reached stderr.
+@test "handy-warm reports a broken lib, and ignores unrelated stderr" {
+  make_tmpdir
+  mkdir -p "$TEST_TMPDIR/bin/lib"
+  cp "$REPO_DIR/bin/handy-warm" "$TEST_TMPDIR/bin/"
+  printf 'if then fi\n' > "$TEST_TMPDIR/bin/lib/voice.sh"
+  run bash -c "cd '$TEST_TMPDIR' && python3 bin/handy-warm 2>&1"
+  printf '%s' "$output" | grep -qF 'cannot source'
+  printf 'echo "unrelated warning" >&2\nHANDY_SETTINGS=/nonexistent\nhandy_running() { return 1; }\n' \
+    > "$TEST_TMPDIR/bin/lib/voice.sh"
+  run bash -c "cd '$TEST_TMPDIR' && python3 bin/handy-warm 2>&1"
+  quiet=$(printf '%s' "$output" | grep -cF 'cannot source') || quiet=0
+  [ "$quiet" -eq 0 ]
+  rm -rf "$TEST_TMPDIR"
+}
+
+# %/* leaves the filename when a script is invoked without a slash, which would
+# send the source at <name>/lib/voice.sh.
+@test "the lib resolves when a script is invoked without a slash" {
+  run bash -c "cd '$REPO_DIR/bin' && _h=voice-toggle; _d=\"\${_h%/*}\"; [ \"\$_d\" = \"\$_h\" ] && _d=.; test -f \"\$_d/lib/voice.sh\" && echo RESOLVED"
+  [ "$output" = "RESOLVED" ]
+}

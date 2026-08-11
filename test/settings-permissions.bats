@@ -66,9 +66,12 @@ deny_count_exact() {  # $1=entry
   printf '%s\n' "$output" | grep -qF 'op:'
 }
 
-# Every prohibition CLAUDE.md's 自律実行ワークフロー section names must have an
-# entry. A count check would pass on any four unrelated additions.
-@test "each named prohibition has a deny entry" {
+# The prohibitions that a Bash pattern can express. CLAUDE.md also forbids
+# production database operations and deleting secrets, which deny cannot state:
+# the command shape does not reveal which database or which file. Those stay with
+# the PreToolUse hook and with judgement. A count check would pass on any four
+# unrelated additions, so name them.
+@test "the deniable prohibitions each have an entry" {
   run deny_list
   for needle in 'git push --force' 'git push -f' 'git reset --hard' 'git clean -fdx' 'sudo rm'; do
     printf '%s\n' "$output" | grep -qF "$needle"
