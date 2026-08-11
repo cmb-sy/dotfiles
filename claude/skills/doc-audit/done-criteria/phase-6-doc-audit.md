@@ -135,7 +135,7 @@ audit: required
 - severity: quality
 - verify_type: inspection
 - verification:
-  1. artifacts/doc-audit/phase-6-report.json の readme-analyzer findings を列挙
+  1. artifacts/doc-audit/phase-6-report.json の readme_consistency カテゴリの findings を列挙（readme-analyzer の検出結果）
   2. 各 finding の status を確認
   3. status が "fixed" または "skipped" であること
   4. "skipped" の場合、user_decision フィールドが存在すること
@@ -148,7 +148,7 @@ audit: required
 - severity: quality
 - verify_type: inspection
 - verification:
-  1. artifacts/doc-audit/phase-6-report.json の claude-md-analyzer findings を列挙
+  1. artifacts/doc-audit/phase-6-report.json の claude_md_consistency カテゴリの findings を列挙（claude-md-analyzer の検出結果）
   2. 各 finding の status を確認
   3. status が "fixed" または "skipped" であること
   4. "skipped" の場合、user_decision フィールドが存在すること

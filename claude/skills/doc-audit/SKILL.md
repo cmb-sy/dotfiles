@@ -90,7 +90,8 @@ done-criteria がこのファイルを読んで監査するので、**キー名�
     { "path": "docs/x.md", "status": "deleted", "user_decision": "..." }
   ],
   "stale_signals": [], "coherence": [], "missing_documentation": [],
-  "undocumented_business_rule": [], "undocumented_design_decision": []
+  "undocumented_business_rule": [], "undocumented_design_decision": [],
+  "readme_consistency": [], "claude_md_consistency": []
 }
 ```
 
