@@ -170,20 +170,32 @@ print(','.join(problems) if problems else 'OK')
         "$SCREEN" grab "$SESSION" | grep -oE '[Aあカ]  [0-9]+,[0-9]+' | tail -1 | cut -c1
     }
 
+    # Poll instead of sleeping a fixed span. The indicator updates on its own
+    # timer, so a fixed wait races it: too short and the old label is still up,
+    # and lengthening it only makes the suite slower without removing the race.
+    # Returns the last value seen either way, so a timeout fails on the value.
+    wait_label() {  # $1 = expected label, $2 = seconds to allow
+        local deadline=$(( SECONDS + $2 )) got=
+        while [ "$SECONDS" -lt "$deadline" ]; do
+            got=$(label_now)
+            if [ "$got" = "$1" ]; then break; fi
+            sleep 0.5
+        done
+        printf '%s' "$got"
+        return 0
+    }
+
     "$IS" --set com.apple.keylayout.ABC
     "$SCREEN" start "$SESSION" "nvim $BATS_TEST_TMPDIR/t.lua"
-    sleep 4
-    first=$(label_now)
+    first=$(wait_label A 20)
 
     # Switched from outside, with no keystroke sent: the indicator has to notice
     # on its own, which is the whole point of polling.
     "$IS" --set com.apple.inputmethod.Kotoeri.RomajiTyping.Japanese
-    sleep 4
-    second=$(label_now)
+    second=$(wait_label あ 20)
 
     "$IS" --set com.apple.keylayout.ABC
-    sleep 4
-    third=$(label_now)
+    third=$(wait_label A 20)
 
     "$SCREEN" stop "$SESSION"
     "$IS" --set "$before"

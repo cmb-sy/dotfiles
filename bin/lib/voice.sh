@@ -5,6 +5,12 @@
 #
 #   . "${BASH_SOURCE[0]%/*}/lib/voice.sh"   # zsh: "${0:A:h}/lib/voice.sh"
 #
+# The two lines each caller uses to find this file cannot live here -- they run
+# before it is loaded. They differ in one way on purpose: bin/secure-input-watch
+# absolutises the directory with cd/pwd because launchd starts it from an
+# arbitrary cwd and it stays resident, while the others exit long before cwd can
+# change.
+#
 # Handy's own paths and process name live here so a change on Handy's side is
 # one edit, not a hunt through bin/.
 
