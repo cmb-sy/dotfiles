@@ -5,13 +5,23 @@
 # label goes blank and the ruler still looks fine, so nothing tells you the
 # state you are reading is stale.
 #
-# These tests never change the input source. Switching it mid-test would leave
-# the machine in a Japanese state if a test aborted, and the label logic can be
-# checked without touching the live setting.
+# All but one test leave the live input source alone: the label logic can be
+# checked without touching it. The end-to-end test has to switch it, so it
+# records the previous value in IME_RESTORE and teardown puts it back -- a failed
+# assertion aborts the test body, which would otherwise leave the machine in a
+# Japanese state.
 
 load "helpers/common"
 
 IS="$REPO_DIR/bin/input-source"
+
+teardown() {
+    # return 0 so the empty guard does not fail the tests that never switch.
+    if [ -n "${IME_RESTORE:-}" ]; then
+        "$IS" --set "$IME_RESTORE" || echo "restore failed: $IME_RESTORE" >&2
+    fi
+    return 0
+}
 
 @test "実行可能である" {
     [ -x "$IS" ]
@@ -163,31 +173,47 @@ print(','.join(problems) if problems else 'OK')
     export LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
     SCREEN="$REPO_DIR/test/helpers/tmux-screen.sh"
     SESSION="ime-bats-$$"
-    before=$("$IS")
+    IME_RESTORE=$("$IS")
     printf 'local x = 1\n' > "$BATS_TEST_TMPDIR/t.lua"
 
     label_now() {
         "$SCREEN" grab "$SESSION" | grep -oE '[Aあカ]  [0-9]+,[0-9]+' | tail -1 | cut -c1
     }
 
+    # Poll instead of sleeping a fixed span. The indicator updates on its own
+    # timer, so a fixed wait races it: too short and the old label is still up,
+    # and lengthening it only makes the suite slower without removing the race.
+    # Returns the last value seen either way, so a timeout fails on the value.
+    # Each step below expects a label different from the one before it, so a
+    # screen that has not refreshed yet cannot satisfy the wait early.
+    wait_label() {  # $1 = expected label, $2 = seconds to allow
+        local deadline=$(( SECONDS + $2 )) got=
+        while [ "$SECONDS" -lt "$deadline" ]; do
+            got=$(label_now)
+            if [ "$got" = "$1" ]; then break; fi
+            sleep 0.5
+        done
+        printf '%s' "$got"
+        return 0
+    }
+
     "$IS" --set com.apple.keylayout.ABC
     "$SCREEN" start "$SESSION" "nvim $BATS_TEST_TMPDIR/t.lua"
-    sleep 4
-    first=$(label_now)
+    first=$(wait_label A 20)
 
     # Switched from outside, with no keystroke sent: the indicator has to notice
     # on its own, which is the whole point of polling.
     "$IS" --set com.apple.inputmethod.Kotoeri.RomajiTyping.Japanese
-    sleep 4
-    second=$(label_now)
+    second=$(wait_label あ 20)
 
     "$IS" --set com.apple.keylayout.ABC
-    sleep 4
-    third=$(label_now)
+    third=$(wait_label A 20)
 
     "$SCREEN" stop "$SESSION"
-    "$IS" --set "$before"
 
+    # teardown restores the input source, so an assertion failing here cannot
+    # leave the machine switched.
+    echo "first=$first second=$second third=$third" >&2
     [ "$first" = "A" ]
     [ "$second" = "あ" ]
     [ "$third" = "A" ]

@@ -21,9 +21,9 @@
 
 set -euo pipefail
 
-# Absolute, because launchd starts this long-lived agent from an arbitrary cwd.
-# %/* leaves the filename when invoked without a slash; cd and pwd are builtins,
-# so this adds no dependency on PATH being populated yet.
+# $HERE is absolute because it also builds the paths below, where a bare "." is
+# ambiguous to read. cd and pwd are builtins, so this needs no PATH.
+# %/* keeps the filename when there is no slash; see lib/voice.sh.
 _here="${BASH_SOURCE[0]%/*}"
 [ "$_here" = "${BASH_SOURCE[0]}" ] && _here=.
 HERE="$(cd -- "$_here" && pwd)"

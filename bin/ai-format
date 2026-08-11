@@ -3,7 +3,7 @@
 # Flow: select text -> Cmd+C -> trigger ai-format -> (done sound) -> Cmd+V
 # Bound to a Karabiner shell_command, so PATH/env are set explicitly (minimal launchd session env).
 
-# %/* leaves the filename when invoked without a slash (cd bin && bash x).
+# %/* keeps the filename when there is no slash (cd bin && bash x); see lib/voice.sh.
 _here="${BASH_SOURCE[0]%/*}"
 [ "$_here" = "${BASH_SOURCE[0]}" ] && _here=.
 . "$_here/lib/voice.sh" || exit 1

@@ -44,7 +44,7 @@
 #   - test/voice-out.bats : pane 解決と sanitize の自動テスト
 #   - docs/superpowers/specs/2026-06-22-claude-tts-design.md : 設計書
 
-# %/* leaves the filename when invoked without a slash (cd bin && bash x).
+# %/* keeps the filename when there is no slash (cd bin && bash x); see lib/voice.sh.
 _here="${BASH_SOURCE[0]%/*}"
 [ "$_here" = "${BASH_SOURCE[0]}" ] && _here=.
 . "$_here/lib/voice.sh" || exit 1
