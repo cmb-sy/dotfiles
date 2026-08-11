@@ -66,9 +66,13 @@ deny_count_exact() {  # $1=entry
   printf '%s\n' "$output" | grep -qF 'op:'
 }
 
-@test "deny list has grown beyond the original four" {
-  count=$(jq '.permissions.deny | length' "$SETTINGS")
-  [ "$count" -gt 4 ]
+# Every prohibition CLAUDE.md's 自律実行ワークフロー section names must have an
+# entry. A count check would pass on any four unrelated additions.
+@test "each named prohibition has a deny entry" {
+  run deny_list
+  for needle in 'git push --force' 'git push -f' 'git reset --hard' 'git clean -fdx' 'sudo rm'; do
+    printf '%s\n' "$output" | grep -qF "$needle"
+  done
 }
 
 @test "bypassPermissions is still the default mode" {

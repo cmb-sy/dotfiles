@@ -196,7 +196,8 @@ Audit Gate が PAUSE に到達した後、ユーザーが介入して再開す�
     "plan_doc": "docs/plans/...",
     "evidence_plan": "docs/plans/...",
     "worktree_path": "...",
-    "branch_name": "..."
+    "branch_name": "...",
+    "branch_base": "統合先から分岐した commit。未設定なら `git merge-base HEAD <既定ブランチ>` で求める"
   },
   "args": { "各スキルの Options に定義されたフラグ": "復元可能な値" }
 }

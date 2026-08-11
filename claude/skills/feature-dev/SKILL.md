@@ -239,14 +239,16 @@ Phase 8/9 でコード変更がある場合、Phase 8/9 の Audit Gate の前に
 - **動作:**
   1. ユーザーにスコープを確認: A（実装変更の影響のみ）or B（プロジェクト全体の棚卸し）
   2. Layer 0: 既存探索エージェント（code-explorer, code-architect, impact-analyzer）を doc-audit 用スコープで起動
-  3. Layer 1: doc-audit.sh を実行（A: --range、B: --full）
+  3. Layer 1: doc-audit.sh を実行（A: --range、B: --full）。`--json` の出力は
+     `artifacts/doc-audit/phase-6-script-output.json` へリダイレクトする（スクリプト自身は
+     標準出力に書くだけなので、書き残さないと後続の監査が証跡を辿れない）
   4. Layer 2: スクリプト結果 + 探索結果をエージェント群にフィード
   5. 統合レポート提示 → ユーザー finding 選択
   6. Layer 3: 修正実行（doc-check 連携含む）
 - **`--swarm` 有効時（Doc Audit Team）:**
   Exploration Team + Audit Team の2チーム構成で実行。詳細は doc-audit スキルの agent-checklists.md を参照
 - **自動遷移条件:** 全 finding 処理済み（修正 or スキップ）
-- **成果物:** 更新済みドキュメント、修正済み depends-on、`doc-audit-report.json`
+- **成果物:** 更新済みドキュメント、修正済み depends-on、`artifacts/doc-audit/phase-6-script-output.json`
 - **失敗時:** Audit Gate FAIL → Fix Dispatch → 再監査（max_retries: 2）
 
 **Phase 6 完了 → Audit Gate**: `./done-criteria/phase-6-doc-audit.md` に基づき監査。activity_type: doc-maintenance。
@@ -408,7 +410,7 @@ pipeline state に以下を追加:
 | 3 | `docs/plans/*-plan.md`, `docs/plans/*-test-cases.md` | Phase 4, 5 |
 | 4 | レビュー通過済み計画書 | Phase 5 |
 | 5 | コミット済みコード | Phase 6, 7, 8, 9 |
-| 6 | 更新済みドキュメント、`doc-audit-report.json` | Phase 8 |
+| 6 | 更新済みドキュメント、`artifacts/doc-audit/phase-6-script-output.json` | Phase 8 |
 | 7 | `smoke-test-report.md`（一時ファイル） | Phase 8 |
 | 8 | レビュー修正済みコード | Phase 9, 10 |
 | 9 | テストレビュー済みコード | Phase 10 |

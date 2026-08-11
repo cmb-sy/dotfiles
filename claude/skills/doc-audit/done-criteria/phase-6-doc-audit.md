@@ -57,7 +57,7 @@ audit: required
 - severity: quality
 - verify_type: inspection
 - verification:
-  1. doc-audit-report.json の orphaned_docs カテゴリの findings を列挙
+  1. artifacts/doc-audit/phase-6-doc-check.log の orphaned_docs カテゴリの findings を列挙
   2. 各 finding の status を確認
   3. status が "deleted", "linked", "skipped" のいずれかであること
   4. "skipped" の場合、user_decision フィールドが存在すること
@@ -70,7 +70,7 @@ audit: required
 - severity: quality
 - verify_type: inspection
 - verification:
-  1. doc-audit-report.json の stale_signals カテゴリの findings を列挙
+  1. artifacts/doc-audit/phase-6-report.json の stale_signals カテゴリの findings を列挙
   2. 各 finding の status を確認
   3. status が "updated" の場合、対象 doc の git log --format=%at -1 が Phase 6 開始タイムスタンプ以降であること
   4. status が "skipped" の場合、user_decision フィールドが存在すること
@@ -83,7 +83,7 @@ audit: required
 - severity: quality
 - verify_type: inspection
 - verification:
-  1. doc-audit-report.json の coherence カテゴリの findings を列挙
+  1. artifacts/doc-audit/phase-6-report.json の coherence カテゴリの findings を列挙
   2. 各 finding の status を確認
   3. status が "fixed" または "skipped" であること
   4. "skipped" の場合、user_decision フィールドが存在すること
@@ -96,7 +96,7 @@ audit: required
 - severity: quality
 - verify_type: inspection
 - verification:
-  1. doc-audit-report.json の missing_documentation カテゴリの findings を列挙
+  1. artifacts/doc-audit/phase-6-report.json の missing_documentation カテゴリの findings を列挙
   2. 各 finding の status を確認
   3. status が "fixed"（新規作成済み）または "skipped" であること
   4. "skipped" の場合、user_decision フィールドが存在すること
@@ -109,7 +109,7 @@ audit: required
 - severity: quality
 - verify_type: inspection
 - verification:
-  1. doc-audit-report.json の undocumented_business_rule カテゴリの findings を列挙
+  1. artifacts/doc-audit/phase-6-report.json の undocumented_business_rule カテゴリの findings を列挙
   2. 各 finding の status を確認
   3. status が "fixed" または "skipped" であること
   4. "skipped" の場合、user_decision フィールドが存在すること
@@ -122,7 +122,7 @@ audit: required
 - severity: quality
 - verify_type: inspection
 - verification:
-  1. doc-audit-report.json の undocumented_design_decision カテゴリの findings を列挙
+  1. artifacts/doc-audit/phase-6-report.json の undocumented_design_decision カテゴリの findings を列挙
   2. 各 finding の status を確認
   3. status が "fixed" または "skipped" であること
   4. "skipped" の場合、user_decision フィールドが存在すること
@@ -135,7 +135,7 @@ audit: required
 - severity: quality
 - verify_type: inspection
 - verification:
-  1. doc-audit-report.json の readme-analyzer findings を列挙
+  1. artifacts/doc-audit/phase-6-report.json の readme-analyzer findings を列挙
   2. 各 finding の status を確認
   3. status が "fixed" または "skipped" であること
   4. "skipped" の場合、user_decision フィールドが存在すること
@@ -148,7 +148,7 @@ audit: required
 - severity: quality
 - verify_type: inspection
 - verification:
-  1. doc-audit-report.json の claude-md-analyzer findings を列挙
+  1. artifacts/doc-audit/phase-6-report.json の claude-md-analyzer findings を列挙
   2. 各 finding の status を確認
   3. status が "fixed" または "skipped" であること
   4. "skipped" の場合、user_decision フィールドが存在すること
