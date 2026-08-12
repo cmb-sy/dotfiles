@@ -167,6 +167,8 @@
       "Bash(scp:*)",
       "Bash(git push --force:*)",
       "Bash(git push -f:*)",
+      "Bash(git push -fq:*)",
+      "Bash(git push -qf:*)",
       "Bash(git reset --hard:*)",
       "Bash(git clean -fdx:*)",
       "Bash(sudo rm:*)"
