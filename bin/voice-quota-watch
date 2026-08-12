@@ -39,12 +39,25 @@ fi
 # A limit that is not a number would reach python as an expression. Reject it
 # here so the failure reads as a bad config rather than as a traceback repeated
 # every five minutes in the log.
-case "$TYPELESS_LIMIT_MIN" in
-  ''|*[!0-9.]*) log "TYPELESS_LIMIT_MIN must be a number, got '$TYPELESS_LIMIT_MIN'"; exit 1 ;;
-esac
-case "${TYPELESS_MARGIN_MIN:-0}" in
-  ''|*[!0-9.]*) log "TYPELESS_MARGIN_MIN must be a number, got '$TYPELESS_MARGIN_MIN'"; exit 1 ;;
-esac
+# `*[!0-9.]*` alone lets through values made of the right characters but not a
+# number: "1.2.3" and "." both reach python as an expression and produce a
+# traceback every five minutes. Reject more than one point, and a lone point.
+number_or_die() {  # $1 = name, $2 = value
+  case "$2" in
+    ''|.|*.*.*|*[!0-9.]*)
+      log "$1 must be a non-negative number, got '$2'"; exit 1 ;;
+  esac
+}
+number_or_die TYPELESS_LIMIT_MIN "$TYPELESS_LIMIT_MIN"
+number_or_die TYPELESS_MARGIN_MIN "${TYPELESS_MARGIN_MIN:-0}"
+
+# A margin at or above the limit makes the threshold 0, which switches on the
+# first poll of every week regardless of usage -- a config mistake turning into
+# "always hand over" without saying so.
+if [ "$(python3 -c "print(1 if ${TYPELESS_MARGIN_MIN:-0} >= $TYPELESS_LIMIT_MIN else 0)")" -eq 1 ]; then
+  log "TYPELESS_MARGIN_MIN (${TYPELESS_MARGIN_MIN:-0}) must be below TYPELESS_LIMIT_MIN ($TYPELESS_LIMIT_MIN)"
+  exit 1
+fi
 
 # Tests pin a date here; everything else uses the clock.
 NOW="${VOICE_QUOTA_NOW:-now}"
@@ -71,7 +84,7 @@ used_min=$("$SQLITE_BIN" "$TYPELESS_DB" \
 week_id=$("$SQLITE_BIN" "$TYPELESS_DB" "SELECT date($week_start)" 2>/dev/null) || week_id=""
 [ -n "$week_id" ] || { log "could not resolve the week start"; exit 0; }
 
-threshold=$(python3 -c "print(max(0, $TYPELESS_LIMIT_MIN - ${TYPELESS_MARGIN_MIN:-0}))")
+threshold=$(python3 -c "print($TYPELESS_LIMIT_MIN - ${TYPELESS_MARGIN_MIN:-0})")
 over=$(python3 -c "print(1 if $used_min >= $threshold else 0)")
 
 last_week=""; last_action=""

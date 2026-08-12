@@ -141,14 +141,53 @@ switches() {
   switches | grep -qF 'SWITCH: local'
 }
 
+# Not just letters: values made of digits and points can still fail to be a
+# number, and those reached python as an expression.
 @test "数値でない上限は設定エラーとして止まる" {
   seed_db 10
-  printf 'TYPELESS_LIMIT_MIN=abc\nTYPELESS_RESET_DAY=mon\nTYPELESS_MARGIN_MIN=3\n' > "$VOICE_QUOTA_CONF"
-  run_watch
-  [ "$status" -ne 0 ]
-  printf '%s' "$output" | grep -qF 'must be a number'
+  for bad in abc 1.2.3 . -5; do
+    printf 'TYPELESS_LIMIT_MIN=%s\nTYPELESS_RESET_DAY=mon\nTYPELESS_MARGIN_MIN=3\n' "$bad" > "$VOICE_QUOTA_CONF"
+    run_watch
+    [ "$status" -ne 0 ]
+    printf '%s' "$output" | grep -qF 'must be a non-negative number'
+  done
   count=$(switches | grep -c .) || count=0
   [ "$count" -eq 0 ]
+}
+
+# A margin at or above the limit makes the threshold 0, which would switch on
+# the first poll of every week no matter how little was used.
+@test "マージンが上限以上なら設定エラーとして止まる" {
+  seed_db 0
+  write_conf 3 mon 9
+  run_watch
+  [ "$status" -ne 0 ]
+  printf '%s' "$output" | grep -qF 'must be below'
+  count=$(switches | grep -c .) || count=0
+  [ "$count" -eq 0 ]
+}
+
+# The probe is the only way the limit gets measured, so a boundary that differs
+# from the watcher's would corrupt the number everything else rests on.
+@test "probe の週境界は watcher と同じ日を指す" {
+  seed_db 5 '2026-08-11 09:00:00'
+  export VOICE_QUOTA_PROBE_LOG="$BATS_TEST_TMPDIR/probe.log"
+  run bash -c "TYPELESS_DB='$DB' '$REPO_DIR/bin/voice-quota-probe' exhausted"
+  [ "$status" -eq 0 ]
+  # The Monday window must agree with the expression voice-quota-watch uses.
+  expected=$(/usr/bin/sqlite3 "$DB" \
+    "SELECT COUNT(*) || '|' || ROUND(COALESCE(SUM(duration),0)/60.0,1) FROM history_v2
+     WHERE datetime(replace(replace(created_at,'T',' '),'Z','')) >= datetime('now','weekday 0','-6 days','start of day')")
+  printf '%s' "$output" | grep -qF "$expected"
+}
+
+@test "probe は status 別の内訳を出す" {
+  seed_db 5 '2026-08-11 09:00:00'
+  /usr/bin/sqlite3 "$DB" "ALTER TABLE history_v2 ADD COLUMN status TEXT;"
+  /usr/bin/sqlite3 "$DB" "UPDATE history_v2 SET status='completed';"
+  export VOICE_QUOTA_PROBE_LOG="$BATS_TEST_TMPDIR/probe.log"
+  run bash -c "TYPELESS_DB='$DB' '$REPO_DIR/bin/voice-quota-probe' exhausted"
+  printf '%s' "$output" | grep -qF 'completed='
 }
 
 # A boundary on the wrong weekday still passes the tests above, as long as it

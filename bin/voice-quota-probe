@@ -38,7 +38,8 @@ usage() {
 window() {  # $1 = sqlite datetime expression
   "$SQLITE_BIN" "$TYPELESS_DB" \
     "SELECT COUNT(*), ROUND(COALESCE(SUM(duration),0)/60.0,1) FROM history_v2
-     WHERE datetime(replace(replace(created_at,'T',' '),'Z','')) >= $1" 2>/dev/null
+     WHERE datetime(replace(replace(created_at,'T',' '),'Z','')) >= $1" 2>/dev/null \
+    || echo "(read failed)"
 }
 
 # Same window expressions voice-quota-watch uses. 'weekday N' does nothing when
@@ -52,11 +53,13 @@ WEEK_SUN="datetime('now','weekday 6','-6 days','start of day')"
 # server counts the failed ones toward the quota is not documented, so record
 # the split: if the numbers do not add up later, this is where to look.
 by_status() {  # $1 = boundary expression
+  # Tolerate a schema without `status`: this is diagnostic detail, and losing it
+  # must not stop the measurement, which can only be taken at this moment.
   "$SQLITE_BIN" "$TYPELESS_DB" \
     "SELECT COALESCE(status,'(none)') || '=' || COUNT(*) || '/' || ROUND(COALESCE(SUM(duration),0)/60.0,1)
      FROM history_v2
      WHERE datetime(replace(replace(created_at,'T',' '),'Z','')) >= $1
-     GROUP BY status" 2>/dev/null | tr '\n' ' '
+     GROUP BY status" 2>/dev/null | tr '\n' ' ' || true
 }
 
 snapshot() {  # $1 = event label
