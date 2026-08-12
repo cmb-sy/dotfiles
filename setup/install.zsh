@@ -201,7 +201,7 @@ fi
 #----------------------------------------------------------
 if ! util::is_ci && util::confirm "Install user LaunchAgents (handy-warm, secure-input-watch)?"; then
   mkdir -p "$HOME/Library/LaunchAgents"
-  for name in com.snakashima.handy-warm com.snakashima.secure-input-watch; do
+  for name in com.snakashima.handy-warm com.snakashima.secure-input-watch com.snakashima.voice-quota-watch; do
     src="${REPO_DIR}/macos/${name}.plist"
     dest="$HOME/Library/LaunchAgents/${name}.plist"
     if [[ ! -f "${src}" ]]; then

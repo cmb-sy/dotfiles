@@ -1,0 +1,91 @@
+#!/bin/bash
+# Record what Typeless's weekly quota actually is, at the moment it runs out.
+#
+# Typeless keeps no quota, limit or reset date on disk -- only the server knows,
+# and it tells you by showing an upgrade ad. But every dictation is logged with
+# its duration, so the limit is whatever has accumulated when the ad appears.
+#
+# Run this the moment the ad shows up. Run it again the first time dictation
+# works after that: the gap between the two is the reset boundary.
+#
+#   voice-quota-probe exhausted   # the ad just appeared
+#   voice-quota-probe reset       # dictation works again
+#   voice-quota-probe show        # print what has been recorded so far
+
+set -euo pipefail
+
+_here="${BASH_SOURCE[0]%/*}"
+[ "$_here" = "${BASH_SOURCE[0]}" ] && _here=.
+. "$_here/lib/voice.sh" || exit 1
+
+# Not ~/.cache: this can only be recorded at the moment the ad appears, and
+# losing it means waiting a week to measure again.
+LOG="${VOICE_QUOTA_PROBE_LOG:-$HOME/.local/state/voice-quota-probe.log}"
+SQLITE_BIN="${SQLITE_BIN:-/usr/bin/sqlite3}"
+
+usage() {
+  echo "usage: voice-quota-probe {exhausted|reset|show}" >&2
+  exit 64
+}
+
+# Minutes and count since a boundary, straight out of Typeless's log.
+#
+# created_at is ISO with a T and a Z ("2026-08-03T00:50:01.511Z") while sqlite's
+# datetime() yields "2026-08-03 00:50:01". Comparing them as strings silently
+# over-counts, because "T" sorts after a space: on the boundary date every row
+# looks later than the boundary. Measured: 56 rows instead of 25. Normalise the
+# column instead of the boundary, so any boundary expression works.
+window() {  # $1 = sqlite datetime expression
+  "$SQLITE_BIN" "$TYPELESS_DB" \
+    "SELECT COUNT(*), ROUND(COALESCE(SUM(duration),0)/60.0,1) FROM history_v2
+     WHERE datetime(replace(replace(created_at,'T',' '),'Z','')) >= $1" 2>/dev/null \
+    || echo "(read failed)"
+}
+
+# Same window expressions voice-quota-watch uses. 'weekday N' does nothing when
+# today already is N, so the obvious "weekday 1, -7 days" reads a week early
+# every Monday -- and a measurement taken on a Monday would then record two
+# weeks of usage as the limit.
+WEEK_MON="datetime('now','weekday 0','-6 days','start of day')"
+WEEK_SUN="datetime('now','weekday 6','-6 days','start of day')"
+
+# Typeless marks each dictation completed / dismissed / error. Whether the
+# server counts the failed ones toward the quota is not documented, so record
+# the split: if the numbers do not add up later, this is where to look.
+by_status() {  # $1 = boundary expression
+  # Tolerate a schema without `status`: this is diagnostic detail, and losing it
+  # must not stop the measurement, which can only be taken at this moment.
+  "$SQLITE_BIN" "$TYPELESS_DB" \
+    "SELECT COALESCE(status,'(none)') || '=' || COUNT(*) || '/' || ROUND(COALESCE(SUM(duration),0)/60.0,1)
+     FROM history_v2
+     WHERE datetime(replace(replace(created_at,'T',' '),'Z','')) >= $1
+     GROUP BY status" 2>/dev/null | tr '\n' ' ' || true
+}
+
+snapshot() {  # $1 = event label
+  local now rolling7 mon sun split
+  now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  rolling7="$(window "datetime('now','-7 days')")"
+  mon="$(window "$WEEK_MON")"
+  sun="$(window "$WEEK_SUN")"
+  split="$(by_status "$WEEK_MON")"
+  printf '%s\t%s\trolling7=%s\tsince_mon=%s\tsince_sun=%s\tstatus_mon=%s\n' \
+    "$now" "$1" "$rolling7" "$mon" "$sun" "$split" >> "$LOG"
+  printf 'recorded %s at %s\n' "$1" "$now"
+  printf '  rolling 7 days : %s (count, minutes)\n' "$rolling7"
+  printf '  since Monday   : %s\n' "$mon"
+  printf '  since Sunday   : %s\n' "$sun"
+  printf '  by status      : %s\n' "$split"
+}
+
+[ -f "$TYPELESS_DB" ] || { echo "voice-quota-probe: no Typeless database at $TYPELESS_DB" >&2; exit 1; }
+mkdir -p "${LOG%/*}"
+
+case "${1:-}" in
+  exhausted|reset) snapshot "$1" ;;
+  show)
+    [ -f "$LOG" ] || { echo "nothing recorded yet"; exit 0; }
+    cat "$LOG"
+    ;;
+  *) usage ;;
+esac

@@ -32,10 +32,29 @@ deny_count_exact() {  # $1=entry
   [ "$status" -eq 0 ]
 }
 
-@test "force push is denied in both flag spellings" {
+# Prefix matching does not see flags that are combined or reordered, so each
+# spelling needs its own entry. Measured: `git push -qf` reached the remote with
+# only --force and -f denied.
+@test "force push is denied in every spelling deny can express" {
   run deny_list
-  printf '%s\n' "$output" | grep -qF 'git push --force'
-  printf '%s\n' "$output" | grep -qF 'git push -f'
+  for spelling in 'git push --force' 'git push -f' 'git push -qf' 'git push -fq'; do
+    printf '%s\n' "$output" | grep -qF "$spelling"
+  done
+}
+
+# What deny still cannot reach, so nobody reads the list as a boundary: a flag
+# placed after the refspec is not a prefix of anything here.
+@test "フラグが後ろに来る形は deny では止まらない" {
+  run deny_list
+  denied=0
+  while IFS= read -r pattern; do
+    prefix=${pattern#Bash(}
+    prefix=${prefix%:\*)}
+    case 'git push origin main --force' in "$prefix"*) denied=1 ;; esac
+  done <<EOF
+$output
+EOF
+  [ "$denied" -eq 0 ]
 }
 
 @test "destructive git history rewrites are denied" {
