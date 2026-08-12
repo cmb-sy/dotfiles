@@ -18,7 +18,9 @@ _here="${BASH_SOURCE[0]%/*}"
 [ "$_here" = "${BASH_SOURCE[0]}" ] && _here=.
 . "$_here/lib/voice.sh" || exit 1
 
-LOG="$HOME/.cache/voice-quota-probe.log"
+# Not ~/.cache: this can only be recorded at the moment the ad appears, and
+# losing it means waiting a week to measure again.
+LOG="${VOICE_QUOTA_PROBE_LOG:-$HOME/.local/state/voice-quota-probe.log}"
 SQLITE_BIN="${SQLITE_BIN:-/usr/bin/sqlite3}"
 
 usage() {
@@ -39,18 +41,38 @@ window() {  # $1 = sqlite datetime expression
      WHERE datetime(replace(replace(created_at,'T',' '),'Z','')) >= $1" 2>/dev/null
 }
 
+# Same window expressions voice-quota-watch uses. 'weekday N' does nothing when
+# today already is N, so the obvious "weekday 1, -7 days" reads a week early
+# every Monday -- and a measurement taken on a Monday would then record two
+# weeks of usage as the limit.
+WEEK_MON="datetime('now','weekday 0','-6 days','start of day')"
+WEEK_SUN="datetime('now','weekday 6','-6 days','start of day')"
+
+# Typeless marks each dictation completed / dismissed / error. Whether the
+# server counts the failed ones toward the quota is not documented, so record
+# the split: if the numbers do not add up later, this is where to look.
+by_status() {  # $1 = boundary expression
+  "$SQLITE_BIN" "$TYPELESS_DB" \
+    "SELECT COALESCE(status,'(none)') || '=' || COUNT(*) || '/' || ROUND(COALESCE(SUM(duration),0)/60.0,1)
+     FROM history_v2
+     WHERE datetime(replace(replace(created_at,'T',' '),'Z','')) >= $1
+     GROUP BY status" 2>/dev/null | tr '\n' ' '
+}
+
 snapshot() {  # $1 = event label
-  local now rolling7 mon sun
+  local now rolling7 mon sun split
   now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   rolling7="$(window "datetime('now','-7 days')")"
-  mon="$(window "datetime('now','weekday 1','-7 days')")"
-  sun="$(window "datetime('now','weekday 0','-7 days')")"
-  printf '%s\t%s\trolling7=%s\tsince_mon=%s\tsince_sun=%s\n' \
-    "$now" "$1" "$rolling7" "$mon" "$sun" >> "$LOG"
+  mon="$(window "$WEEK_MON")"
+  sun="$(window "$WEEK_SUN")"
+  split="$(by_status "$WEEK_MON")"
+  printf '%s\t%s\trolling7=%s\tsince_mon=%s\tsince_sun=%s\tstatus_mon=%s\n' \
+    "$now" "$1" "$rolling7" "$mon" "$sun" "$split" >> "$LOG"
   printf 'recorded %s at %s\n' "$1" "$now"
   printf '  rolling 7 days : %s (count, minutes)\n' "$rolling7"
   printf '  since Monday   : %s\n' "$mon"
   printf '  since Sunday   : %s\n' "$sun"
+  printf '  by status      : %s\n' "$split"
 }
 
 [ -f "$TYPELESS_DB" ] || { echo "voice-quota-probe: no Typeless database at $TYPELESS_DB" >&2; exit 1; }

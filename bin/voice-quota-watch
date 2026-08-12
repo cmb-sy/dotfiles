@@ -18,7 +18,9 @@ HERE="$(cd -- "$_here" && pwd)"
 . "$HERE/lib/voice.sh" || exit 1
 
 CONF="${VOICE_QUOTA_CONF:-$HERE/../handy/typeless-quota.conf}"
-STATE_FILE="${VOICE_QUOTA_STATE:-$HOME/.cache/voice-quota-watch.state}"
+# Not ~/.cache: losing this mid-week would switch again, quitting an app the
+# user may be dictating into.
+STATE_FILE="${VOICE_QUOTA_STATE:-$HOME/.local/state/voice-quota-watch.state}"
 SQLITE_BIN="${SQLITE_BIN:-/usr/bin/sqlite3}"
 VOICE_SWITCH="${VOICE_SWITCH_BIN:-$HERE/voice-switch}"
 
@@ -34,9 +36,26 @@ if [ -z "${TYPELESS_LIMIT_MIN:-}" ] || [ -z "${TYPELESS_RESET_DAY:-}" ]; then
   exit 0
 fi
 
+# A limit that is not a number would reach python as an expression. Reject it
+# here so the failure reads as a bad config rather than as a traceback repeated
+# every five minutes in the log.
+case "$TYPELESS_LIMIT_MIN" in
+  ''|*[!0-9.]*) log "TYPELESS_LIMIT_MIN must be a number, got '$TYPELESS_LIMIT_MIN'"; exit 1 ;;
+esac
+case "${TYPELESS_MARGIN_MIN:-0}" in
+  ''|*[!0-9.]*) log "TYPELESS_MARGIN_MIN must be a number, got '$TYPELESS_MARGIN_MIN'"; exit 1 ;;
+esac
+
+# Tests pin a date here; everything else uses the clock.
+NOW="${VOICE_QUOTA_NOW:-now}"
+
+# 'weekday N' advances to the next N, and does nothing when today already is N,
+# so the obvious "weekday 1, -7 days" lands a week early every Monday -- which
+# is exactly the day the allowance resets. Aim at the far end of the week and
+# come back instead: that has no such fixed point.
 case "$TYPELESS_RESET_DAY" in
-  mon) week_start="datetime('now','weekday 1','-7 days','start of day')" ;;
-  sun) week_start="datetime('now','weekday 0','-7 days','start of day')" ;;
+  mon) week_start="datetime('$NOW','weekday 0','-6 days','start of day')" ;;
+  sun) week_start="datetime('$NOW','weekday 6','-6 days','start of day')" ;;
   *) log "TYPELESS_RESET_DAY must be mon or sun, got '$TYPELESS_RESET_DAY'"; exit 1 ;;
 esac
 

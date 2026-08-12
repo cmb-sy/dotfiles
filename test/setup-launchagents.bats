@@ -38,8 +38,10 @@ agent_plists() {
     out="$BATS_TEST_TMPDIR/$label.plist"
     sed "s|__DOTFILES__|$REPO_DIR|g" "$plist" > "$out"
     plutil -lint "$out"
-    # The substituted program must be the executable the agent is named after.
+    # The program must be the executable the agent is named after, not merely
+    # something executable: a plist pointing at /bin/ls would otherwise pass.
     prog=$(/usr/libexec/PlistBuddy -c 'Print :ProgramArguments:0' "$out")
+    [ "$prog" = "$REPO_DIR/bin/${label#com.snakashima.}" ]
     [ -x "$prog" ]
     leftovers=$(grep -c '__DOTFILES__' "$out") || leftovers=0
     [ "$leftovers" -eq 0 ]
