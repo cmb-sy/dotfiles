@@ -54,3 +54,13 @@ cask 'karabiner-elements'
 cask 'handy'
 cask 'ollama-app'
 cask 'typeless'
+
+# Fonts terminal/ghostty/config names. Without these the config points at
+# families that do not exist, the OS falls back per glyph, and the characters
+# the fallback cannot cover render as .notdef boxes.
+#   HackGen  -- CJK, mapped by font-codepoint-map so Japanese stays monospaced
+#   Monaspace -- the body font (Neon is one of its families)
+#   FiraCode Nerd Font -- the icon glyphs the prompt uses
+cask 'font-hackgen'
+cask 'font-monaspace'
+cask 'font-fira-code-nerd-font'
