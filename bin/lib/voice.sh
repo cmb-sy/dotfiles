@@ -24,6 +24,13 @@ HANDY_SETTINGS="${HOME:?voice.sh: HOME is not set}/Library/Application Support/c
 TYPELESS_APP="/Applications/Typeless.app"
 TYPELESS_BIN_DIR="$TYPELESS_APP/Contents/MacOS/"
 
+# Typeless logs every dictation with its duration here. It records no quota,
+# limit or reset date -- the server decides and shows an upgrade ad -- so the
+# only way to know the weekly allowance is to add up this log.
+# Overridable so tests can point at a stub database, as bin/secure-input-watch
+# does for its binaries.
+TYPELESS_DB="${TYPELESS_DB:-${HOME:?voice.sh: HOME is not set}/Library/Application Support/Typeless/typeless.db}"
+
 KARABINER_CLI="/Library/Application Support/org.pqrs/Karabiner-Elements/bin/karabiner_cli"
 
 # PATH for the scripts launchd and Karabiner start: those run with a minimal

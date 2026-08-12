@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Typeless allows a fixed amount of dictation per week and announces the end of
+  it by showing an upgrade ad mid-work. This agent hands voice input over to
+  Handy's local mode just before that happens, and hands it back when the week
+  resets. See bin/voice-quota-watch.
+
+  Five minutes, not sixty: the check is a single SQLite read, but a switch quits
+  and relaunches an app, so polling faster only raises the chance of doing that
+  while the user is mid-sentence.
+
+  The agent does nothing until the weekly limit is measured -- Typeless stores
+  neither the limit nor the reset date. See handy/typeless-quota.conf.
+
+  The program path below is a placeholder; setup/install.zsh substitutes the
+  repo path into it at install time, so the repo can live anywhere.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.snakashima.voice-quota-watch</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>__DOTFILES__/bin/voice-quota-watch</string>
+    </array>
+    <key>StartInterval</key>
+    <integer>300</integer>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/tmp/voice-quota-watch.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/voice-quota-watch.log</string>
+</dict>
+</plist>

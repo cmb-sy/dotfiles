@@ -1,0 +1,86 @@
+#!/bin/bash
+# Hand voice input over to Handy when Typeless's weekly quota runs low, and hand
+# it back when the week resets.
+#
+# Typeless publishes neither the limit nor the reset date, so both come from
+# handy/typeless-quota.conf, measured once with voice-quota-probe. Usage itself
+# is read from Typeless's own dictation log.
+#
+# Run periodically by launchd via macos/com.snakashima.voice-quota-watch.plist.
+# Each invocation is a fresh process; $STATE_FILE remembers what was already done
+# so a switch fires once per week rather than every poll.
+
+set -euo pipefail
+
+_here="${BASH_SOURCE[0]%/*}"
+[ "$_here" = "${BASH_SOURCE[0]}" ] && _here=.
+HERE="$(cd -- "$_here" && pwd)"
+. "$HERE/lib/voice.sh" || exit 1
+
+CONF="${VOICE_QUOTA_CONF:-$HERE/../handy/typeless-quota.conf}"
+STATE_FILE="${VOICE_QUOTA_STATE:-$HOME/.cache/voice-quota-watch.state}"
+SQLITE_BIN="${SQLITE_BIN:-/usr/bin/sqlite3}"
+VOICE_SWITCH="${VOICE_SWITCH_BIN:-$HERE/voice-switch}"
+
+log() { printf 'voice-quota-watch: %s\n' "$1" >&2; }
+
+[ -f "$CONF" ] || { log "no config at $CONF"; exit 1; }
+# shellcheck disable=SC1090
+. "$CONF"
+
+# An unmeasured limit is not a reason to guess. Say so once per run and stop.
+if [ -z "${TYPELESS_LIMIT_MIN:-}" ] || [ -z "${TYPELESS_RESET_DAY:-}" ]; then
+  log "quota not measured yet; run 'voice-quota-probe exhausted' when the upgrade ad appears"
+  exit 0
+fi
+
+case "$TYPELESS_RESET_DAY" in
+  mon) week_start="datetime('now','weekday 1','-7 days','start of day')" ;;
+  sun) week_start="datetime('now','weekday 0','-7 days','start of day')" ;;
+  *) log "TYPELESS_RESET_DAY must be mon or sun, got '$TYPELESS_RESET_DAY'"; exit 1 ;;
+esac
+
+[ -f "$TYPELESS_DB" ] || { log "no Typeless database at $TYPELESS_DB"; exit 0; }
+
+# created_at is ISO with T and Z; sqlite's datetime() is not. Compared as
+# strings they disagree on the boundary date, so normalise the column.
+used_min=$("$SQLITE_BIN" "$TYPELESS_DB" \
+  "SELECT ROUND(COALESCE(SUM(duration),0)/60.0,1) FROM history_v2
+   WHERE datetime(replace(replace(created_at,'T',' '),'Z','')) >= $week_start" 2>/dev/null) || used_min=""
+[ -n "$used_min" ] || { log "could not read usage"; exit 0; }
+
+week_id=$("$SQLITE_BIN" "$TYPELESS_DB" "SELECT date($week_start)" 2>/dev/null) || week_id=""
+[ -n "$week_id" ] || { log "could not resolve the week start"; exit 0; }
+
+threshold=$(python3 -c "print(max(0, $TYPELESS_LIMIT_MIN - ${TYPELESS_MARGIN_MIN:-0}))")
+over=$(python3 -c "print(1 if $used_min >= $threshold else 0)")
+
+last_week=""; last_action=""
+if [ -f "$STATE_FILE" ]; then
+  read -r last_week last_action < "$STATE_FILE" || true
+fi
+
+record() {  # $1 = action
+  mkdir -p "${STATE_FILE%/*}"
+  printf '%s %s\n' "$week_id" "$1" > "$STATE_FILE"
+}
+
+if [ "$over" -eq 1 ]; then
+  # Already handed over this week: nothing to do, and re-running the switch
+  # would quit and relaunch an app the user may be typing into.
+  [ "$last_week $last_action" = "$week_id exhausted" ] && exit 0
+  log "used ${used_min}min of ${TYPELESS_LIMIT_MIN}min this week; switching to Handy"
+  "$VOICE_SWITCH" local >/dev/null 2>&1 || { log "voice-switch local failed"; exit 1; }
+  notify "Voice input" "Typeless quota reached. Switched to Handy (local)."
+  record exhausted
+  exit 0
+fi
+
+# Under the limit. Hand back only if we were the one who took it away, so a
+# deliberate `voice-switch local` is not undone on the next poll.
+if [ "$last_action" = "exhausted" ] && [ "$last_week" != "$week_id" ]; then
+  log "new week ($week_id); switching back to Typeless"
+  "$VOICE_SWITCH" typeless >/dev/null 2>&1 || { log "voice-switch typeless failed"; exit 1; }
+  notify "Voice input" "Typeless quota reset. Switched back to Typeless."
+  record reset
+fi

@@ -2,36 +2,46 @@
 
 load "helpers/common"
 
+# Every user LaunchAgent in macos/, so adding one does not need this file edited.
+agent_plists() {
+  ls "$REPO_DIR"/macos/com.snakashima.*.plist
+}
+
 @test "user plists carry no hardcoded user path" {
-  count=$(grep -c '/Users/' "$REPO_DIR/macos/com.snakashima.handy-warm.plist" || true)
-  [ "$count" -eq 0 ]
-  count=$(grep -c '/Users/' "$REPO_DIR/macos/com.snakashima.secure-input-watch.plist" || true)
-  [ "$count" -eq 0 ]
+  offenders=0
+  while IFS= read -r plist; do
+    hits=$(grep -c '/Users/' "$plist") || hits=0
+    if [ "$hits" -ne 0 ]; then echo "HARDCODED: $plist"; offenders=$((offenders + 1)); fi
+  done < <(agent_plists)
+  [ "$offenders" -eq 0 ]
 }
 
-@test "install.zsh installs both user LaunchAgents" {
-  grep -qF 'com.snakashima.handy-warm' "$REPO_DIR/setup/install.zsh"
-  grep -qF 'com.snakashima.secure-input-watch' "$REPO_DIR/setup/install.zsh"
+@test "install.zsh installs every user LaunchAgent" {
+  missing=0
+  while IFS= read -r plist; do
+    label=$(basename "$plist" .plist)
+    hits=$(grep -cF "$label" "$REPO_DIR/setup/install.zsh") || hits=0
+    if [ "$hits" -eq 0 ]; then echo "NOT INSTALLED: $label"; missing=$((missing + 1)); fi
+  done < <(agent_plists)
+  [ "$missing" -eq 0 ]
 }
 
-# The label check above passes on commented-out code, so assert the two lines
-# that actually do the work live on non-comment lines.
 @test "install.zsh substitutes and bootstraps on live code, not in a comment" {
-  code="$(grep -v '^[[:space:]]*#' "$REPO_DIR/setup/install.zsh")"
-  echo "$code" | grep -qF 'sed "s|__DOTFILES__|'
-  echo "$code" | grep -qF 'launchctl bootstrap "gui/$(id -u)"'
+  code=$(grep -v '^[[:space:]]*#' "$REPO_DIR/setup/install.zsh")
+  printf '%s' "$code" | grep -qF 'sed "s|__DOTFILES__|'
+  printf '%s' "$code" | grep -qF 'launchctl bootstrap "gui/$(id -u)"'
 }
 
 @test "plist placeholder substitution produces loadable plists" {
-  make_tmpdir
-  for name in handy-warm secure-input-watch; do
-    out="$TEST_TMPDIR/$name.plist"
-    sed "s|__DOTFILES__|$REPO_DIR|g" "$REPO_DIR/macos/com.snakashima.$name.plist" > "$out"
+  while IFS= read -r plist; do
+    label=$(basename "$plist" .plist)
+    out="$BATS_TEST_TMPDIR/$label.plist"
+    sed "s|__DOTFILES__|$REPO_DIR|g" "$plist" > "$out"
     plutil -lint "$out"
-    grep -qF "$REPO_DIR/bin/$name" "$out"
-    # A leftover placeholder would launch a nonexistent program every interval.
-    placeholders=$(grep -c '__DOTFILES__' "$out" || true)
-    [ "$placeholders" -eq 0 ]
-  done
-  rm -rf "$TEST_TMPDIR"
+    # The substituted program must be the executable the agent is named after.
+    prog=$(/usr/libexec/PlistBuddy -c 'Print :ProgramArguments:0' "$out")
+    [ -x "$prog" ]
+    leftovers=$(grep -c '__DOTFILES__' "$out") || leftovers=0
+    [ "$leftovers" -eq 0 ]
+  done < <(agent_plists)
 }
