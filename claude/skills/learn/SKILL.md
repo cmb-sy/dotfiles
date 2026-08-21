@@ -3,8 +3,8 @@ name: learn
 description: >-
   実装完了直後に、その実装で使った技術・手順を永続的な学習教材として残したいときに使う
   （feature-dev Execute 完了後は確認プロンプトなしで自動実行、手動は /learn）。
-  専門用語・手順は「そもそも何か」から細かく解説する。生成した教材は
-  distill store-note で distill に保存し、プロジェクトのページから読む。
+  専門用語・手順は「そもそも何か」から細かく解説する。教材は Obsidian の
+  02_skillup/learn/ に書き、distill がそこを読んで見やすく表示する。
   教材生成後は generate-problem による理解度クイズで理解を検証する。
   教材とクイズにはプロジェクトのハーネス構築観点（現在の構築・次の構築）を混ぜる。
 user-invocable: true
@@ -49,25 +49,32 @@ user-invocable: true
 
 ## 保存先
 
-教材は distill に保存する。保存先は確認しない。
+`$HOME/develop/obsidian/02_skillup/learn/<タイトル>.md` に **Write で書く**。
+保存先は確認しない。distill のコマンドは呼ばない。
 
-1. `distill link` を実行し、出力 1 行目 `link: <DIR>` から `<DIR>`（プロジェクトの `dir_name`。先頭が `-`）を取る。既に登録済みでも実行してよい（冪等）
-2. 教材本文を一時ファイルに書き出す
-3. 保存する:
+- ファイル名 = `<技術テーマ>を理解する.md` 等の読める日本語タイトル（日付の
+  接頭辞は付けない。Obsidian のインラインタイトルがそのまま見出しになる）。
+  同名衝突時のみ末尾に ` 2` 等を付す
+- ディレクトリが無ければ作成する
+- 先頭に frontmatter を置く:
 
-```bash
-distill store-note --project=<DIR> --kind learn \
-  --slug <ascii-slug> --title "<読めるタイトル>" \
-  --date $(date +%F) --file <一時ファイル>
+```yaml
+---
+date: <date +%F の結果>
+project: <basename $(pwd) の結果>
+---
 ```
 
-- `--project=<DIR>` の形で渡す（`--project <DIR>` は先頭の `-` を argparse がフラグと解釈する）
-- `--slug` は英小文字・数字・ハイフンのみ。日本語は使えないので、テーマを短い英語に落とす（例: `playwright-mcp-isolation`）
-- `--title` は日本語の読めるタイトルでよい
-- 同じ slug を意図的に書き直すときだけ `--force` を付ける
-- 保存後、一時ファイルを削除する
+`project` は**作業リポジトリのディレクトリ名**（例: `dxp`）。distill がこれを
+`projects.cwd` のベース名と突き合わせ、その プロジェクトのページに教材を出す。
+解決できない場合は vault 共通の受け皿に入るので、書けない値でも支障はない。
 
-保存した教材は `distill serve` の `/projects/<DIR>` と静的サイトで読める。
+- frontmatter の直後に `# タイトル` を 1 行置く（Obsidian で開いたときの見出し）
+- 本文は `##` から始める
+
+書いたら distill 側の操作は不要。`distill serve` の起動時と
+`distill export-static` の実行時に vault を読み直すので、次に見るときには
+反映されている。
 
 ## 実行フロー（この順で行う）
 
@@ -130,7 +137,7 @@ distill store-note --project=<DIR> --kind learn \
 
 ### Step 4: 既存教材との重複排除
 
-`sqlite3 ~/.distill/distill.db "SELECT kind, slug, title, date FROM notes WHERE project_dir_name='<DIR>' ORDER BY date DESC;"` で既存ノートを確認し、同一トピックの重複を避ける。既存と同テーマなら別角度のテーマを選ぶか追補方針を決める。
+`$HOME/develop/obsidian/02_skillup/learn/` のファイル一覧を確認し、同一トピックの重複を避ける。既存と同テーマなら別角度のテーマを選ぶか追補方針を決める。
 
 ### Step 5: 情報収集
 
@@ -142,9 +149,7 @@ Skill: context7 — [ライブラリ名]の[機能名]のドキュメントを�
 
 ## 出力テンプレート
 
-保存は「保存先」節の `distill store-note` で行う。
-- `--title` = `<技術テーマ>を理解する` 等の読める日本語タイトル。日付は `--date` で渡すのでタイトルに含めない
-- 本文に H1 見出しは付けない（タイトルはページ側が出す）
+保存は「保存先」節のとおり vault にファイルとして書く。
 
 メタの**きっかけ**には「直前の実装の要約」を書く。
 
@@ -198,8 +203,8 @@ Skill: context7 — [ライブラリ名]の[機能名]のドキュメントを�
 - URL は推測で作らない。弱い推論は「推定」と明記
 - 「実装で〜した」記録止まりにしない
 - コード例は簡潔に再構成する
-- distill の既存ノートと無意味に重複させない
-- 会話だけで終わらせず**必ず distill に保存**（スキップ条件を除く）
+- vault の既存教材と無意味に重複させない
+- 会話だけで終わらせず**必ずファイルに出力**（スキップ条件を除く）
 - 判断テンプレートを最低1つ含める
 
 ## ハーネス観点（このプロジェクト）
