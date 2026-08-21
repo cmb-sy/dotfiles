@@ -1,24 +1,24 @@
 ---
 name: tech-memo
 description: >-
-  会話に出した直近の技術メモを、Web 検索で検証・補強して Obsidian に永続化したいときに使う。
+  会話に出した直近の技術メモを、Web 検索で検証・補強して distill に永続化したいときに使う。
   チャットの技術メモは速度優先のまま変えず、本スキル発動時だけ全主張を一次情報と照合し、
-  修正・出典・補足を付けて vault の 02_skillup/tech-memo/ に保存する。手動 /tech-memo のみ。
+  修正・出典・補足を付けて distill のノート（kind=tech-memo）として保存する。手動 /tech-memo のみ。
 user-invocable: true
 ---
 
 # Tech Memo — 技術メモの検証付き永続化
 
 チャットに出力した「技術メモ」（グローバル CLAUDE.md「技術解説」の 6 項目構成）を対象に、
-**時間をかけて** Web 検索で検証・補強し、Obsidian vault に保存する。
+**時間をかけて** Web 検索で検証・補強し、distill に保存する。
 
 棲み分け:
 
 | 導線 | 粒度 | 検索 | 保存先 |
 |---|---|---|---|
 | チャットの技術メモ | 15〜40 行、速度優先 | 陳腐化しやすい用語のみ | なし（会話内のみ） |
-| `/tech-memo`（本スキル） | メモ + 検証 + 補足 | 全主張を検証 | vault `02_skillup/tech-memo/` |
-| `/learn` | フル教材（実装全体、用語ゼロベース解説必須） | context7/WebSearch | `docs/learnings/` or vault `02_skillup/learn/` |
+| `/tech-memo`（本スキル） | メモ + 検証 + 補足 | 全主張を検証 | distill のノート `kind=tech-memo` |
+| `/learn` | フル教材（実装全体、用語ゼロベース解説必須） | context7/WebSearch | distill のノート `kind=learn` |
 
 **開始時アナウンス:** 「Tech Memo を開始します。Phase 1: 対象特定」
 
@@ -57,28 +57,35 @@ user-invocable: true
 
 ## Phase 4: 保存
 
-1. 保存先: `$HOME/develop/obsidian/02_skillup/tech-memo/YYYY-MM-DD-<topic>.md`
-   - `<topic>` は技術名の kebab-case（例: `2026-07-17-git-templatedir.md`）
-   - ディレクトリがなければ作成
-   - 同名衝突時は `-2`, `-3` の連番を付与
-2. ファイル構成:
-   1. frontmatter — `date` / `source_project`（メモの発生元リポジトリ名）/ `tags`
-   2. `# <topic>`
-   3. `## 技術メモ（検証済み）` — チャット版の 6 項目構成に Phase 2 の修正を反映
-   4. `## 検証結果` — 主張ごとの ✅ / ✏️ / ⚠️ 一覧（出典付き）
-   5. `## 補足` — Phase 3 の内容
-   6. `## 参照リンク集` — 実在確認済み URL のみ
-3. vault への git commit/push はしない（既存の Obsidian 自動 backup に任せる）
-4. 保存後、ファイルパスを 1 行で報告する
+1. `distill link` を実行し、出力 1 行目 `link: <DIR>` から `<DIR>`（プロジェクトの `dir_name`）を取る
+2. 本文を一時ファイルに書き出す。構成:
+   1. `## 技術メモ（検証済み）` — チャット版の 6 項目構成に Phase 2 の修正を反映
+   2. `## 検証結果` — 主張ごとの ✅ / ✏️ / ⚠️ 一覧（出典付き）
+   3. `## 補足` — Phase 3 の内容
+   4. `## 参照リンク集` — 実在確認済み URL のみ
+
+   H1 見出しは付けない（タイトルはページ側が出す）
+3. 保存する:
+
+```bash
+distill store-note --project=<DIR> --kind tech-memo \
+  --slug <topic-kebab-case> --title "<技術名>" \
+  --date $(date +%F) --file <一時ファイル>
+```
+
+   - `--project=<DIR>` の形で渡す（先頭の `-` を argparse がフラグと解釈するため）
+   - `--slug` は英小文字・数字・ハイフンのみ（例: `git-templatedir`）
+   - 同じ slug を書き直すときだけ `--force` を付ける
+4. 一時ファイルを削除し、`/projects/<DIR>/notes/tech-memo/<slug>` を 1 行で報告する
 
 ## 失敗時の挙動
 
 - 検索が全滅（オフライン・レート制限等）: 保存は実行する。全主張を ⚠️ 未検証マークで残し、その旨を報告する
-- `$HOME/develop/obsidian` が存在しない: 保存せず「vault が見つかりません」とエラー報告して終了する
+- `distill` コマンドが無い / 保存が非ゼロ終了: 本文を消さずに残し、エラー出力をそのまま報告して終了する
 
 ## やってはいけないこと
 
 - ❌ チャット時の技術メモ生成に本スキルのルール（全主張検証）を持ち込む（チャットは速度優先）
 - ❌ 検証をスキップして保存だけ行う（検証が本スキルの存在意義）
 - ❌ 推測 URL の記載
-- ❌ vault への git commit/push
+- ❌ 検証前の保存
