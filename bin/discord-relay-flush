@@ -1,0 +1,101 @@
+#!/bin/bash
+# Post the events claude/hooks/discord-relay.sh spooled to Discord, one message
+# per herdr pane.
+#
+# launchd runs this every 10 seconds. One flush is one POST per pane, which stays
+# far under the webhook's 5 requests per 2 seconds. Failed posts are not retried:
+# a failure consumes the same rate limit as a success, so retrying makes a
+# rate-limited state worse.
+
+set -uo pipefail
+
+SPOOL="${DISCORD_RELAY_SPOOL:-$HOME/.local/state/discord-relay/spool}"
+THREADS="${DISCORD_RELAY_THREADS:-$HOME/.local/state/discord-relay/threads}"
+KEYCHAIN_SVC="${DISCORD_RELAY_KEYCHAIN_SVC:-claude-discord-webhook}"
+SECURITY_BIN="${SECURITY_BIN:-/usr/bin/security}"
+CURL_BIN="${CURL_BIN:-/usr/bin/curl}"
+JQ_BIN="${JQ_BIN:-jq}"
+LIMIT=2000
+
+export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+
+[ -s "$SPOOL" ] || exit 0
+
+# The URL is the whole credential: anyone holding it can post. Keychain, same as
+# bin/voice-switch. Leave the spool alone when none is registered, so nothing is
+# lost if one is added later.
+url="$("$SECURITY_BIN" find-generic-password -s "$KEYCHAIN_SVC" -w 2>/dev/null)" || url=""
+[ -n "$url" ] || exit 0
+
+# Move the spool aside rather than truncating it. A truncate drops whatever the
+# hook appended between the read and the truncate.
+work="$SPOOL.$$"
+mv "$SPOOL" "$work" 2>/dev/null || exit 0
+
+# Trim on line boundaries. Cutting mid-character would emit invalid UTF-8 and
+# Discord would reject the whole message. Byte lengths, not characters: awk runs
+# under LC_ALL=C in the test suite, and a byte budget can only undershoot
+# Discord's character limit.
+build_message() {  # $1 = work file, $2 = pane, $3 = byte budget
+  awk -F'\t' -v pane="$2" -v limit="$3" '
+    $1 != pane { next }
+    $2 == "PostToolUse" {
+      if (!($3 in seen)) { seen[$3] = 1; order[++k] = $3 }
+      n[$3]++
+      next
+    }
+    { plain[++p] = $3 }
+    END {
+      out = ""; used = 0; trimmed = 0
+      for (i = 1; i <= p; i++) {
+        if (used + length(plain[i]) + 1 > limit) { trimmed = 1; break }
+        out = out plain[i] "\n"; used += length(plain[i]) + 1
+      }
+      tools = ""; sep = ""
+      for (i = 1; i <= k; i++) { tools = tools sep order[i] " x" n[order[i]]; sep = ", " }
+      if (tools != "") {
+        if (used + length(tools) + 1 > limit) trimmed = 1
+        else { out = out tools "\n"; used += length(tools) + 1 }
+      }
+      if (trimmed) out = out "...(truncated)\n"
+      printf "%s", out
+    }
+  ' "$1"
+}
+
+post() {  # $1 = pane, $2 = message
+  local pane="$1" msg="$2" tid payload resp
+  tid="$(awk -F'\t' -v p="$pane" '$1 == p { print $2; exit }' "$THREADS" 2>/dev/null)"
+
+  if [ -n "$tid" ]; then
+    payload="$("$JQ_BIN" -nc --arg c "$msg" '{content:$c}')"
+    "$CURL_BIN" -fsS -X POST "$url?thread_id=$tid" \
+      -H 'Content-Type: application/json' -d "$payload" >/dev/null 2>&1 \
+      || printf 'discord-relay: post failed (pane %s)\n' "$pane" >&2
+    return 0
+  fi
+
+  # First message for this pane. A Forum channel creates the thread from
+  # thread_name, and wait=true makes the response carry the new thread id --
+  # a plain webhook cannot create a thread in a normal text channel.
+  payload="$("$JQ_BIN" -nc --arg n "$pane" --arg c "$msg" '{thread_name:$n, content:$c}')"
+  resp="$("$CURL_BIN" -fsS -X POST "$url?wait=true" \
+    -H 'Content-Type: application/json' -d "$payload" 2>/dev/null)" || {
+    printf 'discord-relay: thread create failed (pane %s)\n' "$pane" >&2
+    return 0
+  }
+  tid="$(printf '%s' "$resp" | "$JQ_BIN" -r '.channel_id // empty' 2>/dev/null)"
+  [ -n "$tid" ] || return 0
+  mkdir -p "${THREADS%/*}" 2>/dev/null
+  printf '%s\t%s\n' "$pane" "$tid" >> "$THREADS"
+}
+
+cut -f1 "$work" | sort -u | while IFS= read -r pane; do
+  [ -n "$pane" ] || continue
+  msg="$(build_message "$work" "$pane" "$LIMIT")"
+  [ -n "$msg" ] || continue
+  post "$pane" "$msg"
+done
+
+rm -f "$work"
+exit 0

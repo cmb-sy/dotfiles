@@ -76,3 +76,119 @@ spool_lines() {
   run fire "$DENIED" PostToolUse Bash
   [ "$status" -eq 0 ]
 }
+
+# curl と security をスタブに差し替える。実際に Discord へ投げないため。
+stub_bins() {  # $1 = webhook URL（空なら Keychain 未登録を再現）
+  export SECURITY_BIN="$BATS_TEST_TMPDIR/security"
+  export CURL_BIN="$BATS_TEST_TMPDIR/curl"
+  if [ -n "${1:-}" ]; then
+    printf '#!/bin/bash\nprintf "%%s" "%s"\n' "$1" > "$SECURITY_BIN"
+  else
+    printf '#!/bin/bash\nexit 1\n' > "$SECURITY_BIN"
+  fi
+  # 引数から URL を、-d の次の引数から body を拾って記録し、Discord の応答を模す。
+  cat > "$CURL_BIN" <<'STUB'
+#!/bin/bash
+url=""; body=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    https://*) url="$1" ;;
+    -d) shift; body="$1" ;;
+  esac
+  shift
+done
+printf '%s\n' "$url"  >> "$BATS_TEST_TMPDIR/posts.url"
+printf '%s\n' "$body" >> "$BATS_TEST_TMPDIR/posts.body"
+printf '{"channel_id":"9999"}'
+STUB
+  chmod +x "$SECURITY_BIN" "$CURL_BIN"
+}
+
+posts() { grep -c . "$BATS_TEST_TMPDIR/posts.url" 2>/dev/null || echo 0; }
+
+@test "webhook URL 未登録ならスプールを消さず何も送らない" {
+  fire "$ALLOWED" PostToolUse Bash
+  stub_bins ""
+  run bash "$FLUSH"
+  [ "$status" -eq 0 ]
+  [ "$(spool_lines)" -eq 1 ]
+  [ "$(posts)" -eq 0 ]
+}
+
+@test "PostToolUse は 1 通に畳まれ、ツール名と件数が出る" {
+  fire "$ALLOWED" PostToolUse Bash
+  fire "$ALLOWED" PostToolUse Bash
+  fire "$ALLOWED" PostToolUse Edit
+  stub_bins "https://discord.example/api/webhooks/1/tok"
+  run bash "$FLUSH"
+  [ "$status" -eq 0 ]
+  [ "$(posts)" -eq 1 ]
+  b=$(grep -cF 'Bash x2' "$BATS_TEST_TMPDIR/posts.body") || b=0
+  e=$(grep -cF 'Edit x1' "$BATS_TEST_TMPDIR/posts.body") || e=0
+  [ "$b" -eq 1 ]
+  [ "$e" -eq 1 ]
+}
+
+@test "Notification は畳まれず本文に残る" {
+  fire "$ALLOWED" Notification "" 'Waiting for approval'
+  fire "$ALLOWED" PostToolUse Bash
+  stub_bins "https://discord.example/api/webhooks/1/tok"
+  run bash "$FLUSH"
+  n=$(grep -cF 'Waiting for approval' "$BATS_TEST_TMPDIR/posts.body") || n=0
+  [ "$n" -eq 1 ]
+}
+
+@test "2000 文字を超える本文は行単位で切り詰められる" {
+  i=0
+  while [ "$i" -lt 400 ]; do
+    fire "$ALLOWED" Notification "" "long-line-$i-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    i=$((i + 1))
+  done
+  stub_bins "https://discord.example/api/webhooks/1/tok"
+  run bash "$FLUSH"
+  [ "$status" -eq 0 ]
+  longest=$(awk '{ if (length($0) > m) m = length($0) } END { print m+0 }' "$BATS_TEST_TMPDIR/posts.body")
+  [ "$longest" -lt 2200 ]
+  t=$(grep -cF '(truncated)' "$BATS_TEST_TMPDIR/posts.body") || t=0
+  [ "$t" -eq 1 ]
+}
+
+@test "フラッシュ後にスプールは空になる" {
+  fire "$ALLOWED" PostToolUse Bash
+  stub_bins "https://discord.example/api/webhooks/1/tok"
+  run bash "$FLUSH"
+  [ "$(spool_lines)" -eq 0 ]
+}
+
+@test "スプールが空なら何も送らない" {
+  stub_bins "https://discord.example/api/webhooks/1/tok"
+  run bash "$FLUSH"
+  [ "$status" -eq 0 ]
+  [ "$(posts)" -eq 0 ]
+}
+
+@test "初回はスレッドを作り、2 通目は thread_id を再利用する" {
+  stub_bins "https://discord.example/api/webhooks/1/tok"
+
+  fire "$ALLOWED" PostToolUse Bash
+  run bash "$FLUSH"
+  first=$(grep -cF 'wait=true' "$BATS_TEST_TMPDIR/posts.url") || first=0
+  [ "$first" -eq 1 ]
+
+  fire "$ALLOWED" PostToolUse Edit
+  run bash "$FLUSH"
+  reuse=$(grep -cF 'thread_id=9999' "$BATS_TEST_TMPDIR/posts.url") || reuse=0
+  [ "$reuse" -eq 1 ]
+
+  # 新規作成は 1 回だけ。2 通目でスレッドを作り直していない。
+  creates=$(grep -cF 'wait=true' "$BATS_TEST_TMPDIR/posts.url") || creates=0
+  [ "$creates" -eq 1 ]
+}
+
+@test "ペインが 2 つあれば 2 通に分かれる" {
+  stub_bins "https://discord.example/api/webhooks/1/tok"
+  fire "$ALLOWED" PostToolUse Bash
+  HERDR_PANE_ID='wA:pA' fire "$ALLOWED" PostToolUse Read
+  run bash "$FLUSH"
+  [ "$(posts)" -eq 2 ]
+}
