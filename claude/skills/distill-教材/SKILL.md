@@ -382,8 +382,10 @@ DISTILL="$HOME/develop/other/distill-of-ai-process/.venv/bin/distill"
   「スキップ（理由）」にする
 - `distill url` が失敗したら、代わりに書いたファイルのパスを 1 行出す。
   URL が出ないことを黙って飲み込まない
-- URL を開くにはローカルサーバが要る。動いていなければ
-  `"$DISTILL" build --serve` を案内する 1 行を添える
+- URL の配信は launchd の `com.snakashima.distill-serve` が常時行う。
+  繋がらないときは `launchctl list | grep distill-serve` で確認する
+- **Cloudflare のトークンは要らない。** ここで出すのはローカルの URL で、
+  公開サイトへの配信は別系統（`scripts/publish-if-changed.sh`）が受け持つ
 
 ## 他スキルとの連携
 
