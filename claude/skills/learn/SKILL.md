@@ -4,7 +4,7 @@ description: >-
   実装完了直後に、その実装で使った技術・手順を永続的な学習教材として残したいときに使う
   （feature-dev Execute 完了後は確認プロンプトなしで自動実行、手動は /learn）。
   専門用語・手順は「そもそも何か」から細かく解説する。教材は Obsidian の
-  02_skillup/learn/ に書き、distill がそこを読んで見やすく表示する。
+  99_distill/learn/ に書き、distill がそこを読んで見やすく表示する。
   教材生成後は generate-problem による理解度クイズで理解を検証する。
   教材とクイズにはプロジェクトのハーネス構築観点（現在の構築・次の構築）を混ぜる。
 user-invocable: true
@@ -49,7 +49,7 @@ user-invocable: true
 
 ## 保存先
 
-`$HOME/develop/obsidian/02_skillup/learn/<タイトル>.md` に **Write で書く**。
+`$HOME/develop/obsidian/99_distill/learn/<タイトル>.md` に **Write で書く**。
 保存先は確認しない。distill のコマンドは呼ばない。
 
 - ファイル名 = `<技術テーマ>を理解する.md` 等の読める日本語タイトル（日付の
@@ -137,7 +137,7 @@ project: <basename $(pwd) の結果>
 
 ### Step 4: 既存教材との重複排除
 
-`$HOME/develop/obsidian/02_skillup/learn/` のファイル一覧を確認し、同一トピックの重複を避ける。既存と同テーマなら別角度のテーマを選ぶか追補方針を決める。
+`$HOME/develop/obsidian/99_distill/learn/` のファイル一覧を確認し、同一トピックの重複を避ける。既存と同テーマなら別角度のテーマを選ぶか追補方針を決める。
 
 ### Step 5: 情報収集
 
@@ -213,7 +213,7 @@ Skill: context7 — [ライブラリ名]の[機能名]のドキュメントを�
 
 **ハーネス文脈の取得:**
 
-1. `date +%F` で今日の日付を確定し、vault `$HOME/develop/obsidian/02_skillup/harness/` から当該プロジェクト（現在のリポジトリ名）の最新レポート `*-<project>-harness-audit.md` を探す
+1. `date +%F` で今日の日付を確定し、vault `$HOME/develop/obsidian/99_distill/harness/` から当該プロジェクト（現在のリポジトリ名）の最新レポート `*-<project>-harness-audit.md` を探す
 2. **30日以内**のレポートがあればそれを読む
 3. なければ / 30日より古ければ、`harness-audit` skill を `--quick` で実行し、生成されたレポートを読む
 4. vault 不在・レポート生成失敗など取得できない場合、ハーネス観点はスキップし、完了報告に「ハーネス観点: スキップ（理由）」と記す（教材・クイズの他要素は通常どおり進める）
@@ -239,7 +239,7 @@ Skill: context7 — [ライブラリ名]の[機能名]のドキュメントを�
 3. **起動**: `generate-problem` skill をテキスト引数モードで invoke する（引数 = 手順1のテキスト）
 4. **記録**: generate-problem の仕様に従う（vault 過去問.md への蓄積・間隔反復を含む）。learn の完了報告にクイズ正解率を1行添える
 5. **教材への添付**: 出題した問題を、教材と対になる
-   `$HOME/develop/obsidian/02_skillup/learn/<教材と同じタイトル>.quiz.md` に
+   `$HOME/develop/obsidian/99_distill/learn/<教材と同じタイトル>.quiz.md` に
    **Write で書く**（下の形式）。distill がこれを読んで教材ページに
    「理解度チェック」として出す。過去問.md への記録（復習帳）とは別物で、
    こちらは教材に添える出題そのものを残す

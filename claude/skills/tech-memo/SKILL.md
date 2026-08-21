@@ -3,7 +3,7 @@ name: tech-memo
 description: >-
   会話に出した直近の技術メモを、Web 検索で検証・補強して Obsidian に永続化したいときに使う。
   チャットの技術メモは速度優先のまま変えず、本スキル発動時だけ全主張を一次情報と照合し、
-  修正・出典・補足を付けて vault の 02_skillup/tech-memo/ に保存し、distill がそこを読む。手動 /tech-memo のみ。
+  修正・出典・補足を付けて vault の 99_distill/tech-memo/ に保存し、distill がそこを読む。手動 /tech-memo のみ。
 user-invocable: true
 ---
 
@@ -17,8 +17,8 @@ user-invocable: true
 | 導線 | 粒度 | 検索 | 保存先 |
 |---|---|---|---|
 | チャットの技術メモ | 15〜40 行、速度優先 | 陳腐化しやすい用語のみ | なし（会話内のみ） |
-| `/tech-memo`（本スキル） | メモ + 検証 + 補足 | 全主張を検証 | vault `02_skillup/tech-memo/` |
-| `/learn` | フル教材（実装全体、用語ゼロベース解説必須） | context7/WebSearch | vault `02_skillup/learn/` |
+| `/tech-memo`（本スキル） | メモ + 検証 + 補足 | 全主張を検証 | vault `99_distill/tech-memo/` |
+| `/learn` | フル教材（実装全体、用語ゼロベース解説必須） | context7/WebSearch | vault `99_distill/learn/` |
 
 **開始時アナウンス:** 「Tech Memo を開始します。Phase 1: 対象特定」
 
@@ -57,7 +57,7 @@ user-invocable: true
 
 ## Phase 4: 保存
 
-1. 保存先: `$HOME/develop/obsidian/02_skillup/tech-memo/<技術名>.md`
+1. 保存先: `$HOME/develop/obsidian/99_distill/tech-memo/<技術名>.md`
    - ディレクトリが無ければ作成
    - 同名衝突時は末尾に ` 2`, ` 3` を付与
 2. **Write でファイルを書く**。distill のコマンドは呼ばない。構成:
