@@ -2,13 +2,13 @@
 name: eod
 description: >-
   1 日の作業を締めたいとき（終業時・日報作成時）に使うオーケストレータ。
-  Slack+GitHub 収集 → open issue 確認 → 日報生成 → CloudLog 入力 → 振り返り → 北極星ロースト更新 → 翌日デイリー作成 → 翌日タスクの GitHub issue 紐付け → Obsidian vault commit/push を順次実行する。
+  Slack+GitHub+distill+gain+github-sync 計画の並列収集 → open issue 確認 → GitHub Issue の TaskNotes 同期 → 日報生成 → CloudLog 入力 → 振り返り → 翌日デイリー作成 → 翌日タスクの GitHub issue 紐付け → Obsidian vault commit/push を実行する。
   除外プロジェクト指定は本文の Options を参照。
 argument-hint: "[--exclude <キーワード>...]"
 user-invocable: true
 ---
 
-その日の作業を1コマンドで締める。**Slack+GitHub収集 → github-issues（open issue 確認）→ daily-log → CloudLog入力 → generate-problem → 北極星ロースト更新 → 翌日デイリー作成 → 翌日タスク整理（未チェックの自動引き継ぎ＋新規の GitHub issue 紐付け）→ Obsidian vault commit/push** を順次実行する。
+その日の作業を1コマンドで締める。**並列収集（Slack+GitHub+distill ingest+gain watch+github-sync 計画）→ github-issues（open issue 確認）→ github-sync 適用 → daily-log → CloudLog入力 → generate-problem → 翌日デイリー作成 → 翌日タスク整理（未チェックの自動引き継ぎ＋新規の GitHub issue 紐付け）→ Obsidian vault commit/push** を順次実行する。
 
 ## Options
 
@@ -24,18 +24,20 @@ user-invocable: true
 
 ### Step 0: スキップ対象の対話確認（必須・最初に実施）
 
-**起動直後・他のステップに着手する前に必ず実施する**。`AskUserQuestion` で multiSelect の質問を1問だけ提示し、ユーザーがスキップしたいステップを選択させる。
+**起動直後・他のステップに着手する前に必ず実施する**。`AskUserQuestion` を **1 回だけ**呼び、下記 2 問を同時に提示してスキップ対象を選ばせる（1 問あたり選択肢は最大 4 件、どちらも `multiSelect: true`）。
 
-- 質問文: 「スキップ対象を確認させてください。どのステップを飛ばしますか?」
-- header: `Skip対象`
-- multiSelect: `true`
-- 選択肢（順序固定。AskUserQuestion の最大 4 件制約に合わせる）:
+**Q1**「スキップ対象を確認させてください。どのステップを飛ばしますか?」（header: `Skip対象`）— 順序固定:
   1. `Step 5: generate-problem` — 本日の振り返り(過去問形式)をスキップ
   2. `Step 4: CloudLog 自動入力` — Playwright での CloudLog 入力をスキップ(daily-log でのエントリ生成は実施)
   3. `Step 1: Slack 収集` — 本日の Slack 発言・関与スレッド取得をスキップ
   4. `Step 1: GitHub 収集` — 本日のコミット・PR・Issue 活動取得をスキップ
 
-Step 3(daily-log 自体のスキップ) などその他のスキップは `Other` (自由記述) で受け付ける。ユーザーが何も選択しなかった場合は「全ステップ実行」とみなす。複数選択可。選択結果は実行フロー全体で参照する。
+**Q2**「Step 1 の追加ジョブで飛ばすものはありますか?」（header: `追加Skip`）— 順序固定:
+  1. `distill ingest` — Claude Code セッションログの distill 取り込みをスキップ
+  2. `gain watch` — 技術情報の横断観測をスキップ(Web 検索を多用し所要時間が伸びるため、急ぐ日はここで外す)
+  3. `github-sync` — GitHub Issue → TaskNotes 同期をスキップ(Step 2.5 も併せてスキップ)
+
+Step 3(daily-log 自体のスキップ) などその他のスキップは `Other` (自由記述) で受け付ける。ユーザーが何も選択しなかった場合は「全ステップ実行」とみなす。選択結果は実行フロー全体で参照する。
 
 **重要**:
 - `--skip-*` 系のフラグ引数は受け付けない。引数で渡されてもこの質問は省略しない
@@ -43,9 +45,17 @@ Step 3(daily-log 自体のスキップ) などその他のスキップは `Other
 - Step 3 がスキップされた場合は Step 4(CloudLog 入力) も自動的にスキップする(エントリ未生成のため)
 - Step 1 Slack/GitHub 片方または両方がスキップされた場合、daily-log は走査したセッション情報のみで成果セクションを生成する(取得失敗とは区別し「スキップにより未取得」と完了報告に明記)
 
-### Step 1: Slack + GitHub 情報収集（並列）
+### Step 1: 情報収集（並列）
 
-以降のステップで使い回すため、最初に一括取得する。Step 0 で「Step 1: Slack 収集」がスキップされた場合は Slack 取得を、「Step 1: GitHub 収集」がスキップされた場合は GitHub 取得を、それぞれスキップする(両方スキップなら Step 1 全体をスキップ)。
+以降のステップで使い回すため、最初に一括取得する。**5 ジョブを 1 メッセージ内で同時に発射する**(Bash 呼び出しは同一メッセージ内の並列 tool call、gain のみサブエージェント)。Step 0 でスキップ選択されたジョブは発射しない(全ジョブがスキップなら Step 1 全体をスキップ)。
+
+| ジョブ | 実行方法 | 結果の使い先 |
+|--------|----------|--------------|
+| Slack 収集 | MCP / CLI（下記） | Step 3 の成果セクション |
+| GitHub 活動収集 | `gh` | Step 3 の成果セクション |
+| distill ingest | Bash（下記） | 本日の成果を裏取りする素材 |
+| gain watch | サブエージェント（下記） | Obsidian のダイジェスト（Step 8 で commit） |
+| github-sync 計画生成 | Bash（下記・書き込みなし） | Step 2.5 の承認材料 |
 
 - **Slack**: 本日の自分の発言・関与したスレッドを取得する。**取得経路は以下の優先順で必ずチェックする**:
   1. **`claude.ai Slack` MCP（最優先）** — `mcp__claude_ai_Slack__slack_search_public_and_private` を使う。`query="from:<@U07KEPWQAQN> after:{YYYY-MM-DD前日} before:{YYYY-MM-DD翌日}"`（user_id は固定）。スレッド文脈が必要な場合は `slack_read_thread`、チャンネル履歴は `slack_read_channel`
@@ -54,8 +64,18 @@ Step 3(daily-log 自体のスキップ) などその他のスキップは `Other
   - `claude mcp list` で `claude.ai Slack: ✓ Connected` を確認できれば MCP は最優先で使う
   - `slackcli` が `invalid_auth` を返しても、それは CLI の Slack トークン失効であり、MCP の認証状態とは無関係
 - **GitHub**: 本日のコミット・PR・レビュー・Issue コメント/更新を `gh` で取得
+- **distill ingest**: `$HOME/develop/other/distill-of-ai-process/.venv/bin/distill ingest` を実行し、Claude Code のセッションログを distill の SQLite へ取り込む
+  - `distill` は PATH に無い。venv 内の実体を絶対パスで叩く
+  - 取り込み対象プロジェクトの選別は distill 側の設定に従う。eod からフラグで制御しない
+- **gain watch**: サブエージェントに `gain` スキルを `watch --dry-run` で実行させる
+  - `--dry-run` は peers スコープの採用対話・保存だけを抑止する。サブエージェントはユーザーに質問できないため必須
+  - サブエージェントへの指示に「ユーザーへの確認が必要になったら実行せず、その旨を報告して返す」ことを明記する
+  - vault への commit は行わせない（Step 8 が一括で行う）
+- **github-sync 計画生成**: `python3 $HOME/develop/obsidian/.claude/skills/github-sync/sync.py --plan-file /private/tmp/eod-github-sync-plan.md`
+  - 書き込みなしの計画生成のみ。`--apply` と `--push` はここでは絶対に付けない（適用は Step 2.5、push は Step 8）
+  - 一時ファイルは `/private/tmp` 配下に置く（macOS の `$TMPDIR` は `/var/folders` 配下でツール側のガードに抵触する）
 
-この結果を Step 2・3 で再利用する（二重取得しない）。
+Slack + GitHub の結果を Step 2・3 で再利用する（二重取得しない）。
 
 ### Step 2: github-issues（open issue 確認）
 
@@ -63,6 +83,19 @@ Step 3(daily-log 自体のスキップ) などその他のスキップは `Other
 
 - ファイル連携・task.md 同期は行わない（純粋な issue 一覧）
 - 当日の作業の文脈把握が目的。クローズ・作成等の操作が必要なら、ユーザーが明示的に `/github-issues` を別途実行する
+
+### Step 2.5: github-sync 適用（GitHub Issue → TaskNotes）
+
+Step 0 で「github-sync」がスキップ選択されている場合は本ステップ全体をスキップし、完了報告に「github-sync: スキップ」と記録する。
+
+Step 1 で生成した計画ファイル（`/private/tmp/eod-github-sync-plan.md`）を使い、vault の `/github-sync` スキルの手順に従って適用する。
+
+- 件数と削除対象を提示してユーザーの承認を得てから `sync.py --apply` を実行する。**承認なしで適用しない**（14 日より前に done になったノートの削除を含むため）
+- Issue のタイトルは会話に出さない（社内プロジェクト名を含む）。詳細は計画ファイルを開いてもらう
+- `--push` は付けない。commit/push は Step 8 が一括で行う
+- 適用後に「本文が薄い」と列挙されたノートへの補足追記まで行う（github-sync スキルの該当手順に従う）
+
+ここで生成された TaskNotes は Step 7（翌日タスク整理）の材料になる。
 
 ### Step 3: daily-log（セッション + CloudLog）
 
@@ -92,29 +125,6 @@ Step 0 で「Step 5」がスキップ選択されている場合は本ステッ�
 
 - Step 3 の「今日の成果」と daily-log の内容を素材として使う（再収集しない）
 - 結果は日報と `01_quant/過去問.md` に記録される
-
-### Step 5.5: 北極星ロースト更新（毎日）
-
-`$HOME/develop/obsidian/01_quant/北極星.md` 冒頭の `<!-- ROAST:START -->` 〜 `<!-- ROAST:END -->` ブロックを、当日の実測データで丸ごと再生成する。**毎日実行する**。Step 0 のスキップ対象には含めない（generate-problem がスキップされても実行する）。
-
-**データ収集**（数字はすべて実測する。推測・前回値の流用で書かない）:
-
-1. **経過日数**: 北極星.md の frontmatter `updated`（実質更新日）から本日までの日数
-2. **読了率**: 直近30日に存在するデイリーノート（本日以前のみ。未来日付のデイリーは除外）のうち、始まりジョブに `[[01_quant/北極星|北極星]]` のチェック行を持つもの（2026-07-10 以前の旧リンク `[[01_quant/約束の銘記|約束の銘記]]` も同一視）を分母とし、`- [x]` になっている日数を分子とする
-3. **週次レビュー遵守**: 北極星の更新履歴テーブルの最新行の日付が7日以内か
-
-**生成ルール**:
-
-- `> [!danger] まず現実を見ろ（YYYY-MM-DD 時点）` で始まる callout、4〜6行
-- 1行目は固定: 「この文書は「北極星」と「約束の銘記」の統合版であり、お前の唯一のコア文書だ。」
-- 実測の数字を必ず本文に入れる。数字を伴わない説教は書かない
-- トーンは常に辛口・二人称（お前）。段階:
-  - 経過 ≤ 7日 かつ 読了率 ≥ 80% → 辛口キープ。褒めない（「最低限やっただけだ」の温度）
-  - どちらか未達 → 未達の数字を名指しで詰める
-  - 経過 > 21日 または 読了率 < 50% → 最大火力。放置日数・空欄日数を突きつける
-- 締めは必ず「この数字は /eod のたびに更新される」＋逃げ場を塞ぐ1行
-- ROAST マーカー行自体（`<!-- ROAST:START ... -->` / `<!-- ROAST:END -->`）は残す
-- **禁止**: このステップで frontmatter `updated` と更新履歴を書き換えること。ロースト再生成は「実質更新」に数えない（触ると経過日数が自己リセットし、指標が無意味になる）。`updated` と更新履歴を動かしてよいのは、金曜の週次レビューによる本文修正のみ（vault 側 `/eod` の週次レビュー手順を参照）
 
 ### Step 6: 翌日デイリー作成
 
@@ -153,7 +163,7 @@ Step 6 の翌日デイリー（既に存在していた場合も対象）の `##
 - 対象は未チェック（`- [ ]`）行のみ。`- [x]`（完了）行は引き継がない
 - **ネストした子項目・既存の issue リンクは原文のまま保持**する（例: `- [ ] ブログ対応` とその子 `\t- [ ] …`、`- [ ] [勉強会準備](URL)` のリンクを維持）
 - 引き継ぎ後の翌日デイリーは、既に同じタスクが書かれていれば**重複させない**（テキスト一致でスキップ。idempotent）
-- 引き継ぎ先の構造は**フラット**（`## 今日やること` 見出し直下に `- [ ]` を順に並べる。`- メイン`/`- 雑務` の入れ子にはしない — 実運用のデイリーはフラット構造）
+- **引き継ぎ先はテンプレートの達成段階（`##### ミニマムサクセス` / `##### フルサクセス` / `##### エクストラサクセス`）を維持し、本日の同じ段階へコピーする。** この見出し構造には `slack-daily-post`（投稿の組み立て）と `link-inprogress-tasks`（タスクリンク）が依存しており、フラット化すると両方が壊れる
 
 **新規タスクの受け取り:**
 1. 引き継ぎ結果を提示したうえで、ユーザーに「他に明日やる新規タスクはあるか」を尋ねる。参考として Step 2 の open issue 一覧（cmb-sy assigned。無ければここで `/github-issues` list）も併せて提示する
@@ -169,7 +179,7 @@ Step 6 の翌日デイリー（既に存在していた場合も対象）の `##
 
 **書き込み:**
 - 対象セクションの見出しは色タグ付き（`## <font color="#81A1C1">今日やること</font>`）。daily-log 同様、色タグあり・なし両対応で「今日やること」を含む見出し行を探す。見出し行自体は変更しない
-- **フラット構造**: 引き継ぎ分・新規分とも `## 今日やること` 見出し直下に `- [ ]` を順に並べる（`- メイン`/`- 雑務` の入れ子は使わない）。テンプレ由来の `[[01_quant/キャリア]]を確認`・`[Githubタスク](...)`・`- メイン`/`- 雑務` の空プレースホルダ行が残っていれば、フラットなタスク行に置き換える
+- **達成段階の見出しは維持する**: タスク行は各 `#####` 見出しの配下に置く。段階が不明な新規タスクはミニマムサクセスに入れ、ユーザーの指定があればそれに従う。空の `- [ ]` プレースホルダ行があれば先に埋める
 - 並び順: 引き継ぎタスク（本日の順序を保持）→ 新規タスク（受け取り順）
 - issue 紐付けありのタスク行: `- [ ] {タスク内容}（[{repo}#{number}]({issue の URL})）`。`{repo}` は org 修飾なしのリポジトリ名（org は Resily 固定）
   - 例: `- [ ] anonymize ETL の k 値見直し（[data-platform#42](https://github.com/Resily/data-platform/issues/42)）`
@@ -213,10 +223,12 @@ git でコミットし、リモートへ push する。**最後に実行する**
 
 - 更新した日報ファイルパス
 - github-issues: open issue 件数（cmb-sy assigned）
+- distill ingest: 取り込み結果（件数 or 出力要約。スキップ時は「スキップ」）
+- gain watch: 観測したスコープとダイジェストの保存先（スキップ時は「スキップ」）
+- github-sync: 新規作成 / 更新 / done へ変更 の件数（スキップ時は「スキップ」）
 - CloudLog 入力件数・合計時間
 - 走査したセッション数・除外プロジェクト
 - generate-problem 結果（正解率 / スキップ時は「スキップ」）
-- 北極星ロースト更新: 経過日数・読了率（分子/分母）・適用したトーン段階
 - 翌日デイリー作成（作成したパス or「既に存在のためスキップ」）
 - 翌日タスク整理: タスク件数の内訳（issue 紐付け n 件 / 新規 issue 作成 n 件 / リンクなし n 件。タスクなしなら「なし」）
 - Obsidian vault: commit ハッシュ（短縮）+ push 結果（変更なしならその旨 / push 失敗なら理由）
