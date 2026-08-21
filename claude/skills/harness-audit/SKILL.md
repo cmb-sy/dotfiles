@@ -4,7 +4,7 @@ description: >-
   現在のプロジェクトの開発ハーネス(AIエージェント運用基盤 + テスト/CI基盤)を診断したいときに使う。
   CLAUDE.md・hooks・skills・テスト・CI を5次元の成熟度モデルで実測スコアリングし、
   トップエンジニアの実践(neko-neko/belt 等 + WebSearch の最新ベストプラクティス)をアンカーに
-  欠陥・不足・構築手順を教育的に報告、Obsidian vault (02_skillup/harness/) にレポート保存する。
+  欠陥・不足・構築手順を教育的に報告、Obsidian vault (99_distill/harness/) にレポート保存する。
   何もないプロジェクトでは要件定義の確認から入り構築設計書を出す。修正は実行しない(診断・設計・教育に徹する)。
 argument-hint: "[--quick] [--focus <A|B|C|D|E>]"
 user-invocable: true
@@ -49,7 +49,7 @@ user-invocable: true
    パイプラインを YAML 状態機械としてデータ化し `belt lint` で静的検査 / design→plan→build→qa の4ステージ / 役割固定の agent バンドル / エビデンス必須の QA / パイプライン定義を context に載せない context 経済。**C/D 次元の一次参照**
 2. **Anthropic 公式の Claude Code ベストプラクティス** — WebSearch で毎回最新を取得(この領域は週次で陳腐化する。学習知識で代用しない)
 3. **superpowers 型ワークフロー** — brainstorm→spec→plan→subagent-driven(fresh context/タスク)→二段レビュー→whole-branch レビュー
-4. **gain ダイジェスト** — vault の `02_skillup/情報収集/watch/` に直近ダイジェストがあれば読み、ハーネス関連の新機能・新実践を判定材料に加える
+4. **gain ダイジェスト** — vault の `99_distill/情報収集/watch/` に直近ダイジェストがあれば読み、ハーネス関連の新機能・新実践を判定材料に加える
 
 ## Phase 1: Inventory(実在調査)
 
@@ -94,7 +94,7 @@ Inventory の結果、全次元が実質 Level 0（エージェント基盤な�
 
 - 各次元に Level 0-4 を付け、**必ず evidence(ファイルパス・実行したコマンドと出力)を添える**
 - Level 4 はベンチマーク照合の根拠なしに付けない
-- 前回レポート(vault `$HOME/develop/obsidian/02_skillup/harness/*-<project>-harness-audit.md` の最新。`<project>` は監査対象リポジトリ名)があれば読み、**次元ごとのスコア推移**を算出する
+- 前回レポート(vault `$HOME/develop/obsidian/99_distill/harness/*-<project>-harness-audit.md` の最新。`<project>` は監査対象リポジトリ名)があれば読み、**次元ごとのスコア推移**を算出する
 
 ## Phase 4: Education & Roadmap
 
@@ -114,7 +114,7 @@ Inventory の結果、全次元が実質 Level 0（エージェント基盤な�
 **アナウンス:** 「Phase 5: Report — レポートを保存します」
 
 1. チャットに要約(スコアカード表 + 最重要指摘3点 + 今すぐやること)
-2. Obsidian vault `$HOME/develop/obsidian/02_skillup/harness/YYYY-MM-DD-<project>-harness-audit.md` に全文保存:
+2. Obsidian vault `$HOME/develop/obsidian/99_distill/harness/YYYY-MM-DD-<project>-harness-audit.md` に全文保存:
    - `<project>` は監査対象リポジトリ名(横断蓄積のため必須。ファイル名で対象を区別する)
    - ディレクトリなければ作成、同一プロジェクトを同日に複数回実行する場合は連番
    - `$HOME/develop/obsidian` が存在しない場合は保存せず「vault が見つかりません」と報告して終了する
