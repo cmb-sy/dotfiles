@@ -1,5 +1,5 @@
 ---
-name: gain
+name: distill-gain-latest-info
 description: >-
   技術情報を「集めて得る」ときに使う情報収集スキル。watch モード（GitHub /
   サービス changelog / エンジニア発信 / ニュース / dotfiles peer を横断観測し
@@ -9,25 +9,25 @@ argument-hint: "[watch [--only <scope>] [--target X] | research <topic> | peers 
 user-invocable: true
 ---
 
-<!-- gain = "gather intel" + "得る(gain)". A portmanteau: gathering and obtaining tech intel. -->
+<!-- distill-gain-latest-info = "gather intel" + "得る(gain)". A portmanteau: gathering and obtaining tech intel. -->
 
-# gain — 情報収集スキル
+# distill-gain-latest-info — 情報収集スキル
 
 技術情報を集めて得るための単一スキル。2 モードを持つ。
 
 - **watch（レーダー）**: `sources.yaml` を駆動し、前回以降の差分をダイジェスト化する
 - **research（深掘り）**: トピックを Web 知見 × 自リポジトリ実態で調べる
 
-**開始時アナウンス:** 「gain を開始します。」続けて選択されたモード/スコープを明示する。
+**開始時アナウンス:** 「distill-gain-latest-info を開始します。」続けて選択されたモード/スコープを明示する。
 
 ## 起動
 
 ```
-/gain                                   # 引数なし → 対話メニュー（デフォルト）
-/gain watch                             # 全ウォッチを直接実行
-/gain watch --only <scope> [--target X] # 単一スコープ、対象指定
-/gain research <topic>                  # 深掘りを直接実行
-/gain peers [--user <handle>] [--days N] [--dry-run]  # dotfiles peer 観測（採用ワークフロー）
+/distill-gain-latest-info                                   # 引数なし → 対話メニュー（デフォルト）
+/distill-gain-latest-info watch                             # 全ウォッチを直接実行
+/distill-gain-latest-info watch --only <scope> [--target X] # 単一スコープ、対象指定
+/distill-gain-latest-info research <topic>                  # 深掘りを直接実行
+/distill-gain-latest-info peers [--user <handle>] [--days N] [--dry-run]  # dotfiles peer 観測（採用ワークフロー）
 ```
 
 - `<scope>`: `peers | github | services | engineers | sns | news`
@@ -102,7 +102,7 @@ AskUserQuestion は 1 問最大 4 択のため 2 段構成にする。
 
 ### 完了報告
 ```
-gain peers 完了。対象: <n> peers (<days> 日窓)
+distill-gain-latest-info peers 完了。対象: <n> peers (<days> 日窓)
 finding: 採用 <a> / スキップ <b> / 後で <c>
 記録先: dotfiles/docs/peer-watch/<date>.md
 ```
@@ -242,4 +242,4 @@ window_since: YYYY-MM-DD
 - サブエージェントの生出力を統合せずダイジェストへ転送する
 - SNS を「信頼度低」ラベルなしで他ソースと同列に出す
 - ユーザー承認なしに sources.yaml へアドホック対象を追記する
-- gain が vault を自動 commit する（/eod に委譲）
+- distill-gain-latest-info が vault を自動 commit する（/eod に委譲）

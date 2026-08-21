@@ -50,8 +50,8 @@ sqlite3 "$DB" "PRAGMA query_only=1;
   ORDER BY d DESC;"
 ```
 
-3. **生成** — Skill ツールで `distill-learn` を起動し、対象プロジェクトと日付を渡す。
-   project_unit が未生成ならそれも作らせる。教材とクイズは distill-learn が作る。
+3. **生成** — Skill ツールで `distill-project` を起動し、対象プロジェクトと日付を渡す。
+   project_unit が未生成ならそれも作らせる。教材とクイズは distill-project が作る。
    このスキルは生成そのものを行わない。
 
 **既定は project_unit と最新 3 日分**。`--days N` で件数を変え、`--all` で全未生成日を対象にする。
@@ -110,6 +110,6 @@ sqlite3 "$DB" "PRAGMA query_only=1;
 ## 報告するとき
 
 - 実行したサブコマンドと結果（取り込んだファイル数、デプロイ先 URL など）を伝える
-- `link` と `ingest` は教材を作らない。作るのは `distill-learn` スキル。
-  `full` はそれらを順に呼ぶだけで、生成の中身は distill-learn が決める
+- `link` と `ingest` は教材を作らない。作るのは `distill-project` スキル。
+  `full` はそれらを順に呼ぶだけで、生成の中身は distill-project が決める
 - 公開サイトは `publish` するまで変わらない。取り込んだだけでは反映されない

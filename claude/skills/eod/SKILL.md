@@ -2,13 +2,13 @@
 name: eod
 description: >-
   1 日の作業を締めたいとき（終業時・日報作成時）に使うオーケストレータ。
-  Slack+GitHub+distill+gain+github-sync 計画の並列収集 → open issue 確認 → GitHub Issue の TaskNotes 同期 → 日報生成 → CloudLog 入力 → 振り返り → 翌日デイリー作成 → 翌日タスクの GitHub issue 紐付け → Obsidian vault commit/push を実行する。
+  Slack+GitHub+distill+distill-gain-latest-info+github-sync 計画の並列収集 → open issue 確認 → GitHub Issue の TaskNotes 同期 → 日報生成 → CloudLog 入力 → 振り返り → 翌日デイリー作成 → 翌日タスクの GitHub issue 紐付け → Obsidian vault commit/push を実行する。
   除外プロジェクト指定は本文の Options を参照。
 argument-hint: "[--exclude <キーワード>...]"
 user-invocable: true
 ---
 
-その日の作業を1コマンドで締める。**並列収集（Slack+GitHub+distill ingest+gain watch+github-sync 計画）→ github-issues（open issue 確認）→ github-sync 適用 → daily-log → CloudLog入力 → generate-problem → 翌日デイリー作成 → 翌日タスク整理（未チェックの自動引き継ぎ＋新規の GitHub issue 紐付け）→ Obsidian vault commit/push** を順次実行する。
+その日の作業を1コマンドで締める。**並列収集（Slack+GitHub+distill ingest+distill-gain-latest-info watch+github-sync 計画）→ github-issues（open issue 確認）→ github-sync 適用 → daily-log → CloudLog入力 → generate-problem → 翌日デイリー作成 → 翌日タスク整理（未チェックの自動引き継ぎ＋新規の GitHub issue 紐付け）→ Obsidian vault commit/push** を順次実行する。
 
 ## Options
 
@@ -34,7 +34,7 @@ user-invocable: true
 
 **Q2**「Step 1 の追加ジョブで飛ばすものはありますか?」（header: `追加Skip`）— 順序固定:
   1. `distill ingest` — Claude Code セッションログの distill 取り込みをスキップ
-  2. `gain watch` — 技術情報の横断観測をスキップ(Web 検索を多用し所要時間が伸びるため、急ぐ日はここで外す)
+  2. `distill-gain-latest-info watch` — 技術情報の横断観測をスキップ(Web 検索を多用し所要時間が伸びるため、急ぐ日はここで外す)
   3. `github-sync` — GitHub Issue → TaskNotes 同期をスキップ(Step 2.5 も併せてスキップ)
 
 Step 3(daily-log 自体のスキップ) などその他のスキップは `Other` (自由記述) で受け付ける。ユーザーが何も選択しなかった場合は「全ステップ実行」とみなす。選択結果は実行フロー全体で参照する。
@@ -47,14 +47,14 @@ Step 3(daily-log 自体のスキップ) などその他のスキップは `Other
 
 ### Step 1: 情報収集（並列）
 
-以降のステップで使い回すため、最初に一括取得する。**5 ジョブを 1 メッセージ内で同時に発射する**(Bash 呼び出しは同一メッセージ内の並列 tool call、gain のみサブエージェント)。Step 0 でスキップ選択されたジョブは発射しない(全ジョブがスキップなら Step 1 全体をスキップ)。
+以降のステップで使い回すため、最初に一括取得する。**5 ジョブを 1 メッセージ内で同時に発射する**(Bash 呼び出しは同一メッセージ内の並列 tool call、distill-gain-latest-info のみサブエージェント)。Step 0 でスキップ選択されたジョブは発射しない(全ジョブがスキップなら Step 1 全体をスキップ)。
 
 | ジョブ | 実行方法 | 結果の使い先 |
 |--------|----------|--------------|
 | Slack 収集 | MCP / CLI（下記） | Step 3 の成果セクション |
 | GitHub 活動収集 | `gh` | Step 3 の成果セクション |
 | distill ingest | Bash（下記） | 本日の成果を裏取りする素材 |
-| gain watch | サブエージェント（下記） | Obsidian のダイジェスト（Step 8 で commit） |
+| distill-gain-latest-info watch | サブエージェント（下記） | Obsidian のダイジェスト（Step 8 で commit） |
 | github-sync 計画生成 | Bash（下記・書き込みなし） | Step 2.5 の承認材料 |
 
 - **Slack**: 本日の自分の発言・関与したスレッドを取得する。**取得経路は以下の優先順で必ずチェックする**:
@@ -67,7 +67,7 @@ Step 3(daily-log 自体のスキップ) などその他のスキップは `Other
 - **distill ingest**: `$HOME/develop/other/distill-of-ai-process/.venv/bin/distill ingest` を実行し、Claude Code のセッションログを distill の SQLite へ取り込む
   - `distill` は PATH に無い。venv 内の実体を絶対パスで叩く
   - 取り込み対象プロジェクトの選別は distill 側の設定に従う。eod からフラグで制御しない
-- **gain watch**: サブエージェントに `gain` スキルを `watch --dry-run` で実行させる
+- **distill-gain-latest-info watch**: サブエージェントに `distill-gain-latest-info` スキルを `watch --dry-run` で実行させる
   - `--dry-run` は peers スコープの採用対話・保存だけを抑止する。サブエージェントはユーザーに質問できないため必須
   - サブエージェントへの指示に「ユーザーへの確認が必要になったら実行せず、その旨を報告して返す」ことを明記する
   - vault への commit は行わせない（Step 8 が一括で行う）
@@ -224,7 +224,7 @@ git でコミットし、リモートへ push する。**最後に実行する**
 - 更新した日報ファイルパス
 - github-issues: open issue 件数（cmb-sy assigned）
 - distill ingest: 取り込み結果（件数 or 出力要約。スキップ時は「スキップ」）
-- gain watch: 観測したスコープとダイジェストの保存先（スキップ時は「スキップ」）
+- distill-gain-latest-info watch: 観測したスコープとダイジェストの保存先（スキップ時は「スキップ」）
 - github-sync: 新規作成 / 更新 / done へ変更 の件数（スキップ時は「スキップ」）
 - CloudLog 入力件数・合計時間
 - 走査したセッション数・除外プロジェクト

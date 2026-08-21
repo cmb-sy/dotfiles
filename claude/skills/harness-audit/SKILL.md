@@ -49,7 +49,7 @@ user-invocable: true
    パイプラインを YAML 状態機械としてデータ化し `belt lint` で静的検査 / design→plan→build→qa の4ステージ / 役割固定の agent バンドル / エビデンス必須の QA / パイプライン定義を context に載せない context 経済。**C/D 次元の一次参照**
 2. **Anthropic 公式の Claude Code ベストプラクティス** — WebSearch で毎回最新を取得(この領域は週次で陳腐化する。学習知識で代用しない)
 3. **superpowers 型ワークフロー** — brainstorm→spec→plan→subagent-driven(fresh context/タスク)→二段レビュー→whole-branch レビュー
-4. **gain ダイジェスト** — vault の `99_distill/情報収集/watch/` に直近ダイジェストがあれば読み、ハーネス関連の新機能・新実践を判定材料に加える
+4. **distill-gain-latest-info ダイジェスト** — vault の `99_distill/情報収集/watch/` に直近ダイジェストがあれば読み、ハーネス関連の新機能・新実践を判定材料に加える
 
 ## Phase 1: Inventory(実在調査)
 
