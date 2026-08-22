@@ -117,7 +117,7 @@ CLAUDE_CONFIG_DIR       ~/.claude-private         ~/.claude-work
 settings.local.json     permissions.allow:        (なし)
                           Bash(nvim:*)
 MCP接続状態(実測)        plugin:playwright ok      plugin:playwright ok
-                        plugin:linear 未認証        plugin:linear 未認証
+                        plugin:vercel 未認証        plugin:vercel 未認証
                         plugin:context7 --         plugin:context7 ok
                         claude.ai系コネクタ N件 共通
 ログイン                済み                       済み

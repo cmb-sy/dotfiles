@@ -173,7 +173,7 @@ Phase 1 + Phase 2 で収集した全情報を構造化する。
 
 **アナウンス:** 「Phase 4: GitHub Issue Registration — GitHub Issue を作成します」
 
-Phase 3 の分析結果を **`github-issues` skill の create フロー**に引き渡して Issue を登録する（Linear は使用しない）。
+Phase 3 の分析結果を **`github-issues` skill の create フロー**に引き渡して Issue を登録する。
 
 ### 動作
 
