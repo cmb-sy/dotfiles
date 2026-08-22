@@ -97,6 +97,19 @@ EOF
   done
 }
 
+# bypassPermissions は意図的な選択であり、事故ではない。自動セキュリティレビューが
+# 定期的に「auto へ戻せ」と指摘するが、その提案のうち「broad な Bash(rm:*) 等を allow
+# から外す」は本構成では無意味である。bypassPermissions では allow リスト自体が参照
+# されないため、外してもリスクは変わらない。
+#
+# 実際に効いている防御は permission mode と独立に動く層のほう:
+#   - pii-guard.py (PreToolUse: Write|Edit|Bash)
+#   - 破壊的コマンドの PreToolUse ブロッカー (rm -rf の / ~ $HOME を行末アンカーで拒否)
+#   - deny 11 件 (sops / op / ssh / scp / force push / reset --hard / clean -fdx / sudo rm)
+#
+# ただしこれらは前置一致と正規表現であって境界ではない。真の隔離境界が要るなら
+# issue #8 (OCI 無料枠に inbound 全閉じの Claude 常駐サーバーを立てる) が答えで、
+# 設計と実装は済んでおり実機構築だけが残っている。モードを変えるならそちらが先。
 @test "bypassPermissions is still the default mode" {
   run jq -r '.permissions.defaultMode' "$SETTINGS"
   [ "$output" = "bypassPermissions" ]
@@ -148,4 +161,20 @@ EOF
   # Anything not shaped `Bash(<cmd>:*)` would be a typo silently denying nothing.
   bad=$(printf '%s\n' "$output" | grep -cvE '^Bash\(.+:\*\)$' || true)
   [ "$bad" -eq 0 ]
+}
+
+# 追跡された settings.json は全マシンで共有する設定であり、かつ symlink 経由で
+# Claude Code のランタイムに書き換えられる。auto モードを有効にすると、ランタイムは
+# 作業中リポジトリの棚卸し(組織名・private リポジトリ一覧・秘密情報の管理方式)を
+# autoMode.environment に書き込む。dotfiles は公開リポジトリなので、それは公開される。
+#
+# autoMode はリポジトリ単位の状態なので、置き場は作業リポジトリ側の
+# .claude/settings.local.json(プロジェクトレベル・gitignore 済み)。ユーザーレベルの
+# settings.local.json は Claude Code が読まないため、退避先にはならない。
+#
+# 組織名を並べた grep にしないのは、その検査自体が公開リポジトリに組織名を書き足す
+# ことになるため。構造で見れば、どの組織のどの名前が来ても止まる。
+@test "autoMode は追跡された settings.json に現れない" {
+  run jq -r 'has("autoMode")' "$SETTINGS"
+  [ "$output" = "false" ]
 }
