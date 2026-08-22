@@ -56,7 +56,7 @@ done
 # herdr tab/space chords (Cmd+Shift+[ / ], Cmd+Opt+Up / Down): consumed by herdr,
 # but in plain terminal panes they reach zsh — map to no-op to avoid stray chars
 for _map in emacs viins vicmd; do
-	for _seq in '\e[23;2~' '\e[24;2~' '\e[23;5~' '\e[24;5~' '\e[23;3~' '\e[21;5~'; do
+	for _seq in '\e[23;2~' '\e[24;2~' '\e[23;5~' '\e[24;5~' '\e[23;3~' '\e[21;5~' '\e[21;2~'; do
 		bindkey -M "$_map" "$_seq" redisplay
 	done
 done

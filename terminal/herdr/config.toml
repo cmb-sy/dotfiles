@@ -6,6 +6,7 @@ onboarding = false
 previous_tab = "shift+f11"      # Cmd+Shift+[
 next_tab = "shift+f12"          # Cmd+Shift+]
 new_tab = "ctrl+f10"            # Cmd+Opt+T
+close_workspace = "shift+f10"   # Cmd+Opt+W
 previous_workspace = "ctrl+f11" # Cmd+Opt+Up
 next_workspace = "ctrl+f12"     # Cmd+Opt+Down
 
