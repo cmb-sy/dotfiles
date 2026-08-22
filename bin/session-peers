@@ -1,0 +1,41 @@
+#!/bin/bash
+# List the other Claude Code sessions working in this same git working tree.
+#
+# herdr is the source of truth rather than a marker file: it only lists panes
+# that exist, so a crashed session disappears on its own. A marker would need a
+# staleness timeout to clean up after a crash, and that timeout is always wrong
+# -- too short kills a live session's marker, too long keeps warning about a
+# dead one.
+#
+# Prints one "<pane_id>\t<status>" line per peer, nothing when there are none.
+# Only sessions running inside herdr are visible; one started in a plain
+# terminal will not appear.
+
+set -uo pipefail
+
+HERDR_BIN="${HERDR_BIN:-herdr}"
+JQ_BIN="${JQ_BIN:-jq}"
+
+export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+
+command -v "$HERDR_BIN" >/dev/null 2>&1 || exit 0
+command -v "$JQ_BIN" >/dev/null 2>&1 || exit 0
+
+MY_TOP="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+[ -n "$MY_TOP" ] || exit 0
+
+"$HERDR_BIN" pane list 2>/dev/null \
+  | "$JQ_BIN" -r --arg me "${HERDR_PANE_ID:-}" '
+      .result.panes[]?
+      | select(.agent == "claude" and .pane_id != $me)
+      | .pane_id + "\t" + (.agent_status // "unknown") + "\t" + (.cwd // "")' 2>/dev/null \
+  | while IFS=$'\t' read -r pane status cwd; do
+      [ -n "$pane" ] && [ -n "$cwd" ] || continue
+      # Compare working trees, not path strings: a pane in a subdirectory is the
+      # same tree, and a worktree is deliberately a different one.
+      top="$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null)" || continue
+      [ "$top" = "$MY_TOP" ] || continue
+      printf '%s\t%s\n' "$pane" "$status"
+    done
+
+exit 0
