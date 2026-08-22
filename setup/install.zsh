@@ -199,9 +199,9 @@ fi
 # repo can live at any path. Skipped in CI: the runner has no Handy/Ghostty,
 # so the agents would only respawn and fail on a timer.
 #----------------------------------------------------------
-if ! util::is_ci && util::confirm "Install user LaunchAgents (handy-warm, secure-input-watch, voice-quota-watch, discord-relay-flush)?"; then
+if ! util::is_ci && util::confirm "Install user LaunchAgents (handy-warm, secure-input-watch, voice-quota-watch, discord-relay-flush, discord-relay-poll)?"; then
   mkdir -p "$HOME/Library/LaunchAgents"
-  for name in com.snakashima.handy-warm com.snakashima.secure-input-watch com.snakashima.voice-quota-watch com.snakashima.discord-relay-flush; do
+  for name in com.snakashima.handy-warm com.snakashima.secure-input-watch com.snakashima.voice-quota-watch com.snakashima.discord-relay-flush com.snakashima.discord-relay-poll; do
     src="${REPO_DIR}/macos/${name}.plist"
     dest="$HOME/Library/LaunchAgents/${name}.plist"
     if [[ ! -f "${src}" ]]; then
@@ -233,7 +233,10 @@ if [[ ! -f "$DISCORD_ALLOWLIST" ]]; then
   util::info "Created ${DISCORD_ALLOWLIST} (this repo only). One remote URL per line to relay more."
 fi
 util::info "To enable the Discord relay, create a Forum channel and register its webhook:"
-util::info "  security add-generic-password -s claude-discord-webhook -a \"\$USER\" -w \"<WEBHOOK URL>\""
+util::info "  security add-generic-password -s claude-discord-webhook -a \"\$USER\" -U -w"
+util::info "To answer from Discord, create a bot with the MESSAGE_CONTENT intent, invite it, then:"
+util::info "  security add-generic-password -s claude-discord-bot-token -a \"\$USER\" -U -w"
+util::info "  (omit the value after -w: security prompts for it, keeping it out of shell history)"
 
 util::info "Cleanup..."
 brew cleanup 2>/dev/null || true

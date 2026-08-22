@@ -156,3 +156,19 @@ injections() {
   [ "$(injections)" -eq 0 ]
   [ "$(cat "$DISCORD_RELAY_LASTSEEN")" = "$before" ]
 }
+
+@test "plist が 15 秒間隔でポーラを起動する" {
+  p="$REPO_DIR/macos/com.snakashima.discord-relay-poll.plist"
+  run plutil -extract StartInterval raw "$p"
+  [ "$output" = "15" ]
+  n=$(plutil -extract ProgramArguments.0 raw "$p" | grep -cF 'discord-relay-poll') || n=0
+  [ "$n" -eq 1 ]
+}
+
+@test "setup が LaunchAgent とボットトークンを案内する" {
+  f="$REPO_DIR/setup/install.zsh"
+  n=$(grep -cF 'com.snakashima.discord-relay-poll' "$f") || n=0
+  k=$(grep -cF 'claude-discord-bot-token' "$f") || k=0
+  [ "$n" -ge 1 ]
+  [ "$k" -ge 1 ]
+}

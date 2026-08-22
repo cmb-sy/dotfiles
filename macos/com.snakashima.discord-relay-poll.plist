@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Injects replies written in the Discord threads back into their herdr panes.
+  See bin/discord-relay-poll.
+
+  Separate from the outbound flush on purpose: sending and receiving fail for
+  different reasons, and one should not take the other down with it.
+
+  Fifteen seconds, above launchd's 10 second ThrottleInterval floor (see man 5
+  launchd.plist). A reply to an approval prompt does not need to arrive faster
+  than the person typing it.
+
+  Exits immediately when no bot token is registered, so running on a timer costs
+  nothing until the inbound half is configured.
+
+  The program path below is a placeholder; setup/install.zsh substitutes the
+  repo path into it at install time, so the repo can live anywhere.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.snakashima.discord-relay-poll</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>__DOTFILES__/bin/discord-relay-poll</string>
+    </array>
+    <key>StartInterval</key>
+    <integer>15</integer>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/tmp/discord-relay.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/discord-relay.log</string>
+</dict>
+</plist>
