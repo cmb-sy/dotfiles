@@ -1,0 +1,128 @@
+#!/bin/bash
+# Inject replies written in Discord back into the herdr pane they belong to.
+#
+# Whoever can post in that channel is typing into a terminal that runs with
+# bypassPermissions, so only an exact allowlist of choices is ever injected --
+# never free text. A denylist would not hold: prefixes, rewording and encoding
+# get around it, and anything not listed would pass.
+#
+# Reads over REST on a timer rather than holding a gateway socket: the same
+# launchd pattern the outbound flush already uses, and a reply to an approval
+# prompt does not need sub-second delivery.
+
+set -uo pipefail
+
+THREADS="${DISCORD_RELAY_THREADS:-$HOME/.local/state/discord-relay/threads}"
+LASTSEEN="${DISCORD_RELAY_LASTSEEN:-$HOME/.local/state/discord-relay/lastseen}"
+KEYCHAIN_SVC="${DISCORD_RELAY_BOT_KEYCHAIN_SVC:-claude-discord-bot-token}"
+SECURITY_BIN="${SECURITY_BIN:-/usr/bin/security}"
+CURL_BIN="${CURL_BIN:-/usr/bin/curl}"
+HERDR_BIN="${HERDR_BIN:-herdr}"
+JQ_BIN="${JQ_BIN:-jq}"
+API="${DISCORD_API_BASE:-https://discord.com/api/v10}"
+
+export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+
+[ -s "$THREADS" ] || exit 0
+
+# A webhook can only write. Reading needs a bot token, and the token is the
+# whole credential, so it lives in the keychain like the webhook URL does.
+token="$("$SECURITY_BIN" find-generic-password -s "$KEYCHAIN_SVC" -w 2>/dev/null)" || token=""
+[ -n "$token" ] || exit 0
+
+# The only boundary. Exact match after trimming and lowercasing; everything else
+# is dropped without sending a single character.
+resolve() {  # $1 = raw content -> prints "<text>\t<key>", or returns 1
+  local c
+  c="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]' \
+        | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+  case "$c" in
+    [1-9])    printf '%s\tEnter\n' "$c" ;;
+    y|yes)    printf 'yes\tEnter\n' ;;
+    n|no)     printf 'no\tEnter\n' ;;
+    continue) printf 'continue\tEnter\n' ;;
+    esc)      printf '\tEscape\n' ;;
+    *)        return 1 ;;
+  esac
+}
+
+pane_alive() {  # $1 = pane id
+  "$HERDR_BIN" pane list 2>/dev/null \
+    | "$JQ_BIN" -r '.result.panes[]?.pane_id' 2>/dev/null \
+    | grep -qxF "$1"
+}
+
+# Mark what was refused, so a reply that goes nowhere is visible rather than
+# silently ignored.
+react_x() {  # $1 = thread id, $2 = message id
+  "$CURL_BIN" -fsS -X PUT \
+    "$API/channels/$1/messages/$2/reactions/%E2%9D%8C/@me" \
+    -H "Authorization: Bot $token" >/dev/null 2>&1 || true
+}
+
+seen_of() {  # $1 = thread id
+  awk -F'\t' -v t="$1" '$1 == t { print $2; exit }' "$LASTSEEN" 2>/dev/null
+}
+
+set_seen() {  # $1 = thread id, $2 = message id
+  mkdir -p "${LASTSEEN%/*}" 2>/dev/null
+  { grep -v "^$1	" "$LASTSEEN" 2>/dev/null; printf '%s\t%s\n' "$1" "$2"; } \
+    > "$LASTSEEN.tmp" 2>/dev/null && mv "$LASTSEEN.tmp" "$LASTSEEN"
+}
+
+while IFS=$'\t' read -r pane thread; do
+  [ -n "$pane" ] && [ -n "$thread" ] || continue
+  since="$(seen_of "$thread")"
+
+  if [ -z "$since" ]; then
+    # First sight of this thread: record where we are and inject nothing. The
+    # thread already holds the outbound relay's history, and replaying it would
+    # type old answers into a live pane.
+    newest="$("$CURL_BIN" -fsS "$API/channels/$thread/messages?limit=1" \
+      -H "Authorization: Bot $token" 2>/dev/null \
+      | "$JQ_BIN" -r '.[0].id // empty' 2>/dev/null)"
+    [ -n "$newest" ] && set_seen "$thread" "$newest"
+    continue
+  fi
+
+  body="$("$CURL_BIN" -fsS "$API/channels/$thread/messages?after=$since&limit=10" \
+    -H "Authorization: Bot $token" 2>/dev/null)" || continue
+  [ -n "$body" ] || continue
+
+  # Oldest first, so replies are applied in the order they were written.
+  rows="$(printf '%s' "$body" | "$JQ_BIN" -r '
+    [.[] | select((.webhook_id // "") == "" and (.author.bot // false) == false)]
+    | reverse | .[] | .id + "\t" + (.content // "")' 2>/dev/null)"
+
+  newest_seen="$since"
+  while IFS=$'\t' read -r mid content; do
+    [ -n "$mid" ] || continue
+    # Do not lean on the API's `after` alone. Injecting the same reply twice
+    # types it into a live terminal twice, so compare ids here as well.
+    # Snowflakes are decimal and ordered, and fit in a shell integer.
+    case "$mid$since" in
+      *[!0-9]*) : ;;                                  # not numeric, skip the guard
+      *) [ "$mid" -gt "$since" ] || continue ;;
+    esac
+    newest_seen="$mid"
+    if pair="$(resolve "$content")"; then
+      text="${pair%%	*}"
+      key="${pair##*	}"
+      if pane_alive "$pane"; then
+        if [ -n "$text" ]; then
+          "$HERDR_BIN" pane send-text "$pane" "$text" >/dev/null 2>&1
+          sleep 0.3
+        fi
+        "$HERDR_BIN" pane send-keys "$pane" "$key" >/dev/null 2>&1
+      fi
+    else
+      react_x "$thread" "$mid"
+    fi
+  done <<EOF
+$rows
+EOF
+
+  [ "$newest_seen" != "$since" ] && set_seen "$thread" "$newest_seen"
+done < "$THREADS"
+
+exit 0
