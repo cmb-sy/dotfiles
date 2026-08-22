@@ -172,12 +172,15 @@ switches() {
 @test "probe の週境界は watcher と同じ日を指す" {
   seed_db 5 '2026-08-11 09:00:00'
   export VOICE_QUOTA_PROBE_LOG="$BATS_TEST_TMPDIR/probe.log"
-  run bash -c "TYPELESS_DB='$DB' '$REPO_DIR/bin/voice-quota-probe' exhausted"
+  # Pin the clock. Against the real one the seeded row falls out of the window
+  # a week later, and the assertion then compares 0 against 0 and proves nothing.
+  probe_now='2026-08-14 09:00:00'   # Friday of the week holding the seeded row
+  run bash -c "TYPELESS_DB='$DB' VOICE_QUOTA_NOW='$probe_now' '$REPO_DIR/bin/voice-quota-probe' exhausted"
   [ "$status" -eq 0 ]
   # The Monday window must agree with the expression voice-quota-watch uses.
   expected=$(/usr/bin/sqlite3 "$DB" \
     "SELECT COUNT(*) || '|' || ROUND(COALESCE(SUM(duration),0)/60.0,1) FROM history_v2
-     WHERE datetime(replace(replace(created_at,'T',' '),'Z','')) >= datetime('now','weekday 0','-6 days','start of day')")
+     WHERE datetime(replace(replace(created_at,'T',' '),'Z','')) >= datetime('$probe_now','weekday 0','-6 days','start of day')")
   printf '%s' "$output" | grep -qF "$expected"
 }
 
@@ -186,8 +189,27 @@ switches() {
   /usr/bin/sqlite3 "$DB" "ALTER TABLE history_v2 ADD COLUMN status TEXT;"
   /usr/bin/sqlite3 "$DB" "UPDATE history_v2 SET status='completed';"
   export VOICE_QUOTA_PROBE_LOG="$BATS_TEST_TMPDIR/probe.log"
-  run bash -c "TYPELESS_DB='$DB' '$REPO_DIR/bin/voice-quota-probe' exhausted"
-  printf '%s' "$output" | grep -qF 'completed='
+  run bash -c "TYPELESS_DB='$DB' VOICE_QUOTA_NOW='2026-08-14 09:00:00' '$REPO_DIR/bin/voice-quota-probe' exhausted"
+  # Assert the tallied numbers, not just the label: a broken GROUP BY still
+  # prints "completed=".
+  printf '%s' "$output" | grep -qF 'completed=1/5.0'
+}
+
+# The probe reads a fixed clock only when told to. Without this the two tests
+# above would silently pass on a probe that ignores the variable, since the
+# real clock happened to agree with them the week they were written.
+@test "probe の集計窓は VOICE_QUOTA_NOW に従う" {
+  seed_db 5 '2026-08-11 09:00:00'
+  export VOICE_QUOTA_PROBE_LOG="$BATS_TEST_TMPDIR/probe.log"
+
+  run bash -c "TYPELESS_DB='$DB' VOICE_QUOTA_NOW='2026-08-14 09:00:00' '$REPO_DIR/bin/voice-quota-probe' exhausted"
+  inside=$(printf '%s' "$output" | grep -cF 'since Monday   : 1|5.0') || inside=0
+
+  run bash -c "TYPELESS_DB='$DB' VOICE_QUOTA_NOW='2026-08-21 09:00:00' '$REPO_DIR/bin/voice-quota-probe' exhausted"
+  outside=$(printf '%s' "$output" | grep -cF 'since Monday   : 0|0.0') || outside=0
+
+  [ "$inside" -eq 1 ]
+  [ "$outside" -eq 1 ]
 }
 
 # A boundary on the wrong weekday still passes the tests above, as long as it

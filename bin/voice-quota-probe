@@ -42,12 +42,17 @@ window() {  # $1 = sqlite datetime expression
     || echo "(read failed)"
 }
 
-# Same window expressions voice-quota-watch uses. 'weekday N' does nothing when
-# today already is N, so the obvious "weekday 1, -7 days" reads a week early
-# every Monday -- and a measurement taken on a Monday would then record two
-# weeks of usage as the limit.
-WEEK_MON="datetime('now','weekday 0','-6 days','start of day')"
-WEEK_SUN="datetime('now','weekday 6','-6 days','start of day')"
+# Same window expressions voice-quota-watch uses, and the same injectable clock.
+# The clock has to be injectable or the tests rot: they seed rows at fixed dates,
+# and against the real clock those rows leave the window once the week turns, so
+# the assertions go on passing while comparing zero against zero.
+#
+# 'weekday N' does nothing when today already is N, so the obvious
+# "weekday 1, -7 days" reads a week early every Monday -- and a measurement taken
+# on a Monday would then record two weeks of usage as the limit.
+NOW="${VOICE_QUOTA_NOW:-now}"
+WEEK_MON="datetime('$NOW','weekday 0','-6 days','start of day')"
+WEEK_SUN="datetime('$NOW','weekday 6','-6 days','start of day')"
 
 # Typeless marks each dictation completed / dismissed / error. Whether the
 # server counts the failed ones toward the quota is not documented, so record
@@ -65,7 +70,7 @@ by_status() {  # $1 = boundary expression
 snapshot() {  # $1 = event label
   local now rolling7 mon sun split
   now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  rolling7="$(window "datetime('now','-7 days')")"
+  rolling7="$(window "datetime('$NOW','-7 days')")"
   mon="$(window "$WEEK_MON")"
   sun="$(window "$WEEK_SUN")"
   split="$(by_status "$WEEK_MON")"
