@@ -138,10 +138,12 @@ posts() { grep -c . "$BATS_TEST_TMPDIR/posts.url" 2>/dev/null || echo 0; }
   [ "$n" -eq 1 ]
 }
 
+# 切り詰めはフラッシュの性質なので、フックを 400 回起こさずスプールを直接書く。
+# フック経由にすると 1 テストで 1200 プロセスを起動して十数秒かかる。
 @test "2000 文字を超える本文は行単位で切り詰められる" {
   i=0
   while [ "$i" -lt 400 ]; do
-    fire "$ALLOWED" Notification "" "long-line-$i-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    printf 'wB:pD\tNotification\tlong-line-%s-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n' "$i" >> "$DISCORD_RELAY_SPOOL"
     i=$((i + 1))
   done
   stub_bins "https://discord.example/api/webhooks/1/tok"
@@ -191,4 +193,35 @@ posts() { grep -c . "$BATS_TEST_TMPDIR/posts.url" 2>/dev/null || echo 0; }
   HERDR_PANE_ID='wA:pA' fire "$ALLOWED" PostToolUse Read
   run bash "$FLUSH"
   [ "$(posts)" -eq 2 ]
+}
+
+# 配線が無ければフックは一度も呼ばれない。実装があることと配線があることは別。
+@test "settings.json が 3 イベントにフックを配線している" {
+  s="$REPO_DIR/claude/settings.json"
+  run jq -r '[.hooks | to_entries[] | select(any(.value[].hooks[].command; test("discord-relay"))) | .key] | sort | join(",")' "$s"
+  [ "$output" = "Notification,PostToolUse,Stop" ]
+}
+
+@test "Notification の 3 matcher すべてに配線されている" {
+  s="$REPO_DIR/claude/settings.json"
+  run jq -r '[.hooks.Notification[] | select(any(.hooks[].command; test("discord-relay"))) | .matcher] | sort | join(",")' "$s"
+  [ "$output" = "elicitation_dialog,idle_prompt,permission_prompt" ]
+}
+
+@test "plist が 10 秒間隔でフラッシュを起動する" {
+  p="$REPO_DIR/macos/com.snakashima.discord-relay-flush.plist"
+  run plutil -extract StartInterval raw "$p"
+  [ "$output" = "10" ]
+  n=$(plutil -extract ProgramArguments.0 raw "$p" | grep -cF 'discord-relay-flush') || n=0
+  [ "$n" -eq 1 ]
+}
+
+@test "setup が LaunchAgent と allowlist を用意する" {
+  f="$REPO_DIR/setup/install.zsh"
+  n=$(grep -cF 'com.snakashima.discord-relay-flush' "$f") || n=0
+  a=$(grep -cF 'discord-relay/allowlist' "$f") || a=0
+  k=$(grep -cF 'claude-discord-webhook' "$f") || k=0
+  [ "$n" -ge 1 ]
+  [ "$a" -ge 1 ]
+  [ "$k" -ge 1 ]
 }

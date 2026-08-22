@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Sends the events claude/hooks/discord-relay.sh spooled to a Discord Forum
+  channel, one thread per herdr pane. See bin/discord-relay-flush.
+
+  Ten seconds, not five: launchd will not spawn a job more than once every 10
+  seconds by default (ThrottleInterval, see man 5 launchd.plist), so a shorter
+  StartInterval only looks faster. Overriding that policy to save five seconds
+  is not worth doubling the wakeups on battery.
+
+  Exits immediately when the spool is empty or no webhook is registered, so
+  running on a timer costs nothing until the relay is configured.
+
+  The program path below is a placeholder; setup/install.zsh substitutes the
+  repo path into it at install time, so the repo can live anywhere.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.snakashima.discord-relay-flush</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>__DOTFILES__/bin/discord-relay-flush</string>
+    </array>
+    <key>StartInterval</key>
+    <integer>10</integer>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/tmp/discord-relay.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/discord-relay.log</string>
+</dict>
+</plist>

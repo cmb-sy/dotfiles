@@ -199,9 +199,9 @@ fi
 # repo can live at any path. Skipped in CI: the runner has no Handy/Ghostty,
 # so the agents would only respawn and fail on a timer.
 #----------------------------------------------------------
-if ! util::is_ci && util::confirm "Install user LaunchAgents (handy-warm, secure-input-watch)?"; then
+if ! util::is_ci && util::confirm "Install user LaunchAgents (handy-warm, secure-input-watch, voice-quota-watch, discord-relay-flush)?"; then
   mkdir -p "$HOME/Library/LaunchAgents"
-  for name in com.snakashima.handy-warm com.snakashima.secure-input-watch com.snakashima.voice-quota-watch; do
+  for name in com.snakashima.handy-warm com.snakashima.secure-input-watch com.snakashima.voice-quota-watch com.snakashima.discord-relay-flush; do
     src="${REPO_DIR}/macos/${name}.plist"
     dest="$HOME/Library/LaunchAgents/${name}.plist"
     if [[ ! -f "${src}" ]]; then
@@ -217,6 +217,23 @@ if ! util::is_ci && util::confirm "Install user LaunchAgents (handy-warm, secure
     fi
   done
 fi
+
+#----------------------------------------------------------
+# Discord relay allowlist
+#
+# Deny by default: the relay posts file paths, commands and tool arguments, so a
+# repository absent from this file produces nothing at all. The file lives
+# outside the repo on purpose -- adding a work remote to a tracked file would
+# publish its name in a public repo.
+#----------------------------------------------------------
+DISCORD_ALLOWLIST="$HOME/.config/discord-relay/allowlist"
+if [[ ! -f "$DISCORD_ALLOWLIST" ]]; then
+  mkdir -p "${DISCORD_ALLOWLIST:h}"
+  print 'https://github.com/cmb-sy/dotfiles.git' > "$DISCORD_ALLOWLIST"
+  util::info "Created ${DISCORD_ALLOWLIST} (this repo only). One remote URL per line to relay more."
+fi
+util::info "To enable the Discord relay, create a Forum channel and register its webhook:"
+util::info "  security add-generic-password -s claude-discord-webhook -a \"\$USER\" -w \"<WEBHOOK URL>\""
 
 util::info "Cleanup..."
 brew cleanup 2>/dev/null || true

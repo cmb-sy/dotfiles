@@ -184,6 +184,10 @@
           {
             "type": "command",
             "command": "\"${HOME}/.claude/hooks/notify.sh\" 'Task completed'"
+          },
+          {
+            "type": "command",
+            "command": "\"${HOME}/.claude/hooks/discord-relay.sh\" 'Task completed'"
           }
         ]
       },
@@ -193,6 +197,10 @@
           {
             "type": "command",
             "command": "\"${HOME}/.claude/hooks/notify.sh\" 'Waiting for approval'"
+          },
+          {
+            "type": "command",
+            "command": "\"${HOME}/.claude/hooks/discord-relay.sh\" 'Waiting for approval'"
           }
         ]
       },
@@ -202,6 +210,10 @@
           {
             "type": "command",
             "command": "\"${HOME}/.claude/hooks/notify.sh\" 'Waiting for your answer'"
+          },
+          {
+            "type": "command",
+            "command": "\"${HOME}/.claude/hooks/discord-relay.sh\" 'Waiting for your answer'"
           }
         ]
       }
@@ -214,6 +226,15 @@
             "type": "command",
             "command": "if jq -r '.tool_input.command // empty' 2>/dev/null | grep -qE 'git commit'; then \"${HOME}/.claude/hooks/post-commit.sh\"; fi",
             "timeout": 30
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${HOME}/.claude/hooks/discord-relay.sh\""
           }
         ]
       }
@@ -269,6 +290,10 @@
             "command": "\"${HOME}/.claude/hooks/stop.sh\"",
             "timeout": 30,
             "async": true
+          },
+          {
+            "type": "command",
+            "command": "\"${HOME}/.claude/hooks/discord-relay.sh\""
           }
         ]
       }
