@@ -214,10 +214,24 @@ posts() { grep -c . "$BATS_TEST_TMPDIR/posts.url" 2>/dev/null || echo 0; }
 }
 
 # 配線が無ければフックは一度も呼ばれない。実装があることと配線があることは別。
-@test "settings.json が 3 イベントにフックを配線している" {
+@test "settings.json が Notification と Stop にフックを配線している" {
   s="$REPO_DIR/claude/settings.json"
   run jq -r '[.hooks | to_entries[] | select(any(.value[].hooks[].command; test("discord-relay"))) | .key] | sort | join(",")' "$s"
-  [ "$output" = "Notification,PostToolUse,Stop" ]
+  [ "$output" = "Notification,Stop" ]
+}
+
+# PostToolUse を配線しないのは意図的な選択で、書き忘れではない。実測すると 10 秒間隔の
+# フラッシュでも約 6 分で 8 通に達し、肝心の承認待ち通知がツール実況に埋もれた。遠隔から
+# 必要なのは「止まったかどうか」であって逐次のツール実行ではない。
+#
+# 戻したくなったら matcher "*" のエントリを 1 つ足すだけでよい。フラッシュ側の集約
+# （Bash x2 に畳む処理）は残してあるので実装変更は要らない。
+#
+# 副次的な利点として、毎ツール呼び出しごとのプロセス起動がゼロになる。
+@test "PostToolUse には配線しない" {
+  s="$REPO_DIR/claude/settings.json"
+  n=$(jq -r '[.hooks.PostToolUse[]?.hooks[]?.command | select(test("discord-relay"))] | length' "$s")
+  [ "$n" -eq 0 ]
 }
 
 @test "Notification の 3 matcher すべてに配線されている" {
