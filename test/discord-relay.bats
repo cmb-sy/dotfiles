@@ -115,6 +115,24 @@ posts() { grep -c . "$BATS_TEST_TMPDIR/posts.url" 2>/dev/null || echo 0; }
   [ "$(posts)" -eq 0 ]
 }
 
+# allowlist を設定してから webhook を登録するまでの間、スプールを排出する者がいない。
+# フックは Keychain を見られない（ツール実行のたびに security を起動することになる）ので、
+# 上限はタイマーが既に回っているフラッシュ側で掛ける。
+@test "webhook 未登録でもスプールは上限を超えて育たない" {
+  i=0
+  while [ "$i" -lt 1200 ]; do
+    printf 'wB:pD\tPostToolUse\tBash\n' >> "$DISCORD_RELAY_SPOOL"
+    i=$((i + 1))
+  done
+  stub_bins ""
+  run bash "$FLUSH"
+  [ "$status" -eq 0 ]
+  n=$(spool_lines)
+  [ "$n" -le 1000 ]
+  # 直近が残ること（先頭を捨てて末尾を残す）
+  [ "$n" -gt 0 ]
+}
+
 @test "PostToolUse は 1 通に畳まれ、ツール名と件数が出る" {
   fire "$ALLOWED" PostToolUse Bash
   fire "$ALLOWED" PostToolUse Bash

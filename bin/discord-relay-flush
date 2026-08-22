@@ -16,6 +16,7 @@ SECURITY_BIN="${SECURITY_BIN:-/usr/bin/security}"
 CURL_BIN="${CURL_BIN:-/usr/bin/curl}"
 JQ_BIN="${JQ_BIN:-jq}"
 LIMIT=2000
+MAX_UNSENT=1000
 
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 
@@ -25,7 +26,19 @@ export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 # bin/voice-switch. Leave the spool alone when none is registered, so nothing is
 # lost if one is added later.
 url="$("$SECURITY_BIN" find-generic-password -s "$KEYCHAIN_SVC" -w 2>/dev/null)" || url=""
-[ -n "$url" ] || exit 0
+if [ -z "$url" ]; then
+  # Nothing will drain the spool until a webhook exists, and the hook cannot
+  # check the keychain itself -- that would spawn `security` on every tool call.
+  # So the cap lives here, where the timer already runs. Keep the newest lines:
+  # they are the ones worth sending once a webhook is registered.
+  lines="$(wc -l < "$SPOOL" 2>/dev/null)" || lines=0
+  lines="${lines//[^0-9]/}"
+  if [ "${lines:-0}" -gt "$MAX_UNSENT" ]; then
+    tail -n "$MAX_UNSENT" "$SPOOL" > "$SPOOL.trim" 2>/dev/null \
+      && mv "$SPOOL.trim" "$SPOOL" 2>/dev/null
+  fi
+  exit 0
+fi
 
 # Move the spool aside rather than truncating it. A truncate drops whatever the
 # hook appended between the read and the truncate.
