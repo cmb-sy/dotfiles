@@ -107,14 +107,25 @@ def check_phone(text: str) -> list[str]:
     # Japanese mobile: 11 digits without separator
     elif re.search(r"\b0[789]0\d{8}\b", text):
         findings.append("Mobile phone number (0X0XXXXXXXX)")
-    # Landline with hyphens — exclude mobile prefixes (070/080/090)
-    for m in re.finditer(r"\b(0\d{1,4})-(\d{1,4})-(\d{4})\b", text):
-        prefix = m.group(1)
-        if re.match(r"^0[789]0$", prefix):
-            continue  # already caught by mobile check
-        if len(prefix) >= 2 and prefix != "00":
-            findings.append("Landline phone number (0XX-XXXX-XXXX)")
-            break
+    # Landline detection is off by user decision.
+    #
+    # The shape it looked for is also the tail of a YYYY-MM-DD-HHMM timestamp:
+    # a zero-led month, the day, and the four-digit time read as
+    # area-exchange-subscriber, so every filename distill-project writes tripped
+    # the guard. Mobile numbers are still detected below -- they carry a fixed
+    # 070/080/090 prefix and cannot collide with a month.
+    #
+    # A narrower fix exists if this is ever turned back on: a (?<!\d-) lookbehind
+    # rejects a match that is the tail of a longer hyphenated run, which drops
+    # the timestamp collision while keeping real numbers.
+    #
+    # for m in re.finditer(r"\b(0\d{1,4})-(\d{1,4})-(\d{4})\b", text):
+    #     prefix = m.group(1)
+    #     if re.match(r"^0[789]0$", prefix):
+    #         continue  # already caught by mobile check
+    #     if len(prefix) >= 2 and prefix != "00":
+    #         findings.append("Landline phone number (0XX-XXXX-XXXX)")
+    #         break
     return findings
 
 

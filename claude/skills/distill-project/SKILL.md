@@ -286,10 +286,16 @@ session: <CLAUDE_CODE_SESSION_ID の値>
 ```
 
 > [!WARNING] 子セッションでは記録しない
-> `CLAUDE_CODE_CHILD_SESSION=1` のとき、`CLAUDE_CODE_SESSION_ID` は親と別の値に
-> なる。サブエージェントの中から記録すると、親の記録と分離した別ファイルが
-> できる。**子セッションでは記録せず、親に戻ってから実行する。**
-> 判定: `[ -n "$CLAUDE_CODE_CHILD_SESSION" ]` なら、その旨を伝えて中断する。
+> サブエージェントの中から記録すると、`CLAUDE_CODE_SESSION_ID` が親と別の値に
+> なるため、親の記録と分離した別ファイルができる。**子セッションでは記録せず、
+> 親に戻ってから実行する。**
+>
+> 判定に `CLAUDE_CODE_CHILD_SESSION` を使わないこと。**この変数は対話セッション
+> 本体でも 1 になる**ため、これで止めると本体でも記録できない。
+>
+> 代わりに **herdr がそのペインに登録しているセッション ID と突き合わせる**。
+> 本体なら一致し、サブエージェントなら食い違う。判定したい性質（親子の分離が
+> 起きるか）を直接見ているので、変数の意味に依存しない。
 
 ### セッションが閉じて、別の会話で作業を続けた場合
 
@@ -329,7 +335,15 @@ VAULT="$HOME/develop/obsidian/99_distill"
 
 ```bash
 SID="$CLAUDE_CODE_SESSION_ID"
-[ -n "$CLAUDE_CODE_CHILD_SESSION" ] && echo "子セッションでは記録しない" >&2
+
+# 子セッション判定。herdr がこのペインに登録しているセッション ID と比べる。
+# CLAUDE_CODE_CHILD_SESSION は本体でも 1 になるので使わない。
+PANE_SID=$(herdr pane list 2>/dev/null | jq -r --arg me "$HERDR_PANE_ID" \
+  '.result.panes[] | select(.pane_id == $me) | .agent_session.value // ""')
+if [ -n "$PANE_SID" ] && [ "$PANE_SID" != "$SID" ]; then
+  echo "子セッションでは記録しない（pane=$PANE_SID / self=$SID）" >&2
+  exit 0
+fi
 
 # 同じセッションの既存記録を探す（詳細は「生成単位」の判定の節）
 DEST="$VAULT/プロジェクト/$REPO/$BRANCH"
