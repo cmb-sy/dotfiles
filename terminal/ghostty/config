@@ -2,50 +2,20 @@
 
 # ---------------------------------------------------------------------------
 # Theme
-# NOTE: 下の固定 background/foreground/palette と window-theme = dark が
-# theme の light/dark 自動切替を実質上書きしている (light 側はほぼ発現しない)。
-# 固定色をやめて自動切替に戻す場合は、下の Vivid colors セクションごと削除すること。
+# Colours come from the theme. Nothing below overrides background, foreground
+# or the ANSI palette, so the light/dark pair actually switches with the system.
 # ---------------------------------------------------------------------------
 theme = light:Catppuccin Latte,dark:Catppuccin Mocha
 
 # ---------------------------------------------------------------------------
-# Vivid colors
+# Legibility
+# These are not colours -- they survive a theme change.
 # ---------------------------------------------------------------------------
-background = #1E1233
-foreground = #F0F6FF
-
-# Faint circuit traces behind the text. The file is mostly transparent (under
-# 4% of pixels carry ink, at about a tenth opacity), so it lifts the flat
-# background rather than competing with anything on top of it. Regenerate or
-# retune with terminal/ghostty/make-background.py; drop these three lines to
-# go back to a plain background.
-background-image = ~/.config/ghostty/background.png
-background-image-fit = cover
-background-image-repeat = false
-# One knob for the whole image. The file peaks at 69/255 alpha, so 1.0 is
-# already restrained; lower this to fade it further rather than regenerating.
-background-image-opacity = 1.0
-cursor-color = #8FDBFF
 # Steady, not blinking: on a highlighted row in a TUI (lazygit's selected
 # line) a blinking block reads as the text itself flickering.
 cursor-style-blink = false
-cursor-text = #0B1020
-selection-foreground = #0B1020
+# Floor on text-against-cell contrast, whatever the theme picks.
 minimum-contrast = 1.2
-
-# ANSI palette (vivid overrides for dark purple background)
-palette = 1=#FF5C8A
-palette = 2=#5CFFB4
-palette = 3=#FFD45C
-palette = 4=#5CC8FF
-palette = 5=#C18CFF
-palette = 6=#5CFFF2
-palette = 9=#FF8FAF
-palette = 10=#8FFFD4
-palette = 11=#FFE08F
-palette = 12=#8FDBFF
-palette = 13=#D6B3FF
-palette = 14=#8FFFF8
 
 # ---------------------------------------------------------------------------
 # Font
@@ -109,7 +79,7 @@ window-padding-balance = true
 window-padding-color = extend
 fullscreen = false
 macos-titlebar-style = tabs
-window-theme = dark
+window-theme = auto
 window-title-font-family = Monaspace Neon
 # When you toggle fullscreen manually: non-native + menu visible (tabs + non-native have caveats in Ghostty docs).
 macos-non-native-fullscreen = visible-menu
