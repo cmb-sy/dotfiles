@@ -81,11 +81,7 @@ skill の新規作成・編集時に適用する。`writing-skills` 等のスキ
     1. commit しない（そのまま）
     2. commit, push する
     3. 今後も commit, push を自動で実施する
-  - **3択を提示する直前に、lazygit で該当変更を確認できる状態を作ること**:
-    1. tmux が使えるなら (`tmux list-sessions` が成功) `tmux new-window -n lazygit "lazygit -p '<作業ディレクトリ>'"` で新しいウィンドウに開く
-    2. だめなら `osascript -e 'tell app "Terminal" to do script "lazygit -p \"<作業ディレクトリ>\""' -e 'tell app "Terminal" to activate'` で Terminal に開く
-    3. どちらも失敗したら、実行用コマンド `lazygit -p '<作業ディレクトリ>'` をコードブロックで提示する
-    いずれの場合も、見るべきファイル (新規/変更の別と件数) を 1〜2 行添えること。worktree では必ず `-p` で worktree のパスを指定する (リポジトリ本体を開くと差分が見えない)
+  - 3択を提示する直前に、変更を確認するコマンド `lazygit -p '<作業ディレクトリ>'` をコードブロックで提示すること。自分で開かない。見るべきファイル (新規/変更の別と件数) を 1〜2 行添える。worktree では `-p` に worktree のパスを渡す (リポジトリ本体を開くと差分が見えない)
   - 選択肢3が選ばれたら、今回分の commit, push を実行したうえで、本節に「自動 commit/push: 有効」の1行を追記すること
   - 本節に「自動 commit/push: 有効」の記載がある場合: 3択を提示せず、ひとまとまりの編集が完了し次第 commit, push を自動実行すること
 
