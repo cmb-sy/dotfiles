@@ -97,17 +97,19 @@ print('OK' if '下限' in sec and '上限' in sec and re.search(r'\d+ 行', sec)
 }
 
 @test "図表を既定にする指針が SKILL.md にある" {
-    # Without a trigger list the rule degrades to "use them when obvious", which
-    # is where it started.
-    run grep -cF '既定を図表側に置く' "$SKILL"
+    # Without a mapping the rule degrades to "use them when obvious", which is
+    # where it started. Each structure must name the part that draws it,
+    # otherwise the answer is a table again.
+    run grep -cF '構造は図が既定' "$SKILL"
     [ "$status" -eq 0 ]
-    # The trigger table must actually list cases, not just state the principle.
     run python3 -c "
 import re
 s = open('$SKILL', encoding='utf-8').read()
-sec = re.search(r'既定を図表側に置く.*?(?=\n情報の型)', s, re.S)
-rows = len(re.findall(r'^\| .+ \| .+ \|$', sec.group(0), re.M)) if sec else 0
-print('OK' if rows >= 6 else f'{rows} rows')
+sec = re.search(r'構造は図が既定.*?(?=\n図に向かない情報)', s, re.S)
+body = sec.group(0) if sec else ''
+rows = len(re.findall(r'^\| .+ \| .+ \|$', body, re.M))
+parts = [p for p in ('.fan', '.stack', '.group', 'inline SVG') if p in body]
+print('OK' if rows >= 6 and len(parts) == 4 else f'{rows} rows, parts={parts}')
 "
     [ "$output" = "OK" ]
 }

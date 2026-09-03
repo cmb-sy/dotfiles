@@ -400,3 +400,62 @@ print(','.join(bad) if bad else 'OK')
 @test "dark テーマの文字コントラストも WCAG を満たす（トグル）" {
     check_theme_contrast dark
 }
+
+# --- 図の部品 ---
+#
+# 「もっと図を」は部品が無ければ実現しない。連鎖しか描けなければ、分岐も階層も
+# 囲みも表で代用され続ける。検査は宣言（セレクタ）に当てる。コメントにも部品名が
+# 出てくるため、素の grep では説明文に当たって通ってしまう。
+
+@test "分岐と集約の部品がある（1 対 N / N 対 1）" {
+    grep -qF '.flow .fan {' "$TPL"
+    # 行き先側と集約先側、両方に矢印が要る。片方だけだと線が欠ける。
+    run python3 -c "
+import re
+s = open('$TPL', encoding='utf-8').read()
+need = ['.flow .fan > .step::after', '.flow .fan + .step::after']
+print('OK' if all(n in s for n in need) else [n for n in need if n not in s])
+"
+    [ "$output" = "OK" ]
+}
+
+@test "階層の部品があり、決まる側を示せる" {
+    grep -qF '.stack .layer {' "$TPL"
+    # wins が無いと、どちら向きに解決するのか読者に伝わらない。
+    grep -qF '.stack .layer.wins {' "$TPL"
+}
+
+@test "囲みの部品があり、ラベルを境界に置ける" {
+    grep -qF '.group {' "$TPL"
+    grep -qF '.group::before {' "$TPL"
+    # ラベルは data-label から取る（本文を書き換えずに名前を変えられる）
+    run grep -cF 'content: attr(data-label);' "$TPL"
+    [ "$output" -ge 1 ]
+}
+
+@test "条件は辺ではなく箱の中に置く部品がある" {
+    grep -qF '.flow .step i {' "$TPL"
+}
+
+@test "SVG が塗りと線の両方を持つ部品を用意している" {
+    # .stroke は fill: none を立てるので、塗った図形には使えない。
+    grep -qF 'svg .node {' "$TPL"
+    grep -qF 'svg .edge {' "$TPL"
+}
+
+@test "SVG にリテラルの色を書いていない（テーマ追従が壊れる）" {
+    n=$(grep -cE '(fill|stroke)="(#|rgb|red|blue|green|black|white)' "$TPL") || n=0
+    if [ "$n" -ne 0 ]; then grep -nE '(fill|stroke)="(#|rgb|red|blue|green|black|white)' "$TPL"; fi
+    [ "$n" -eq 0 ]
+}
+
+@test "本文に各部品の書式見本が置かれている" {
+    run python3 -c "
+import re
+s = open('$TPL', encoding='utf-8').read()
+body = s[s.index('<div class=\"wrap\"'):]
+need = ['class=\"fan\"', 'class=\"stack\"', 'class=\"group\"', '<svg ']
+print('OK' if all(n in body for n in need) else [n for n in need if n not in body])
+"
+    [ "$output" = "OK" ]
+}

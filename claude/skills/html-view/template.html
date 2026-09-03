@@ -420,13 +420,98 @@
   .flow .step.pending { border-left: 3px solid var(--sev-mid); }
   .flow .step.done    { border-left: 3px solid var(--sev-low); }
   .flow .label { font-family: var(--mono); font-size: .72rem; color: var(--faint); }
+  /* A condition carried inside the box it leads to. A label floating in the
+     gap collides with its neighbours the moment the flow wraps, so the edge
+     never holds text -- the target does. */
+  .flow .step i {
+    display: block;
+    font-style: normal;
+    font-family: var(--mono);
+    font-size: .72rem;
+    color: var(--faint);
+  }
 
-  /* Inline SVG is the escape hatch for a diagram the boxes cannot express.
-     Drive its colours from the tokens so it follows the theme. */
+  /* ---- Fan: one box feeding several, or several feeding one ----
+     A chain cannot say "the parent drives ten of these". Each target keeps its
+     own arrow, so the split needs no drawing surface and cannot come apart
+     when the row wraps. */
+  .flow .fan { display: flex; flex-direction: column; gap: .5rem; }
+  .flow .fan > .step::after,
+  .flow .fan + .step::after {
+    content: "\2192";
+    position: absolute;
+    left: -1.35rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-family: var(--mono);
+    color: var(--faint);
+  }
+
+  /* ---- Stack: layers that resolve in one direction ----
+     Precedence and tiers. Rows share their borders so the group reads as one
+     stack rather than a list, and .wins marks the end that decides -- a stack
+     drawn without it leaves the reader guessing which way it resolves. */
+  .stack { display: flex; flex-direction: column; border: 1px solid var(--rule); }
+  .stack .layer {
+    display: grid;
+    grid-template-columns: 9rem minmax(0, 1fr);
+    gap: 1rem;
+    padding: .55rem .9rem;
+    background: var(--sunken);
+    border-bottom: 1px solid var(--rule-soft);
+  }
+  .stack .layer:last-child { border-bottom: 0; }
+  .stack .layer b {
+    font-family: var(--mono);
+    font-size: .9rem;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .stack .layer span { color: var(--dim); font-size: 1rem; }
+  .stack .layer.wins { border-left: 3px solid var(--sev-low); }
+  @media (max-width: 60rem) {
+    .stack .layer { grid-template-columns: 1fr; gap: .1rem; }
+  }
+
+  /* ---- Group: a labelled boundary around boxes ----
+     For what contains what -- a repository, an account, a machine. The label
+     sits on the border and punches the ground through it, so the box reads as
+     an enclosure and not as another step. */
+  .group {
+    position: relative;
+    border: 1px dashed var(--rule);
+    padding: 1.5rem .9rem .9rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .6rem 1.9rem;
+  }
+  .group::before {
+    content: attr(data-label);
+    position: absolute;
+    top: 0;
+    left: .9rem;
+    transform: translateY(-50%);
+    background: var(--ground);
+    padding: 0 .4rem;
+    font-family: var(--mono);
+    font-size: .72rem;
+    letter-spacing: .12em;
+    color: var(--faint);
+  }
+
+  /* Inline SVG is the escape hatch for a diagram the boxes cannot express --
+     anything whose shape needs real coordinates, a mesh above all. Drive every
+     colour from the tokens so it follows the theme; a literal hex here is
+     invisible in one of the two. */
   svg { max-width: 100%; height: auto; }
   svg text { font-family: var(--sans); font-size: 13px; fill: var(--ink); }
   svg .stroke { stroke: var(--rule); fill: none; }
   svg .fill { fill: var(--sunken); }
+  /* A filled outline needs both, and .stroke alone sets fill: none. */
+  svg .node { fill: var(--sunken); stroke: var(--rule); }
+  svg .edge { stroke: var(--rule); fill: none; }
+  svg .accent { stroke: var(--accent); fill: none; }
 
   footer {
     font-family: var(--mono);
@@ -558,13 +643,82 @@
       </table>
     </div>
 
+    <!-- 図の書式見本。構造ごとに使うものが違う。SKILL.md の対応表に従う。 -->
+
     <figure>
-      <figcaption>図の説明</figcaption>
+      <figcaption>連鎖 — 順序・依存</figcaption>
       <div class="flow">
         <span class="step done">完了した工程</span>
         <span class="step blocked">止まっている工程</span>
         <span class="step pending">待ちの工程</span>
       </div>
+    </figure>
+
+    <figure>
+      <figcaption>分岐 — 1 対 N。条件は行き先の箱に入れる</figcaption>
+      <div class="flow">
+        <span class="step">判定</span>
+        <div class="fan">
+          <span class="step done"><i>上限内なら</i>そのまま続ける</span>
+          <span class="step pending"><i>上限に近いなら</i>切り替える</span>
+        </div>
+      </div>
+    </figure>
+
+    <figure>
+      <figcaption>集約 — N 対 1</figcaption>
+      <div class="flow">
+        <div class="fan">
+          <span class="step">入力 A</span>
+          <span class="step">入力 B</span>
+        </div>
+        <span class="step">まとめる先</span>
+      </div>
+    </figure>
+
+    <figure>
+      <figcaption>階層 — 上が勝つ</figcaption>
+      <div class="stack">
+        <div class="layer wins"><b>最優先</b><span>ここで決まると下は見ない</span></div>
+        <div class="layer"><b>中間</b><span>上が無いときに効く</span></div>
+        <div class="layer"><b>既定</b><span>どこにも指定が無いとき</span></div>
+      </div>
+    </figure>
+
+    <figure>
+      <figcaption>囲み — 何が何の内側か</figcaption>
+      <div class="flow">
+        <div class="group" data-label="境界の名前">
+          <span class="step">内側の要素</span>
+          <span class="step">内側の要素</span>
+        </div>
+        <span class="step">外側</span>
+      </div>
+    </figure>
+
+    <!-- 座標が必要な図は SVG。網目型は箱では描けない代表例。
+         色は必ずトークン由来のクラスで付ける（リテラルの hex は片方のテーマで消える）。 -->
+    <figure>
+      <figcaption>網目 — 4 要素で経路 6 本</figcaption>
+      <svg viewBox="0 0 300 180" role="img"
+           aria-label="4 つの要素が互いに直接つながる網目型。経路は 6 本">
+        <g class="edge">
+          <line x1="55" y1="45" x2="245" y2="45"/>
+          <line x1="55" y1="135" x2="245" y2="135"/>
+          <line x1="55" y1="45" x2="55" y2="135"/>
+          <line x1="245" y1="45" x2="245" y2="135"/>
+          <line x1="55" y1="45" x2="245" y2="135"/>
+          <line x1="245" y1="45" x2="55" y2="135"/>
+        </g>
+        <circle class="node" cx="55" cy="45" r="20"/>
+        <circle class="node" cx="245" cy="45" r="20"/>
+        <circle class="node" cx="55" cy="135" r="20"/>
+        <circle class="node" cx="245" cy="135" r="20"/>
+        <text x="55" y="50" text-anchor="middle">A</text>
+        <text x="245" y="50" text-anchor="middle">B</text>
+        <text x="55" y="140" text-anchor="middle">C</text>
+        <text x="245" y="140" text-anchor="middle">D</text>
+      </svg>
     </figure>
   </section>
 
