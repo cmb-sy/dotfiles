@@ -2,28 +2,52 @@
 
 <style>
   /* ------------------------------------------------------------------ *
-   * Design tokens -- blue-based dark, tuned for long reading
+   * Design tokens -- light by default, tuned for long reading
    *
-   * Dark is the default here and prefers-color-scheme is deliberately not
-   * consulted: the theme is a decision, not something to inherit. Light
-   * remains on the viewer's explicit toggle.
+   * prefers-color-scheme is deliberately not consulted: the theme is a
+   * decision, not something to inherit. Dark stays reachable through
+   * data-theme="dark" on the root element.
    *
    * Three choices exist to reduce strain, and each looks like a mistake
    * without the reason:
    *
-   *   1. Text is off-white, never #fff, and the ground is never #000 or
-   *      #fff either. Pure black on pure white is 21:1, and that much
+   *   1. Text is off-black, never #000, and the ground is never #fff or
+   *      #000 either. Pure black on pure white is 21:1, and that much
    *      contrast makes glyphs bloom and leave afterimages. Body text is
    *      held inside 10-13:1 -- well past AAA (7:1), short of the range
    *      that strains -- in both themes.
    *   2. The ground carries the blue, the text does not. Blue focuses less
-   *      precisely than red or green (chromatic aberration), so a blue-heavy
-   *      *emitting* surface makes the eye hunt; a dark blue ground emits
-   *      little, while near-neutral text stays easy to resolve.
+   *      precisely than red or green (chromatic aberration), so text stays
+   *      near-neutral while the tint lives in the surfaces behind it.
    *   3. Secondary text sits one step below primary, not three. Washed-out
    *      supporting text is the usual reason a page reads as faint.
    * ------------------------------------------------------------------ */
   :root {
+    --ground:    #f7f8fc;
+    --raised:    #e2e7f4;
+    --hover:     #edf0f8;
+    --sunken:    #f1f3fa;
+    --rule:      #c9d0e2;
+    --rule-soft: #dee3ef;
+    --ink:       #2a3140;   /* ~12:1, for the same reason as the dark side */
+    --dim:       #3b4356;
+    --faint:     #5a6273;
+    --accent:    #2b53b8;
+    --sev-high:  #b81f42;
+    --sev-mid:   #7d5600;
+    --sev-low:   #106b4c;
+
+    --tok-comment: #5c6780;
+    --tok-string:  #106b4c;
+    --tok-keyword: #6b3fd0;
+    --tok-number:  #9a5000;
+    --tok-name:    #1e5aa8;
+    --tok-type:    #7a5a00;
+    --tok-punct:   #4a5468;
+    --sans: "Hiragino Sans", "Yu Gothic", -apple-system, sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+  }
+  :root[data-theme="dark"] {
     --ground:    #161d2f;
     --raised:    #212c48;   /* the opened body, lifted enough to read as a surface */
     --hover:     #1d2540;   /* a closed row under the pointer, below the panel */
@@ -49,31 +73,6 @@
     --tok-type:    #f2d98a;
     --tok-punct:   #9aa7c2;
 
-    --sans: "Hiragino Sans", "Yu Gothic", -apple-system, sans-serif;
-    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
-  }
-  :root[data-theme="light"] {
-    --ground:    #f7f8fc;
-    --raised:    #e2e7f4;
-    --hover:     #edf0f8;
-    --sunken:    #f1f3fa;
-    --rule:      #c9d0e2;
-    --rule-soft: #dee3ef;
-    --ink:       #2a3140;   /* ~12:1, for the same reason as the dark side */
-    --dim:       #3b4356;
-    --faint:     #5a6273;
-    --accent:    #2b53b8;
-    --sev-high:  #b81f42;
-    --sev-mid:   #7d5600;
-    --sev-low:   #106b4c;
-
-    --tok-comment: #5c6780;
-    --tok-string:  #106b4c;
-    --tok-keyword: #6b3fd0;
-    --tok-number:  #9a5000;
-    --tok-name:    #1e5aa8;
-    --tok-type:    #7a5a00;
-    --tok-punct:   #4a5468;
   }
 
   body {
@@ -101,7 +100,7 @@
   /* Code must break exactly where it is written, never by phrase. */
   pre, code { word-break: normal; line-break: auto; }
   .wrap {
-    max-width: 76rem;
+    max-width: 50rem;
     margin: 0 auto;
     padding: 3.5rem 2.5rem 6rem;
     display: flex;

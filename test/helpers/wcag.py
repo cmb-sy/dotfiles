@@ -7,8 +7,9 @@ puts this directory on PYTHONPATH.
 import re
 
 _BLOCKS = {
-    "dark": r":root\s*\{(.*?)\n  \}",
-    "light": r":root\[data-theme=\"light\"\]\s*\{(.*?)\n  \}",
+    # Light is the default block; dark is the opt-in attribute selector.
+    "light": r":root\s*\{(.*?)\n  \}",
+    "dark": r":root\[data-theme=\"dark\"\]\s*\{(.*?)\n  \}",
 }
 
 

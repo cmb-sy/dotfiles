@@ -13,15 +13,16 @@ TPL="$REPO_DIR/claude/skills/html-view/template.html"
 }
 
 @test "OS のテーマに追従しない（prefers-color-scheme の media query がない）" {
-    # The machine runs the OS in dark mode; following it serves a dark page no
-    # matter how far the ground is lifted. Only the at-rule is forbidden -- the
-    # comment explaining the decision names it too, and that is not a defect.
+    # The machine runs the OS in dark mode, and the page is meant to be light
+    # regardless: inheriting would hand it back the ground it was moved off.
+    # Only the at-rule is forbidden -- the comment explaining the decision
+    # names it too, and that is not a defect.
     [ "$(grep -cE '@media[^{]*prefers-color-scheme' "$TPL")" -eq 0 ]
 }
 
-@test "ライトは data-theme のトグルで用意されている" {
-    # Dark is the default; light stays reachable but is not inherited from the OS.
-    run grep -cF ':root[data-theme="light"]' "$TPL"
+@test "ダークは data-theme のトグルで用意されている" {
+    # Light is the default; dark stays reachable but is not inherited from the OS.
+    run grep -cF ':root[data-theme="dark"]' "$TPL"
     [ "$status" -eq 0 ]
     [ "$output" -ge 1 ]
 }
@@ -30,7 +31,7 @@ TPL="$REPO_DIR/claude/skills/html-view/template.html"
     run python3 -c "
 import re, sys
 s = open('$TPL', encoding='utf-8').read()
-blocks = re.findall(r':root(?:\[data-theme=\"light\"\])?\s*\{(.*?)\}', s, re.S)
+blocks = re.findall(r':root(?:\[data-theme=\"dark\"\])?\s*\{(.*?)\}', s, re.S)
 sets = [set(re.findall(r'(--[a-z-]+)\s*:', b)) for b in blocks[:2]]
 light, dark = sets[0], sets[1]
 missing = (light - {'--serif', '--sans', '--mono'}) - dark
@@ -75,10 +76,20 @@ print(','.join(bad) if bad else 'OK')
 @test "地色が純白でも純黒でもない" {
     # Pure white is the brightest the display can emit; pure black maximises the
     # ratio against any text on it. Both ends are where halation lives.
+    #
+    # 0.95 sits between the light ground (0.9394) and #fafafa (0.9560): far
+    # enough to leave the ground room to breathe, close enough that anything
+    # reading as white is rejected. Checked in both themes -- guarding only one
+    # let the default ground go to #fff unnoticed.
     run python3 -c "
 import wcag
-g = wcag.tokens(open('$TPL', encoding='utf-8').read(), 'dark')['--ground']
-print('OK' if 0.002 <= wcag.lum(g) <= 0.92 else f'{wcag.lum(g)*100:.2f}%')
+s = open('$TPL', encoding='utf-8').read()
+bad = []
+for theme in ('light', 'dark'):
+    g = wcag.tokens(s, theme)['--ground']
+    if not 0.002 <= wcag.lum(g) <= 0.95:
+        bad.append(f'{theme}={wcag.lum(g)*100:.2f}%')
+print(','.join(bad) if bad else 'OK')
 "
     [ "$status" -eq 0 ]
     [ "$output" = "OK" ]
@@ -107,12 +118,12 @@ print(','.join(bad) if bad else 'OK')
     [ "$(grep -cE 'transition:|animation:' "$TPL")" -eq 0 ]
 }
 
-@test "ページ幅が 70-82rem に収まっている" {
+@test "ページ幅が 44-56rem に収まっている" {
     run python3 -c "
 import re
 s = open('$TPL', encoding='utf-8').read()
 v = float(re.search(r'\.wrap \{[^}]*max-width: ([\d.]+)rem', s, re.S).group(1))
-print('OK' if 70 <= v <= 82 else f'{v}rem')
+print('OK' if 44 <= v <= 56 else f'{v}rem')
 "
     [ "$output" = "OK" ]
 }
@@ -382,10 +393,10 @@ print(','.join(bad) if bad else 'OK')
 # bats derives an internal function name by transliterating the title, and
 # non-ASCII collapses -- two titles differing only in Japanese become the same
 # identifier and the file fails to load. Hence the ASCII light/dark markers.
-@test "dark テーマの文字コントラストが WCAG を満たす（既定）" {
-    check_theme_contrast dark
+@test "light テーマの文字コントラストが WCAG を満たす（既定）" {
+    check_theme_contrast light
 }
 
-@test "light テーマの文字コントラストも WCAG を満たす（トグル）" {
-    check_theme_contrast light
+@test "dark テーマの文字コントラストも WCAG を満たす（トグル）" {
+    check_theme_contrast dark
 }
