@@ -6,7 +6,7 @@
 # handy/typeless-quota.conf, measured once with voice-quota-probe. Usage itself
 # is read from Typeless's own dictation log.
 #
-# Run periodically by launchd via macos/com.snakashima.voice-quota-watch.plist.
+# Run periodically by launchd via macos/local.voice-quota-watch.plist.
 # Each invocation is a fresh process; $STATE_FILE remembers what was already done
 # so a switch fires once per week rather than every poll.
 

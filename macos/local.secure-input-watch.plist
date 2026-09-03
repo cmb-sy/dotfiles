@@ -19,7 +19,7 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.snakashima.secure-input-watch</string>
+    <string>local.secure-input-watch</string>
     <key>ProgramArguments</key>
     <array>
         <string>__DOTFILES__/bin/secure-input-watch</string>

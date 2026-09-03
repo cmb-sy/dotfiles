@@ -19,7 +19,7 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.snakashima.voice-quota-watch</string>
+    <string>local.voice-quota-watch</string>
     <key>ProgramArguments</key>
     <array>
         <string>__DOTFILES__/bin/voice-quota-watch</string>

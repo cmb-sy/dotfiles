@@ -14,7 +14,7 @@
 # input exclusively, silently blocking other apps' global hotkeys
 # (e.g. Typeless/Handy via Karabiner).
 #
-# Run periodically by launchd via macos/com.snakashima.secure-input-watch.plist,
+# Run periodically by launchd via macos/local.secure-input-watch.plist,
 # which is installed by setup/install.zsh.
 # Each invocation is a fresh process, so state is tracked in $STATE_FILE.
 # External binaries are overridable via *_BIN env vars for testing.

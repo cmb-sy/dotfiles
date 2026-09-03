@@ -20,7 +20,7 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.snakashima.discord-relay-poll</string>
+    <string>local.discord-relay-poll</string>
     <key>ProgramArguments</key>
     <array>
         <string>__DOTFILES__/bin/discord-relay-poll</string>

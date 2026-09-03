@@ -229,3 +229,60 @@ switches() {
   count=$(switches | grep -c .) || count=0
   [ "$count" -eq 0 ]
 }
+
+# --- 週明けの Typeless 復帰（LaunchAgent 側） ---
+#
+# Handy への切り替えは手動なので、この plist が唯一の自動化。曜日・引数・
+# RunAtLoad の 3 点が壊れると無言で機能を失う。
+#
+# plist のコメントには "RunAtLoad" や "typeless" の語が入っている。grep で
+# 数えるとコメントに当たって通ってしまうので、plutil で解析後のキーを引く。
+
+RESET_PLIST() { printf '%s/macos/local.voice-week-reset.plist' "$REPO_DIR"; }
+
+@test "週明けリセットの plist は月曜に発火する" {
+  run plutil -extract StartCalendarInterval.Weekday raw "$(RESET_PLIST)"
+  [ "$status" -eq 0 ]
+  [ "$output" = "1" ]
+}
+
+@test "週明けリセットは voice-switch に typeless を渡す" {
+  # 実際に走らせて引数を見る。grep だと「typeless」がコメントに当たって
+  # 通ってしまい、handy を渡す実装でも気づけない。
+  # スクリプトは隣の voice-switch を呼ぶので、コピー先にスタブを並べる。
+  d="$BATS_TEST_TMPDIR/bin"
+  mkdir -p "$d"
+  cp "$REPO_DIR/bin/voice-week-reset" "$d/"
+  printf '#!/bin/bash\nprintf "%%s\\n" "$*" > "%s/called"\n' "$BATS_TEST_TMPDIR" > "$d/voice-switch"
+  chmod +x "$d/voice-switch" "$d/voice-week-reset"
+  run bash "$d/voice-week-reset"
+  [ "$status" -eq 0 ]
+  [ "$(cat "$BATS_TEST_TMPDIR/called")" = "typeless" ]
+}
+
+@test "週明けリセットの plist に RunAtLoad を付けない" {
+  # 付けると、手動で Handy にした選択がログインごとに巻き戻る。
+  run plutil -extract RunAtLoad raw "$(RESET_PLIST)"
+  [ "$status" -ne 0 ]
+}
+
+@test "週明けリセットの plist は plist として妥当" {
+  run plutil -lint "$(RESET_PLIST)"
+  [ "$status" -eq 0 ]
+}
+
+@test "setup が週明けリセットの LaunchAgent を入れる" {
+  n=$(grep -cF 'local.voice-week-reset' "$REPO_DIR/setup/install.zsh") || n=0
+  [ "$n" -ge 1 ]
+}
+
+@test "plist の設置は symlink を先に外してから書く" {
+  # dest がリポジトリへの symlink だと、リダイレクトが sed の読み込み前に
+  # 実体を空にする。rm が sed より前にあることを行番号で検査する。
+  f="$REPO_DIR/setup/install.zsh"
+  rm_line=$(grep -n 'rm -f "${dest}"' "$f" | head -1 | cut -d: -f1)
+  sed_line=$(grep -n 's|__DOTFILES__|' "$f" | head -1 | cut -d: -f1)
+  [ -n "$rm_line" ]
+  [ -n "$sed_line" ]
+  [ "$rm_line" -lt "$sed_line" ]
+}

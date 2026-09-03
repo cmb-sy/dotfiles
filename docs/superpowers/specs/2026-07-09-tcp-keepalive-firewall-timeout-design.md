@@ -2,7 +2,6 @@
 title: 企業ファイアウォールのNATタイムアウト対策（TCP keepalive調整）
 status: approved
 created: 2026-07-09
-owner: snakashima
 ---
 
 # 企業ファイアウォールのNATタイムアウト対策（TCP keepalive調整）設計書
@@ -51,8 +50,8 @@ macOSのデフォルト `net.inet.tcp.keepidle` は 7200000ms（2時間）で、
 `sysctl -w` の実行にはroot権限が必要。ユーザーのログインセッションで動く LaunchAgent（既存の `macos/system.enviroment.plist` 相当）では root 実行できないため、起動時にrootで1回実行される **LaunchDaemon** を新規導入する。
 
 - 配置場所: `/Library/LaunchDaemons/`（`~/Library/LaunchAgents/` ではない）
-- 配布方法: dotfiles内の `macos/com.snakashima.tcp-keepalive-tuning.plist` を **コピー**して root:wheel 所有・644権限で設置する（symlinkは不可 — LaunchDaemonはplistの所有者/書き込み権限を検証し、非rootユーザーが所有・書き込み可能なファイルへのsymlinkは信頼境界を破るため launchd に拒否されるリスクがある）
-- 起動時のみ実行（`RunAtLoad: true`、常駐サービスではない）。ログは `/var/log/com.snakashima.tcp-keepalive-tuning.log`
+- 配布方法: dotfiles内の `macos/local.tcp-keepalive-tuning.plist` を **コピー**して root:wheel 所有・644権限で設置する（symlinkは不可 — LaunchDaemonはplistの所有者/書き込み権限を検証し、非rootユーザーが所有・書き込み可能なファイルへのsymlinkは信頼境界を破るため launchd に拒否されるリスクがある）
+- 起動時のみ実行（`RunAtLoad: true`、常駐サービスではない）。ログは `/var/log/local.tcp-keepalive-tuning.log`
 
 ## スコープ外（YAGNI）
 

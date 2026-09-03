@@ -1,0 +1,23 @@
+#!/bin/bash
+# Put voice input back on Typeless at the start of the week.
+#
+# Run by launchd on Mondays via macos/local.voice-week-reset.plist.
+# Handing dictation over to Handy stays a manual call -- Typeless publishes
+# neither its weekly allowance nor the day it resets, so only the person hitting
+# the upgrade ad knows the quota is gone. Coming back needs no such judgement,
+# so this half is on a timer.
+#
+# A wrapper rather than pointing the agent straight at voice-switch: the log
+# then distinguishes the scheduled switch from a manual one, which is the only
+# way to tell "the reset fired" from "someone ran voice-switch".
+
+set -uo pipefail
+
+_here="${BASH_SOURCE[0]%/*}"
+[ "$_here" = "${BASH_SOURCE[0]}" ] && _here=.
+HERE="$(cd -- "$_here" && pwd)"
+
+printf 'voice-week-reset: %s handing voice input back to Typeless\n' \
+  "$(date '+%F %T')" >&2
+
+exec "$HERE/voice-switch" typeless

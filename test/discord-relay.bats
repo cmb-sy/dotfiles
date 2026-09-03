@@ -241,7 +241,7 @@ posts() { grep -c . "$BATS_TEST_TMPDIR/posts.url" 2>/dev/null || echo 0; }
 }
 
 @test "plist が 10 秒間隔でフラッシュを起動する" {
-  p="$REPO_DIR/macos/com.snakashima.discord-relay-flush.plist"
+  p="$REPO_DIR/macos/local.discord-relay-flush.plist"
   run plutil -extract StartInterval raw "$p"
   [ "$output" = "10" ]
   n=$(plutil -extract ProgramArguments.0 raw "$p" | grep -cF 'discord-relay-flush') || n=0
@@ -250,7 +250,7 @@ posts() { grep -c . "$BATS_TEST_TMPDIR/posts.url" 2>/dev/null || echo 0; }
 
 @test "setup が LaunchAgent と allowlist を用意する" {
   f="$REPO_DIR/setup/install.zsh"
-  n=$(grep -cF 'com.snakashima.discord-relay-flush' "$f") || n=0
+  n=$(grep -cF 'local.discord-relay-flush' "$f") || n=0
   a=$(grep -cF 'discord-relay/allowlist' "$f") || a=0
   k=$(grep -cF 'claude-discord-webhook' "$f") || k=0
   [ "$n" -ge 1 ]

@@ -199,15 +199,19 @@ fi
 # repo can live at any path. Skipped in CI: the runner has no Handy/Ghostty,
 # so the agents would only respawn and fail on a timer.
 #----------------------------------------------------------
-if ! util::is_ci && util::confirm "Install user LaunchAgents (handy-warm, secure-input-watch, voice-quota-watch, discord-relay-flush, discord-relay-poll)?"; then
+if ! util::is_ci && util::confirm "Install user LaunchAgents (handy-warm, secure-input-watch, voice-quota-watch, voice-week-reset, discord-relay-flush, discord-relay-poll)?"; then
   mkdir -p "$HOME/Library/LaunchAgents"
-  for name in com.snakashima.handy-warm com.snakashima.secure-input-watch com.snakashima.voice-quota-watch com.snakashima.discord-relay-flush com.snakashima.discord-relay-poll; do
+  for name in local.handy-warm local.secure-input-watch local.voice-quota-watch local.voice-week-reset local.discord-relay-flush local.discord-relay-poll; do
     src="${REPO_DIR}/macos/${name}.plist"
     dest="$HOME/Library/LaunchAgents/${name}.plist"
     if [[ ! -f "${src}" ]]; then
       util::warning "Skip ${name}: ${src} not found."
       continue
     fi
+    # Remove the destination first. A previous install may have left a symlink
+    # back into the repo, and the redirect below truncates whatever it opens --
+    # writing through that link would empty the source before sed reads it.
+    rm -f "${dest}"
     sed "s|__DOTFILES__|${REPO_DIR}|g" "${src}" > "${dest}"
     launchctl bootout "gui/$(id -u)/${name}" 2>/dev/null || true
     if launchctl bootstrap "gui/$(id -u)" "${dest}"; then

@@ -9,7 +9,7 @@ every time the cache lapses between dictations. Measured: 5.2s cold, 0.44s
 warm, same input.
 
 This sends one throwaway request on a timer so the prefix stays cached and the
-model stays resident. Run by macos/com.snakashima.handy-warm.plist, which is
+model stays resident. Run by macos/local.handy-warm.plist, which is
 installed by setup/install.zsh.
 
 The prompt is read out of Handy's own settings rather than rebuilt from

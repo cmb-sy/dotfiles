@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Put voice input back on Typeless at the start of each week.
+
+  Handing dictation over to Handy is a manual call: Typeless publishes neither
+  its weekly allowance nor the day it resets, so only the person hitting the
+  upgrade ad knows the quota is gone. Handing it back needs no such judgement --
+  the week turns over on a calendar, so a timer can do it.
+
+  Monday rather than Sunday. If the real reset is Sunday, Monday costs one day
+  of Typeless; if the real reset is Monday, Sunday would switch back while the
+  quota is still empty and walk straight into the ad. The cheaper mistake is the
+  one that never interrupts.
+
+  05:07, because a switch quits and relaunches an app: at five in the morning
+  nobody is mid-sentence. A sleeping Mac runs the job when it wakes, so the
+  switch still happens on Monday.
+
+  No RunAtLoad on purpose. This agent exists to preserve a manual choice until
+  the week ends, and firing on every login would undo that choice -- a switch to
+  Handy on Wednesday would be reverted by the next reboot.
+
+  The program path below is a placeholder; setup/install.zsh substitutes the
+  repo path into it at install time, so the repo can live anywhere.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>local.voice-week-reset</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>__DOTFILES__/bin/voice-week-reset</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Weekday</key>
+        <integer>1</integer>
+        <key>Hour</key>
+        <integer>5</integer>
+        <key>Minute</key>
+        <integer>7</integer>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>/tmp/voice-week-reset.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/voice-week-reset.log</string>
+</dict>
+</plist>

@@ -22,7 +22,7 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.snakashima.handy-warm</string>
+    <string>local.handy-warm</string>
     <key>ProgramArguments</key>
     <array>
         <string>__DOTFILES__/bin/handy-warm</string>
