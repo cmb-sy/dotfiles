@@ -63,6 +63,20 @@ fi
 ZSH_HIGHLIGHT_HIGHLIGHTERS=(main brackets pattern cursor)
 
 # ----------------------------------------------------------
+# Claude Code default model
+# ----------------------------------------------------------
+# Here rather than in claude/settings.json: /model rewrites that file's model
+# key, and every session on this machine reads the same one through a symlink,
+# so one switch anywhere changes the default everywhere. An environment
+# variable outranks the file and nothing writes back to it.
+#
+# ANTHROPIC_MODEL, not ANTHROPIC_DEFAULT_MODEL -- only the former is read (an
+# unknown value in it is rejected; the same value in the latter is ignored).
+#
+# [1m] asks for the million-token context window.
+export ANTHROPIC_MODEL='opus[1m]'
+
+# ----------------------------------------------------------
 # Zsh options
 # ----------------------------------------------------------
 # History
