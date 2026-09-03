@@ -500,10 +500,93 @@
     color: var(--faint);
   }
 
+  /* ---- Tree: a hierarchy that branches ----
+     .flow.down is a single file of boxes; a directory or a component tree
+     forks, and the fork is the information. Connectors are drawn from the
+     items so nesting any depth needs no extra markup. */
+  .tree, .tree ul { list-style: none; margin: 0; padding: 0; }
+  .tree ul { padding-left: 1.3rem; }
+  .tree li {
+    position: relative;
+    padding: 0 0 0 1.1rem;
+    line-height: 1.9;
+    font-size: 1rem;
+  }
+  .tree li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    border-left: 1px solid var(--rule);
+  }
+  /* The last child's spine stops at its own connector, so the line does not
+     run past the end of the branch. */
+  .tree li:last-child::before { bottom: auto; height: .95em; }
+  .tree li::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: .95em;
+    width: .75rem;
+    border-top: 1px solid var(--rule);
+  }
+  /* The root has nothing to hang from. */
+  .tree > li { padding-left: 0; }
+  .tree > li::before, .tree > li::after { display: none; }
+  .tree b { font-weight: 600; color: var(--ink); }
+  .tree .note-inline { color: var(--faint); font-size: .85em; }
+
+  /* ---- Bars: how much, side by side ----
+     A column of numbers is read one at a time; a length is compared at a
+     glance. The proportion comes in on --v so the markup carries the datum and
+     the stylesheet carries none of it. */
+  .bars { display: flex; flex-direction: column; gap: .4rem; }
+  .bar {
+    display: grid;
+    grid-template-columns: 7.5rem minmax(0, 1fr) 5rem;
+    gap: .8rem;
+    align-items: center;
+  }
+  .bar b {
+    font-family: var(--mono);
+    font-size: .8rem;
+    font-weight: 400;
+    color: var(--dim);
+  }
+  .bar span {
+    position: relative;
+    display: block;
+    height: .75rem;
+    background: var(--rule-soft);
+  }
+  .bar span::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: var(--v, 0%);
+    background: var(--accent);
+  }
+  .bar.high span::before { background: var(--sev-high); }
+  .bar em {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    font-style: normal;
+    font-size: .85rem;
+    color: var(--ink);
+    text-align: right;
+  }
+  @media (max-width: 60rem) {
+    .bar { grid-template-columns: 6rem minmax(0, 1fr) 4rem; gap: .5rem; }
+  }
+
   /* Inline SVG is the escape hatch for a diagram the boxes cannot express --
-     anything whose shape needs real coordinates, a mesh above all. Drive every
-     colour from the tokens so it follows the theme; a literal hex here is
-     invisible in one of the two. */
+     anything whose shape needs real coordinates: a mesh, a directed edge that
+     loops back, a message crossing between lifelines. Drive every colour from
+     the tokens so it follows the theme; a literal hex here is invisible in one
+     of the two. */
   svg { max-width: 100%; height: auto; }
   svg text { font-family: var(--sans); font-size: 13px; fill: var(--ink); }
   svg .stroke { stroke: var(--rule); fill: none; }
@@ -512,6 +595,15 @@
   svg .node { fill: var(--sunken); stroke: var(--rule); }
   svg .edge { stroke: var(--rule); fill: none; }
   svg .accent { stroke: var(--accent); fill: none; }
+  /* An arrowhead is filled, not stroked, so it needs its own class. */
+  svg .head { fill: var(--rule); stroke: none; }
+  svg .lifeline { stroke: var(--rule-soft); stroke-dasharray: 3 4; fill: none; }
+  svg .cap {
+    font-family: var(--mono);
+    font-size: 10px;
+    fill: var(--faint);
+    letter-spacing: 0;
+  }
 
   footer {
     font-family: var(--mono);
@@ -718,6 +810,67 @@
         <text x="245" y="50" text-anchor="middle">B</text>
         <text x="55" y="140" text-anchor="middle">C</text>
         <text x="245" y="140" text-anchor="middle">D</text>
+      </svg>
+    </figure>
+
+    <figure>
+      <figcaption>木 — 分岐する階層</figcaption>
+      <ul class="tree">
+        <li><b>dotfiles</b>
+          <ul>
+            <li><code>bin/</code> <span class="note-inline">実行するもの</span></li>
+            <li><code>macos/</code>
+              <ul>
+                <li><code>local.handy-warm.plist</code></li>
+                <li><code>local.voice-week-reset.plist</code></li>
+              </ul>
+            </li>
+            <li><code>test/</code> <span class="note-inline">最後の子は線が伸びない</span></li>
+          </ul>
+        </li>
+      </ul>
+    </figure>
+
+    <figure>
+      <figcaption>量 — 割合は --v で渡す</figcaption>
+      <div class="bars">
+        <div class="bar high"><b>最大の週</b><span style="--v:100%"></span><em>57.4</em></div>
+        <div class="bar"><b>次に多い週</b><span style="--v:94%"></span><em>54.1</em></div>
+        <div class="bar"><b>中位の週</b><span style="--v:63%"></span><em>36.2</em></div>
+      </div>
+    </figure>
+
+    <!-- 有向辺・ラベル・戻る辺・自己ループの作り方。状態遷移・シーケンス・循環は
+         すべてこれの派生。矢印は marker で作る。
+         marker の id は文書全体で一意（同じページに複数の SVG を置くなら変える）。 -->
+    <figure>
+      <figcaption>状態遷移 — ラベル付き有向辺と自己ループ</figcaption>
+      <svg viewBox="0 0 300 170" role="img"
+           aria-label="idle から working へ、working から blocked へ遷移する。working は自身へ戻る辺と idle へ戻る辺を持つ">
+        <defs>
+          <marker id="tpl-arrow" viewBox="0 0 8 8" refX="7" refY="4"
+                  markerWidth="7" markerHeight="7" orient="auto">
+            <path class="head" d="M0 0 L8 4 L0 8 z"/>
+          </marker>
+        </defs>
+        <rect class="node" x="16" y="70" width="64" height="34" rx="3"/>
+        <rect class="node" x="118" y="70" width="64" height="34" rx="3"/>
+        <rect class="node" x="220" y="70" width="64" height="34" rx="3"/>
+        <text x="48" y="92" text-anchor="middle">idle</text>
+        <text x="150" y="92" text-anchor="middle">working</text>
+        <text x="252" y="92" text-anchor="middle">blocked</text>
+
+        <line class="edge" x1="80" y1="87" x2="113" y2="87" marker-end="url(#tpl-arrow)"/>
+        <text class="cap" x="97" y="79" text-anchor="middle">指示</text>
+
+        <line class="edge" x1="182" y1="87" x2="215" y2="87" marker-end="url(#tpl-arrow)"/>
+        <text class="cap" x="199" y="79" text-anchor="middle">失敗</text>
+
+        <path class="edge" d="M150 104 C 150 148, 48 148, 48 106" marker-end="url(#tpl-arrow)"/>
+        <text class="cap" x="99" y="145" text-anchor="middle">完了</text>
+
+        <path class="edge" d="M134 70 C 124 32, 176 32, 166 70" marker-end="url(#tpl-arrow)"/>
+        <text class="cap" x="150" y="34" text-anchor="middle">継続</text>
       </svg>
     </figure>
   </section>

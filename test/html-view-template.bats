@@ -459,3 +459,51 @@ print('OK' if all(n in body for n in need) else [n for n in need if n not in bod
 "
     [ "$output" = "OK" ]
 }
+
+@test "木の部品があり、末端で線が止まる" {
+    grep -qF '.tree li::before {' "$TPL"
+    grep -qF '.tree li::after {' "$TPL"
+    # 最後の子で縦線を切らないと、線が枝の先を追い越して伸びる。
+    grep -qF '.tree li:last-child::before {' "$TPL"
+    # 根はぶら下がる先が無いので線を消す。
+    grep -qF '.tree > li::before, .tree > li::after {' "$TPL"
+}
+
+@test "量の部品が割合を markup 側から受ける" {
+    grep -qF '.bar span::before {' "$TPL"
+    # 値をスタイルシートに焼くと、図ごとに CSS を増やすことになる。
+    grep -qF 'width: var(--v, 0%);' "$TPL"
+}
+
+@test "SVG が矢印つきの有向辺を描ける" {
+    # 塗りの矢印は .stroke では描けない（fill: none が立つ）。
+    grep -qF 'svg .head {' "$TPL"
+    run python3 -c "
+import re
+s = open('$TPL', encoding='utf-8').read()
+body = s[s.index('<div class=\"wrap\"'):]
+need = {
+  'marker 定義': '<marker ',
+  '矢印の適用': 'marker-end=\"url(#',
+  '戻る辺か自己ループ': '<path class=\"edge\"',
+}
+miss = [k for k, v in need.items() if v not in body]
+print('OK' if not miss else miss)
+"
+    [ "$output" = "OK" ]
+}
+
+@test "図の対応表が部品を出し尽くしている" {
+    # 表に無い部品は使われない。SKILL.md 側と実装側の取りこぼしを両方見る。
+    run python3 -c "
+import re
+tpl = open('$TPL', encoding='utf-8').read()
+skill = open('$REPO_DIR/claude/skills/html-view/SKILL.md', encoding='utf-8').read()
+sec = re.search(r'構造は図が既定.*?(?=\\n図に向かない情報)', skill, re.S).group(0)
+parts = ['.fan', '.stack', '.group', '.tree', '.bars']
+missing_doc  = [p for p in parts if p not in sec]
+missing_impl = [p for p in parts if (p + ' {') not in tpl and (p + ' .') not in tpl]
+print('OK' if not missing_doc and not missing_impl else f'doc={missing_doc} impl={missing_impl}')
+"
+    [ "$output" = "OK" ]
+}
