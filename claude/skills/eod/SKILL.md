@@ -128,10 +128,10 @@ Step 0 で「Step 5」がスキップ選択されている場合は本ステッ�
 
 ### Step 6: 翌日デイリー作成
 
-翌日の日報ファイルを `03_warehouse/daily_template.md` から複製する。
+翌日の日報ファイルを `02_warehouse/daily_template.md` から複製する。
 
 **前提**:
-- テンプレート: `$HOME/develop/obsidian/03_warehouse/daily_template.md`
+- テンプレート: `$HOME/develop/obsidian/02_warehouse/daily_template.md`
 - 出力先: `$HOME/develop/obsidian/00_daily/{YYYY}年/{M}月/{D}日({曜}).md`
 - 命名規則: 月・日はゼロパディングなし（`5月/14日(木).md`）。曜日は日本語1文字（月火水木金土日）
 
