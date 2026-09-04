@@ -176,9 +176,8 @@
       "Bash(aws lambda update-function-configuration:*)",
       "Bash(gh workflow run:*)"
     ],
-    "defaultMode": "auto"
+    "defaultMode": "bypassPermissions"
   },
-  "model": "opus[1m]",
   "hooks": {
     "Notification": [
       {
@@ -367,6 +366,14 @@
     }
   },
   "effortLevel": "xhigh",
+  "modelSettings": {
+    "claude-fable-5": {
+      "effortLevel": "high"
+    },
+    "claude-opus-5": {
+      "effortLevel": "xhigh"
+    }
+  },
   "tui": "fullscreen",
   "skipDangerousModePermissionPrompt": true,
   "theme": "dark",
