@@ -2,13 +2,13 @@
 name: eod
 description: >-
   1 日の作業を締めたいとき（終業時・日報作成時）に使うオーケストレータ。
-  Slack+GitHub+distill+distill-gain-latest-info+github-sync 計画の並列収集 → open issue 確認 → GitHub Issue の TaskNotes 同期 → 日報生成 → CloudLog 入力 → 振り返り → 翌日デイリー作成 → 翌日タスクの GitHub issue 紐付け → Obsidian vault commit/push を実行する。
+  Slack+GitHub+distill-gain-latest-info+github-sync 計画の並列収集 → open issue 確認 → GitHub Issue の TaskNotes 同期 → 日報生成 → CloudLog 入力 → 翌日デイリー作成 → 翌日タスクの GitHub issue 紐付け → Obsidian vault commit/push を実行する。
   除外プロジェクト指定は本文の Options を参照。
 argument-hint: "[--exclude <キーワード>...]"
 user-invocable: true
 ---
 
-その日の作業を1コマンドで締める。**並列収集（Slack+GitHub+distill ingest+distill-gain-latest-info watch+github-sync 計画）→ github-issues（open issue 確認）→ github-sync 適用 → daily-log → CloudLog入力 → generate-problem → 翌日デイリー作成 → 翌日タスク整理（未チェックの自動引き継ぎ＋新規の GitHub issue 紐付け）→ Obsidian vault commit/push** を順次実行する。
+その日の作業を1コマンドで締める。**並列収集（Slack+GitHub+distill-gain-latest-info watch+github-sync 計画）→ github-issues（open issue 確認）→ github-sync 適用 → daily-log → CloudLog入力 → 翌日デイリー作成 → 翌日タスク整理（未チェックの自動引き継ぎ＋新規の GitHub issue 紐付け）→ Obsidian vault commit/push** を順次実行する。
 
 ## Options
 
@@ -27,15 +27,13 @@ user-invocable: true
 **起動直後・他のステップに着手する前に必ず実施する**。`AskUserQuestion` を **1 回だけ**呼び、下記 2 問を同時に提示してスキップ対象を選ばせる（1 問あたり選択肢は最大 4 件、どちらも `multiSelect: true`）。
 
 **Q1**「スキップ対象を確認させてください。どのステップを飛ばしますか?」（header: `Skip対象`）— 順序固定:
-  1. `Step 5: generate-problem` — 本日の振り返り(過去問形式)をスキップ
-  2. `Step 4: CloudLog 自動入力` — Playwright での CloudLog 入力をスキップ(daily-log でのエントリ生成は実施)
-  3. `Step 1: Slack 収集` — 本日の Slack 発言・関与スレッド取得をスキップ
-  4. `Step 1: GitHub 収集` — 本日のコミット・PR・Issue 活動取得をスキップ
+  1. `Step 4: CloudLog 自動入力` — Playwright での CloudLog 入力をスキップ(稼働時間も尋ねない)
+  2. `Step 1: Slack 収集` — 本日の Slack 発言・関与スレッド取得をスキップ
+  3. `Step 1: GitHub 収集` — 本日のコミット・PR・Issue 活動取得をスキップ
 
 **Q2**「Step 1 の追加ジョブで飛ばすものはありますか?」（header: `追加Skip`）— 順序固定:
-  1. `distill ingest` — Claude Code セッションログの distill 取り込みをスキップ
-  2. `distill-gain-latest-info watch` — 技術情報の横断観測をスキップ(Web 検索を多用し所要時間が伸びるため、急ぐ日はここで外す)
-  3. `github-sync` — GitHub Issue → TaskNotes 同期をスキップ(Step 2.5 も併せてスキップ)
+  1. `distill-gain-latest-info watch` — 技術情報の横断観測をスキップ(Web 検索を多用し所要時間が伸びるため、急ぐ日はここで外す)
+  2. `github-sync` — GitHub Issue → TaskNotes 同期をスキップ(Step 2.5 も併せてスキップ)
 
 Step 3(daily-log 自体のスキップ) などその他のスキップは `Other` (自由記述) で受け付ける。ユーザーが何も選択しなかった場合は「全ステップ実行」とみなす。選択結果は実行フロー全体で参照する。
 
@@ -47,14 +45,13 @@ Step 3(daily-log 自体のスキップ) などその他のスキップは `Other
 
 ### Step 1: 情報収集（並列）
 
-以降のステップで使い回すため、最初に一括取得する。**5 ジョブを 1 メッセージ内で同時に発射する**(Bash 呼び出しは同一メッセージ内の並列 tool call、distill-gain-latest-info のみサブエージェント)。Step 0 でスキップ選択されたジョブは発射しない(全ジョブがスキップなら Step 1 全体をスキップ)。
+以降のステップで使い回すため、最初に一括取得する。**4 ジョブを 1 メッセージ内で同時に発射する**(Bash 呼び出しは同一メッセージ内の並列 tool call、distill-gain-latest-info のみサブエージェント)。Step 0 でスキップ選択されたジョブは発射しない(全ジョブがスキップなら Step 1 全体をスキップ)。
 
 | ジョブ | 実行方法 | 結果の使い先 |
 |--------|----------|--------------|
 | Slack 収集 | MCP / CLI（下記） | Step 3 の成果セクション |
 | GitHub 活動収集 | `gh` | Step 3 の成果セクション |
-| distill ingest | Bash（下記） | 本日の成果を裏取りする素材 |
-| distill-gain-latest-info watch | サブエージェント（下記） | Obsidian のダイジェスト（Step 8 で commit） |
+| distill-gain-latest-info watch | サブエージェント（下記） | Obsidian のダイジェスト（Step 7 で commit） |
 | github-sync 計画生成 | Bash（下記・書き込みなし） | Step 2.5 の承認材料 |
 
 - **Slack**: 本日の自分の発言・関与したスレッドを取得する。**取得経路は以下の優先順で必ずチェックする**:
@@ -64,15 +61,12 @@ Step 3(daily-log 自体のスキップ) などその他のスキップは `Other
   - `claude mcp list` で `claude.ai Slack: ✓ Connected` を確認できれば MCP は最優先で使う
   - `slackcli` が `invalid_auth` を返しても、それは CLI の Slack トークン失効であり、MCP の認証状態とは無関係
 - **GitHub**: 本日のコミット・PR・レビュー・Issue コメント/更新を `gh` で取得
-- **distill ingest**: `$HOME/develop/other/distill-of-ai-process/.venv/bin/distill ingest` を実行し、Claude Code のセッションログを distill の SQLite へ取り込む
-  - `distill` は PATH に無い。venv 内の実体を絶対パスで叩く
-  - 取り込み対象プロジェクトの選別は distill 側の設定に従う。eod からフラグで制御しない
 - **distill-gain-latest-info watch**: サブエージェントに `distill-gain-latest-info` スキルを `watch --dry-run` で実行させる
   - `--dry-run` は peers スコープの採用対話・保存だけを抑止する。サブエージェントはユーザーに質問できないため必須
   - サブエージェントへの指示に「ユーザーへの確認が必要になったら実行せず、その旨を報告して返す」ことを明記する
-  - vault への commit は行わせない（Step 8 が一括で行う）
+  - vault への commit は行わせない（Step 7 が一括で行う）
 - **github-sync 計画生成**: `python3 $HOME/develop/obsidian/.claude/skills/github-sync/sync.py --plan-file /private/tmp/eod-github-sync-plan.md`
-  - 書き込みなしの計画生成のみ。`--apply` と `--push` はここでは絶対に付けない（適用は Step 2.5、push は Step 8）
+  - 書き込みなしの計画生成のみ。`--apply` と `--push` はここでは絶対に付けない（適用は Step 2.5、push は Step 7）
   - 一時ファイルは `/private/tmp` 配下に置く（macOS の `$TMPDIR` は `/var/folders` 配下でツール側のガードに抵触する）
 
 Slack + GitHub の結果を Step 2・3 で再利用する（二重取得しない）。
@@ -92,10 +86,10 @@ Step 1 で生成した計画ファイル（`/private/tmp/eod-github-sync-plan.md
 
 - 件数と削除対象を提示してユーザーの承認を得てから `sync.py --apply` を実行する。**承認なしで適用しない**（14 日より前に done になったノートの削除を含むため）
 - Issue のタイトルは会話に出さない（社内プロジェクト名を含む）。詳細は計画ファイルを開いてもらう
-- `--push` は付けない。commit/push は Step 8 が一括で行う
+- `--push` は付けない。commit/push は Step 7 が一括で行う
 - 適用後に「本文が薄い」と列挙されたノートへの補足追記まで行う（github-sync スキルの該当手順に従う）
 
-ここで生成された TaskNotes は Step 7（翌日タスク整理）の材料になる。
+ここで生成された TaskNotes は Step 6（翌日タスク整理）の材料になる。
 
 ### Step 3: daily-log（セッション + CloudLog）
 
@@ -117,16 +111,7 @@ Step 0 で「Step 4」がスキップ選択されている場合は本ステッ�
 
 → 詳細は daily-log の「Step CL: CloudLog 入力実行」を参照。
 
-### Step 5: generate-problem（振り返り）
-
-Step 0 で「Step 5」がスキップ選択されている場合は本ステップ全体をスキップし、完了報告に「generate-problem: スキップ」と記録する。
-
-スキップしない場合は `/generate-problem` スキルに従い、本日の作業を問題形式で振り返る。
-
-- Step 3 の「今日の成果」と daily-log の内容を素材として使う（再収集しない）
-- 結果は日報と `01_quant/過去問.md` に記録される
-
-### Step 6: 翌日デイリー作成
+### Step 5: 翌日デイリー作成
 
 翌日の日報ファイルを `02_warehouse/daily_template.md` から複製する。
 
@@ -149,13 +134,13 @@ Step 0 で「Step 5」がスキップ選択されている場合は本ステッ�
 
 **注意**:
 - 本日の日報内「終わりのジョブ → 明日のデイリーの作成」のチェックボックスは自動で `[x]` にしないこと。手動運用の余地を残す
-- テンプレートの内容（`[[]]` リンク・タグ・色タグ）は複製時点では1文字も書き換えないこと（`## 今日やること` へのタスク書き込みは Step 7 が担う）
+- テンプレートの内容（`[[]]` リンク・タグ・色タグ）は複製時点では1文字も書き換えないこと（`## 今日やること` へのタスク書き込みは Step 6 が担う）
 
-### Step 7: 翌日タスク整理（GitHub issue 紐付け）
+### Step 6: 翌日タスク整理（GitHub issue 紐付け）
 
-Step 6 の翌日デイリー（既に存在していた場合も対象）の `## 今日やること` セクションにタスクを書き込む。まず本日の未チェックタスクを自動で引き継ぎ、その後ユーザーから新規タスクを受け取って GitHub issue と紐付ける。
+Step 5 の翌日デイリー（既に存在していた場合も対象）の `## 今日やること` セクションにタスクを書き込む。まず本日の未チェックタスクを自動で引き継ぎ、その後ユーザーから新規タスクを受け取って GitHub issue と紐付ける。
 
-**Step 7-0: 未チェックタスクの自動引き継ぎ（コピー・必須）:**
+**Step 6-0: 未チェックタスクの自動引き継ぎ（コピー・必須）:**
 
 新規タスクを尋ねる前に、本日の日報の `## 今日やること` にある `- [ ]`（未チェック）タスクを翌日デイリーの `## 今日やること` へ**コピー**する:
 
@@ -188,9 +173,9 @@ Step 6 の翌日デイリー（既に存在していた場合も対象）の `##
 - 翌日デイリーが既存でタスク行が既に書かれている場合は、既存行の文言を保持したまま重複追加を避け、issue 未紐付けの新規タスクにのみリンク差し込みを行う
 - `## 今日やること` 以外のセクションは変更しない
 
-### Step 8: Obsidian vault を commit & push
+### Step 7: Obsidian vault を commit & push
 
-eod で生じた vault の全変更（日報・`01_quant/過去問.md`・翌日デイリー・`99_distill/` 等）を
+eod で生じた vault の全変更（日報・翌日デイリー・`99_distill/` 等）を
 git でコミットし、リモートへ push する。**最後に実行する**（前のステップが一部失敗しても、
 ここまでに生成・更新されたファイルは確実に保存する）。
 
@@ -223,12 +208,10 @@ git でコミットし、リモートへ push する。**最後に実行する**
 
 - 更新した日報ファイルパス
 - github-issues: open issue 件数（cmb-sy assigned）
-- distill ingest: 取り込み結果（件数 or 出力要約。スキップ時は「スキップ」）
 - distill-gain-latest-info watch: 観測したスコープとダイジェストの保存先（スキップ時は「スキップ」）
 - github-sync: 新規作成 / 更新 / done へ変更 の件数（スキップ時は「スキップ」）
 - CloudLog 入力件数・合計時間
 - 走査したセッション数・除外プロジェクト
-- generate-problem 結果（正解率 / スキップ時は「スキップ」）
 - 翌日デイリー作成（作成したパス or「既に存在のためスキップ」）
 - 翌日タスク整理: タスク件数の内訳（issue 紐付け n 件 / 新規 issue 作成 n 件 / リンクなし n 件。タスクなしなら「なし」）
 - Obsidian vault: commit ハッシュ（短縮）+ push 結果（変更なしならその旨 / push 失敗なら理由）
