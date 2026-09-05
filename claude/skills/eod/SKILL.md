@@ -101,6 +101,9 @@ Step 1 で生成した計画ファイル（`/private/tmp/eod-github-sync-plan.md
 
 - Step 1 で取得済みの Slack + GitHub 情報をそのまま使う（再取得しない）
 - Claude Code セッションログを走査し、`## 今日の成果` セクションを生成
+- **収集した情報のうちプロジェクトの中身が変わったものは `99_distill/プロジェクト/{PJ}/概要.md` に反映する。**
+  それ以外はすべて「今日の成果」へ。振られたタスクはどちらにも書かない（かんばんの領分）。
+  判定と歯止めは daily-log の Step 6 に従う
 - 対応表に従い CloudLog エントリを生成
 
 ### Step 4: CloudLog 入力
@@ -207,6 +210,7 @@ git でコミットし、リモートへ push する。**最後に実行する**
 ## 完了報告
 
 - 更新した日報ファイルパス
+- 更新したプロジェクト概要（ファイル・節・根拠。無ければ「変更なし」）
 - github-issues: open issue 件数（cmb-sy assigned）
 - distill-gain-latest-info watch: 観測したスコープとダイジェストの保存先（スキップ時は「スキップ」）
 - github-sync: 新規作成 / 更新 / done へ変更 の件数（スキップ時は「スキップ」）
