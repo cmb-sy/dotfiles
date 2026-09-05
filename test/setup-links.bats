@@ -43,3 +43,60 @@ load "helpers/common"
   [ "$strays" -eq 0 ]
   rm -rf "$TEST_TMPDIR"
 }
+
+# --- dir-opt: 別リポジトリへ張るリンク ---
+#
+# 宛先の親が無いまま mkdir -p すると、そこへ clone する予定のディレクトリを
+# 空で先に作ってしまい、clone が「空でない」で落ちる。検査は文言ではなく
+# 「穴が空かないこと」に当てる。
+
+@test "obsidian へのリンクが manifest にあり dir-opt で張られる" {
+  code=$(grep -v '^[[:space:]]*#' "$REPO_DIR/setup/setup.zsh")
+  printf '%s' "$code" | grep -qF 'obsidian/02_warehouse/dotfiles-skills|dir-opt'
+}
+
+@test "dir-opt は宛先の親が無ければディレクトリを作らずに飛ばす" {
+  tmp=$(mktemp -d /private/tmp/dotfiles-test.XXXXXX)
+  mkdir -p "$tmp/repo/claude/skills"
+
+  # setup.zsh 本体は他の副作用が大きいので、manifest 処理だけを取り出して回す。
+  cat > "$tmp/run.zsh" << 'ZSH'
+DOTFILES_DIR="$1"; MISSING="$2"
+util::warning() { print -r -- "WARN: $*" }
+util::info()    { print -r -- "INFO: $*" }
+util::link()    { ln -sfn "$1" "$2" }
+link::retire_real_dir() { : }
+LINKS=( "claude/skills|${MISSING}/vault/02_warehouse/dotfiles-skills|dir-opt" )
+ZSH
+  # 本物の link::from_manifest を切り出して連結する（実装のコピーを持たない）
+  awk '/^link::from_manifest\(\) \{/,/^\}/' "$REPO_DIR/setup/setup.zsh" >> "$tmp/run.zsh"
+  echo 'link::from_manifest' >> "$tmp/run.zsh"
+
+  run zsh "$tmp/run.zsh" "$tmp/repo" "$tmp/nowhere"
+  [ "$status" -eq 0 ]
+  # ★ 本題: clone 先になるはずの場所が作られていないこと
+  [ ! -e "$tmp/nowhere/vault" ]
+  n=$(printf '%s' "$output" | grep -c 'dir-opt') || n=0
+  [ "$n" -ge 1 ]
+  rm -rf "$tmp"
+}
+
+@test "dir-opt は宛先の親があればリンクを張る" {
+  tmp=$(mktemp -d /private/tmp/dotfiles-test.XXXXXX)
+  mkdir -p "$tmp/repo/claude/skills" "$tmp/vault/02_warehouse"
+  cat > "$tmp/run.zsh" << 'ZSH'
+DOTFILES_DIR="$1"; VAULT="$2"
+util::warning() { print -r -- "WARN: $*" }
+util::info()    { print -r -- "INFO: $*" }
+util::link()    { ln -sfn "$1" "$2" }
+link::retire_real_dir() { : }
+LINKS=( "claude/skills|${VAULT}/02_warehouse/dotfiles-skills|dir-opt" )
+ZSH
+  awk '/^link::from_manifest\(\) \{/,/^\}/' "$REPO_DIR/setup/setup.zsh" >> "$tmp/run.zsh"
+  echo 'link::from_manifest' >> "$tmp/run.zsh"
+
+  run zsh "$tmp/run.zsh" "$tmp/repo" "$tmp/vault"
+  [ "$status" -eq 0 ]
+  [ -L "$tmp/vault/02_warehouse/dotfiles-skills" ]
+  rm -rf "$tmp"
+}

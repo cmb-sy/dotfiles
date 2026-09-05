@@ -25,9 +25,13 @@ cd "${DOTFILES_DIR}"
 # Every link that is not produced by one of the globs below lives here, so the
 # exceptions are visible as data instead of as scattered special cases.
 # One line per link: "<src relative to repo>|<dst>|<mode>"
-#   dir  = link the directory itself
-#   file = link a single file (the destination directory also holds runtime
-#          state, so it cannot be linked as a whole)
+#   dir     = link the directory itself
+#   file    = link a single file (the destination directory also holds runtime
+#             state, so it cannot be linked as a whole)
+#   dir-opt = dir, but skip when the destination's parent is absent. For links
+#             into a separate repository that may not be cloned yet: the
+#             unconditional mkdir below would otherwise leave an empty
+#             directory where that clone has to go, and the clone then fails.
 #----------------------------------------------------------
 LINKS=(
   # reproduces alias / init.templatedir (distributes pre-commit hooks) on new machines
@@ -44,6 +48,10 @@ LINKS=(
   ".vscode/settings.json|${HOME}/Library/Application Support/Cursor/User/settings.json|file"
   # Cursor reads the same skills as Claude
   "claude/skills|${HOME}/.cursor/skills|dir"
+  # Surfaces the skills inside the Obsidian vault so they can be read and
+  # edited there. The vault keeps its own skills in 02_warehouse and reaches
+  # them from .claude by symlink; this is the same shape, pointed the other way.
+  "claude/skills|${HOME}/develop/obsidian/02_warehouse/dotfiles-skills|dir-opt"
 )
 
 # Apps create a real config dir on first launch (Karabiner does). Retire it, or
@@ -64,16 +72,21 @@ link::from_manifest() {
     mode="${dst##*|}"
     dst="${dst%|*}"
     abs="${DOTFILES_DIR}/${src}"
-    if [[ "${mode}" == "dir" && ! -d "${abs}" ]]; then
-      util::warning "Skip ${src}: not a directory (mode dir)"
+    if [[ "${mode}" == "dir" || "${mode}" == "dir-opt" ]] && [[ ! -d "${abs}" ]]; then
+      util::warning "Skip ${src}: not a directory (mode ${mode})"
       continue
     fi
     if [[ "${mode}" == "file" && ! -f "${abs}" ]]; then
       util::warning "Skip ${src}: not a file (mode file)"
       continue
     fi
-    if [[ "${mode}" != "dir" && "${mode}" != "file" ]]; then
+    if [[ "${mode}" != "dir" && "${mode}" != "dir-opt" && "${mode}" != "file" ]]; then
       util::warning "Skip ${src}: unknown link mode '${mode}'"
+      continue
+    fi
+    # Checked before the mkdir, which is what would otherwise create the hole.
+    if [[ "${mode}" == "dir-opt" && ! -d "${dst:h}" ]]; then
+      util::info "Skip ${src} → ${dst}: ${dst:h} is absent (mode dir-opt)"
       continue
     fi
     mkdir -p "${dst:h}"
