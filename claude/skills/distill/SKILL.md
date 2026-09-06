@@ -1,10 +1,11 @@
 ---
 name: distill
 description: >-
-  Distill を Claude Code から操作したいときに使う。紐付けから教材・クイズ生成までを
-  一度に通す（full）ほか、紐付け（link）、取り込み（ingest）、公開（publish）、
-  状態確認（status）を 1 つの入口にまとめる。サブコマンドは本文の Commands を参照。
-argument-hint: "full | link | ingest | publish | status [--no-display] [--days N | --all]"
+  Distill（Obsidian の 99_distill を静的サイトにして読む仕組み）を Claude Code から
+  操作したいときに使う。状態確認（status）、陳腐化したプロジェクト概要の洗い出しと
+  書き直し（refresh）、サイトの再生成（build）、公開サイトへの反映（deploy）を
+  1 つの入口にまとめる。サブコマンドは本文の Commands を参照。
+argument-hint: "status | stale | refresh [N] | build | deploy | url <vault 内のファイル>"
 user-invocable: true
 ---
 
@@ -15,6 +16,10 @@ venv 内の実体を絶対パスで叩く。
 DISTILL="$HOME/develop/other/distill-of-ai-process/.venv/bin/distill"
 ```
 
+**データベースは無い。** 正本は Obsidian の `99_distill/` だけで、CLI は vault を
+読んで静的サイトを書き出す。教材そのものを作るのは `distill-project` skill で、
+この skill は生成を行わない。
+
 ## Commands
 
 引数で受け取ったサブコマンドだけを実行する。指定が無ければ `status` を実行し、
@@ -22,94 +27,91 @@ DISTILL="$HOME/develop/other/distill-of-ai-process/.venv/bin/distill"
 
 | 引数 | 実行内容 |
 |------|----------|
-| `full` | 紐付け → 取り込み → 教材とクイズの生成までを一度に通す |
-| `link` | いま作業しているプロジェクトを収集対象として登録し、続けて取り込む |
-| `ingest` | セッションログを取り込む（対象は収集フラグに従う） |
-| `publish` | 静的サイトを書き出して Cloudflare Pages へデプロイする |
-| `status` | 収集対象・教材の生成状況・未反映の有無を報告する |
-
-### full
-
-紐付けからクイズ作成までを一度に通す。それぞれの段は下の個別コマンドと同じものを呼ぶ。
-
-1. **紐付け + 取り込み** — `link` の節と同じ手順を実行する。
-2. **生成対象の決定** — 教材がまだ無い日を新しい順に並べる。
-
-```bash
-DB="${DISTILL_DB:-$HOME/.distill/distill.db}"
-# 対象プロジェクトは cwd で引く。link の出力 1 行目にも同じキーが出る。
-sqlite3 "$DB" "PRAGMA query_only=1;
-  SELECT DISTINCT substr(s.started_at,1,10) AS d
-  FROM sessions s
-  JOIN projects p ON p.id = s.project_id
-  WHERE p.cwd = '$(pwd)'
-    AND NOT EXISTS (
-      SELECT 1 FROM day_units u
-      WHERE u.project_dir_name = p.dir_name
-        AND u.date = substr(s.started_at,1,10))
-  ORDER BY d DESC;"
-```
-
-3. **生成** — Skill ツールで `distill-project` を起動し、対象プロジェクトと日付を渡す。
-   project_unit が未生成ならそれも作らせる。教材とクイズは distill-project が作る。
-   このスキルは生成そのものを行わない。
-
-**既定は project_unit と最新 3 日分**。`--days N` で件数を変え、`--all` で全未生成日を対象にする。
-上限を設けるのは、未生成日が多いと生成が長時間になり、途中で止めにくいため。
-対象が 5 日を超えるときは、件数と所要の見込みを伝えて実行してよいか確認する。
-
-4. **報告** — 紐付けたリポジトリ、取り込んだファイル数、生成した project_unit と日付、
-   クイズの問数を伝える。あわせて「公開サイトへは `/distill publish` まで反映されない」ことを明示する。
-
-### link
-
-```bash
-"$DISTILL" link          # 引数に --no-display があればそのまま渡す
-"$DISTILL" ingest
-```
-
-`link` は引数を渡さなければ現在の作業ディレクトリを対象にする。git remote があれば
-参照リポジトリも登録する。`--no-display` を付けると収集だけ行い、画面と公開サイトには出さない。
-
-### ingest
-
-```bash
-"$DISTILL" ingest
-```
-
-取り込む対象は Distill 側の収集フラグで決まる。ここでフラグを操作しない。
-`database is locked` が出たら、`distill serve` が動いていないかを `lsof` で確認する。
-WAL でも、残留したプロセスが掴んでいると書き込めない。
-
-### publish
-
-```bash
-cd "$HOME/develop/other/distill-of-ai-process"
-rm -rf ./dist && "$DISTILL" export-static --out ./dist
-PATH="$HOME/.local/share/mise/installs/node/20.19.0/bin:$PATH" \
-  npx --yes wrangler@3 pages deploy ./dist --project-name=distill
-```
-
-wrangler は v4 が Node 22 以上を要求するため v3 を明示する。
-デプロイ後、本番 URL が未認証で 401 を返すことを確認する。
+| `status` | サイトの規模・陳腐化件数・自動化の稼働状況を報告する |
+| `stale` | 概要.md が古くなっているプロジェクトを一覧する |
+| `refresh [N]` | 陳腐化した概要を書き直す（既定 2 件、`0` で下見のみ） |
+| `build` | vault を読んでローカルのサイトを再生成する |
+| `deploy` | 公開サイト（Cloudflare Pages）へ反映する |
+| `url <path>` | vault 内のファイルが出るページの URL を 1 行で出す |
 
 ### status
 
+3 つを順に出す。
+
 ```bash
-DB="${DISTILL_DB:-$HOME/.distill/distill.db}"
-sqlite3 "$DB" "PRAGMA query_only=1;
-  SELECT '収集 ' || SUM(collect) || ' / 表示 ' || SUM(display) || ' / 全 ' || COUNT(*)
-  FROM projects WHERE ignored=0;
-  SELECT '教材 project ' || (SELECT COUNT(*) FROM project_units)
-      || ' / day ' || (SELECT COUNT(*) FROM day_units);"
+"$DISTILL" build --out "$HOME/.distill/site" | tail -2   # 規模
+"$DISTILL" stale                                          # 陳腐化
+launchctl print "gui/$(id -u)/com.distill.refresh" 2>/dev/null | grep -E "state|last exit"
 ```
 
-読み取りは `PRAGMA query_only=1` を前置する。DB は WAL なので `sqlite3 -readonly`
-は共有メモリを作れず開けないことがある。
+自動化は 3 本ある。**動いているかを推測で答えない。** 上の `launchctl print` と
+ログの日付で確かめる。
+
+| ラベル | 何を | いつ |
+|---|---|---|
+| `com.snakashima.distill-serve` | `~/.distill/site` を 8080 で配信 | 常時 |
+| `com.snakashima.distill-publish` | vault が変わっていればビルドして公開 | 5 分ごと |
+| `com.distill.refresh` | 陳腐化した概要を書き直す | 1 日 1 回 |
+
+### stale
+
+```bash
+"$DISTILL" stale
+```
+
+`概要.md` の frontmatter の `sha`（書いたときの commit）と手元のクローンの HEAD を
+比べ、未反映の commit 数を出す。**「判定できません」は「古くない」ではない** —
+sha が無いか、その commit が手元に無い状態を指す。書き直せば sha が入る。
+
+### refresh
+
+```bash
+cd "$HOME/develop/other/distill-of-ai-process"
+./scripts/refresh-overviews.sh 2            # 2 件まで書き直す
+./scripts/refresh-overviews.sh 0            # 対象を出すだけ
+./scripts/refresh-overviews.sh 1 dotfiles   # 名指しで 1 件
+```
+
+各対象について、そのクローンを作業ディレクトリにしてヘッドレスの Claude を起動し、
+`distill-project` skill に概要だけを書き直させる。**1 回の実行で処理する件数を
+絞る。** 概要 1 本の書き直しはリポジトリ全体を読む作業なので、溜まった分を一度に
+回すと時間もトークンも青天井になる。残りは次の実行で対象になる。
+
+ログは `~/.distill/logs/refresh-overviews.log`。失敗しても launchd は黙るので、
+報告するときはここを読む。
+
+### build
+
+```bash
+"$DISTILL" build --out "$HOME/.distill/site"
+```
+
+**ビルドは出力先を丸ごと作り直す。** 配信中のサーバーがそのディレクトリを掴んで
+いると古いページを返し続けるので、手で確かめるときは配信を入れ直す。
+
+### deploy
+
+```bash
+cd "$HOME/develop/other/distill-of-ai-process"
+./node_modules/.bin/wrangler pages deploy "$HOME/.distill/site" \
+    --project-name=distill --branch=main
+```
+
+`--branch=main` を必ず付ける。付けないとプレビュー環境に出て、本番 URL が古いまま
+残る。通常は `com.snakashima.distill-publish` が 5 分ごとに自動で行うので、
+**手で叩くのは vault ではなくコードを変えたとき**（自動配信は vault の変化しか見ない）。
+
+### url
+
+```bash
+"$DISTILL" url "<vault 内の md ファイル>"
+```
+
+書いたファイルがどのページに出るかを 1 行で返す。完了報告にはこの URL を出す。
 
 ## 報告するとき
 
-- 実行したサブコマンドと結果（取り込んだファイル数、デプロイ先 URL など）を伝える
-- `link` と `ingest` は教材を作らない。作るのは `distill-project` スキル。
-  `full` はそれらを順に呼ぶだけで、生成の中身は distill-project が決める
-- 公開サイトは `publish` するまで変わらない。取り込んだだけでは反映されない
+- 実行したサブコマンドと、観測した出力（件数・URL・失敗の実文）を伝える
+- **この skill は教材を作らない。** 作るのは `distill-project`。`refresh` はそれを
+  無人で呼ぶだけで、中身の判断は `distill-project` が持つ
+- 公開サイトの反映は自動配信に任せる。急ぐときだけ `deploy` を叩く
