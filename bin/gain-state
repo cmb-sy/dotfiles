@@ -1,0 +1,75 @@
+#!/bin/bash
+# Track which watch sources were already visited this week.
+#
+# Tech news does not change by the hour, and the previous design re-read every
+# source on every run. Weekly is the granularity the sources actually move at,
+# so a source seen this week is skipped until the week turns.
+#
+# The state also carries how often each source produced something, which is
+# what the skill's improvement proposals are argued from.
+#
+#   gain-state due <sources.yaml>              -> "<scope>\t<key>" per due source
+#   gain-state record <scope> <key> <findings> -> stamp today, bump the counters
+#
+# GAIN_STATE overrides the state file and GAIN_NOW pins today, so the week
+# boundary can be tested without waiting for one.
+
+set -uo pipefail
+
+STATE="${GAIN_STATE:-$HOME/.local/state/gain/sources.tsv}"
+NOW="${GAIN_NOW:-$(date '+%Y-%m-%d')}"
+
+export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+
+usage() { printf 'usage: gain-state due <sources.yaml> | record <scope> <key> <findings>\n' >&2; exit 64; }
+
+# ISO week, not sqlite's `weekday` modifier: that one advances to the *next*
+# given weekday and stays put when today already is it, which lands a week
+# early every Monday (bin/voice-quota-watch documents the same trap).
+same_week() {  # $1 = YYYY-MM-DD, $2 = YYYY-MM-DD -> exit 0 when in the same ISO week
+  python3 - "$1" "$2" << 'PY'
+import sys
+from datetime import date
+def wk(s):
+    try:
+        return date.fromisoformat(s).isocalendar()[:2]
+    except ValueError:
+        return None
+a, b = wk(sys.argv[1]), wk(sys.argv[2])
+sys.exit(0 if a is not None and a == b else 1)
+PY
+}
+
+cmd_due() {
+  local src="$1"
+  [ -f "$src" ] || { printf 'gain-state: no sources file at %s\n' "$src" >&2; exit 1; }
+  # One "<scope>\t<key>" per source, in file order.
+  python3 - "$src" << 'PY' |
+import sys, yaml
+d = yaml.safe_load(open(sys.argv[1], encoding='utf-8')) or {}
+KEY = {'github': 'repo', 'services': 'name', 'engineers': 'name', 'news': 'query'}
+for scope, items in d.items():
+    if scope == 'peers':
+        for h in (items or {}).get('handles', []) or []:
+            print(f'peers\t{h}')
+        continue
+    for it in items or []:
+        k = KEY.get(scope)
+        if k and isinstance(it, dict) and it.get(k):
+            print(f'{scope}\t{it[k]}')
+PY
+  while IFS=$'\t' read -r scope key; do
+    [ -n "$scope" ] && [ -n "$key" ] || continue
+    last=$(awk -F'\t' -v s="$scope" -v k="$key" '$1 == s && $2 == k { print $3; exit }' "$STATE" 2>/dev/null)
+    if [ -n "$last" ] && same_week "$last" "$NOW"; then
+      continue
+    fi
+    printf '%s\t%s\n' "$scope" "$key"
+  done
+}
+
+case "${1:-}" in
+  due)    [ $# -eq 2 ] || usage; cmd_due "$2" ;;
+  record) usage ;;   # Task 2
+  *)      usage ;;
+esac
