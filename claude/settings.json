@@ -312,6 +312,18 @@
           }
         ]
       }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${HOME}/dotfiles/claude/hooks/distill-record.sh\"",
+            "timeout": 20
+          }
+        ]
+      }
     ]
   },
   "statusLine": {

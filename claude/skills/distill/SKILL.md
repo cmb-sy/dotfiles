@@ -49,9 +49,11 @@ launchctl print "gui/$(id -u)/com.distill.refresh" 2>/dev/null | grep -E "state|
 
 | ラベル | 何を | いつ |
 |---|---|---|
-| `com.snakashima.distill-serve` | `~/.distill/site` を 8080 で配信 | 常時 |
-| `com.snakashima.distill-publish` | vault が変わっていればビルドして公開 | 5 分ごと |
+| 配信（`*.distill-serve`） | `~/.distill/site` を 8080 で配信 | 常時 |
+| 公開（`*.distill-publish`） | vault が変わっていればビルドして公開 | 5 分ごと |
 | `com.distill.refresh` | 陳腐化した概要を書き直す | 1 日 1 回 |
+
+ラベルは環境で違う。`launchctl list | grep distill` で実際の名前を引く。
 
 ### stale
 
@@ -98,7 +100,7 @@ cd "$HOME/develop/other/distill-of-ai-process"
 ```
 
 `--branch=main` を必ず付ける。付けないとプレビュー環境に出て、本番 URL が古いまま
-残る。通常は `com.snakashima.distill-publish` が 5 分ごとに自動で行うので、
+残る。通常は公開のエージェントが 5 分ごとに自動で行うので、
 **手で叩くのは vault ではなくコードを変えたとき**（自動配信は vault の変化しか見ない）。
 
 ### url
