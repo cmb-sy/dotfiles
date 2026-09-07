@@ -8,7 +8,7 @@ argument-hint: "[--exclude <キーワード>...]"
 user-invocable: true
 ---
 
-その日の作業を1コマンドで締める。**並列収集（Slack+GitHub+distill-gain-latest-info watch+github-sync 計画）→ github-issues（open issue 確認）→ github-sync 適用 → daily-log → CloudLog入力 → 翌日デイリー作成 → 翌日タスク整理（未チェックの自動引き継ぎ＋新規の GitHub issue 紐付け）→ Obsidian vault commit/push** を順次実行する。
+その日の作業を1コマンドで締める。**並列収集（Slack+GitHub+distill-gain-latest-info watch+github-sync 計画）→ github-issues（open issue 確認）→ github-sync 適用 → 完了タスクの削除 → daily-log → CloudLog入力 → 翌日デイリー作成 → 翌日タスク整理（未チェックの自動引き継ぎ＋新規の GitHub issue 紐付け）→ Obsidian vault commit/push** を順次実行する。
 
 ## Options
 
@@ -101,6 +101,39 @@ Step 1 で生成した計画ファイル（`/private/tmp/eod-github-sync-plan.md
 - 適用後に「本文が薄い」と列挙されたノートへの補足追記まで行う（github-sync スキルの該当手順に従う）
 
 ここで生成された TaskNotes は Step 6（翌日タスク整理）の材料になる。
+
+### Step 2.6: 完了から 14 日を過ぎた TaskNotes を削除
+
+**github-sync がスキップされていても実行する。** かんばんに完了タスクが溜まり続けるのを防ぐのが目的で、
+GitHub への書き込みを伴わないため github-sync の採否とは独立している。
+
+**Step 2.5 で `sync.py --apply` を実行した場合は、その中で削除済みなので本ステップをスキップする。**
+
+削除対象は `sync.py` の `plan_purge()` で列挙する。保護対象には Step 2 で取得した
+open issue の URL を渡す（同じ一覧を二度取らない）。
+
+```python
+import importlib.util, datetime
+spec = importlib.util.spec_from_file_location("sync", "02_warehouse/skills/github-sync/sync.py")
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+stale, undated = m.plan_purge(datetime.date.today(), open_urls)
+```
+
+- 戻り値は `(パス, 完了日, 手書きメモの有無)` の 3 要素タプル
+- 判定は `completedDate` のみ。`dateModified` や mtime は使わない
+- **完了日が無いものは削除しない。** 今日 done にしたばかりのタスクを消す事故を防ぐため、
+  `undated` として別枠で報告する
+- GitHub 側が open かつ自分の担当のままのノートは削除しない（消すと次の同期で復活し、
+  Obsidian 側で done にした事実が失われる）
+
+**削除は破壊的操作なので、件数と内訳を提示して承認を得てから実行する。**
+
+- **手書きメモを持つノートの件数と名前を必ず提示する。** メモごと消えるため
+- 完了日の分布（いつ done になったものが対象か）を添える
+- 承認が得られなければ何もしない。件数だけ完了報告に記録する
+- 復元は git 履歴から可能である旨を伝える（`git show <commit>^:TaskNotes/Tasks/{ファイル名}`）
+
+削除したファイルは Step 7 の commit に含まれる。
 
 ### Step 3: daily-log（セッション + CloudLog）
 
@@ -225,6 +258,7 @@ git でコミットし、リモートへ push する。**最後に実行する**
 - github-issues: open issue 件数（cmb-sy assigned）
 - distill-gain-latest-info watch: 観測したスコープとダイジェストの保存先（スキップ時は「スキップ」）
 - github-sync: 新規作成 / 更新 / done へ変更 の件数（スキップ時は「スキップ」）
+- TaskNotes の削除: 件数（うち手書きメモあり n 件 / 完了日なしで見送り n 件。承認されなければ「見送り」）
 - CloudLog 入力件数・合計時間
 - 走査したセッション数・除外プロジェクト
 - 翌日デイリー作成（作成したパス or「既に存在のためスキップ」）
