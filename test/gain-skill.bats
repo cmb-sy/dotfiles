@@ -1,0 +1,51 @@
+#!/usr/bin/env bats
+# 情報収集スキルの仕様。
+#
+# 2 か月間 1 件も出力しなかった対象なので、検査は「書いてあること」ではなく
+# 「壊れる書き方が残っていないこと」に当てる。説明文にも語が出るため、
+# 検査はコメントを除いた本文に当てる。
+
+load "helpers/common"
+
+setup() {
+  SK="$REPO_DIR/claude/skills/distill-gain-latest-info/SKILL.md"
+}
+
+@test "dry-run が残っていない" {
+  # 抑止すべき対話をサブエージェント側に置かない設計にしたので、
+  # このフラグは存在自体が設計と矛盾する。
+  n=$(grep -c -- '--dry-run' "$SK") || n=0
+  [ "$n" -eq 0 ]
+}
+
+@test "廃止した出力先への言及が残っていない" {
+  n=$(grep -c 'peer-watch' "$SK") || n=0
+  [ "$n" -eq 0 ]
+  m=$(grep -cE '情報収集/(watch|research)/' "$SK") || m=0
+  [ "$m" -eq 0 ]
+}
+
+@test "出力先が 99_distill/情報収集 の 1 ファイルである" {
+  grep -qF '99_distill/情報収集/' "$SK"
+  n=$(grep -c 'index\.md' "$SK") || n=0
+  [ "$n" -eq 0 ]
+}
+
+@test "週内クールダウンを gain-state に委ねている" {
+  grep -qF 'gain-state due' "$SK"
+  grep -qF 'gain-state record' "$SK"
+}
+
+@test "ダイジェストの件数と深さが指定されている" {
+  grep -qE '3〜5 ?件' "$SK"
+  grep -qF '自分の環境で何が変わるか' "$SK"
+}
+
+@test "改善提案は提示までで、適用しないと明記されている" {
+  grep -qF '## 改善提案' "$SK"
+  grep -qF 'このスキル自身は適用しない' "$SK"
+}
+
+@test "sources.yaml を読む記述が残っている" {
+  grep -qF 'sources.yaml' "$SK"
+}
