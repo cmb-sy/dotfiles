@@ -89,7 +89,7 @@ SNS 由来のエントリは必ず「信頼度低」ラベルを付す。取得�
 
 `$HOME/develop/obsidian/99_distill/情報収集/YYYY-MM-DD.md` に書く（無ければ作成、同日ならファイルの既存見出しに追記し重複させない）。
 
-処理した監視先ごとに `bin/gain-state record <scope> <key> <採用件数>` を呼ぶ。**採用 0 件でも呼ぶ**（「処理した」という記録自体が翌週までのクールダウンと `## 改善提案` の根拠になる）。
+**取得に成功した**監視先ごとに `bin/gain-state record <scope> <key> <採用件数>` を呼ぶ。**採用 0 件でも呼ぶ**（「取得はできたが収穫が無かった」という記録自体が翌週までのクールダウンと `## 改善提案` の根拠になる）。取得自体が失敗した監視先は呼ばない（詳細は `## エラーハンドリング` を参照。来週も due のままにし、一時的な失敗で観測が丸々1週間飛ぶことを避ける）。
 
 ### 完了報告
 
@@ -186,10 +186,12 @@ scopes: [peers, github, services, engineers, news]
 | scope のソース定義が空（`[]`） | 「<scope>: ソース未登録のためスキップ」と 1 行報告して次 scope へ（エラー扱いしない） |
 | `gh` 未認証 | 「`gh auth login` を実行してください」と表示し該当 scope 終了 |
 | リポジトリ 404 | 1 行警告で skip、他は続行（`gain-state record` は呼ばない） |
-| RSS/changelog 取得失敗 | 当該ソースを skip、他は続行（`gain-state record` は findings=0 で呼ぶ） |
-| SNS 取得ゼロ | 正常扱い（「該当なし」） |
+| RSS/changelog 取得失敗 | 当該ソースを skip、他は続行（`gain-state record` は呼ばない。取得自体の失敗は次回そのまま再訪する。一時的な回線断で週次の枠を消費しない） |
+| SNS 取得ゼロ | 正常扱い（「該当なし」。取得は成功しているため `gain-state record` は findings=0 で呼ぶ） |
 | 全ソース取得失敗 | 「データを取得できませんでした」と報告し終了（ファイルは作らない） |
 | deep-research 未利用可（research モード） | Web を内蔵 WebSearch で縮退実行し明示 |
+
+**`gain-state record` を呼ぶかどうかの基準は「取得に成功したか」であり「findings があったか」ではない。** 取得自体が失敗した監視先（404 / RSS・changelog 取得失敗など）は `record` を呼ばず、来週も due のままにする。取得に成功して収穫が 0 件だった場合（SNS 取得ゼロ等）は `record` を findings=0 で呼び、来週まで再訪しない。
 
 ## Red Flags（やってはいけないこと）
 
