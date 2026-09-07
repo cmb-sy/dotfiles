@@ -32,8 +32,7 @@ user-invocable: true
   3. `Step 1: GitHub 収集` — 本日のコミット・PR・Issue 活動取得をスキップ
 
 **Q2**「Step 1 の追加ジョブで飛ばすものはありますか?」（header: `追加Skip`）— 順序固定:
-  1. `distill-gain-latest-info watch` — 技術情報の横断観測をスキップ(Web 検索を多用し所要時間が伸びるため、急ぐ日はここで外す)
-  2. `github-sync` — GitHub Issue → TaskNotes 同期をスキップ(Step 2.5 も併せてスキップ)
+  1. `github-sync` — GitHub Issue → TaskNotes 同期をスキップ(Step 2.5 も併せてスキップ)
 
 Step 3(daily-log 自体のスキップ) などその他のスキップは `Other` (自由記述) で受け付ける。ユーザーが何も選択しなかった場合は「全ステップ実行」とみなす。選択結果は実行フロー全体で参照する。
 
@@ -61,15 +60,27 @@ Step 3(daily-log 自体のスキップ) などその他のスキップは `Other
   - `claude mcp list` で `claude.ai Slack: ✓ Connected` を確認できれば MCP は最優先で使う
   - `slackcli` が `invalid_auth` を返しても、それは CLI の Slack トークン失効であり、MCP の認証状態とは無関係
 - **GitHub**: 本日のコミット・PR・レビュー・Issue コメント/更新を `gh` で取得
-- **distill-gain-latest-info watch**: サブエージェントに `distill-gain-latest-info` スキルを `watch --dry-run` で実行させる
-  - `--dry-run` は peers スコープの採用対話・保存だけを抑止する。サブエージェントはユーザーに質問できないため必須
-  - サブエージェントへの指示に「ユーザーへの確認が必要になったら実行せず、その旨を報告して返す」ことを明記する
+- **distill-gain-latest-info watch**: サブエージェントに `distill-gain-latest-info` スキルを `watch` で実行させる
+  - サブエージェントへの指示に「確認が要る事項は `## 改善提案` 節に書いて返す。サブエージェント内で適用しない」ことを明記する
   - vault への commit は行わせない（Step 7 が一括で行う）
 - **github-sync 計画生成**: `python3 $HOME/develop/obsidian/.claude/skills/github-sync/sync.py --plan-file /private/tmp/eod-github-sync-plan.md`
   - 書き込みなしの計画生成のみ。`--apply` と `--push` はここでは絶対に付けない（適用は Step 2.5、push は Step 7）
   - 一時ファイルは `/private/tmp` 配下に置く（macOS の `$TMPDIR` は `/var/folders` 配下でツール側のガードに抵触する）
 
 Slack + GitHub の結果を Step 2・3 で再利用する（二重取得しない）。
+
+### Step 1.5: 情報収集の改善提案
+
+Step 1 の `distill-gain-latest-info` が書いたダイジェスト
+(`$HOME/develop/obsidian/99_distill/情報収集/YYYY-MM-DD.md`) の `## 改善提案` 節を読む。
+節が無い、または項目が 0 件なら本ステップをスキップし、完了報告に「改善提案: なし」と記録する。
+
+項目があれば `AskUserQuestion`(`multiSelect: true`, header: `監視先`) で採否を問い、
+**承認されたものだけ**を `claude/skills/distill-gain-latest-info/sources.yaml` に反映する。
+
+- 承認なしに `sources.yaml` を書き換えない
+- 反映後、変更した行を完了報告に列挙する
+- サブエージェントは提案を書くだけで適用しない。適用はここでのみ行う
 
 ### Step 2: github-issues（open issue 確認）
 

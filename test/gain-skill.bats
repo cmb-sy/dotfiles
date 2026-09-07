@@ -49,3 +49,33 @@ setup() {
 @test "sources.yaml を読む記述が残っている" {
   grep -qF 'sources.yaml' "$SK"
 }
+
+# --- eod 側の配線 ---
+#
+# 「必ず実行する」と「承認を取る」は、サブエージェントに丸投げしたままでは
+# 両立しない。収集はサブエージェント、承認は eod 本体、という分離を検査する。
+
+@test "eod のスキップ選択肢から情報収集が消えている" {
+  f="$REPO_DIR/claude/skills/eod/SKILL.md"
+  # Step 0 の選択肢は「`名前` — 説明をスキップ」の形。宣言の形に当てる。
+  n=$(grep -cE '^ +[0-9]+\. `distill-gain-latest-info' "$f") || n=0
+  [ "$n" -eq 0 ]
+}
+
+@test "eod が dry-run を渡していない" {
+  f="$REPO_DIR/claude/skills/eod/SKILL.md"
+  n=$(grep -c -- '--dry-run' "$f") || n=0
+  [ "$n" -eq 0 ]
+}
+
+@test "eod に改善提案の承認ステップがある" {
+  f="$REPO_DIR/claude/skills/eod/SKILL.md"
+  grep -qF '### Step 1.5' "$f"
+  grep -qF '## 改善提案' "$f"
+  grep -qF 'AskUserQuestion' "$f"
+}
+
+@test "eod が gain をサブエージェントに投げる記述は残っている" {
+  f="$REPO_DIR/claude/skills/eod/SKILL.md"
+  grep -qF 'distill-gain-latest-info' "$f"
+}
