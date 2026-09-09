@@ -10,12 +10,10 @@
 peers:
   handles:
     - neko-neko    # Tokyo; traditional tmux/Tailscale/sesh stack
-    - mizchi       # three-layer chezmoi + Nix home-manager + APM
     - joshukraine  # Claude Code skills via _shared/house-style.html
     - shunk031     # AGENTS.md SSOT + symlinks for Claude/Codex/Gemini
     - yutkat       # version-tag releases; NixOS/Arch; bundled Codex prompts
-  overrides:
-    mizchi: mizchi/chezmoi-dotfiles
+  overrides: {}
 
 # General repos — watch commits/releases (not limited to dotfiles)
 github:
@@ -23,6 +21,12 @@ github:
     note: LLM-driven Agent Skills workflow engine; directly relevant to my skill ops
   - repo: mizchi/vibe-lang
     note: active experimental language for AI coding
+  - repo: netresearch/agent-harness-skill
+    note: A/B measurements on skill activation wording (1/6 -> 6/6 by moving the trigger to the opening phrase)
+  - repo: netresearch/agent-system-evals
+    note: how to measure agent behaviour; the layer my bats suite lacks
+  - repo: cjpais/Handy
+    note: releases only — local is 0.8.3 and upstream moves without me noticing
   - repo: ollama/ollama
     note: releases only — new versions of the free local runtime behind Handy voice post-processing
 
@@ -37,6 +41,9 @@ services:
   - name: Obsidian
     url: https://obsidian.md/changelog
     note: vault workflow foundation
+  - name: Claude system prompt
+    url: https://docs.claude.com/en/release-notes/system-prompts.md
+    note: .md suffix gives a diffable body; harness behaviour changes show up here first
 
 # Engineers to follow via blog (RSS) and SNS (best-effort)
 engineers:
@@ -46,7 +53,7 @@ engineers:
   - name: mizchi
     x: "@mizchi"
     blog: https://zenn.dev/mizchi/feed
-    note: also watched in peers (dotfiles); Zenn is authoritative (mizchi.dev serves stale 2020 cache)
+    note: Zenn is authoritative (mizchi.dev serves stale 2020 cache). dotfiles side yields nothing; vibe-lang in github covers the code
 
 # Impact news — search queries
 news:
