@@ -53,8 +53,18 @@ fi
 
 # --- 会話の抽出 ---
 digest="$TMP_DIR/$sid.md"
-if ! /usr/bin/python3 "$EXTRACT" "$tx" "$digest" >>"$LOG" 2>&1; then
+extract_out=$(/usr/bin/python3 "$EXTRACT" "$tx" "$digest" 2>&1)
+printf '%s\n' "$extract_out" >>"$LOG"
+if [ ! -s "$digest" ]; then
   say "$sid: 会話を抽出できなかった。記録しない"
+  exit 0
+fi
+# 「0 往復」はツール操作だけで発言が無いセッション。会話が無いものから
+# 記録を書かせると、材料の無い作文になる。
+turns=$(printf '%s' "$extract_out" | sed -n 's/.*: \([0-9][0-9]*\) 往復.*/\1/p' | head -1)
+if [ "${turns:-0}" -lt 1 ]; then
+  say "$sid: 会話が 0 往復。記録しない（${repo}）"
+  rm -f "$digest"
   exit 0
 fi
 
@@ -75,7 +85,13 @@ nohup /bin/bash -c "
 この実行には会話がありません。会話の代わりに '$digest' を読み、それを情報源として\
 セッション記録だけを書いてください（概要.md は触らないこと）。\
 frontmatter の session には $sid をそのまま入れてください。\" >>'$LOG' 2>&1
-  echo \"\$(date '+%Y-%m-%d %H:%M:%S') $sid: 記録の書き込みが終了（終了コード \$?）\" >>'$LOG'
+  # 終了コードは信じない。支出上限などで API に拒否されても claude は 0 で
+  # 抜けるため、成功と区別できない。記録が実在するかで判定する。
+  if grep -rql \"^session: $sid\$\" '$VAULT/プロジェクト/$repo/記録' 2>/dev/null; then
+    echo \"\$(date '+%Y-%m-%d %H:%M:%S') $sid: 記録を書いた\" >>'$LOG'
+  else
+    echo \"\$(date '+%Y-%m-%d %H:%M:%S') $sid: 記録が作られなかった（直前のログを見る）\" >>'$LOG'
+  fi
   '$HOME/develop/other/distill-of-ai-process/.venv/bin/distill' build --out '$HOME/.distill/site' >>'$LOG' 2>&1
   rm -f '$digest'
 " >/dev/null 2>&1 &

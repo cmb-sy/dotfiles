@@ -97,3 +97,42 @@ run_hook() {
   noise=$(grep -cE "Base directory|system-reminder|tool_use" "$out" || true)
   [ "$noise" -eq 0 ]
 }
+
+@test "distill-record: ツール操作だけのセッションは記録しない" {
+  # 発言も応答も無い transcript。抽出そのものが空になる。
+  mkdir -p "$TEST_TMPDIR/home"
+  local tx="$TEST_TMPDIR/tools-only.jsonl"
+  {
+    printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Edit"}]}}'
+    printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Write"}]}}'
+    printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Edit"}]}}'
+  } > "$tx"
+  run_hook "s6" "$GIT_REPO" "$tx" >/dev/null
+  grep -qF "会話を抽出できなかった" "$TEST_TMPDIR/home/.distill/logs/record.log"
+}
+
+@test "distill-record: ユーザーの発言が無いセッションは記録しない" {
+  # 応答だけが残っていて、依頼が 1 つも無い場合。材料が無いのに書かせると
+  # 作文になる。抽出器が数えた往復数で切る。
+  mkdir -p "$TEST_TMPDIR/home"
+  local tx="$TEST_TMPDIR/no-user.jsonl"
+  {
+    printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"text","text":"直しました"}]}}'
+    printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Edit"}]}}'
+    printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Write"}]}}'
+    printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Edit"}]}}'
+  } > "$tx"
+  run_hook "s7" "$GIT_REPO" "$tx" >/dev/null
+  grep -qF "0 往復" "$TEST_TMPDIR/home/.distill/logs/record.log"
+}
+
+@test "distill-record: 成否は記録の実在で決める（終了コードを信じない）" {
+  # 支出上限などで API に拒否されても claude は 0 で抜けるため、終了コードでは
+  # 成功と区別できない（実際にそう記録されていた）。
+  # 語ではなく判定の形を見る。コメントに書いた語に当たらないようにする。
+  grep -qF '記録を書いた' "$SCRIPT"
+  grep -qF '記録が作られなかった' "$SCRIPT"
+  local by_exit
+  by_exit=$(grep -cF '終了コード \$?' "$SCRIPT" || true)
+  [ "$by_exit" -eq 0 ]
+}
