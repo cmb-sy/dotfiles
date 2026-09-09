@@ -41,6 +41,12 @@ services:
   - name: Obsidian
     url: https://obsidian.md/changelog
     note: vault workflow foundation
+  - name: Databricks
+    url: https://docs.databricks.com/aws/en/release-notes/product/
+    note: 業務の中核。Databricks-Analysis / data-platform / 白書自動化がすべて依存する。Delta Lake・VIEW・Genie・SQL 関数の挙動変更は直接影響する
+  - name: Databricks SQL
+    url: https://docs.databricks.com/aws/en/sql/release-notes/
+    note: VIEW のスキーマ固定や Delta の読み取り挙動はここに出る。2026-09-02 の 5 時間障害は VIEW のスキーマ変更が原因だった
   - name: Claude system prompt
     url: https://docs.claude.com/en/release-notes/system-prompts.md
     note: .md suffix gives a diffable body; harness behaviour changes show up here first
@@ -73,3 +79,7 @@ news:
     note: harness construction practices; feeds harness-audit Level 4 anchors
   - query: "agentic coding workflow harness best practices"
     note: EN sources for the same; top-engineer harness patterns
+  - query: "Databricks Delta Lake VIEW スキーマ 変更 運用"
+    note: 業務の中核。VIEW のスキーマ固定で実際に障害を出しているため、運用上の落とし穴を拾う
+  - query: "Databricks AI/BI Genie MCP 活用"
+    note: Genie と MCP サーバーの両方を出口にしている。他社の使い方と機能追加を追う
