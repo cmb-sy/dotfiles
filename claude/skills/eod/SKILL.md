@@ -145,7 +145,7 @@ stale, undated = m.plan_purge(datetime.date.today(), open_urls)
 
 - Step 1 で取得済みの Slack + GitHub 情報をそのまま使う（再取得しない）
 - Claude Code セッションログを走査し、`## 今日の成果` セクションを生成
-- **収集した情報のうちプロジェクトの中身が変わったものは `99_distill/プロジェクト/{PJ}/概要.md` に反映する。**
+- **収集した情報のうちプロジェクトの中身が変わったものは `$HOME/develop/distill-vault/プロジェクト/{PJ}/概要.md` に反映する。**
   それ以外はすべて「今日の成果」へ。振られたタスクはどちらにも書かない（かんばんの領分）。
   判定と歯止めは daily-log の Step 6 に従う
 - 対応表に従い CloudLog エントリを生成
@@ -222,7 +222,7 @@ Step 5 の翌日デイリー（既に存在していた場合も対象）の `##
 
 ### Step 7: Obsidian vault を commit & push
 
-eod で生じた vault の全変更（日報・翌日デイリー・`99_distill/` 等）を
+eod で生じた vault の全変更（日報・翌日デイリー等）を
 git でコミットし、リモートへ push する。**最後に実行する**（前のステップが一部失敗しても、
 ここまでに生成・更新されたファイルは確実に保存する）。
 

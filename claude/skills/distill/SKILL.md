@@ -1,7 +1,7 @@
 ---
 name: distill
 description: >-
-  Distill（Obsidian の 99_distill を静的サイトにして読む仕組み）を Claude Code から
+  Distill（md の正本リポジトリを静的サイトにして読む仕組み）を Claude Code から
   操作したいときに使う。状態確認（status）、陳腐化したプロジェクト概要の洗い出しと
   書き直し（refresh）、サイトの再生成（build）、公開サイトへの反映（deploy）を
   1 つの入口にまとめる。サブコマンドは本文の Commands を参照。
@@ -16,7 +16,7 @@ venv 内の実体を絶対パスで叩く。
 DISTILL="$HOME/develop/other/distill-of-ai-process/.venv/bin/distill"
 ```
 
-**データベースは無い。** 正本は Obsidian の `99_distill/` だけで、CLI は vault を
+**データベースは無い。** 正本は `$HOME/develop/distill-vault` だけで、CLI は vault を
 読んで静的サイトを書き出す。教材そのものを作るのは `distill-project` skill で、
 この skill は生成を行わない。
 
