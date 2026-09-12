@@ -1,14 +1,19 @@
 #!/bin/bash
 # Record what Typeless's weekly quota actually is, at the moment it runs out.
 #
-# Typeless keeps no quota, limit or reset date on disk -- only the server knows,
-# and it tells you by showing an upgrade ad. But every dictation is logged with
-# its duration, so the limit is whatever has accumulated when the ad appears.
+# Typeless keeps no quota, limit or reset date on disk -- only the server knows.
+# But every dictation is logged with its duration, so the limit is whatever has
+# accumulated when dictation stops working.
 #
-# Run this the moment the ad shows up. Run it again the first time dictation
-# works after that: the gap between the two is the reset boundary.
+# The signal is dictation failing, NOT the upgrade ad. The ad ("Upgrade for
+# enhanced accuracy / unlimited words") is a promo and shows up far below the
+# limit -- weeks of 48.5 and 45.1 minutes ran fine after it appeared. Recording
+# on the ad sets the limit far too low, which steals Typeless while it still
+# works. Wait for a dictation that produces nothing.
 #
-#   voice-quota-probe exhausted   # the ad just appeared
+# exhausted and reset WRITE a record. Only show reads.
+#
+#   voice-quota-probe exhausted   # dictation just stopped working
 #   voice-quota-probe reset       # dictation works again
 #   voice-quota-probe show        # print what has been recorded so far
 
@@ -25,6 +30,9 @@ SQLITE_BIN="${SQLITE_BIN:-/usr/bin/sqlite3}"
 
 usage() {
   echo "usage: voice-quota-probe {exhausted|reset|show}" >&2
+  echo "  exhausted  record that dictation stopped working (writes; not for the upgrade ad)" >&2
+  echo "  reset      record that dictation works again (writes)" >&2
+  echo "  show       print what has been recorded (reads)" >&2
   exit 64
 }
 

@@ -32,7 +32,7 @@ log() { printf 'voice-quota-watch: %s\n' "$1" >&2; }
 
 # An unmeasured limit is not a reason to guess. Say so once per run and stop.
 if [ -z "${TYPELESS_LIMIT_MIN:-}" ] || [ -z "${TYPELESS_RESET_DAY:-}" ]; then
-  log "quota not measured yet; run 'voice-quota-probe exhausted' when the upgrade ad appears"
+  log "quota not measured yet; run 'voice-quota-probe exhausted' when dictation actually stops working (the upgrade ad is a promo, not the limit)"
   exit 0
 fi
 
