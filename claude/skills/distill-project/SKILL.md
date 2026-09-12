@@ -7,7 +7,7 @@ description: >-
   予測を促す問い・つまずきの類型化・自分で確かめる手順を必ず入れる。
   作業しているリポジトリで実行する。
   起動時に「個別メモ」か「このプロジェクト」かを必ず選ばせる。
-  出力は Obsidian の 99_distill/ で、distill build で表示できる。
+  出力は distill の正本（~/develop/distill-vault）で、distill build で表示できる。
 ---
 
 # distill-project
@@ -39,7 +39,8 @@ distill は vault を読んで表示するだけ（LLM を呼ばない）。生�
 ## 前提
 - **作業しているリポジトリで実行する。** 情報源はこの会話と、いまチェックアウト
   しているブランチのコード。
-- 出力先は Obsidian vault `$HOME/develop/obsidian/99_distill/`。
+- 出力先は distill の正本 `$HOME/develop/distill-vault/`。
+  Obsidian の vault ではない。`[[用語#語名]]` は distill の CLI が解決する。
 - `distill` は PATH に無いので絶対パスで叩く:
   `DISTILL="$HOME/develop/other/distill-of-ai-process/.venv/bin/distill"`
 
@@ -448,7 +449,7 @@ session: <CLAUDE_CODE_SESSION_ID の値>
 ```bash
 REPO=$(basename "$(git rev-parse --show-toplevel)")
 BRANCH=$(git branch --show-current | tr '/' '-')
-VAULT="$HOME/develop/obsidian/99_distill"
+VAULT="$HOME/develop/distill-vault"
 ```
 
 ```bash

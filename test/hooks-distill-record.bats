@@ -68,7 +68,7 @@ run_hook() {
   mkdir -p "$TEST_TMPDIR/home"
   local repo rec
   repo="$(basename "$GIT_REPO")"
-  rec="$TEST_TMPDIR/home/develop/obsidian/99_distill/プロジェクト/$repo/記録"
+  rec="$TEST_TMPDIR/home/develop/distill-vault/プロジェクト/$repo/記録"
   mkdir -p "$rec"
   printf -- '---\nsession: s5\n---\n# 既存\n' > "$rec/2026-01-01-0000.md"
   run_hook "s5" "$GIT_REPO" "$TX" >/dev/null

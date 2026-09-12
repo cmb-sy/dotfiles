@@ -94,7 +94,7 @@ Inventory の結果、全次元が実質 Level 0（エージェント基盤な�
 
 - 各次元に Level 0-4 を付け、**必ず evidence(ファイルパス・実行したコマンドと出力)を添える**
 - Level 4 はベンチマーク照合の根拠なしに付けない
-- 前回レポート(vault `$HOME/develop/obsidian/99_distill/学習メモ/*-<project>-harness-audit.md` の最新。`<project>` は監査対象リポジトリ名)があれば読み、**次元ごとのスコア推移**を算出する
+- 前回レポート(vault `$HOME/develop/distill-vault/学習メモ/*-<project>-harness-audit.md` の最新。`<project>` は監査対象リポジトリ名)があれば読み、**次元ごとのスコア推移**を算出する
 
 ## Phase 4: Education & Roadmap
 
@@ -114,7 +114,7 @@ Inventory の結果、全次元が実質 Level 0（エージェント基盤な�
 **アナウンス:** 「Phase 5: Report — レポートを保存します」
 
 1. チャットに要約(スコアカード表 + 最重要指摘3点 + 今すぐやること)
-2. Obsidian vault `$HOME/develop/obsidian/99_distill/学習メモ/YYYY-MM-DD-<project>-harness-audit.md` に全文保存:
+2. distill の正本 `$HOME/develop/distill-vault/学習メモ/YYYY-MM-DD-<project>-harness-audit.md` に全文保存:
    - `<project>` は監査対象リポジトリ名(横断蓄積のため必須。ファイル名で対象を区別する)
    - ディレクトリなければ作成、同一プロジェクトを同日に複数回実行する場合は連番
    - `$HOME/develop/obsidian` が存在しない場合は保存せず「vault が見つかりません」と報告して終了する

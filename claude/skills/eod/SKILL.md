@@ -72,7 +72,7 @@ Slack + GitHub の結果を Step 2・3 で再利用する（二重取得しな�
 ### Step 1.5: 情報収集の改善提案
 
 Step 1 の `distill-gain-latest-info` が書いたダイジェスト
-(`$HOME/develop/obsidian/99_distill/情報収集/YYYY-MM-DD.md`) の `## 改善提案` 節を読む。
+(`$HOME/develop/distill-vault/情報収集/YYYY-MM-DD.md`) の `## 改善提案` 節を読む。
 節が無い、または項目が 0 件なら本ステップをスキップし、完了報告に「改善提案: なし」と記録する。
 
 項目があれば `AskUserQuestion`(`multiSelect: true`, header: `監視先`) で採否を問い、

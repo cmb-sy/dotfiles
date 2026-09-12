@@ -25,8 +25,10 @@ setup() {
   [ "$m" -eq 0 ]
 }
 
-@test "出力先が 99_distill/情報収集 の 1 ファイルである" {
-  grep -qF '99_distill/情報収集/' "$SK"
+@test "出力先が正本の 情報収集 の 1 ファイルである" {
+  # 正本は Obsidian vault から distill-vault へ移した。パスを固定して
+  # おかないと、移管のたびに書き先が黙って古い場所へ戻る。
+  grep -qF 'distill-vault/情報収集/' "$SK"
   n=$(grep -c 'index\.md' "$SK") || n=0
   [ "$n" -eq 0 ]
 }

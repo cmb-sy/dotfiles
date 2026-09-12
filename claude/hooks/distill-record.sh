@@ -14,7 +14,7 @@ set -uo pipefail
 LOG_DIR="$HOME/.distill/logs"
 TMP_DIR="$HOME/.distill/tmp"
 LOG="$LOG_DIR/record.log"
-VAULT="$HOME/develop/obsidian/99_distill"
+VAULT="$HOME/develop/distill-vault"
 EXTRACT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/distill-transcript.py"
 
 # 実作業と見なす編集の下限。これ未満は記録しない。
