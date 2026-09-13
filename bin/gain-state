@@ -43,8 +43,15 @@ PY
 cmd_due() {
   local src="$1"
   [ -f "$src" ] || { printf 'gain-state: no sources file at %s\n' "$src" >&2; exit 1; }
+  # Homebrew's python3 (first on PATH above, for launchd hygiene) is externally
+  # managed, so setup/install.zsh refuses to pip-install pyyaml into it and puts
+  # it in mise's interpreter instead. Ask mise directly, same fallback order as
+  # install.zsh's own python resolution.
+  local py3
+  py3="$(mise which python3 2>/dev/null || command -v python3)"
+  [ -n "$py3" ] || { printf 'gain-state: no python3 found\n' >&2; exit 1; }
   # One "<scope>\t<key>" per source, in file order.
-  python3 - "$src" << 'PY' |
+  "$py3" - "$src" << 'PY' |
 import sys, yaml
 d = yaml.safe_load(open(sys.argv[1], encoding='utf-8')) or {}
 KEY = {'github': 'repo', 'services': 'name', 'engineers': 'name', 'news': 'query'}
