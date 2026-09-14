@@ -63,7 +63,7 @@ Step 3(daily-log 自体のスキップ) などその他のスキップは `Other
 - **distill-gain-latest-info watch**: サブエージェントに `distill-gain-latest-info` スキルを `watch` で実行させる
   - サブエージェントへの指示に「確認が要る事項は `## 改善提案` 節に書いて返す。サブエージェント内で適用しない」ことを明記する
   - vault への commit は行わせない（Step 7 が一括で行う）
-- **github-sync 計画生成**: `python3 $HOME/develop/obsidian/.claude/skills/github-sync/sync.py --plan-file /private/tmp/eod-github-sync-plan.md`
+- **github-sync 計画生成**: `python3 $HOME/develop/obsidian/system/skills/github-sync/sync.py --plan-file /private/tmp/eod-github-sync-plan.md`
   - 書き込みなしの計画生成のみ。`--apply` と `--push` はここでは絶対に付けない（適用は Step 2.5、push は Step 7）
   - 一時ファイルは `/private/tmp` 配下に置く（macOS の `$TMPDIR` は `/var/folders` 配下でツール側のガードに抵触する）
 
