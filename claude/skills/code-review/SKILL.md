@@ -52,11 +52,12 @@ user-invocable: true
 
 ### 2-1. simplify
 
-Skill tool で `/simplify` を invoke する。引数にスコープ情報を渡す:
-- `--staged` の場合: `args: "--staged"`
-- `--branch` の場合: `args: "--branch"`
-- commit range の場合: `args: "<range>"`
-- 引数なしの場合: `args` なし（デフォルト動作）
+Agent tool で `code-simplifier` を起動する（skill ではなく agent。`subagent_type: "code-simplifier"`）。
+プロンプトにスコープを明示する:
+- `--staged` の場合: staged された変更のみを対象にする
+- `--branch` の場合: ブランチの全変更を対象にする
+- commit range の場合: その range を対象にする
+- 引数なしの場合: 直近の変更を対象にする（デフォルト動作）
 
 simplify は独自のフォーマットで結果を返す。テキストとして受け取り、Phase 3 で手動パースする。
 
@@ -171,7 +172,7 @@ AskUserQuestion ツールを使用してユーザーの選択を取得する。�
 ### category 別の修正方法
 
 **simplify findings の場合:**
-Skill tool で `/simplify` を再度 invoke し、対象ファイルを明示的に指定する。
+Agent tool で `code-simplifier` を再度起動し、対象ファイルをプロンプトで明示する。
 
 **その他の findings (quality, security, performance, test, ai-antipattern, impact, codex) の場合:**
 指摘内容と suggestion に基づき、オーケストレーター自身が直接修正を実装する。修正手順:
