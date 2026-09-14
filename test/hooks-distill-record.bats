@@ -136,3 +136,21 @@ run_hook() {
   by_exit=$(grep -cF '終了コード \$?' "$SCRIPT" || true)
   [ "$by_exit" -eq 0 ]
 }
+
+@test "distill-record: 正本と digest を許可ディレクトリとして渡す" {
+  # claude は作業ディレクトリの外を既定では読み書きできない。フックは
+  # 対象リポジトリを cwd にして走らせるので、正本も digest も外側になる。
+  # 無人実行では許可を尋ねる相手が居ないため、渡さないと何も書かずに終わる。
+  grep -qF -- '--add-dir' "$SCRIPT"
+  grep -qF -- '.distill/tmp' "$SCRIPT"
+}
+
+@test "distill-record: --add-dir はプロンプトより後ろに置く" {
+  # --add-dir は可変長引数で、後ろの語をすべて飲む。プロンプトより前に置くと
+  # プロンプトごと許可ディレクトリとして解釈され、claude は入力が無いと言って
+  # 即終了する。行番号で順序を固定する。
+  local prompt_line add_dir_line
+  prompt_line=$(grep -n 'claude -p' "$SCRIPT" | head -1 | cut -d: -f1)
+  add_dir_line=$(grep -n -- '--add-dir' "$SCRIPT" | head -1 | cut -d: -f1)
+  [ "$add_dir_line" -gt "$prompt_line" ]
+}

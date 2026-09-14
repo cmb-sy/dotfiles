@@ -84,7 +84,8 @@ nohup /bin/bash -c "
   claude -p \"/distill-project 保存先=このプロジェクト。無人実行です。\
 この実行には会話がありません。会話の代わりに '$digest' を読み、それを情報源として\
 セッション記録だけを書いてください（概要.md は触らないこと）。\
-frontmatter の session には $sid をそのまま入れてください。\" >>'$LOG' 2>&1
+frontmatter の session には $sid をそのまま入れてください。\" \
+    --add-dir '$VAULT' '$HOME/.distill/tmp' >>'$LOG' 2>&1
   # 終了コードは信じない。支出上限などで API に拒否されても claude は 0 で
   # 抜けるため、成功と区別できない。記録が実在するかで判定する。
   if grep -rql \"^session: $sid\$\" '$VAULT/プロジェクト/$repo/記録' 2>/dev/null; then
