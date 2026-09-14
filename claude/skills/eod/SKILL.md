@@ -114,7 +114,7 @@ open issue の URL を渡す（同じ一覧を二度取らない）。
 
 ```python
 import importlib.util, datetime
-spec = importlib.util.spec_from_file_location("sync", "02_warehouse/skills/github-sync/sync.py")
+spec = importlib.util.spec_from_file_location("sync", "system/skills/github-sync/sync.py")
 m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
 stale, undated = m.plan_purge(datetime.date.today(), open_urls)
 ```
@@ -131,7 +131,7 @@ stale, undated = m.plan_purge(datetime.date.today(), open_urls)
 - **手書きメモを持つノートの件数と名前を必ず提示する。** メモごと消えるため
 - 完了日の分布（いつ done になったものが対象か）を添える
 - 承認が得られなければ何もしない。件数だけ完了報告に記録する
-- 復元は git 履歴から可能である旨を伝える（`git show <commit>^:TaskNotes/Tasks/{ファイル名}`）
+- 復元は git 履歴から可能である旨を伝える（`git show <commit>^:tasks/Tasks/{ファイル名}`）
 
 削除したファイルは Step 7 の commit に含まれる。
 
@@ -160,11 +160,11 @@ Step 0 で「Step 4」がスキップ選択されている場合は本ステッ�
 
 ### Step 5: 翌日デイリー作成
 
-翌日の日報ファイルを `02_warehouse/daily_template.md` から複製する。
+翌日の日報ファイルを `system/daily_template.md` から複製する。
 
 **前提**:
-- テンプレート: `$HOME/develop/obsidian/02_warehouse/daily_template.md`
-- 出力先: `$HOME/develop/obsidian/00_daily/{YYYY}年/{M}月/{D}日({曜}).md`
+- テンプレート: `$HOME/develop/obsidian/system/daily_template.md`
+- 出力先: `$HOME/develop/obsidian/daily/{YYYY}年/{M}月/{D}日({曜}).md`
 - 命名規則: 月・日はゼロパディングなし（`5月/14日(木).md`）。曜日は日本語1文字（月火水木金土日）
 
 **処理**:
@@ -173,7 +173,7 @@ Step 0 で「Step 4」がスキップ選択されている場合は本ステッ�
    - 月: `date -v+1d +%-m` → `5`（先頭ゼロ抜き）
    - 日: `date -v+1d +%-d` → `14`（先頭ゼロ抜き）
    - 曜日番号: `date -v+1d +%u` → 1=月, 2=火, 3=水, 4=木, 5=金, 6=土, 7=日
-2. 出力先パスを組み立てる: `00_daily/{年}年/{月}月/{日}日({曜}).md`
+2. 出力先パスを組み立てる: `daily/{年}年/{月}月/{日}日({曜}).md`
 3. 出力先ファイルが既に存在する場合は何もせず、完了報告に「既に存在のためスキップ」と記録する（**上書き禁止**）
 4. 親ディレクトリが存在しなければ `mkdir -p` で作成する
 5. `cp` でテンプレートを複製する。テンプレート内容は一切編集しない
