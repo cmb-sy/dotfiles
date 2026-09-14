@@ -4,8 +4,8 @@
 load "helpers/common"
 
 # The scripts that source bin/lib/voice.sh. Scans below assert on this list
-# rather than on all of bin/, so unrelated scripts (bin/view-html greps for its
-# own process) do not read as offenders.
+# rather than on all of bin/, so an unrelated script that happens to grep for a
+# voice process does not read as an offender.
 VOICE_SCRIPTS="voice-switch voice-toggle voice-out handy-warm secure-input-watch ai-format"
 
 voice_script_paths() {

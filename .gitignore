@@ -40,7 +40,7 @@ claude/skills/pptx-dev/scripts/uv.lock
 # R session history, dropped into whatever directory R was started in
 .Rhistory
 
-# python bytecode cache, written when a test imports test/helpers/wcag.py
+# python bytecode cache, written when a test imports a helper module
 __pycache__/
 
 # The global gitignore drops lib/ as build output; bin/lib is tracked source.

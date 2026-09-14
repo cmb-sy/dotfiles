@@ -22,13 +22,3 @@ make_tmp_git_repo() {
     commit -q --allow-empty -m "init"
   echo "$dir"
 }
-
-# Lets inline `python3 -c` in a .bats file do `import wcag`.
-PYTHONPATH="$REPO_DIR/test/helpers${PYTHONPATH:+:$PYTHONPATH}"
-export PYTHONPATH
-
-# wcag_ratio "#rrggbb" "#rrggbb" -> prints contrast ratio (2 decimals).
-# Shell entry point for the math in helpers/wcag.py.
-wcag_ratio() {
-  python3 -c 'import sys, wcag; print(round(wcag.ratio(sys.argv[1], sys.argv[2]), 2))' "$1" "$2"
-}
