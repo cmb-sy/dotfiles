@@ -5,7 +5,7 @@ description: >-
   操作したいときに使う。状態確認（status）、陳腐化したプロジェクト概要の洗い出しと
   書き直し（refresh）、サイトの再生成（build）、公開サイトへの反映（deploy）を
   1 つの入口にまとめる。サブコマンドは本文の Commands を参照。
-argument-hint: "status | stale | refresh [N] | build | deploy | url <vault 内のファイル>"
+argument-hint: "status | stale | refresh [N] | unneeded [--delete] | build | deploy | url <vault 内のファイル>"
 user-invocable: true
 ---
 
@@ -30,6 +30,7 @@ DISTILL="$HOME/develop/other/distill-of-ai-process/.venv/bin/distill"
 | `status` | サイトの規模・陳腐化件数・自動化の稼働状況を報告する |
 | `stale` | 概要.md が古くなっているプロジェクトを一覧する |
 | `refresh [N]` | 陳腐化した概要を書き直す（既定 2 件、`0` で下見のみ） |
+| `unneeded [--delete]` | 公開サイトで「不要」の印が立った記事を出す。`--delete` で承認を取って消す |
 | `build` | vault を読んでローカルのサイトを再生成する |
 | `deploy` | 公開サイト（Cloudflare Pages）へ反映する |
 | `url <path>` | vault 内のファイルが出るページの URL を 1 行で出す |
@@ -81,6 +82,32 @@ cd "$HOME/develop/other/distill-of-ai-process"
 
 ログは `~/.distill/logs/refresh-overviews.log`。失敗しても launchd は黙るので、
 報告するときはここを読む。
+
+### unneeded
+
+```bash
+cd "$HOME/develop/other/distill-of-ai-process"
+./scripts/unneeded.sh
+```
+
+公開サイトの記事末尾にある「不要にする」を押すと、D1 に印が立つ。この
+コマンドは印が立ったページを、対応する md ファイルまで解決して並べる。
+
+**印が立っただけでは何も消えない。** `--delete` を渡されたときだけ、
+並べた一覧を提示して `AskUserQuestion` で承認を取り、承認されたファイルを
+消す。**まとめて消さない** — 1 件ずつ「消す / 残す」を選ばせる。押し間違いが
+そのまま削除になる経路を作らない。
+
+消したら次を行う。
+
+1. 印を落とす（残すと次回また候補に出る）
+   ```bash
+   ./node_modules/.bin/wrangler d1 execute distill-views --remote -y \
+     --command "DELETE FROM views WHERE path = '<消したページの URL>'"
+   ```
+2. `distill build` でサイトを作り直す（配信ジョブに任せてもよい）
+
+印を取り消したいだけなら、記事ページでもう一度ボタンを押す。
 
 ### build
 
