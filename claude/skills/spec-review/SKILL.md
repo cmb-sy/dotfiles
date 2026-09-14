@@ -1,7 +1,7 @@
 ---
 name: spec-review
 description: >-
-  設計書（docs/plans/*-design.md）を実装着手前にレビューしたいときに使うワークフロー。
+  設計書（docs/superpowers/specs/*-design.md）を実装着手前にレビューしたいときに使うワークフロー。
   4つの観点（requirements, design-judgment, feasibility, consistency）で並列レビューし、統合レポートから承認された指摘のみを設計書に反映する。
   フラグ（--codex / --ui / --iterations）の詳細は本文 Phase 1 の引数パースを参照。
 user-invocable: true
@@ -28,7 +28,7 @@ user-invocable: true
 
 | 引数 | 動作 |
 |------|------|
-| (なし) | `docs/plans/*-design.md` から最終更新日時が最新のファイルを自動検出 |
+| (なし) | `docs/superpowers/specs/*-design.md` から最終更新日時が最新のファイルを自動検出 |
 | `<path>` | 指定されたパスの設計書を使用 |
 | `--codex` | Phase 2 に Codex 設計判断レビュー (adversarial-review) を追加する。パス引数と組み合わせ可能 |
 | `--ui` | Phase 2 に UI 設計レビューエージェントを追加する。パス引数・`--codex` と組み合わせ可能 |
@@ -45,7 +45,7 @@ user-invocable: true
 自動検出の場合、Bash ツールで以下を実行する:
 
 ```bash
-ls -t docs/plans/*-design.md | head -1
+ls -t docs/superpowers/specs/*-design.md | head -1
 ```
 
 検出されたファイル、または引数で指定されたファイルを Read で読み込み、`doc_path`（ファイルパス）と `doc_content`（全文）を取得する。
@@ -300,7 +300,7 @@ git diff
 | フェーズ | エラー | リカバリ |
 |---------|--------|---------|
 | 1 | 設計書が見つからない | パスを確認するようユーザーに報告 |
-| 1 | `docs/plans/` ディレクトリが存在しない | ディレクトリ構成を確認するよう報告 |
+| 1 | `docs/superpowers/specs/` ディレクトリが存在しない | ディレクトリ構成を確認するよう報告 |
 | 2 | エージェントタイムアウト | 該当エージェント結果を空として続行 |
 | 2 | JSON パース失敗 | 正規表現フォールバック、それでも失敗なら空 |
 | 2 | Codex (companion.mjs) 実行失敗 | 警告表示し Codex なしで続行 |

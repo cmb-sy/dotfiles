@@ -192,9 +192,9 @@ Audit Gate が PAUSE に到達した後、ユーザーが介入して再開す�
     }
   },
   "artifacts": {
-    "design_doc": "docs/plans/...",
-    "plan_doc": "docs/plans/...",
-    "evidence_plan": "docs/plans/...",
+    "design_doc": "docs/superpowers/plans/...",
+    "plan_doc": "docs/superpowers/plans/...",
+    "evidence_plan": "docs/superpowers/plans/...",
     "worktree_path": "...",
     "branch_name": "...",
     "branch_base": "統合先から分岐した commit。未設定なら `git merge-base HEAD <既定ブランチ>` で求める"

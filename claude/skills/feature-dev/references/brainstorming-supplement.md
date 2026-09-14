@@ -62,7 +62,7 @@ S1・S2 で確認した内容を、設計書に以下のセクションとして
 - 異常系・境界値テストケース名の列挙
 - 非機能要件（パフォーマンス、セキュリティ）の観点があれば列挙
 
-※ Given/When/Then レベルの詳細化は Phase 3（Plan）で行う。設計書内のテスト観点は Phase 3 で `docs/plans/*-test-cases.md` に展開される。
+※ Given/When/Then レベルの詳細化は Phase 3（Plan）で行う。設計書内のテスト観点は Phase 3 で `docs/superpowers/plans/*-test-cases.md` に展開される。
 
 ## Workspace 作成（設計書コミット直前）
 

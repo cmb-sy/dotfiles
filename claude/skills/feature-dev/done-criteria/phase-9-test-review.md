@@ -18,7 +18,7 @@ audit: required
   5. 記録のある全観点について findings リストが返却されているか確認する（未返却・実行途中終了の観点を検出する）
 - **pass_condition**: 手順1で N/A と記録されていること、または（手順3の3観点すべての実行記録が存在し、手順4のパスが一致し、手順5で findings 未返却の観点が0件）
 - **fail_diagnosis_hint**: 欠落している観点を特定し、/test-review の起動引数を確認する。`--design` が欠落していると design-alignment 観点が設計要件と照合できず実質的に無効な実行となるため、設計書パスを付与して再実行する
-- **depends_on_artifacts**: [artifacts/reviews/, docs/plans/*-design.md]
+- **depends_on_artifacts**: [artifacts/reviews/, docs/superpowers/specs/*-design.md]
 
 ### D9-02: 承認された findings の修正が適用され既存テストが破損していない
 - **severity**: blocker

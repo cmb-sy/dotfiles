@@ -39,7 +39,7 @@ audit: required
   5. カバーされていないテスト観点をリストアップする
 - **pass_condition**: 手順5のリストが0件（全テスト観点に対応テストコードあり）
 - **fail_diagnosis_hint**: カバーされていないテスト観点を特定し、テスト区分（正常系/異常系/エッジケース/非機能）ごとの偏りを確認。テスト観点のタイトルとテスト関数名の命名規則が異なる場合は、テスト関数の内容ベースで対応を確認する
-- **depends_on_artifacts**: [docs/plans/*-rca.md, tests/]
+- **depends_on_artifacts**: [docs/superpowers/plans/*-rca.md, tests/]
 
 ## Observation Collection
 

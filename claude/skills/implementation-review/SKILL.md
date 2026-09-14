@@ -1,7 +1,7 @@
 ---
 name: implementation-review
 description: >-
-  実装計画書（docs/plans/ の *-design.md を除く md）を実装着手前にレビューしたいときに使うワークフロー。
+  実装計画書（docs/superpowers/plans/ の md）を実装着手前にレビューしたいときに使うワークフロー。
   3つの観点（clarity, feasibility, consistency）で並列レビューし、統合レポートから承認された指摘のみを計画書に反映する。
   フラグ（--codex / --ui / --iterations）の詳細は本文 Phase 1 の引数パースを参照。
 user-invocable: true
@@ -28,7 +28,7 @@ user-invocable: true
 
 | 引数 | 動作 |
 |------|------|
-| (なし) | `docs/plans/*.md`（`*-design.md` を除く）から最終更新日時が最新のファイルを自動検出 |
+| (なし) | `docs/superpowers/plans/*.md` から最終更新日時が最新のファイルを自動検出 |
 | `<path>` | 指定されたパスの実装計画書を使用 |
 | `--codex` | Phase 2 に Codex 設計判断レビュー (adversarial-review) を追加する。パス引数と組み合わせ可能 |
 | `--ui` | Phase 2 に UI タスク仕様レビューエージェントを追加する。パス引数・`--codex` と組み合わせ可能 |
@@ -45,7 +45,7 @@ user-invocable: true
 自動検出の場合、Bash ツールで以下を実行する:
 
 ```bash
-ls -t docs/plans/*.md | grep -v '\-design\.md$' | head -1
+ls -t docs/superpowers/plans/*.md | head -1
 ```
 
 検出されたファイル、または引数で指定されたファイルを Read で読み込み、`doc_path`（ファイルパス）と `doc_content`（全文）を取得する。
@@ -54,10 +54,10 @@ ls -t docs/plans/*.md | grep -v '\-design\.md$' | head -1
 
 ### 関連設計書の検出
 
-実装計画書のファイル名から日付プレフィックス（例: `2026-03-06`）を抽出し、同じプレフィックスを持つ設計書 `docs/plans/<prefix>*-design.md` を検索する。
+実装計画書のファイル名から日付プレフィックス（例: `2026-03-06`）を抽出し、同じプレフィックスを持つ設計書 `docs/superpowers/specs/<prefix>*-design.md` を検索する。
 
 ```bash
-ls docs/plans/$(echo "$doc_path" | grep -oP '\d{4}-\d{2}-\d{2}' | head -1)*-design.md 2>/dev/null
+ls docs/superpowers/specs/$(echo "$doc_path" | grep -oP '\d{4}-\d{2}-\d{2}' | head -1)*-design.md 2>/dev/null
 ```
 
 見つかった場合、`design_doc_path` と `design_doc_content` を取得し、Phase 2 の consistency エージェントに追加コンテキストとして渡す。見つからない場合は設計書なしで続行する。
@@ -307,7 +307,7 @@ git diff
 | フェーズ | エラー | リカバリ |
 |---------|--------|---------|
 | 1 | 実装計画書が見つからない | パスを確認するようユーザーに報告 |
-| 1 | `docs/plans/` ディレクトリが存在しない | ディレクトリ構成を確認するよう報告 |
+| 1 | `docs/superpowers/plans/` ディレクトリが存在しない | ディレクトリ構成を確認するよう報告 |
 | 2 | エージェントタイムアウト | 該当エージェント結果を空として続行 |
 | 2 | JSON パース失敗 | 正規表現フォールバック、それでも失敗なら空 |
 | 2 | Codex (companion.mjs) 実行失敗 | 警告表示し Codex なしで続行 |

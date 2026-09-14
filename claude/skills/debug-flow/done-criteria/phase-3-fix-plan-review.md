@@ -23,7 +23,7 @@ audit: required
   レビュー結果から severity: consensus の findings を抽出し、各 finding に対応する修正コミットまたは計画書内の対応記述を検索する。
 - **pass_condition**: consensus findings の未解消件数が 0
 - **fail_diagnosis_hint**: 未解消の finding ID を特定し、計画書の該当セクションを確認。修正が反映されていない場合は /implementation-review のフィードバックループが完了しているか確認する
-- **depends_on_artifacts**: [artifacts/reviews/, docs/plans/*-fix-plan.md]
+- **depends_on_artifacts**: [artifacts/reviews/, docs/superpowers/plans/*-fix-plan.md]
 
 ### D3-03: 計画書と RCA Report の整合性が保たれている
 - **severity**: blocker
@@ -34,8 +34,8 @@ audit: required
   3. 計画書のタスク完了条件が RCA Report の要件を逸脱していないか（RCA Report にない機能の追加、RCA Report の制約の無視）確認する
   4. RCA Report で定義されたインターフェース（関数シグネチャ、API エンドポイント等）が計画書で正しく参照されているか確認する
 - **pass_condition**: 手順2でコンポーネント名/パス/型の不一致が0件、手順3で逸脱が0件、手順4で参照不整合が0件
-- **fail_diagnosis_hint**: 不整合箇所の RCA Report 側と計画書側の記述を並べ、レビュー修正で片方だけ更新されたケースを確認。`git log --oneline -- docs/plans/` で直近の変更履歴から原因を追跡する
-- **depends_on_artifacts**: [docs/plans/*-rca.md, docs/plans/*-fix-plan.md]
+- **fail_diagnosis_hint**: 不整合箇所の RCA Report 側と計画書側の記述を並べ、レビュー修正で片方だけ更新されたケースを確認。`git log --oneline -- docs/superpowers/plans/` で直近の変更履歴から原因を追跡する
+- **depends_on_artifacts**: [docs/superpowers/plans/*-rca.md, docs/superpowers/plans/*-fix-plan.md]
 
 ### D3-04: 各タスクの完了条件が検証可能な形で記述されている
 - **severity**: blocker
@@ -47,7 +47,7 @@ audit: required
   4. 完了条件が記述されていないタスクがないか確認する
 - **pass_condition**: 手順2で主観語を含む完了条件が0件、手順3で検証形式を満たさない完了条件が0件、手順4で完了条件なしのタスクが0件
 - **fail_diagnosis_hint**: 主観語を含む完了条件は数値閾値やパターンマッチに書き換える。完了条件のないタスクは RCA Report の対応要件から導出する。検証不能な条件は「コマンド X の exit code が 0」「ファイル Y に文字列 Z が含まれる」等の形式に変換する
-- **depends_on_artifacts**: [docs/plans/*-fix-plan.md]
+- **depends_on_artifacts**: [docs/superpowers/plans/*-fix-plan.md]
 - **forward_check**: Phase 4 Executor がタスク完了を自己判定できる粒度であること
 
 ## Observation Collection

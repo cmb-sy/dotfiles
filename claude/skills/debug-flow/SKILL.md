@@ -118,7 +118,7 @@ Phase 8: Integrate ────────────── worktrunk:worktrun
 Phase 8 は Agent を起動せず、`./done-criteria/phase-8-integrate.md` の基準をオーケストレーターが直接検証。
 
 ### Evidence Plan 生成（正規定義はここ。protocol には消費ロジックのみ）
-Phase 1 Audit Gate 完了後に Evidence Plan を生成（phase-auditor が自動実行）。Evidence Plan は `docs/plans/` にコミットする。
+Phase 1 Audit Gate 完了後に Evidence Plan を生成（phase-auditor が自動実行）。Evidence Plan は `docs/superpowers/plans/` にコミットする。
 
 ### Evidence Collection（add-on）
 Phase 4 以降の Executor 起動時、Evidence Plan から該当アクティビティの collection 要件を抽出しプロンプトに追加する。
@@ -219,9 +219,9 @@ systematic-debugging の Phase 1（Root Cause Investigation）、Phase 2（Patte
 
 - **INVOKE:** `superpowers:writing-plans`
 - **Autonomy:** AUTONOMOUS
-- **動作:** RCA Report をもとに修正計画を作成する。RCA Report 内の Fix Strategy セクションを `docs/plans/*-fix-plan.md` に展開し、テストケースも `docs/plans/*-test-cases.md` に詳細化する
+- **動作:** RCA Report をもとに修正計画を作成する。RCA Report 内の Fix Strategy セクションを `docs/superpowers/plans/*-fix-plan.md` に展開し、テストケースも `docs/superpowers/plans/*-test-cases.md` に詳細化する
 - **自動遷移条件:** 計画書がコミット済み
-- **成果物:** `docs/plans/*-fix-plan.md`, `docs/plans/*-test-cases.md`
+- **成果物:** `docs/superpowers/plans/*-fix-plan.md`, `docs/superpowers/plans/*-test-cases.md`
 - **失敗時:** 失敗内容を報告、PAUSE
 
 **Phase 2 完了 → Audit Gate**: `./done-criteria/phase-2-fix-plan.md` に基づき監査。activity_type: implementation。
@@ -410,7 +410,7 @@ Context が逼迫した場合は、どのフェーズであっても即座に `/
 | Phase | 成果物 | 消費者 |
 |-------|--------|--------|
 | 1 | `docs/debug/*-rca.md`、再現テスト、worktree パス、ブランチ名 | Phase 2, 4, 6, 7, 8 |
-| 2 | `docs/plans/*-fix-plan.md`, `docs/plans/*-test-cases.md` | Phase 3, 4 |
+| 2 | `docs/superpowers/plans/*-fix-plan.md`, `docs/superpowers/plans/*-test-cases.md` | Phase 3, 4 |
 | 3 | レビュー通過済み修正計画 | Phase 4 |
 | 4 | コミット済みコード | Phase 5, 6, 7 |
 | 5 | `smoke-test-report.md`（一時ファイル） | Phase 6 |

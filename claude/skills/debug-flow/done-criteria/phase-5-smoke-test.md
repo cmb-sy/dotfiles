@@ -38,7 +38,7 @@ audit: required
   4. RCA Report の主要影響フローを列挙し、各フローに対応するシナリオが1件以上存在するか照合する
 - **pass_condition**: 手順3の全必須カテゴリにシナリオが1件以上存在し、かつ手順4の全ユーザーフローにシナリオが対応していること。カテゴリ欠落が0件、フロー未対応が0件
 - **fail_diagnosis_hint**: 欠落しているカテゴリを特定し、該当カテゴリのスモークテストシナリオを追加する。ユーザーフロー未対応の場合は RCA Report の該当フローを参照してシナリオを作成する。Evidence Plan のプロジェクト特性が実態と異なる場合は Evidence Plan の更新を検討する
-- **depends_on_artifacts**: [artifacts/smoke-test/, docs/plans/*-rca.md]
+- **depends_on_artifacts**: [artifacts/smoke-test/, docs/superpowers/plans/*-rca.md]
 
 ### D5-04: スモークテスト実行証跡が有効である
 - **severity**: blocker

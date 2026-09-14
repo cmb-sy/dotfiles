@@ -125,7 +125,7 @@ Phase 10: Integrate ──── worktrunk:worktrunk [INTERACTIVE]
 Phase 10 は Agent を起動せず、`./done-criteria/phase-10-integrate.md` の基準をオーケストレーターが直接検証。
 
 ### Evidence Plan 生成（正規定義はここ。protocol には消費ロジックのみ）
-Phase 1 Audit Gate 完了後に Evidence Plan を生成（phase-auditor が自動実行）。Phase 4 Audit Gate 完了後に再評価（設計書 hash 変更時のみ）。Evidence Plan は `docs/plans/` にコミットする。
+Phase 1 Audit Gate 完了後に Evidence Plan を生成（phase-auditor が自動実行）。Phase 4 Audit Gate 完了後に再評価（設計書 hash 変更時のみ）。Evidence Plan は `docs/superpowers/plans/` にコミットする。
 
 ### Evidence Collection（add-on）
 Phase 5 以降の Executor 起動時、Evidence Plan から該当アクティビティの collection 要件を抽出しプロンプトに追加する。
@@ -159,7 +159,7 @@ Phase 8/9 でコード変更がある場合、Phase 8/9 の Audit Gate の前に
   5. チームが Investigation Record を共同作成し、メンバー間で相互検証した上で結果を返却
   6. チーム完了後、リーダー（オーケストレーター）がクリーンアップ
 - **自動遷移条件:** worktree 作成済み かつ 設計書が worktree 内にコミット済み
-- **成果物:** `docs/plans/*-design.md`、worktree パス、ブランチ名
+- **成果物:** `docs/superpowers/specs/*-design.md`、worktree パス、ブランチ名
 - **失敗時:** ユーザーが中断 -> STOP。クリーンアップ不要
 - **GATE:** worktree テスト失敗時に PAUSE。続行 or STOP をユーザーに提案
 
@@ -190,9 +190,9 @@ Phase 8/9 でコード変更がある場合、Phase 8/9 の Audit Gate の前に
 
 - **INVOKE:** `superpowers:writing-plans`
 - **Autonomy:** AUTONOMOUS
-- **動作:** レビュー通過済み設計書をもとに実装計画を作成する。設計書内の「テスト観点」セクションを `docs/plans/*-test-cases.md` に展開し、Given/When/Then レベルに詳細化する
+- **動作:** レビュー通過済み設計書をもとに実装計画を作成する。設計書内の「テスト観点」セクションを `docs/superpowers/plans/*-test-cases.md` に展開し、Given/When/Then レベルに詳細化する
 - **自動遷移条件:** 計画書がコミット済み
-- **成果物:** `docs/plans/*-plan.md`, `docs/plans/*-test-cases.md`
+- **成果物:** `docs/superpowers/plans/*-plan.md`, `docs/superpowers/plans/*-test-cases.md`
 - **失敗時:** 失敗内容を報告、PAUSE
 
 **Phase 3 完了 → Audit Gate**: `./done-criteria/phase-3-plan.md` に基づき監査。activity_type: implementation。
@@ -304,7 +304,7 @@ Phase 8/9 でコード変更がある場合、Phase 8/9 の Audit Gate の前に
 - **Autonomy:** INTERACTIVE
 - **有効条件:** `--e2e` 指定時のみ。未指定時はスキップして Phase 10 へ
 - **`--design` 伝播:** `artifacts.design_doc`（Phase 1 の設計書パス）を `--design` 引数として自動付与する
-- **フラグ伝播:** `--codex` 指定時は `--codex` を、`--iterations N` は常に渡す（例: `args: "--design docs/plans/2026-03-11-xxx-design.md --codex --iterations 3"`）
+- **フラグ伝播:** `--codex` 指定時は `--codex` を、`--iterations N` は常に渡す（例: `args: "--design docs/superpowers/specs/2026-03-11-xxx-design.md --codex --iterations 3"`）
 - **動作:** テストコードを3観点（coverage, quality, design-alignment）でレビューする
 - **自動遷移条件:** ユーザーが承認した修正完了
 - **成果物:** テストレビュー済みコード
@@ -366,7 +366,7 @@ Context が逼迫した場合は、どのフェーズであっても即座に `/
   "current_phase": 3,
   "args": { "codex": true, "e2e": false, "smoke": false, "doc": false, "ui": false, "iterations": 3, "swarm": false },
   "artifacts": {
-    "design_doc": "docs/plans/2026-03-06-xxx-design.md",
+    "design_doc": "docs/superpowers/specs/2026-03-06-xxx-design.md",
     "plan_doc": null,
     "worktree_path": null,
     "branch_name": null,
@@ -405,9 +405,9 @@ pipeline state に以下を追加:
 
 | Phase | 成果物 | 消費者 |
 |-------|--------|--------|
-| 1 | `docs/plans/*-design.md`（テスト観点セクション含む）、worktree パス、ブランチ名 | Phase 2, 3, 5, 9, 10 |
+| 1 | `docs/superpowers/specs/*-design.md`（テスト観点セクション含む）、worktree パス、ブランチ名 | Phase 2, 3, 5, 9, 10 |
 | 2 | レビュー通過済み設計書 | Phase 3 |
-| 3 | `docs/plans/*-plan.md`, `docs/plans/*-test-cases.md` | Phase 4, 5 |
+| 3 | `docs/superpowers/plans/*-plan.md`, `docs/superpowers/plans/*-test-cases.md` | Phase 4, 5 |
 | 4 | レビュー通過済み計画書 | Phase 5 |
 | 5 | コミット済みコード | Phase 6, 7, 8, 9 |
 | 6 | 更新済みドキュメント、`artifacts/doc-audit/phase-6-script-output.json` | Phase 8 |

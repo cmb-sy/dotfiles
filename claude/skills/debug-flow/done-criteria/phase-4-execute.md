@@ -17,7 +17,7 @@ audit: required
   4. コード変更が存在しないタスクIDをリストアップする
 - **pass_condition**: 手順4のリストが0件（全タスクに対応するコード変更あり）
 - **fail_diagnosis_hint**: コード変更のないタスクIDを特定し、計画書の該当タスクを確認。実装漏れか、タスクの内容がドキュメントのみの変更で git diff に現れない形式かを切り分ける
-- **depends_on_artifacts**: [docs/plans/*-fix-plan.md]
+- **depends_on_artifacts**: [docs/superpowers/plans/*-fix-plan.md]
 
 ### D4-02: ビルド/コンパイルが成功する
 - **severity**: blocker
@@ -56,7 +56,7 @@ audit: required
   4. 対応テストコードが存在しないテストケースをリストアップする
 - **pass_condition**: 手順4のリストが0件（全テストケースに対応テストコードあり）
 - **fail_diagnosis_hint**: 対応テストコードのないテストケースを特定し、テストファイルの命名規則とテストケースの記述を照合。テスト関数名が計画書のテストケース名と異なる命名規則の場合は内容ベースで対応を確認する
-- **depends_on_artifacts**: [docs/plans/*-fix-plan.md, tests/]
+- **depends_on_artifacts**: [docs/superpowers/plans/*-fix-plan.md, tests/]
 
 ### D4-06: 実装が影響範囲を遵守している
 - **severity**: quality
@@ -67,7 +67,7 @@ audit: required
   3. 変更がコンポーネント境界を越えた直接依存（import/require）を新規に追加していないか確認する
 - **pass_condition**: RCA Report で定義された境界を越える新規直接依存の追加が0件
 - **fail_diagnosis_hint**: 境界違反の import/require 文を特定し、RCA Report のコンポーネント図と照合。インターフェース層を経由すべき依存が直接参照になっているケースを確認する
-- **depends_on_artifacts**: [docs/plans/*-rca.md, src/]
+- **depends_on_artifacts**: [docs/superpowers/plans/*-rca.md, src/]
 
 ### D4-07: RCA Report → 計画書 → 実装の一気通貫トレーサビリティ
 - **severity**: blocker
@@ -80,7 +80,7 @@ audit: required
   5. 実装に存在するが要件・タスクに対応しない「余剰実装」がないか確認する
 - **pass_condition**: 手順4で3段マッピングの欠落が0件、手順5で計画書タスクに対応しない余剰実装ファイルが0件
 - **fail_diagnosis_hint**: マッピング欠落の箇所（要件→タスク間か、タスク→実装間か）を特定。余剰実装がある場合は RCA Report/計画書への追記か、余剰コードの削除かを判断する
-- **depends_on_artifacts**: [docs/plans/*-rca.md, docs/plans/*-fix-plan.md, src/]
+- **depends_on_artifacts**: [docs/superpowers/plans/*-rca.md, docs/superpowers/plans/*-fix-plan.md, src/]
 
 ### D4-08: 新規追加テストがトートロジーでない
 - **severity**: blocker
@@ -106,7 +106,7 @@ audit: required
   6. 影響を受ける既存コードの既存テストが削除・無効化されていないか確認する（`git diff` で `.skip`, `.only` の追加、テスト関数のコメントアウト/削除を検出）
 - **pass_condition**: 手順3で全要件に対応テストあり、手順4で再現テストが PASS、手順5で全影響範囲に対応テストあり、手順6で既存テストの削除/無効化が0件
 - **fail_diagnosis_hint**: 手順3で欠落している要件IDを特定し対応テストを追加する。手順4で欠落している影響範囲のファイルを特定し、既存テストの有無と新規テスト追加の必要性を判断する。手順5で検出された削除/無効化の理由を確認し、意図的でない場合は復元する
-- **depends_on_artifacts**: [docs/plans/*-rca.md, tests/, src/]
+- **depends_on_artifacts**: [docs/superpowers/plans/*-rca.md, tests/, src/]
 - **forward_check**: Phase 6 (Code Review) で指摘される「テスト不足」を事前に防止する
 
 ## Observation Collection
