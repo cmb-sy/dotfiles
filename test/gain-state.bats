@@ -219,7 +219,7 @@ YAML
   prune
   [ "$status" -ne 0 ]
   # 拒否の理由まで見る。見ないと usage の exit 64 と区別が付かない。
-  [[ "$output" == *"refusing to prune"* ]]
+  printf '%s' "$output" | grep -qF 'refusing to prune'
   [ "$(row github owner/alpha)" = "2026-09-07|9|9" ]
 }
 
@@ -227,7 +227,7 @@ YAML
   printf 'github\towner/alpha\t2026-09-07\t9\t9\n' > "$GAIN_STATE"
   run bash "$GS" prune "$BATS_TEST_TMPDIR/does-not-exist.yaml"
   [ "$status" -ne 0 ]
-  [[ "$output" == *"no sources file at"* ]]
+  printf '%s' "$output" | grep -qF 'no sources file at'
   [ "$(row github owner/alpha)" = "2026-09-07|9|9" ]
 }
 
@@ -290,6 +290,32 @@ YAML
   chmod 000 "$GAIN_STATE"
   prune
   chmod 644 "$GAIN_STATE"
+  # prune が引数エラーで落ちただけでも tmp は残らない。素通りしないよう、
+  # usage へ落ちていないことを確かめる（否定は件数比較で書く）。
+  n=$(printf '%s' "$output" | grep -c 'usage:') || n=0
+  [ "$n" -eq 0 ]
   [ ! -e "$GAIN_STATE.tmp" ]
   [ ! -e "$GAIN_STATE.lock" ]
+}
+
+# --- 状態ファイルのパス ---
+#
+# `${STATE%/*}` はスラッシュを含まない文字列をそのまま返す。素直に mkdir -p
+# すると状態ファイル名のディレクトリを作り、その後の mv が中へ落ちて exit 0 を
+# 返す。成功を名乗りながら、due から永久に見えない場所へ書くことになる。
+
+@test "GAIN_STATE にスラッシュが無くてもファイルとして書ける" {
+  cd "$BATS_TEST_TMPDIR"
+  GAIN_NOW=2026-09-07 GAIN_STATE=rel.tsv run bash "$GS" record news q0 1
+  [ "$status" -eq 0 ]
+  [ -f "$BATS_TEST_TMPDIR/rel.tsv" ]
+  n=$(grep -c . "$BATS_TEST_TMPDIR/rel.tsv") || n=0
+  [ "$n" -eq 1 ]
+}
+
+@test "状態ファイルが通常ファイルでなければ成功を名乗らない" {
+  mkdir -p "$GAIN_STATE"
+  GAIN_NOW=2026-09-07 run bash "$GS" record news q0 1
+  [ "$status" -ne 0 ]
+  printf '%s' "$output" | grep -qF 'is not a regular file'
 }

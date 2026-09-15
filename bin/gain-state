@@ -96,8 +96,10 @@ cmd_record() {
   case "$found" in
     ''|*[!0-9]*) printf 'gain-state: findings must be a non-negative integer, got %s\n' "$found" >&2; exit 64 ;;
   esac
-  mkdir -p "${STATE%/*}" 2>/dev/null
-  [ -f "$STATE" ] || : > "$STATE"
+  # The directory is ensured by with_lock, which every writer goes through.
+  # Failing to create the file must stop here: continuing would let mv land
+  # the rewrite somewhere nothing reads back.
+  [ -f "$STATE" ] || : > "$STATE" || return 1
   # Rewrite through a temp file: an in-place edit that dies half way would
   # leave the counters for every other source truncated.
   awk -F'\t' -v OFS='\t' -v s="$scope" -v k="$key" -v now="$NOW" -v f="$found" '
@@ -140,7 +142,15 @@ cmd_prune() {
 # a half-written file and take no lock.
 with_lock() {
   local dir="$STATE.lock" waited=0 rc
-  mkdir -p "${STATE%/*}" 2>/dev/null
+  # `${STATE%/*}` hands back the whole string when it holds no slash, so an
+  # unqualified GAIN_STATE would mkdir a *directory* named after the state
+  # file. mv then drops the rewrite inside it and still reports success: the
+  # write is gone, every source stays due forever, and nothing says so.
+  case "$STATE" in */*) mkdir -p "${STATE%/*}" 2>/dev/null ;; esac
+  if [ -e "$STATE" ] && [ ! -f "$STATE" ]; then
+    printf 'gain-state: %s is not a regular file\n' "$STATE" >&2
+    return 1
+  fi
   until mkdir "$dir" 2>/dev/null; do
     waited=$((waited + 1))
     # 30s. A writer holds the lock for milliseconds, so this only trips when a
