@@ -10,6 +10,10 @@
 #
 #   gain-state due <sources.yaml>              -> "<scope>\t<key>" per due source
 #   gain-state record <scope> <key> <findings> -> stamp today, bump the counters
+#   gain-state prune <sources.yaml>            -> drop rows the yaml no longer lists
+#
+# Writers serialise on a $STATE.lock directory, so the per-source record calls
+# the skill fans out do not overwrite each other.
 #
 # GAIN_STATE overrides the state file and GAIN_NOW pins today, so the week
 # boundary can be tested without waiting for one.
@@ -21,7 +25,7 @@ NOW="${GAIN_NOW:-$(date '+%Y-%m-%d')}"
 
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 
-usage() { printf 'usage: gain-state due <sources.yaml> | record <scope> <key> <findings>\n' >&2; exit 64; }
+usage() { printf 'usage: gain-state due <sources.yaml> | record <scope> <key> <findings> | prune <sources.yaml>\n' >&2; exit 64; }
 
 # ISO week, not sqlite's `weekday` modifier: that one advances to the *next*
 # given weekday and stays put when today already is it, which lands a week
@@ -40,18 +44,20 @@ sys.exit(0 if a is not None and a == b else 1)
 PY
 }
 
-cmd_due() {
+# One "<scope>\t<key>" per source, in file order. `due` and `prune` ask the yaml
+# the same question -- which sources exist -- so the parser stays in one place.
+# Two copies would drift, and a drifted prune deletes rows that are still live.
+list_sources() {
   local src="$1"
-  [ -f "$src" ] || { printf 'gain-state: no sources file at %s\n' "$src" >&2; exit 1; }
+  [ -f "$src" ] || { printf 'gain-state: no sources file at %s\n' "$src" >&2; return 1; }
   # Homebrew's python3 (first on PATH above, for launchd hygiene) is externally
   # managed, so setup/install.zsh refuses to pip-install pyyaml into it and puts
   # it in mise's interpreter instead. Ask mise directly, same fallback order as
   # install.zsh's own python resolution.
   local py3
   py3="$(mise which python3 2>/dev/null || command -v python3)"
-  [ -n "$py3" ] || { printf 'gain-state: no python3 found\n' >&2; exit 1; }
-  # One "<scope>\t<key>" per source, in file order.
-  "$py3" - "$src" << 'PY' |
+  [ -n "$py3" ] || { printf 'gain-state: no python3 found\n' >&2; return 1; }
+  "$py3" - "$src" << 'PY'
 import sys, yaml
 d = yaml.safe_load(open(sys.argv[1], encoding='utf-8')) or {}
 KEY = {'github': 'repo', 'services': 'name', 'engineers': 'name', 'news': 'query'}
@@ -65,6 +71,16 @@ for scope, items in d.items():
         if k and isinstance(it, dict) and it.get(k):
             print(f'{scope}\t{it[k]}')
 PY
+}
+
+cmd_due() {
+  local src="$1" rows
+  # Read the sources before the pipe, and check the status here. On the left of
+  # a pipe the failure would ride on `set -o pipefail` alone, and one dropped
+  # shell option turns "could not read the sources" into "no sources are due" --
+  # the same empty output, and the caller skips the week instead of retrying.
+  rows="$(list_sources "$src")" || return 1
+  printf '%s\n' "$rows" |
   while IFS=$'\t' read -r scope key; do
     [ -n "$scope" ] && [ -n "$key" ] || continue
     last=$(awk -F'\t' -v s="$scope" -v k="$key" '$1 == s && $2 == k { print $3; exit }' "$STATE" 2>/dev/null)
@@ -91,8 +107,67 @@ cmd_record() {
   ' "$STATE" > "$STATE.tmp" && mv "$STATE.tmp" "$STATE"
 }
 
+# A source dropped from the yaml keeps its row here forever: never updated,
+# still carrying runs/findings. The improvement proposals argue "no track
+# record" from those counters, so a stale row argues about a source that is
+# already gone. Drop what the yaml no longer lists.
+cmd_prune() {
+  local src="$1" keep
+  keep="$(list_sources "$src")" || return 1
+  # An empty list would orphan every row at once. That is far likelier to be the
+  # wrong file than a real "watch nothing", so refuse rather than wipe history.
+  [ -n "$keep" ] || { printf 'gain-state: %s lists no sources; refusing to prune\n' "$src" >&2; return 1; }
+  [ -f "$STATE" ] || return 0
+  # Same temp-file rewrite as record, for the same reason: a half-written
+  # in-place edit truncates the counters of every source that survived.
+  : > "$STATE.tmp" || return 1
+  # Removed keys go to stdout so the caller can report what it dropped.
+  awk -F'\t' -v OFS='\t' -v tmp="$STATE.tmp" '
+    NR == FNR        { live[$0] = 1; next }
+    NF < 5           { next }
+    ($1 FS $2) in live { print > (tmp); next }
+                     { print $1, $2 }
+  ' <(printf '%s\n' "$keep") "$STATE" && mv "$STATE.tmp" "$STATE"
+}
+
+# record and prune each rewrite the whole file, so two at once lose each other's
+# work: both read the old state and the later mv wins, while the loser still
+# exits 0. That is the normal path, not a rare race -- the skill calls record
+# once per source and the harness runs independent calls in parallel. macOS
+# ships no flock(1), so mkdir is the portable atomic primitive: it either
+# creates the directory or fails, with no window in between.
+# `due` reads only, and every write lands by mv (atomic), so readers never see
+# a half-written file and take no lock.
+with_lock() {
+  local dir="$STATE.lock" waited=0 rc
+  mkdir -p "${STATE%/*}" 2>/dev/null
+  until mkdir "$dir" 2>/dev/null; do
+    waited=$((waited + 1))
+    # 30s. A writer holds the lock for milliseconds, so this only trips when a
+    # previous run died hard and left the directory behind -- say so plainly
+    # rather than block forever or delete a lock that may still be live.
+    [ "$waited" -le 300 ] || {
+      printf 'gain-state: timed out waiting for %s (remove it if no gain-state is running)\n' "$dir" >&2
+      return 75
+    }
+    sleep 0.1
+  done
+  # Drop the temp file BEFORE releasing the lock, never after. Released first,
+  # the next writer takes the lock and creates its own $STATE.tmp, and this
+  # cleanup deletes it out from under that writer's mv -- losing its row.
+  trap 'rm -f "$STATE.tmp"; rm -rf "$dir"' EXIT INT TERM
+  "$@"
+  rc=$?
+  # A failed awk leaves behind the empty temp file it created; clear it here.
+  rm -f "$STATE.tmp"
+  rm -rf "$dir"
+  trap - EXIT INT TERM
+  return "$rc"
+}
+
 case "${1:-}" in
   due)    [ $# -eq 2 ] || usage; cmd_due "$2" ;;
-  record) [ $# -eq 4 ] || usage; cmd_record "$2" "$3" "$4" ;;
+  record) [ $# -eq 4 ] || usage; with_lock cmd_record "$2" "$3" "$4" ;;
+  prune)  [ $# -eq 2 ] || usage; with_lock cmd_prune "$2" ;;
   *)      usage ;;
 esac
