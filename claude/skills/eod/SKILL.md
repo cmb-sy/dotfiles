@@ -8,7 +8,7 @@ argument-hint: "[--exclude <キーワード>...]"
 user-invocable: true
 ---
 
-その日の作業を1コマンドで締める。**並列収集（Slack+GitHub+distill-gain-latest-info watch+github-sync 計画）→ github-issues（open issue 確認）→ github-sync 適用 → 完了タスクの削除 → daily-log → CloudLog入力 → 翌日デイリー作成 → 翌日タスク整理（未チェックの自動引き継ぎ＋新規の GitHub issue 紐付け）→ Obsidian vault commit/push** を順次実行する。
+その日の作業を1コマンドで締める。**並列収集（Slack+GitHub+distill-gain-latest-info watch+github-sync 計画）→ github-issues（open issue 確認）→ github-sync 適用 → 完了タスクの削除 → daily-log → CloudLog入力 → 翌日デイリー作成 → 翌日タスク整理（↩️ が付いたタスクの引き継ぎ＋新規の GitHub issue 紐付け）→ Obsidian vault commit/push** を順次実行する。
 
 ## Options
 
@@ -63,7 +63,7 @@ Step 3(daily-log 自体のスキップ) などその他のスキップは `Other
 - **distill-gain-latest-info watch**: サブエージェントに `distill-gain-latest-info` スキルを `watch` で実行させる
   - サブエージェントへの指示に「確認が要る事項は `## 改善提案` 節に書いて返す。サブエージェント内で適用しない」ことを明記する
   - vault への commit は行わせない（Step 7 が一括で行う）
-- **github-sync 計画生成**: `python3 $HOME/develop/obsidian/system/skills/github-sync/sync.py --plan-file /private/tmp/eod-github-sync-plan.md`
+- **github-sync 計画生成**: `python3 $HOME/develop/obsidian/03_system/skills/github-sync/sync.py --plan-file /private/tmp/eod-github-sync-plan.md`
   - 書き込みなしの計画生成のみ。`--apply` と `--push` はここでは絶対に付けない（適用は Step 2.5、push は Step 7）
   - 一時ファイルは `/private/tmp` 配下に置く（macOS の `$TMPDIR` は `/var/folders` 配下でツール側のガードに抵触する）
 
@@ -114,7 +114,7 @@ open issue の URL を渡す（同じ一覧を二度取らない）。
 
 ```python
 import importlib.util, datetime
-spec = importlib.util.spec_from_file_location("sync", "system/skills/github-sync/sync.py")
+spec = importlib.util.spec_from_file_location("sync", "03_system/skills/github-sync/sync.py")
 m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
 stale, undated = m.plan_purge(datetime.date.today(), open_urls)
 ```
@@ -171,7 +171,7 @@ daily-score が行うこと:
 1. 振り返りが空なら一言促す（スキップ可）
 2. Forest 時間を 1 回聞く（スキップ可）
 3. distill の学習メモから 4 択 5 問を出し、正解率を出す（スキップ可）
-4. `daily/{YYYY}年/日次評価.md` の表へ 1 行 upsert
+4. `01_daily/{YYYY}年/日次評価.md` の表へ 1 行 upsert
 5. その日のデイリーの `## 評価` へ AI のコメントを書く
 
 **スキップした項目は `—` で記録される。** 入力が無くても行は積み上がる。
@@ -182,11 +182,11 @@ daily-score が行うこと:
 
 ### Step 5: 翌日デイリー作成
 
-翌日の日報ファイルを `system/daily_template.md` から複製する。
+翌日の日報ファイルを `03_system/daily_template.md` から複製する。
 
 **前提**:
-- テンプレート: `$HOME/develop/obsidian/system/daily_template.md`
-- 出力先: `$HOME/develop/obsidian/daily/{YYYY}年/{M}月/{D}日({曜}).md`
+- テンプレート: `$HOME/develop/obsidian/03_system/daily_template.md`
+- 出力先: `$HOME/develop/obsidian/01_daily/{YYYY}年/{M}月/{D}日({曜}).md`
 - 命名規則: 月・日はゼロパディングなし（`5月/14日(木).md`）。曜日は日本語1文字（月火水木金土日）
 
 **処理**:
@@ -195,7 +195,7 @@ daily-score が行うこと:
    - 月: `date -v+1d +%-m` → `5`（先頭ゼロ抜き）
    - 日: `date -v+1d +%-d` → `14`（先頭ゼロ抜き）
    - 曜日番号: `date -v+1d +%u` → 1=月, 2=火, 3=水, 4=木, 5=金, 6=土, 7=日
-2. 出力先パスを組み立てる: `daily/{年}年/{月}月/{日}日({曜}).md`
+2. 出力先パスを組み立てる: `01_daily/{年}年/{月}月/{日}日({曜}).md`
 3. 出力先ファイルが既に存在する場合は何もせず、完了報告に「既に存在のためスキップ」と記録する（**上書き禁止**）
 4. 親ディレクトリが存在しなければ `mkdir -p` で作成する
 5. `cp` でテンプレートを複製する。テンプレート内容は一切編集しない
@@ -207,14 +207,21 @@ daily-score が行うこと:
 
 ### Step 6: 翌日タスク整理（GitHub issue 紐付け）
 
-Step 5 の翌日デイリー（既に存在していた場合も対象）の `## 今日やること` セクションにタスクを書き込む。まず本日の未チェックタスクを自動で引き継ぎ、その後ユーザーから新規タスクを受け取って GitHub issue と紐付ける。
+Step 5 の翌日デイリー（既に存在していた場合も対象）の `## 今日やること` セクションにタスクを書き込む。まず本日の `↩️`（次の日に持ち越し）が付いたタスクを引き継ぎ、その後ユーザーから新規タスクを受け取って GitHub issue と紐付ける。
 
-**Step 6-0: 未チェックタスクの自動引き継ぎ（コピー・必須）:**
+**Step 6-0: ↩️ が付いたタスクの引き継ぎ（コピー・必須）:**
 
-新規タスクを尋ねる前に、本日の日報の `## 今日やること` にある `- [ ]`（未チェック）タスクを翌日デイリーの `## 今日やること` へ**コピー**する:
+新規タスクを尋ねる前に、本日の日報の `## 今日やること` にある **`↩️` が付いた未チェックタスク**を翌日デイリーの `## 今日やること` へ**コピー**する:
 
+- **引き継ぐのは `↩️`（次の日に持ち越し）が付いた行だけ。** 未チェックというだけでは引き継がない。
+  何を明日へ回すかは本人が ⌥⌘M で印を付けて決めるものであり、残っている全部を自動で送ると
+  翌日のリストが捌けない量に膨らむ
 - **コピー**であり移動ではない。本日の日報の該当行は**そのまま残す**（日報はその日の記録として不変）
-- 対象は未チェック（`- [ ]`）行のみ。`- [x]`（完了）行は引き継がない
+- 未チェック（`- [ ]`）行のみ。`- [x]`（完了）行は `↩️` が付いていても引き継がない
+- **コピー先では `↩️` を外す。** 印は「その日に下した判断」であって、付けたまま送ると翌日以降も
+  自動で乗り続け、毎日の仕分けにならない。翌日また回すなら、その日にもう一度印を付ける
+- `↩️` が 1 件も無ければ引き継ぎ 0 件として報告し、そのまま新規タスクの受け取りへ進む。
+  **「印の付け忘れではないか」と確認したり、代わりに未チェック行を引き継いだりしない**
 - **ネストした子項目・既存の issue リンクは原文のまま保持**する（例: `- [ ] ブログ対応` とその子 `\t- [ ] …`、`- [ ] [勉強会準備](URL)` のリンクを維持）
 - 引き継ぎ後の翌日デイリーは、既に同じタスクが書かれていれば**重複させない**（テキスト一致でスキップ。idempotent）
 - **引き継ぎ先はテンプレートの達成段階（`##### ミニマムサクセス` / `##### フルサクセス` / `##### エクストラサクセス`）を維持し、本日の同じ段階へコピーする。** この見出し構造には `slack-daily-post`（投稿の組み立て）と `link-inprogress-tasks`（タスクリンク）が依存しており、フラット化すると両方が壊れる
