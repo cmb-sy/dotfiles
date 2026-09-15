@@ -319,3 +319,77 @@ YAML
   [ "$status" -ne 0 ]
   printf '%s' "$output" | grep -qF 'is not a regular file'
 }
+
+# --- list: 監視先と実績を並べる ---
+#
+# 「外すかどうか」の材料は巡回回数と収穫件数で、状態ファイルにしか無い。
+# yaml の監視先と結合して 1 行 1 監視先で出す。未巡回は runs 0 として出し、
+# 「見たが収穫ゼロ」と区別できるよう最終日は - にする。
+
+lst() { run bash "$GS" list "$SRC"; }
+col() { printf '%s\n' "$output" | awk -F'\t' -v s="$1" -v k="$2" '$1 == s && $2 == k { print $3"|"$4"|"$5"|"$6; exit }'; }
+
+@test "list は yaml の全監視先を出す" {
+  lst
+  [ "$status" -eq 0 ]
+  n=$(printf '%s\n' "$output" | grep -c .) || n=0
+  [ "$n" -eq 3 ]
+}
+
+@test "list は巡回と収穫を状態ファイルから結合する" {
+  printf 'github\towner/alpha\t2026-09-09\t3\t7\n' > "$GAIN_STATE"
+  lst
+  [ "$(col github owner/alpha)" = "2026-09-09|3|7|" ]
+}
+
+@test "list は未巡回を runs 0 と最終 - で出す" {
+  : > "$GAIN_STATE"
+  lst
+  [ "$(col github owner/beta)" = "-|0|0|" ]
+}
+
+@test "list は状態ファイルが無くても出す" {
+  rm -f "$GAIN_STATE"
+  lst
+  [ "$status" -eq 0 ]
+  [ "$(col news '検索語 A')" = "-|0|0|" ]
+}
+
+@test "list は note を 6 列目に出す" {
+  cat > "$SRC" << 'YAML'
+github:
+  - repo: owner/alpha
+    note: why I watch this
+news:
+  - query: "検索語 A"
+YAML
+  lst
+  [ "$(col github owner/alpha)" = "-|0|0|why I watch this" ]
+}
+
+@test "list は note の中のタブと改行を空白に潰す" {
+  # 出力は TSV なので、note に区切り文字が入ると列がずれる。
+  printf 'github:\n  - repo: owner/alpha\n    note: "a\\tb\\nc"\n' > "$SRC"
+  lst
+  [ "$(col github owner/alpha)" = "-|0|0|a b c" ]
+}
+
+@test "list は yaml から外した監視先の実績を出さない" {
+  # 状態ファイルにだけ残っている行は、監視先ではない。
+  printf 'peers\tgone\t2026-09-09\t1\t0\n' > "$GAIN_STATE"
+  lst
+  n=$(printf '%s\n' "$output" | grep -cF 'gone') || n=0
+  [ "$n" -eq 0 ]
+}
+
+@test "list は sources.yaml が無ければ失敗する" {
+  run bash "$GS" list "$BATS_TEST_TMPDIR/does-not-exist.yaml"
+  [ "$status" -ne 0 ]
+  printf '%s' "$output" | grep -qF 'no sources file at'
+}
+
+@test "due と prune の出力は list を足しても 2 列のまま" {
+  # 3 列目を足したのは list だけ。due の出力を読む側は 2 列を前提にしている。
+  due 2026-09-07
+  printf '%s\n' "$output" | head -1 | awk -F'\t' '{ exit (NF == 2 ? 0 : 1) }'
+}

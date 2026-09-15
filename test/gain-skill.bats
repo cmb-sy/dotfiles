@@ -149,3 +149,45 @@ setup() {
   grep -qF '`record` の終了ステータスも見る' "$SK"
   grep -qF 'ロックを取れなかった' "$SK"
 }
+
+# --- sources モード（監視先の編集） ---
+#
+# 監視先を手で yaml を開かずに見直す経路。表 → 決める → 検証 → 差分、の順を
+# 飛ばすと、材料無しの判断・壊れた URL・巻き込み commit のどれかが起きる。
+
+@test "sources モードが起動に載っている" {
+  grep -qF 'distill-gain-latest-info sources' "$SK"
+  grep -qF '| sources]' "$SK"
+}
+
+@test "sources は表を gain-state list から作る" {
+  # 結合を LLM に毎回やらせると列や件数が揺れる。決定的な出力を表にする。
+  grep -qF 'gain-state list' "$SK"
+  grep -qF '巡回 1 以上で収穫 0' "$SK"
+}
+
+@test "sources は改善提案を表と同じ画面で見せる" {
+  grep -qF '未反映の改善提案' "$SK"
+}
+
+@test "sources は URL の着地先を書く規則を持つ" {
+  grep -qF 'url_effective' "$SK"
+  grep -qF '着地先' "$SK"
+}
+
+@test "sources は repo の存在確認をする" {
+  grep -qF 'gh api /repos/' "$SK"
+}
+
+@test "sources は sources.yaml だけを commit する" {
+  grep -qF '`sources.yaml` だけを stage' "$SK"
+}
+
+@test "sources は外した監視先の実績を prune で消す" {
+  n=$(grep -c 'gain-state prune' "$SK") || n=0
+  [ "$n" -ge 2 ]
+}
+
+@test "対話メニューに監視先の編集がある" {
+  grep -qF '4. 監視先を編集する' "$SK"
+}

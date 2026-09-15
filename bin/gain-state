@@ -11,6 +11,7 @@
 #   gain-state due <sources.yaml>              -> "<scope>\t<key>" per due source
 #   gain-state record <scope> <key> <findings> -> stamp today, bump the counters
 #   gain-state prune <sources.yaml>            -> drop rows the yaml no longer lists
+#   gain-state list <sources.yaml>             -> every source with runs/findings/note joined in
 #
 # Writers serialise on a $STATE.lock directory, so the per-source record calls
 # the skill fans out do not overwrite each other.
@@ -25,7 +26,7 @@ NOW="${GAIN_NOW:-$(date '+%Y-%m-%d')}"
 
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 
-usage() { printf 'usage: gain-state due <sources.yaml> | record <scope> <key> <findings> | prune <sources.yaml>\n' >&2; exit 64; }
+usage() { printf 'usage: gain-state due <sources.yaml> | record <scope> <key> <findings> | prune <sources.yaml> | list <sources.yaml>\n' >&2; exit 64; }
 
 # ISO week, not sqlite's `weekday` modifier: that one advances to the *next*
 # given weekday and stays put when today already is it, which lands a week
@@ -47,8 +48,8 @@ PY
 # One "<scope>\t<key>" per source, in file order. `due` and `prune` ask the yaml
 # the same question -- which sources exist -- so the parser stays in one place.
 # Two copies would drift, and a drifted prune deletes rows that are still live.
-list_sources() {
-  local src="$1"
+list_sources() {  # $1 = sources.yaml, $2 = "notes" to append the note as a third column
+  local src="$1" mode="${2:-}"
   [ -f "$src" ] || { printf 'gain-state: no sources file at %s\n' "$src" >&2; return 1; }
   # Homebrew's python3 (first on PATH above, for launchd hygiene) is externally
   # managed, so setup/install.zsh refuses to pip-install pyyaml into it and puts
@@ -57,19 +58,26 @@ list_sources() {
   local py3
   py3="$(mise which python3 2>/dev/null || command -v python3)"
   [ -n "$py3" ] || { printf 'gain-state: no python3 found\n' >&2; return 1; }
-  "$py3" - "$src" << 'PY'
+  "$py3" - "$src" "$mode" << 'PY'
 import sys, yaml
+with_note = len(sys.argv) > 2 and sys.argv[2] == 'notes'
 d = yaml.safe_load(open(sys.argv[1], encoding='utf-8')) or {}
 KEY = {'github': 'repo', 'services': 'name', 'engineers': 'name', 'news': 'query'}
+def emit(scope, key, note):
+    if with_note:
+        # The output is TSV; a tab or newline inside the note would shift columns.
+        print(f"{scope}\t{key}\t{' '.join(str(note or '').split())}")
+    else:
+        print(f'{scope}\t{key}')
 for scope, items in d.items():
     if scope == 'peers':
         for h in (items or {}).get('handles', []) or []:
-            print(f'peers\t{h}')
+            emit('peers', h, '')
         continue
     for it in items or []:
         k = KEY.get(scope)
         if k and isinstance(it, dict) and it.get(k):
-            print(f'{scope}\t{it[k]}')
+            emit(scope, it[k], it.get('note'))
 PY
 }
 
@@ -107,6 +115,30 @@ cmd_record() {
     NF >= 5           { print }
     END { if (!hit) print s, k, now, 1, f }
   ' "$STATE" > "$STATE.tmp" && mv "$STATE.tmp" "$STATE"
+}
+
+# One line per source with its track record joined in:
+#   scope, key, last_checked, runs, findings, note
+# "Should this source go?" is decided from runs and findings, and those live
+# only in the state file. A source never visited shows runs 0 and "-" for the
+# date, so it reads apart from "visited, found nothing".
+cmd_list() {
+  local src="$1" rows
+  rows="$(list_sources "$src" notes)" || return 1
+  printf '%s\n' "$rows" |
+  awk -F'\t' -v OFS='\t' -v state="$STATE" '
+    BEGIN {
+      while ((getline line < state) > 0) {
+        n = split(line, f, "\t")
+        if (n >= 5) { k = f[1] FS f[2]; last[k] = f[3]; runs[k] = f[4]; found[k] = f[5] }
+      }
+    }
+    NF >= 2 {
+      k = $1 FS $2
+      print $1, $2, (k in last ? last[k] : "-"), (k in runs ? runs[k] : 0),
+            (k in found ? found[k] : 0), (NF >= 3 ? $3 : "")
+    }
+  '
 }
 
 # A source dropped from the yaml keeps its row here forever: never updated,
@@ -179,5 +211,6 @@ case "${1:-}" in
   due)    [ $# -eq 2 ] || usage; cmd_due "$2" ;;
   record) [ $# -eq 4 ] || usage; with_lock cmd_record "$2" "$3" "$4" ;;
   prune)  [ $# -eq 2 ] || usage; with_lock cmd_prune "$2" ;;
+  list)   [ $# -eq 2 ] || usage; cmd_list "$2" ;;
   *)      usage ;;
 esac

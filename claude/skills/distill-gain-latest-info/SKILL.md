@@ -4,8 +4,9 @@ description: >-
   技術情報を「集めて得る」ときに使う情報収集スキル。watch モード（GitHub /
   サービス changelog / エンジニア発信 / ニュース / dotfiles peer を横断観測し
   Obsidian にダイジェスト蓄積）と research モード（トピックを Web + 自リポジトリ
-  横断で深掘り）を持つ。フラグは本文の「起動」を参照。
-argument-hint: "[watch [--only <scope>] [--target X] | research <topic>]"
+  横断で深掘り）に加え、sources モード（監視先の一覧を巡回・収穫の実績つきで
+  表にし、対話で外す・追加する・直す）を持つ。フラグは本文の「起動」を参照。
+argument-hint: "[watch [--only <scope>] [--target X] | research <topic> | sources]"
 user-invocable: true
 ---
 
@@ -17,6 +18,7 @@ user-invocable: true
 
 - **watch（レーダー）**: `sources.yaml` の監視先のうち今週まだ確認していないものだけを対象に、差分をダイジェスト化する
 - **research（深掘り）**: トピックを Web 知見 × 自リポジトリ実態で調べる
+- **sources（監視先の編集）**: 監視先を実績つきの表で見せ、何を外す・足す・直すかを対話で決めて `sources.yaml` に反映する
 
 watch の収集・ダイジェスト生成フェーズはユーザーに質問しない。対話が要る場面（改善提案の採否）は生成物に書いて返すだけに留め、承認は呼び出し元（`/eod` 本体、または直接起動した対話フロー）が行う。
 
@@ -29,12 +31,13 @@ watch の収集・ダイジェスト生成フェーズはユーザーに質問�
 /distill-gain-latest-info watch                              # due な監視先のみ実行
 /distill-gain-latest-info watch --only <scope> [--target X]  # 単一 scope、対象指定
 /distill-gain-latest-info research <topic>                   # 深掘りを直接実行
+/distill-gain-latest-info sources                            # 監視先を表で見せて対話で編集
 ```
 
 - `<scope>`: `peers | github | services | engineers | news`（`sources.yaml` のトップレベルキーと一致）
 - `--target X` は選択 scope 内の対象を X に限定する（peers なら handle、github なら repo、services/engineers なら name、news なら query）
 
-ARGUMENTS をパースし、第 1 引数（`watch`/`research`）、`--only`、`--target` を抽出する。第 1 引数が無ければ対話メニューへ。
+ARGUMENTS をパースし、第 1 引数（`watch`/`research`/`sources`）、`--only`、`--target` を抽出する。第 1 引数が無ければ対話メニューへ。
 
 ## 対話フロー（引数なし起動時）
 
@@ -44,6 +47,7 @@ AskUserQuestion は 1 問最大 4 択のため 2 段構成にする。人が直�
 1. 全ウォッチ（`sources.yaml` の due な監視先すべて）
 2. scope を選んで watch
 3. research（深掘り調査）
+4. 監視先を編集する（sources モードへ）
 
 **Q2（Q1=2 のときのみ）「どの scope?」** `sources.yaml` の 5 scope（peers/github/services/engineers/news）から選ぶ。1 問 4 択の枠に収まらないため、5 番目は自由入力枠で拾う。
 
@@ -143,6 +147,66 @@ Step 1 で 0 行だった場合はその旨のみ報告する。
 
 出力: `$HOME/develop/distill-vault/情報収集/YYYY-MM-DD.md` に `## Research: <topic>` 節として追記する。同日に watch を実行済みで既に `## 改善提案` 節がある場合は、その節の直前に挿入する（`## 改善提案` は常にファイル末尾に置く）。
 
+## sources モード（監視先の編集）
+
+`sources.yaml` を手で開かずに、監視先を見直して反映するための経路。**表を出す → 何を変えるか決める → 検証して書く → 差分を見せて確定する**の順で進め、順を飛ばさない。
+
+### Step 1: 現状を表で出す
+
+`$HOME/dotfiles/bin/gain-state list $HOME/dotfiles/claude/skills/distill-gain-latest-info/sources.yaml` を実行する。1 行 1 監視先で `scope / key / 最終 / 巡回 / 収穫 / 説明` がタブ区切りで出る。
+
+scope ごとに表にして見せる。列は `key | 巡回 | 収穫 | 最終 | 説明`。
+
+- **巡回 1 以上で収穫 0** の行は「外す候補」として太字にする。外すかどうかの主材料はここにしかない
+- **巡回 0**（最終が `-`）は「未巡回」と書く。実績が無いのではなく、まだ見ていない
+- peers の説明は `sources.yaml` の行末コメントにあり、表には出ない。その旨を 1 行添える
+- 巡回 1 回だけで収穫 0 のものを外す判断は早い。スキルの基準は「2〜3 回続けて同水準なら除外候補」で、1 回で外すなら**そう明示した判断**として扱う
+
+続けて、直近の `$HOME/develop/distill-vault/情報収集/YYYY-MM-DD.md` の `## 改善提案` を読み、未反映の提案を日付つきで表の下に並べる。無ければ「未反映の改善提案: なし」と書く。提案は表と**同じ画面**で見せる。別々に見せると、提案の根拠（実績）と提案が結び付かない。
+
+### Step 2: 何を変えるか決める
+
+`AskUserQuestion`（header: `監視先`、1 問）で「外す / 追加する / URL・説明を直す / 何もしない」を選ばせる。
+
+- **外す**: 外す候補を先頭に並べ、key を列挙してもらう。候補が 4 件以下なら `multiSelect: true` の選択肢にし、超えるなら自由入力で受ける
+- **追加する**: scope・key・`note`（なぜ見るのか）を受ける。`note` が無ければ 1 問で聞く。次に自分で見返したときに「なぜこれを見ているのか」が分からない監視先は、除外候補になった時点で判断できない
+- **URL・説明を直す**: 対象の key と新しい値を受ける
+
+1 回のやり取りで複数の変更をまとめてよい。変更のたびに聞き直さない。
+
+### Step 3: 検証して書く
+
+書く前に確かめる。確かめずに書いた 1 行が、翌週の watch を 1 scope まるごと止める。
+
+| 変更 | 確認 |
+|---|---|
+| URL を追加・変更 | `curl -sS -o /dev/null -w '%{http_code} %{num_redirects} %{url_effective}' -L <url>` を実行する。200 でなければ止める。**転送があれば着地先（`url_effective`）を書く。** 転送元を書くと、転送を追わない取得経路で失敗する |
+| github の repo を追加 | `gh api /repos/<owner>/<repo>` で存在を確認する。404 なら止める |
+| peers の handle を追加 | `gh api /repos/<handle>/dotfiles` で確認する。無ければ `peers.overrides` に `owner/name` を書くか、止める |
+| news の query を追加 | 事前確認の手段は無い。同じ意図のクエリが既に無いかだけ見る |
+| すべて | 同じ key が**別の scope**に無いか見る。あれば伝える（同じ対象が 2 枠を消費する） |
+
+`sources.yaml` を書き換えたら:
+
+1. `python3 -c "import yaml; yaml.safe_load(open('<path>', encoding='utf-8'))"` で parse できることを確かめる。`key: []` と実体リストの共存は不正な YAML になる
+2. `$HOME/dotfiles/bin/gain-state due <path>` の行数が、意図した増減になっていることを確かめる
+
+### Step 4: 差分を見せて確定する
+
+1. `git -C $HOME/dotfiles diff -- $HOME/dotfiles/claude/skills/distill-gain-latest-info/sources.yaml` を見せる
+2. 外した監視先があれば `$HOME/dotfiles/bin/gain-state prune <path>` を実行し、消えた実績を 1 行で報告する
+3. **`sources.yaml` だけを stage して** commit し、push する。dotfiles には無関係な未コミット変更が残っていることが多く、`add -A` はそれを巻き込む。commit message には変更の理由（ユーザーが述べた動機）を書く
+4. 追加した監視先はまだ未巡回。`/distill-gain-latest-info watch --only <scope> --target <key>` で今すぐ回せることを伝える
+
+### 完了報告
+
+```
+distill-gain-latest-info sources 完了。外した <n> / 追加した <m> / 直した <k>
+commit: <短縮ハッシュ>
+```
+
+変更が無ければ「変更なし」とだけ報告する。
+
 ## ダイジェストの構造（Obsidian）
 
 出力は `情報収集/YYYY-MM-DD.md` の 1 ファイルに一本化する。Obsidian の callout・表・Mermaid を活用し、以下の構造で書く。
@@ -237,3 +301,7 @@ scopes: [peers, github, services, engineers, news]
 - ユーザー承認なしに `sources.yaml` へアドホック対象を追記する
 - `## 改善提案` の内容をこのスキル自身が `sources.yaml` に適用する（承認は呼び出し元が行う）
 - distill-gain-latest-info が vault を自動 commit する（`/eod` に委譲）
+- sources モードで、表を出さずに編集に入る（外す判断の材料が無い）
+- 転送元の URL を `sources.yaml` に書く（着地先を書く）
+- 存在を確認せずに repo や handle を足す
+- `sources.yaml` 以外の変更を巻き込んで commit する
