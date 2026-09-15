@@ -33,13 +33,16 @@ github:
 # Service changelog / release pages
 services:
   - name: Claude Code
-    url: https://docs.anthropic.com/en/release-notes/claude-code
-    note: primary daily tool; weekly feature drops
+    url: https://code.claude.com/docs/en/changelog
+    note: primary daily tool; weekly feature drops. This page dates each entry, which the GitHub CHANGELOG does not -- the 14-day window needs the dates
+  - name: Claude Code skills docs
+    url: https://code.claude.com/docs/en/skills
+    note: listing and re-attach budgets live here, not in the changelog; they decide whether a skill fires at all
   - name: Anthropic API
-    url: https://docs.anthropic.com/en/release-notes/api
+    url: https://platform.claude.com/docs/en/release-notes/overview
     note: model/API updates; feeds Databricks & AI work
   - name: Obsidian
-    url: https://obsidian.md/changelog
+    url: https://obsidian.md/changelog/
     note: vault workflow foundation
   - name: Databricks
     url: https://docs.databricks.com/aws/en/release-notes/product/
@@ -48,7 +51,7 @@ services:
     url: https://docs.databricks.com/aws/en/sql/release-notes/
     note: VIEW のスキーマ固定や Delta の読み取り挙動はここに出る。2026-09-02 の 5 時間障害は VIEW のスキーマ変更が原因だった
   - name: Claude system prompt
-    url: https://docs.claude.com/en/release-notes/system-prompts.md
+    url: https://platform.claude.com/docs/en/release-notes/system-prompts/overview.md
     note: .md suffix gives a diffable body; harness behaviour changes show up here first
 
 # Engineers to follow via blog (RSS) and SNS (best-effort)
@@ -57,9 +60,8 @@ engineers:
     blog: https://simonwillison.net/atom/everything/
     note: LLM tooling practice; highest signal in the space
   - name: mizchi
-    x: "@mizchi"
     blog: https://zenn.dev/mizchi/feed
-    note: Zenn is authoritative (mizchi.dev serves stale 2020 cache). dotfiles side yields nothing; vibe-lang in github covers the code
+    note: Zenn is authoritative (mizchi.dev serves stale 2020 cache). blog only -- the code shows up in github/mizchi/vibe-lang, and the SNS slot returned nothing but a low-confidence label
 
 # Impact news — search queries
 news:
