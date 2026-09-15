@@ -81,3 +81,71 @@ setup() {
   f="$REPO_DIR/claude/skills/eod/SKILL.md"
   grep -qF 'distill-gain-latest-info' "$f"
 }
+
+# --- CWD 非依存 ---
+#
+# グローバルスキルはどのリポジトリからでも起動される。相対パスで書かれた
+# コマンドは dotfiles を CWD にしたときしか解決せず、他リポジトリでは
+# exit 127 で Step 1 が丸ごと落ちる。パスは CWD に依存させない。
+
+@test "gain-state の呼び出しが絶対パスで書かれている" {
+  n=$(grep -oE '[^`[:space:]]*bin/gain-state' "$SK" | grep -cvF '$HOME/dotfiles/bin/gain-state') || n=0
+  [ "$n" -eq 0 ]
+  grep -qF '$HOME/dotfiles/bin/gain-state due' "$SK"
+}
+
+@test "SKILL.md の sources.yaml 参照が絶対パスである" {
+  n=$(grep -oE "[^\`[:space:]]*claude/skills/distill-gain-latest-info/sources\.yaml" "$SK" \
+      | grep -cvF '$HOME/dotfiles/claude/skills/') || n=0
+  [ "$n" -eq 0 ]
+}
+
+@test "eod の sources.yaml 反映先が絶対パスである" {
+  f="$REPO_DIR/claude/skills/eod/SKILL.md"
+  n=$(grep -oE "[^\`[:space:]]*claude/skills/distill-gain-latest-info/sources\.yaml" "$f" \
+      | grep -cvF '$HOME/dotfiles/claude/skills/') || n=0
+  [ "$n" -eq 0 ]
+}
+
+# --- 窓の整合 ---
+
+@test "既出照合の窓が収集窓と一致している" {
+  # 収集は 14 日固定。照合が 3 日だと、週次実行では前回分（約 7 日前）が
+  # 照合の外に落ち、4〜14 日前のエントリを再掲できてしまう。
+  grep -qF '直近 14 日分' "$SK"
+  n=$(grep -c '直近 3 日分' "$SK") || n=0
+  [ "$n" -eq 0 ]
+}
+
+@test "外した監視先の掃除が手順に入っている" {
+  # sources.yaml から消しても状態ファイルに実績が残り、改善提案の根拠を汚す。
+  grep -qF 'gain-state prune' "$SK"
+}
+
+@test "due の終了ステータスを見る手順になっている" {
+  # 取得失敗と「今週は対象ゼロ」はどちらも 0 行になる。手順が行数しか見て
+  # いないと、取得失敗をその週の「確認済み」として報告し、観測が丸ごと飛ぶ。
+  grep -qF '終了ステータスを先に見る' "$SK"
+  grep -qF '「確認済み」とは報告しない' "$SK"
+}
+
+@test "sources.yaml 不在のエラー行がある" {
+  # 不在と parse 不能を 1 行にまとめると、ファイルが消えているのに YAML 構文を
+  # 疑わせる報告になり、復旧が遅れる。
+  grep -qF 'sources.yaml が見つかりません' "$SK"
+}
+
+@test "取得失敗の再訪が「来週」ではなく次回実行時になっている" {
+  # record を呼ばなければ、同じ週の再実行でも due に残り続ける。「来週」と書くと
+  # sources.yaml を直しても今週分は諦める、という読みを誘発する。
+  grep -qF '同じ週のうちに全件そのまま対象に残る' "$SK"
+  n=$(grep -cE '来週も due のまま|来週そのまま再訪' "$SK") || n=0
+  [ "$n" -eq 0 ]
+}
+
+@test "record の終了ステータスを見る手順になっている" {
+  # ロック導入で exit 75（古い lock で 30 秒タイムアウト）が現実的になった。
+  # 見逃すと、ダイジェストは書けたのに実績だけ落ち、次回に同じ内容を再掲する。
+  grep -qF '`record` の終了ステータスも見る' "$SK"
+  grep -qF 'ロックを取れなかった' "$SK"
+}

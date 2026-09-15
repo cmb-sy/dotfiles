@@ -76,7 +76,7 @@ Step 1 の `distill-gain-latest-info` が書いたダイジェスト
 節が無い、または項目が 0 件なら本ステップをスキップし、完了報告に「改善提案: なし」と記録する。
 
 項目があれば `AskUserQuestion`(`multiSelect: true`, header: `監視先`) で採否を問い、
-**承認されたものだけ**を `claude/skills/distill-gain-latest-info/sources.yaml` に反映する。
+**承認されたものだけ**を `$HOME/dotfiles/claude/skills/distill-gain-latest-info/sources.yaml` に反映する。
 
 - 承認なしに `sources.yaml` を書き換えない
 - 反映後、変更した行を完了報告に列挙する
