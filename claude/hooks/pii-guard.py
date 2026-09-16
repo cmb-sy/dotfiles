@@ -35,6 +35,20 @@ SKIP_PATHS = [
     r"/test[s_]?/.*\.(py|js|ts|rb|go)$",
 ]
 
+# Paths where ONLY the quasi-identifier combination check is skipped.
+# Every other check (name, email, phone, labelled id with a value, hash digest,
+# credential, address) still runs.
+#
+# Design and plan documents quote schema column names in key position
+# (a name followed by a comma in a column list, a label followed by a comma in
+# a stack() argument list). Four such names co-occur in any document that spells
+# out real SQL for this project, which trips the >=4 category rule with no
+# personal data present. Exempting the combination rule alone keeps the checks
+# that would catch an actual roster pasted into a document.
+COMBINATION_SKIP_PATHS = [
+    r"docs/superpowers/(?:specs|plans)/[^/]*\.md$",
+]
+
 # Email domains that are NOT real PII
 SAFE_EMAIL_DOMAINS = {
     "example.com",
@@ -70,6 +84,12 @@ def should_skip_path(file_path: str) -> bool:
     if not file_path:
         return False
     return any(re.search(p, file_path) for p in SKIP_PATHS)
+
+
+def should_skip_combination(file_path: str) -> bool:
+    if not file_path:
+        return False
+    return any(re.search(p, file_path) for p in COMBINATION_SKIP_PATHS)
 
 
 # ---------------------------------------------------------------------------
@@ -546,8 +566,11 @@ def check_japanese_name(text: str) -> list[str]:
 # ---------------------------------------------------------------------------
 
 
-def run_scan(text: str) -> list[str]:
-    """Run all PII checks against text. Return list of findings."""
+def run_scan(text: str, file_path: str = "") -> list[str]:
+    """Run all PII checks against text. Return list of findings.
+
+    file_path selects the per-path exemptions. An empty path exempts nothing.
+    """
     findings: list[str] = []
     findings.extend(check_email(text))
     findings.extend(check_phone(text))
@@ -563,7 +586,8 @@ def run_scan(text: str) -> list[str]:
     findings.extend(check_corporate_number(text))
     findings.extend(check_dob(text))
     findings.extend(check_salary(text))
-    findings.extend(check_quasi_identifier_combination(text))
+    if not should_skip_combination(file_path):
+        findings.extend(check_quasi_identifier_combination(text))
     return findings
 
 
@@ -609,7 +633,7 @@ def report(findings: list[str], context: str = "") -> int:
 
 
 def scan_and_report(text: str, tool: str, file_path: str = "") -> int:
-    findings = run_scan(text)
+    findings = run_scan(text, file_path)
     advisory = check_private_ip(text)
     if findings:
         log_event("block", findings + advisory, tool, file_path)
@@ -686,17 +710,29 @@ def mode_git_commit_scan() -> int:
     if not diff_text:
         return 0
 
-    # Only scan added lines (lines starting with +, excluding +++ header)
-    added_lines = []
+    # Group added lines per file so the per-path exemptions apply here too.
+    # Scanning the whole diff as one blob made SKIP_PATHS silently inert at
+    # commit time: an exempt file's content was still scanned under an empty
+    # path, and one file could push another over the combination threshold.
+    per_file: dict[str, list[str]] = {}
+    current = ""
     for line in diff_text.splitlines():
-        if line.startswith("+") and not line.startswith("+++"):
-            added_lines.append(line[1:])  # strip leading +
+        header = re.match(r"diff --git a/(?:.*) b/(.*)$", line)
+        if header:
+            current = header.group(1)
+            continue
+        if line.startswith("+++") or line.startswith("---"):
+            continue
+        if line.startswith("+"):
+            per_file.setdefault(current, []).append(line[1:])  # strip leading +
 
-    if not added_lines:
-        return 0
-
-    text = "\n".join(added_lines)
-    return scan_and_report(text, "git-commit")
+    worst = 0
+    for path, lines in per_file.items():
+        if should_skip_path(path):
+            continue
+        rc = scan_and_report("\n".join(lines), "git-commit", path)
+        worst = max(worst, rc)
+    return worst
 
 
 # ---------------------------------------------------------------------------
