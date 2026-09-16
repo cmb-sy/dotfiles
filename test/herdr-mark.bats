@@ -15,7 +15,9 @@ setup() {
   CALLS="$TEST_TMPDIR/calls"
   : >"$CALLS"
   WS_JSON="$TEST_TMPDIR/ws.json"
+  BREAD="$TEST_TMPDIR/breadcrumb"
   export CALLS WS_JSON
+  export HERDR_MARK_BREADCRUMB="$BREAD"
   PATH="$STUB:$PATH"
 
   cat >"$STUB/herdr" <<'STUB'
@@ -116,4 +118,18 @@ renamed_to() { printf 'w1\t%s' "$1"; }
   [ "$status" -ne 0 ]
   n=$(grep -c . "$CALLS") || n=0
   [ "$n" -eq 0 ]
+}
+
+@test "起動しただけで痕跡を残す（キーが発火したかを後から判別するため）" {
+  workspaces 'dotfiles' true
+  run bash "$REPO_DIR/bin/herdr-mark" on
+  [ "$status" -eq 0 ]
+  cat "$BREAD" | grep -qF 'invoked action=on'
+}
+
+@test "失敗する経路でも痕跡は残る" {
+  workspaces 'dotfiles' false
+  run bash "$REPO_DIR/bin/herdr-mark"
+  [ "$status" -ne 0 ]
+  cat "$BREAD" | grep -qF 'invoked action=toggle'
 }
