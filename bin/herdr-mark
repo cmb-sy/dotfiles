@@ -1,0 +1,74 @@
+#!/bin/bash
+# Toggle a "still mine to deal with" marker on the focused herdr workspace.
+#
+# herdr has no pin or star. Of the fields a sidebar row shows, only the
+# workspace name survives a server restart (session.json custom_name); the
+# report-metadata fields live in server memory. So the marker is a prefix on
+# the label.
+#
+# The focused workspace comes from the API, not $HERDR_WORKSPACE_ID: herdr runs
+# `type = "shell"` keybindings detached and does not promise that env there.
+#
+# Bound to Ctrl+B M in terminal/herdr/config.toml. That binding is detached, so
+# failures have nowhere to print — hence the notification on every error path.
+#
+#   herdr-mark          toggle
+#   herdr-mark on|off   force a direction (idempotent)
+#
+# HERDR_MARK overrides the marker character.
+
+set -euo pipefail
+
+MARK="${HERDR_MARK:-🔵}"
+action="${1:-toggle}"
+
+die() {
+  osascript -e "display notification \"$1\" with title \"herdr-mark\"" >/dev/null 2>&1 || true
+  printf 'herdr-mark: %s\n' "$1" >&2
+  exit 1
+}
+
+case "$action" in
+  toggle | on | off) ;;
+  *) die "unknown action: $action (expected toggle, on, or off)" ;;
+esac
+
+[ -n "$MARK" ] || die "HERDR_MARK is empty"
+command -v herdr >/dev/null 2>&1 || die "herdr not found on PATH"
+
+focused="$(herdr workspace list 2>/dev/null | python3 -c '
+import json, sys
+try:
+    workspaces = json.load(sys.stdin)["result"]["workspaces"]
+except Exception:
+    sys.exit(1)
+for w in workspaces:
+    if w.get("focused"):
+        print("%s\t%s" % (w["workspace_id"], w.get("label", "")))
+        break
+' 2>/dev/null)" || die "cannot read the workspace list (is the herdr server running?)"
+
+[ -n "$focused" ] || die "no focused workspace"
+
+ws_id="${focused%%$'\t'*}"
+label="${focused#*$'\t'}"
+[ -n "$ws_id" ] || die "workspace list returned no id"
+[ -n "$label" ] || die "focused workspace $ws_id has no label"
+
+base="${label#"$MARK"}"
+# A label that is nothing but the marker would rename to the empty string.
+[ -n "$base" ] || die "label of $ws_id is only the marker; rename it by hand"
+
+case "$action" in
+on) new="$MARK$base" ;;
+off) new="$base" ;;
+toggle)
+  if [ "$base" = "$label" ]; then new="$MARK$base"; else new="$base"; fi
+  ;;
+esac
+
+if [ "$new" = "$label" ]; then
+  exit 0
+fi
+
+herdr workspace rename "$ws_id" "$new" >/dev/null || die "rename failed for $ws_id"

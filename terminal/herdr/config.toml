@@ -25,3 +25,11 @@ name = "catppuccin"
 auto_switch = true
 light_name = "catppuccin-latte"
 dark_name = "catppuccin"
+
+# Mark the workspace you still owe work to. herdr shows what the agent is
+# doing; the marker records what you decided, which herdr cannot know.
+# type = "shell" runs detached, so pressing the key draws nothing on screen.
+[[keys.command]]
+key = "prefix+m"                # Ctrl+B then M
+type = "shell"
+command = "$HOME/dotfiles/bin/herdr-mark"
