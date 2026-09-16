@@ -28,13 +28,13 @@ dark_name = "catppuccin"
 
 # Mark the workspace you still owe work to. herdr shows what the agent is
 # doing; the marker records what you decided, which herdr cannot know.
-# Cmd+Ctrl+M arrives as an alt+F9 chord from Ghostty, the same route lazygit
+# Cmd+Opt+M arrives as an alt+F9 chord from Ghostty, the same route lazygit
 # uses above. Ctrl+M is not an option: terminals send it as CR, which is Enter.
 # type = "shell" runs detached, so pressing the key draws nothing on screen.
 # Wrapped in sh -c so $HOME expands whether herdr hands the string to a shell
 # or execs it directly; a detached shell does not carry this repo's bin on PATH,
 # and an absolute path here would write the account name into a tracked file.
 [[keys.command]]
-key = "alt+f9"                  # Cmd+Ctrl+M
+key = "alt+f9"                  # Cmd+Opt+M
 type = "shell"
 command = 'sh -c "$HOME/dotfiles/bin/herdr-mark"'

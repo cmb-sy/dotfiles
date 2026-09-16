@@ -2,9 +2,9 @@
 # help_key が herdr の実際のキー割り当てから取り残されないようにする。
 #
 # help_key は手書きの一覧なので、config.toml にキーを足しても黙って古いまま
-# になる。実際 Cmd+Opt+W と Cmd+Ctrl+M の 2 件が抜けていた。
+# になる。押し方を変えたときも同じで、一覧だけが前の表記で残る。
 #
-# 突き合わせの根拠は config.toml 側の行末コメント（`key = "alt+f9"  # Cmd+Ctrl+M`）。
+# 突き合わせの根拠は config.toml 側の行末コメント（`key = "alt+f9"  # Cmd+Opt+M`）。
 # herdr が解釈する chord 名は Cmd 表記と対応しないので、人間向けの対応表は
 # このコメントしかない。
 

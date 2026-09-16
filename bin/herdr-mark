@@ -12,7 +12,7 @@
 # herdr has no pin or star. Names are the only per-row field that survives a
 # server restart (session.json custom_name), so the marker is a name prefix.
 #
-# Bound to Cmd+Ctrl+M in terminal/herdr/config.toml. That binding is detached,
+# Bound to Cmd+Opt+M in terminal/herdr/config.toml. That binding is detached,
 # so failures have nowhere to print — hence the notification on every error
 # path, and the breadcrumb below.
 #

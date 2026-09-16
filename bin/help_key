@@ -78,10 +78,10 @@ show_herdr() {
   kv "Cmd+Opt+Up / Down"  "Previous / Next workspace"
   kv "fn+Cmd+Up / Down"   "Previous / Next workspace (Karabiner remap)"
   kv "Cmd+Opt+W"          "Close workspace"
+  kv "Cmd+Opt+M"          "Mark / unmark this session (adds a marker to its name)"
 
   group "Tools"
   kv "Cmd+Ctrl+G"         "lazygit in a throwaway pane (closes on exit)"
-  kv "Cmd+Ctrl+M"         "Mark / unmark this workspace (adds a marker to its name)"
 }
 
 show_cmux() {
