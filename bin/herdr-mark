@@ -1,16 +1,20 @@
 #!/bin/bash
-# Toggle a "still mine to deal with" marker on the focused herdr workspace.
+# Toggle a "still mine to deal with" marker on the focused herdr session.
 #
-# herdr has no pin or star. Of the fields a sidebar row shows, only the
-# workspace name survives a server restart (session.json custom_name); the
-# report-metadata fields live in server memory. So the marker is a prefix on
-# the label.
+# A row in the agents panel reads "<workspace label> · <tab label>", one row per
+# agent, so a session is a tab: marking the workspace marks every session under
+# it. But the panel drops the tab half when a workspace holds a single tab
+# (AITF and dotfiles both have a tab named "1"; only dotfiles shows it), so a
+# tab-level mark would be invisible there. Hence: mark the tab when the
+# workspace has several, the workspace when it has one. Either way exactly one
+# row changes.
 #
-# The focused workspace comes from the API, not $HERDR_WORKSPACE_ID: herdr runs
-# `type = "shell"` keybindings detached and does not promise that env there.
+# herdr has no pin or star. Names are the only per-row field that survives a
+# server restart (session.json custom_name), so the marker is a name prefix.
 #
-# Bound to Ctrl+B M in terminal/herdr/config.toml. That binding is detached, so
-# failures have nowhere to print — hence the notification on every error path.
+# Bound to Cmd+Ctrl+M in terminal/herdr/config.toml. That binding is detached,
+# so failures have nowhere to print — hence the notification on every error
+# path, and the breadcrumb below.
 #
 #   herdr-mark          toggle
 #   herdr-mark on|off   force a direction (idempotent)
@@ -22,18 +26,18 @@ set -euo pipefail
 MARK="${HERDR_MARK:-🔵}"
 action="${1:-toggle}"
 
+die() {
+  osascript -e "display notification \"$1\" with title \"herdr-mark\"" >/dev/null 2>&1 || true
+  printf 'herdr-mark: %s\n' "$1" >&2
+  exit 1
+}
+
 # The key binding runs detached: a failure to even start has nowhere to show.
 # One overwritten line is enough to tell "the key never fired" from "it fired
 # and failed", which is the only question worth asking when nothing happens.
 BREADCRUMB="${HERDR_MARK_BREADCRUMB:-/private/tmp/herdr-mark.last}"
 printf '%s invoked action=%s\n' "$(date '+%Y-%m-%dT%H:%M:%S')" "$action" \
   >"$BREADCRUMB" 2>/dev/null || true
-
-die() {
-  osascript -e "display notification \"$1\" with title \"herdr-mark\"" >/dev/null 2>&1 || true
-  printf 'herdr-mark: %s\n' "$1" >&2
-  exit 1
-}
 
 case "$action" in
   toggle | on | off) ;;
@@ -43,7 +47,7 @@ esac
 [ -n "$MARK" ] || die "HERDR_MARK is empty"
 command -v herdr >/dev/null 2>&1 || die "herdr not found on PATH"
 
-focused="$(herdr workspace list 2>/dev/null | python3 -c '
+ws_line="$(herdr workspace list 2>/dev/null | python3 -c '
 import json, sys
 try:
     workspaces = json.load(sys.stdin)["result"]["workspaces"]
@@ -51,31 +55,73 @@ except Exception:
     sys.exit(1)
 for w in workspaces:
     if w.get("focused"):
-        print("%s\t%s" % (w["workspace_id"], w.get("label", "")))
+        print("%s\t%s\t%s" % (w["workspace_id"], w.get("tab_count", 1), w.get("label", "")))
         break
 ' 2>/dev/null)" || die "cannot read the workspace list (is the herdr server running?)"
+[ -n "$ws_line" ] || die "no focused workspace"
 
-[ -n "$focused" ] || die "no focused workspace"
-
-ws_id="${focused%%$'\t'*}"
-label="${focused#*$'\t'}"
+ws_id="$(printf '%s' "$ws_line" | cut -f1)"
+tab_count="$(printf '%s' "$ws_line" | cut -f2)"
+ws_label="$(printf '%s' "$ws_line" | cut -f3-)"
 [ -n "$ws_id" ] || die "workspace list returned no id"
-[ -n "$label" ] || die "focused workspace $ws_id has no label"
-
-base="${label#"$MARK"}"
-# A label that is nothing but the marker would rename to the empty string.
-[ -n "$base" ] || die "label of $ws_id is only the marker; rename it by hand"
-
-case "$action" in
-on) new="$MARK$base" ;;
-off) new="$base" ;;
-toggle)
-  if [ "$base" = "$label" ]; then new="$MARK$base"; else new="$base"; fi
-  ;;
+[ -n "$ws_label" ] || die "focused workspace $ws_id has no label"
+case "$tab_count" in
+  '' | *[!0-9]*) die "workspace $ws_id reported a non-numeric tab count: $tab_count" ;;
 esac
 
-if [ "$new" = "$label" ]; then
-  exit 0
-fi
+tab_line="$(herdr tab list --workspace "$ws_id" 2>/dev/null | python3 -c '
+import json, sys
+try:
+    tabs = json.load(sys.stdin)["result"]["tabs"]
+except Exception:
+    sys.exit(1)
+for t in tabs:
+    if t.get("focused"):
+        print("%s\t%s" % (t["tab_id"], t.get("label", "")))
+        break
+' 2>/dev/null)" || die "cannot read the tab list for $ws_id"
+[ -n "$tab_line" ] || die "no focused tab in $ws_id"
 
-herdr workspace rename "$ws_id" "$new" >/dev/null || die "rename failed for $ws_id"
+tab_id="$(printf '%s' "$tab_line" | cut -f1)"
+tab_label="$(printf '%s' "$tab_line" | cut -f2-)"
+[ -n "$tab_id" ] || die "tab list returned no id"
+[ -n "$tab_label" ] || die "focused tab $tab_id has no label"
+
+ws_base="${ws_label#"$MARK"}"
+tab_base="${tab_label#"$MARK"}"
+# A label that is nothing but the marker would rename to the empty string.
+[ -n "$ws_base" ] || die "label of $ws_id is only the marker; rename it by hand"
+[ -n "$tab_base" ] || die "label of $tab_id is only the marker; rename it by hand"
+
+ws_marked=0
+if [ "$ws_base" != "$ws_label" ]; then ws_marked=1; fi
+tab_marked=0
+if [ "$tab_base" != "$tab_label" ]; then tab_marked=1; fi
+
+# One tab means the panel shows no tab half, so the workspace is the only
+# thing that can carry a visible mark — and it maps to exactly one row anyway.
+if [ "$tab_count" -gt 1 ]; then target=tab; else target=workspace; fi
+
+case "$action" in
+  on) want=on ;;
+  off) want=off ;;
+  toggle)
+    if [ "$ws_marked" -eq 1 ] || [ "$tab_marked" -eq 1 ]; then want=off; else want=on; fi
+    ;;
+esac
+
+rename_ws() { herdr workspace rename "$ws_id" "$1" >/dev/null || die "rename failed for $ws_id"; }
+rename_tab() { herdr tab rename "$tab_id" "$1" >/dev/null || die "rename failed for $tab_id"; }
+
+if [ "$want" = off ]; then
+  if [ "$ws_marked" -eq 1 ]; then rename_ws "$ws_base"; fi
+  if [ "$tab_marked" -eq 1 ]; then rename_tab "$tab_base"; fi
+elif [ "$target" = tab ]; then
+  if [ "$tab_marked" -eq 0 ]; then rename_tab "$MARK$tab_base"; fi
+  # Clear a workspace-level mark left by an older version, which would have
+  # shown on every sibling session.
+  if [ "$ws_marked" -eq 1 ]; then rename_ws "$ws_base"; fi
+else
+  if [ "$ws_marked" -eq 0 ]; then rename_ws "$MARK$ws_base"; fi
+  if [ "$tab_marked" -eq 1 ]; then rename_tab "$tab_base"; fi
+fi
