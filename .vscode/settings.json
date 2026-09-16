@@ -17,7 +17,7 @@
   "githubPullRequests.pullBranch": "never",
 
   // Editor
-  "editor.minimap.autohide": true,
+  "editor.minimap.autohide": "mouseover",
   "editor.fontSize": 14,
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "editor.formatOnSave": true,
@@ -39,4 +39,5 @@
   "window.autoDetectColorScheme": false,
   "editor.accessibilitySupport": "off",
   "git.openRepositoryInParentFolders": "always",
+  "cursor.composer.queueMessageDefaultBehavior": "steer",
 }

@@ -159,6 +159,7 @@ export PATH="/usr/local/bin:$PATH"
 export PATH="/opt/homebrew/bin:$PATH"
 export PATH="${DOTFILES:-${HOME}/dotfiles}/bin:$PATH"   # voice-switch, dev, ai-format, help_key
 export PATH="$HOME/.local/bin:$PATH"                    # slackcli, tmux-sessionizer
+export PATH="$HOME/bin:$PATH"                          # check-databricks-auth.sh
 
 # mise (runtime version manager) — must come after PATH so mise shims take priority
 eval "$(mise activate zsh)"
