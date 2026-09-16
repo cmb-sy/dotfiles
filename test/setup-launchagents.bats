@@ -75,7 +75,22 @@ agent_plists() {
   me=$(id -un)
   # Too short to grep for without matching ordinary words.
   [ "${#me}" -ge 4 ] || skip "account name too short to search for safely"
+  # The length guard is not enough on CI, whose account is named after an
+  # ordinary English word the repo uses in prose ("CI runners", "the runner
+  # drives bats"). A bare name can only be searched for on a developer
+  # account; the path-shape test below is the one that still holds on CI.
+  if [ -n "${CI:-}" ]; then skip "the CI account name is an ordinary word"; fi
   hits=$(git grep -l -i -- "$me" 2>/dev/null | grep -c .) || hits=0
   if [ "$hits" -ne 0 ]; then git grep -l -i -- "$me" 2>/dev/null; fi
+  [ "$hits" -eq 0 ]
+}
+
+@test "tracked files carry no home directory path" {
+  # The shape that actually leaks: editors and tools write /Users/<account>/...
+  # into settings and configs. A path prefix cannot collide with prose the way
+  # a bare account name can, so this runs everywhere, CI included.
+  me=$(id -un)
+  hits=$(git grep -l -i -- "/Users/$me" 2>/dev/null | grep -c .) || hits=0
+  if [ "$hits" -ne 0 ]; then git grep -l -i -- "/Users/$me" 2>/dev/null; fi
   [ "$hits" -eq 0 ]
 }
