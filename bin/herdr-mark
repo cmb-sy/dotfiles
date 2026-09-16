@@ -1,5 +1,5 @@
 #!/bin/bash
-# Toggle a "still mine to deal with" marker on the focused herdr session.
+# Put a marker on the focused herdr session, chosen from a list.
 #
 # A row in the agents panel reads "<workspace label> · <tab label>", one row per
 # agent, so a session is a tab: marking the workspace marks every session under
@@ -12,19 +12,31 @@
 # herdr has no pin or star. Names are the only per-row field that survives a
 # server restart (session.json custom_name), so the marker is a name prefix.
 #
-# Bound to Cmd+Opt+M in terminal/herdr/config.toml. That binding is detached,
-# so failures have nowhere to print — hence the notification on every error
-# path, and the breadcrumb below.
+# Bound to Cmd+Opt+M in terminal/herdr/config.toml, which opens a throwaway
+# pane so fzf has a terminal to draw in. The pane lives in the current tab, so
+# the focused workspace and tab are still the ones the marker should land on.
 #
-#   herdr-mark          toggle
-#   herdr-mark on|off   force a direction (idempotent)
-#
-# HERDR_MARK overrides the marker character.
+#   herdr-mark            pick from the list (default)
+#   herdr-mark set <emoji>  apply one marker without the picker
+#   herdr-mark off        remove whatever marker is there
 
 set -euo pipefail
 
-MARK="${HERDR_MARK:-🔵}"
-action="${1:-toggle}"
+# Offered by the picker, in display order.
+MARK_EMOJI=("🤖" "📤" "🟢")
+MARK_LABEL=("対応中" "返事待ち" "general")
+# Stripped but no longer offered, so rows marked before the set existed can
+# still be cleared.
+LEGACY_EMOJI=("🔵")
+
+# Built once: "${LEGACY_EMOJI[@]}" on an empty array is an unbound-variable
+# error under set -u, so the last legacy marker could never be retired.
+STRIPPABLE=("${MARK_EMOJI[@]}")
+if [ "${#LEGACY_EMOJI[@]}" -gt 0 ]; then STRIPPABLE+=("${LEGACY_EMOJI[@]}"); fi
+
+CLEAR_KEY="✕"
+
+action="${1:-pick}"
 
 die() {
   osascript -e "display notification \"$1\" with title \"herdr-mark\"" >/dev/null 2>&1 || true
@@ -32,19 +44,42 @@ die() {
   exit 1
 }
 
-# The key binding runs detached: a failure to even start has nowhere to show.
-# One overwritten line is enough to tell "the key never fired" from "it fired
-# and failed", which is the only question worth asking when nothing happens.
+# The key binding runs in a throwaway pane that closes the moment this exits,
+# so an error message on screen is gone before it can be read. One overwritten
+# line tells "the key never fired" from "it fired and failed".
 BREADCRUMB="${HERDR_MARK_BREADCRUMB:-/private/tmp/herdr-mark.last}"
 printf '%s invoked action=%s\n' "$(date '+%Y-%m-%dT%H:%M:%S')" "$action" \
   >"$BREADCRUMB" 2>/dev/null || true
 
+# Strip any known marker, current or legacy, from the front of a label.
+strip_mark() {
+  local label="$1" m
+  for m in "${STRIPPABLE[@]}"; do
+    if [ "${label#"$m"}" != "$label" ]; then
+      printf '%s' "${label#"$m"}"
+      return 0
+    fi
+  done
+  printf '%s' "$label"
+}
+
+is_known_mark() {
+  local want="$1" m
+  for m in "${MARK_EMOJI[@]}"; do
+    if [ "$m" = "$want" ]; then return 0; fi
+  done
+  return 1
+}
+
 case "$action" in
-  toggle | on | off) ;;
-  *) die "unknown action: $action (expected toggle, on, or off)" ;;
+  pick | off) ;;
+  set)
+    [ $# -ge 2 ] || die "set needs a marker (one of: ${MARK_EMOJI[*]})"
+    is_known_mark "$2" || die "unknown marker: $2 (expected one of: ${MARK_EMOJI[*]})"
+    ;;
+  *) die "unknown action: $action (expected pick, set, or off)" ;;
 esac
 
-[ -n "$MARK" ] || die "HERDR_MARK is empty"
 command -v herdr >/dev/null 2>&1 || die "herdr not found on PATH"
 
 ws_line="$(herdr workspace list 2>/dev/null | python3 -c '
@@ -87,41 +122,56 @@ tab_label="$(printf '%s' "$tab_line" | cut -f2-)"
 [ -n "$tab_id" ] || die "tab list returned no id"
 [ -n "$tab_label" ] || die "focused tab $tab_id has no label"
 
-ws_base="${ws_label#"$MARK"}"
-tab_base="${tab_label#"$MARK"}"
-# A label that is nothing but the marker would rename to the empty string.
-[ -n "$ws_base" ] || die "label of $ws_id is only the marker; rename it by hand"
-[ -n "$tab_base" ] || die "label of $tab_id is only the marker; rename it by hand"
-
-ws_marked=0
-if [ "$ws_base" != "$ws_label" ]; then ws_marked=1; fi
-tab_marked=0
-if [ "$tab_base" != "$tab_label" ]; then tab_marked=1; fi
+ws_base="$(strip_mark "$ws_label")"
+tab_base="$(strip_mark "$tab_label")"
+# A label that is nothing but a marker would rename to the empty string.
+[ -n "$ws_base" ] || die "label of $ws_id is only a marker; rename it by hand"
+[ -n "$tab_base" ] || die "label of $tab_id is only a marker; rename it by hand"
 
 # One tab means the panel shows no tab half, so the workspace is the only
 # thing that can carry a visible mark — and it maps to exactly one row anyway.
 if [ "$tab_count" -gt 1 ]; then target=tab; else target=workspace; fi
 
-case "$action" in
-  on) want=on ;;
-  off) want=off ;;
-  toggle)
-    if [ "$ws_marked" -eq 1 ] || [ "$tab_marked" -eq 1 ]; then want=off; else want=on; fi
-    ;;
-esac
-
-rename_ws() { herdr workspace rename "$ws_id" "$1" >/dev/null || die "rename failed for $ws_id"; }
-rename_tab() { herdr tab rename "$tab_id" "$1" >/dev/null || die "rename failed for $tab_id"; }
-
-if [ "$want" = off ]; then
-  if [ "$ws_marked" -eq 1 ]; then rename_ws "$ws_base"; fi
-  if [ "$tab_marked" -eq 1 ]; then rename_tab "$tab_base"; fi
-elif [ "$target" = tab ]; then
-  if [ "$tab_marked" -eq 0 ]; then rename_tab "$MARK$tab_base"; fi
-  # Clear a workspace-level mark left by an older version, which would have
-  # shown on every sibling session.
-  if [ "$ws_marked" -eq 1 ]; then rename_ws "$ws_base"; fi
+if [ "$action" = pick ]; then
+  command -v fzf >/dev/null 2>&1 || die "fzf not found on PATH"
+  current="$(if [ "$target" = tab ]; then printf '%s' "$tab_label"; else printf '%s' "$ws_label"; fi)"
+  menu=""
+  for i in $(seq 0 $((${#MARK_EMOJI[@]} - 1))); do
+    menu="${menu}${MARK_EMOJI[$i]} ${MARK_LABEL[$i]}"$'\n'
+  done
+  menu="${menu}${CLEAR_KEY} 印を外す"
+  chosen="$(printf '%s' "$menu" | fzf --prompt="$current > " --reverse --height=100% --no-info)" || exit 0
+  [ -n "$chosen" ] || exit 0
+  chosen_mark="${chosen%% *}"
+  if [ "$chosen_mark" = "$CLEAR_KEY" ]; then
+    want=""
+  else
+    is_known_mark "$chosen_mark" || die "picker returned an unknown marker: $chosen_mark"
+    want="$chosen_mark"
+  fi
+elif [ "$action" = off ]; then
+  want=""
 else
-  if [ "$ws_marked" -eq 0 ]; then rename_ws "$MARK$ws_base"; fi
-  if [ "$tab_marked" -eq 1 ]; then rename_tab "$tab_base"; fi
+  want="$2"
+fi
+
+rename_ws() {
+  if [ "$1" != "$ws_label" ]; then
+    herdr workspace rename "$ws_id" "$1" >/dev/null || die "rename failed for $ws_id"
+  fi
+}
+rename_tab() {
+  if [ "$1" != "$tab_label" ]; then
+    herdr tab rename "$tab_id" "$1" >/dev/null || die "rename failed for $tab_id"
+  fi
+}
+
+# The non-target is always cleared: a marker left on the workspace would show
+# on every sibling session, which is the bug this replaced.
+if [ "$target" = tab ]; then
+  rename_tab "${want}${tab_base}"
+  rename_ws "$ws_base"
+else
+  rename_ws "${want}${ws_base}"
+  rename_tab "$tab_base"
 fi
