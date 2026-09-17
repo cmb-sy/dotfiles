@@ -12,24 +12,21 @@
 #   gain-state record <scope> <key> <findings> -> stamp today, bump the counters
 #   gain-state prune <sources.yaml>            -> drop rows the yaml no longer lists
 #   gain-state list <sources.yaml>             -> every source with runs/findings/note joined in
-#   gain-state snapshot <scope> <key>          -> stdin is the page now; prints the diff since last time
 #
 # Writers serialise on a $STATE.lock directory, so the per-source record calls
 # the skill fans out do not overwrite each other.
 #
-# GAIN_STATE overrides the state file, GAIN_SNAPSHOTS the snapshot directory,
-# and GAIN_NOW pins today, so the week boundary can be tested without waiting
-# for one.
+# GAIN_STATE overrides the state file and GAIN_NOW pins today, so the week
+# boundary can be tested without waiting for one.
 
 set -uo pipefail
 
 STATE="${GAIN_STATE:-$HOME/.local/state/gain/sources.tsv}"
-SNAPS="${GAIN_SNAPSHOTS:-$HOME/.local/state/gain/snapshots}"
 NOW="${GAIN_NOW:-$(date '+%Y-%m-%d')}"
 
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 
-usage() { printf 'usage: gain-state due <sources.yaml> | record <scope> <key> <findings> | prune <sources.yaml> | list <sources.yaml> | snapshot <scope> <key> < content\n' >&2; exit 64; }
+usage() { printf 'usage: gain-state due <sources.yaml> | record <scope> <key> <findings> | prune <sources.yaml> | list <sources.yaml>\n' >&2; exit 64; }
 
 # ISO week, not sqlite's `weekday` modifier: that one advances to the *next*
 # given weekday and stays put when today already is it, which lands a week
@@ -101,7 +98,12 @@ cmd_due() {
   printf '%s\n' "$rows" |
   while IFS=$'\t' read -r scope key; do
     [ -n "$scope" ] && [ -n "$key" ] || continue
-    last=$(awk -F'\t' -v s="$scope" -v k="$key" '$1 == s && $2 == k { print $3; exit }' "$STATE" 2>/dev/null)
+    # Pass through the environment, not -v: awk expands escapes in a -v value,
+    # so a key holding \t or \n would be split before the comparison and never
+    # match its own row. ENVIRON is handed over verbatim.
+    last=$(GS_SCOPE="$scope" GS_KEY="$key" awk -F'\t' \
+      'NF >= 5 && $1 == ENVIRON["GS_SCOPE"] && $2 == ENVIRON["GS_KEY"] { print $3; exit }' \
+      "$STATE" 2>/dev/null)
     if [ -n "$last" ] && same_week "$last" "$NOW"; then
       continue
     fi
@@ -109,18 +111,24 @@ cmd_due() {
   done
 }
 
+# Checked before the lock is taken: inside, a caller error would wait out the
+# 30s lock timeout and surface as 75 (lock trouble) instead of 64 (bad call).
+check_findings() {
+  case "$1" in
+    ''|*[!0-9]*) printf 'gain-state: findings must be a non-negative integer, got %s\n' "$1" >&2; return 64 ;;
+  esac
+}
+
 cmd_record() {
   local scope="$1" key="$2" found="$3"
-  case "$found" in
-    ''|*[!0-9]*) printf 'gain-state: findings must be a non-negative integer, got %s\n' "$found" >&2; exit 64 ;;
-  esac
   # The directory is ensured by with_lock, which every writer goes through.
   # Failing to create the file must stop here: continuing would let mv land
   # the rewrite somewhere nothing reads back.
   [ -f "$STATE" ] || : > "$STATE" || return 1
   # Rewrite through a temp file: an in-place edit that dies half way would
   # leave the counters for every other source truncated.
-  awk -F'\t' -v OFS='\t' -v s="$scope" -v k="$key" -v now="$NOW" -v f="$found" '
+  GS_SCOPE="$scope" GS_KEY="$key" awk -F'\t' -v OFS='\t' -v now="$NOW" -v f="$found" '
+    BEGIN { s = ENVIRON["GS_SCOPE"]; k = ENVIRON["GS_KEY"] }
     $1 == s && $2 == k { print s, k, now, $4 + 1, $5 + f; hit = 1; next }
     NF >= 5           { print }
     END { if (!hit) print s, k, now, 1, f }
@@ -227,50 +235,11 @@ with_lock() {
   return "$rc"
 }
 
-# Sources whose page carries no dated entries -- a reference doc rather than a
-# changelog -- have nothing to extract by date. Scoring them "collected, found
-# nothing" reads a shape mismatch as a poor track record, and that is exactly
-# what decides which sources get dropped. Compare against the last copy instead.
-#
-# The first run prints nothing: emitting the whole page as a diff would fill a
-# digest with one entry. Silence means "nothing changed", which is the answer
-# the digest wants either way.
-cmd_snapshot() {
-  local scope="$1" key="$2" py3
-  py3="$(mise which python3 2>/dev/null || command -v python3)"
-  [ -n "$py3" ] || { printf 'gain-state: no python3 found\n' >&2; return 1; }
-  # Pass the program with -c, not on stdin. `python3 -` reads the program from
-  # stdin, which is where the page content has to arrive -- the program would
-  # eat it and every run would look unchanged.
-  "$py3" -c '
-import difflib, re, sys
-from pathlib import Path
-root, scope, key = Path(sys.argv[1]), sys.argv[2], sys.argv[3]
-# The key is a repo path, a URL or a Japanese query, so it cannot be a file
-# name as written. Fold everything else to _: with no separator left, no
-# spelling of the key can climb out of the snapshot directory.
-name = re.sub(r"[^A-Za-z0-9._-]", "_", key)[:120]
-if name.strip(".") == "":
-    name = "_"
-safe_scope = re.sub(r"[^A-Za-z0-9._-]", "_", scope)[:40] or "_"
-path = root / safe_scope / name
-path.parent.mkdir(parents=True, exist_ok=True)
-now = sys.stdin.read()
-was = path.read_text(encoding="utf-8") if path.is_file() else None
-path.write_text(now, encoding="utf-8")
-if was is None or was == now:
-    raise SystemExit(0)
-sys.stdout.writelines(difflib.unified_diff(
-    was.splitlines(keepends=True), now.splitlines(keepends=True),
-    fromfile=f"{scope}/{key} (前回)", tofile=f"{scope}/{key} (今回)", n=2))
-' "$SNAPS" "$scope" "$key"
-}
-
 case "${1:-}" in
   due)    [ $# -eq 2 ] || usage; check_state || exit 1; cmd_due "$2" ;;
-  record) [ $# -eq 4 ] || usage; check_state || exit 1; with_lock cmd_record "$2" "$3" "$4" ;;
+  record) [ $# -eq 4 ] || usage; check_findings "$4" || exit 64; check_state || exit 1
+          with_lock cmd_record "$2" "$3" "$4" ;;
   prune)  [ $# -eq 2 ] || usage; check_state || exit 1; with_lock cmd_prune "$2" ;;
   list)   [ $# -eq 2 ] || usage; check_state || exit 1; cmd_list "$2" ;;
-  snapshot) [ $# -eq 3 ] || usage; cmd_snapshot "$2" "$3" ;;
   *)      usage ;;
 esac

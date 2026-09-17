@@ -37,19 +37,14 @@ github:
     note: releases only — new versions of the free local runtime behind Handy voice post-processing
 
 # Service changelog / release pages
-#   watch: changelog (default) — the page lists entries with dates; take the
-#          ones inside the window. watch: diff — the page is a reference doc
-#          with nothing to extract by date; compare it against last week's copy.
-#          Taking a doc as a changelog records "found nothing" every week, and
-#          that is what decides which sources get dropped.
+# Every entry here has to be a page that dates its own entries: collection
+# takes the ones inside the window. A reference doc has nothing to take that
+# way and records "found nothing" every week, which is what decides who gets
+# dropped -- so do not put one here.
 services:
   - name: Claude Code
     url: https://code.claude.com/docs/en/changelog
     note: primary daily tool; weekly feature drops. This page dates each entry, which the GitHub CHANGELOG does not -- the 14-day window needs the dates
-  - name: Claude Code skills docs
-    url: https://code.claude.com/docs/en/skills
-    watch: diff
-    note: listing and re-attach budgets live here, not in the changelog; they decide whether a skill fires at all
   - name: Anthropic API
     url: https://platform.claude.com/docs/en/release-notes/overview
     note: model/API updates; feeds Databricks & AI work
@@ -64,8 +59,8 @@ services:
     note: VIEW のスキーマ固定や Delta の読み取り挙動はここに出る。2026-09-02 の 5 時間障害は VIEW のスキーマ変更が原因だった
   - name: Claude system prompt
     url: https://platform.claude.com/docs/en/release-notes/system-prompts/overview.md
-    watch: diff
-    note: .md suffix gives a diffable body; harness behaviour changes show up here first
+    note: the page dates its entries. The .md body would also diff cleanly between
+      versions, but nothing here compares versions yet -- it is read as a changelog
 
 # Engineers to follow via blog (RSS) and SNS (best-effort)
 engineers:

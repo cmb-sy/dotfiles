@@ -100,7 +100,9 @@ due() { GAIN_NOW="$1" run bash "$GS" due "$SRC"; }
 # この件数から「実績の無い監視先」を挙げるため、記録が無いと提案が作れない。
 
 rec() { GAIN_NOW="$1" run bash "$GS" record "$2" "$3" "$4"; }
-row() { awk -F'\t' -v s="$1" -v k="$2" '$1 == s && $2 == k { print $3"|"$4"|"$5; exit }' "$GAIN_STATE"; }
+# 実装と同じ理由で ENVIRON 経由にする。-v は値のエスケープを展開するので、
+# \t を含む key を渡すとヘルパー自身が行を見つけられない。
+row() { GS_S="$1" GS_K="$2" awk -F'\t' '$1 == ENVIRON["GS_S"] && $2 == ENVIRON["GS_K"] { print $3"|"$4"|"$5; exit }' "$GAIN_STATE"; }
 
 @test "record は行が無ければ作る" {
   rec 2026-09-07 github owner/alpha 2
@@ -327,7 +329,7 @@ YAML
 # 「見たが収穫ゼロ」と区別できるよう最終日は - にする。
 
 lst() { run bash "$GS" list "$SRC"; }
-col() { printf '%s\n' "$output" | awk -F'\t' -v s="$1" -v k="$2" '$1 == s && $2 == k { print $3"|"$4"|"$5"|"$6; exit }'; }
+col() { GS_S="$1" GS_K="$2" printf '%s\n' "$output" | GS_S="$1" GS_K="$2" awk -F'\t' '$1 == ENVIRON["GS_S"] && $2 == ENVIRON["GS_K"] { print $3"|"$4"|"$5"|"$6; exit }'; }
 
 @test "list は yaml の全監視先を出す" {
   lst
@@ -484,83 +486,54 @@ YAML
   printf '%s' "$output" | grep -qF "$(printf 'peers\talice')"
 }
 
-# --- snapshot: 日付つきエントリを持たない監視先 ---
+# --- key に含まれる制御文字 ---
 #
-# services の取得は「直近 14 日以内のエントリ抽出」を前提にしている。docs の
-# ような文書には抽出するエントリが無く、収穫 0 で記録される。形の不一致が
-# 実績の低さとして誤って積み上がり、除外候補の判定を狂わせる。こちらは
-# 前回の内容との差分で見る。
+# awk の -v は値のエスケープを展開する。key に \t や \n が入ると、比較する前に
+# 値が割れて自分の行に一致しなくなり、record のたびに重複行が増えて runs が
+# 永久に 1 のままになる。ENVIRON 経由なら展開されない。
 
-# `run` をパイプの右辺に置くとサブシェルになり、$status と $output が失われる。
-# 内容はファイルに落として、リダイレクトで渡す。
-snap() {  # $1 = 内容, $2 = scope, $3 = key
-  printf '%s' "$1" > "$BATS_TEST_TMPDIR/in"
-  GAIN_SNAPSHOTS="$BATS_TEST_TMPDIR/snaps" run bash "$GS" snapshot "$2" "$3" < "$BATS_TEST_TMPDIR/in"
-}
-
-@test "snapshot は初回に保存して何も出さない" {
-  # 初回に全文を差分として出すと、ダイジェストが 1 件で埋まる。
-  snap $'a\nb\n' services doc
-  [ "$status" -eq 0 ]
-  [ -z "$output" ]
-}
-
-@test "snapshot は変化が無ければ何も出さない" {
-  snap $'a\nb\n' services doc
-  snap $'a\nb\n' services doc
-  [ "$status" -eq 0 ]
-  [ -z "$output" ]
-}
-
-@test "snapshot は変化した行を差分で出す" {
-  snap $'a\nb\n' services doc
-  snap $'a\nc\n' services doc
-  [ "$status" -eq 0 ]
-  printf '%s' "$output" | grep -qF -- '+c'
-  # `-b` は grep のオプションとして食われる。`--` で引数の終わりを示す。
-  printf '%s' "$output" | grep -qF -- '-b'
-}
-
-@test "snapshot は差分を出した後の内容を次回の基準にする" {
-  snap $'a\n' services doc
-  snap $'b\n' services doc
-  snap $'b\n' services doc
-  [ "$status" -eq 0 ]
-  [ -z "$output" ]
-}
-
-@test "snapshot は scope が違えば別物として扱う" {
-  snap $'a\n' services same
-  snap $'z\n' engineers same
-  [ "$status" -eq 0 ]
-  [ -z "$output" ]
-}
-
-@test "snapshot は key のスラッシュや空白で外に出ない" {
-  snap $'a\n' services "../../escaped key/x"
-  [ "$status" -eq 0 ]
-  n=$(find "$BATS_TEST_TMPDIR/snaps" -type f | wc -l | tr -d ' ')
+@test "バックスラッシュを含む key でも同じ行が更新される" {
+  : > "$GAIN_STATE"
+  rec 2026-09-07 news 'C:\temp foo' 3
+  rec 2026-09-08 news 'C:\temp foo' 2
+  n=$(grep -c . "$GAIN_STATE") || n=0
   [ "$n" -eq 1 ]
-  inside=$(find "$BATS_TEST_TMPDIR/snaps/services" -type f | wc -l | tr -d ' ')
-  [ "$inside" -eq 1 ]
+  [ "$(row news 'C:\temp foo')" = "2026-09-08|2|5" ]
 }
 
-@test "snapshot は保存先ディレクトリが無ければ作る" {
-  rm -rf "$BATS_TEST_TMPDIR/snaps"
-  snap $'a\n' services doc
-  [ "$status" -eq 0 ]
-  [ -d "$BATS_TEST_TMPDIR/snaps/services" ]
+@test "バックスラッシュを含む key が列を割らない" {
+  : > "$GAIN_STATE"
+  rec 2026-09-07 news 'a\nb' 1
+  n=$(awk -F'\t' 'NF != 5' "$GAIN_STATE" | grep -c .) || n=0
+  [ "$n" -eq 0 ]
 }
 
-@test "snapshot は空の入力でも壊れない" {
-  snap $'a\n' services doc
-  snap '' services doc
-  [ "$status" -eq 0 ]
-  printf '%s' "$output" | grep -qF -- '-a'
+# --- 5 列未満の状態行 ---
+
+@test "due は 5 列未満の行を実績として読まない" {
+  # list は NF >= 5 を要求している。due が読むと、その監視先は毎週 due から
+  # 外れて一度も収集されないのに、表には永久に「未巡回」と出続ける。
+  printf 'github\towner/alpha\t2026-09-09\n' > "$GAIN_STATE"
+  due 2026-09-11
+  printf '%s' "$output" | grep -qF 'owner/alpha'
 }
 
-@test "snapshot は引数が足りなければ拒否する" {
-  run bash "$GS" snapshot services
-  [ "$status" -ne 0 ]
-  printf '%s' "$output" | grep -qF 'usage:'
+@test "due と list は 5 列未満の行を同じように見る" {
+  printf 'github\towner/alpha\t2026-09-09\n' > "$GAIN_STATE"
+  lst
+  [ "$(col github owner/alpha)" = "-|0|0|" ]
+  due 2026-09-11
+  printf '%s' "$output" | grep -qF 'owner/alpha'
+}
+
+# --- 引数の検証はロックの前 ---
+
+@test "引数が不正なら、古いロックが残っていても即座に 64 で落ちる" {
+  # ロックを取ってから検証すると、呼び出し側の誤りが 30 秒待った末に
+  # 75（ロック障害）として報告され、原因にたどり着くまで 2 往復かかる。
+  mkdir -p "$GAIN_STATE.lock"
+  run bash "$GS" record github owner/alpha xyz
+  rmdir "$GAIN_STATE.lock"
+  [ "$status" -eq 64 ]
+  printf '%s' "$output" | grep -qF 'findings must be a non-negative integer'
 }
