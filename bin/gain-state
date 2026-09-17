@@ -12,21 +12,24 @@
 #   gain-state record <scope> <key> <findings> -> stamp today, bump the counters
 #   gain-state prune <sources.yaml>            -> drop rows the yaml no longer lists
 #   gain-state list <sources.yaml>             -> every source with runs/findings/note joined in
+#   gain-state snapshot <scope> <key>          -> stdin is the page now; prints the diff since last time
 #
 # Writers serialise on a $STATE.lock directory, so the per-source record calls
 # the skill fans out do not overwrite each other.
 #
-# GAIN_STATE overrides the state file and GAIN_NOW pins today, so the week
-# boundary can be tested without waiting for one.
+# GAIN_STATE overrides the state file, GAIN_SNAPSHOTS the snapshot directory,
+# and GAIN_NOW pins today, so the week boundary can be tested without waiting
+# for one.
 
 set -uo pipefail
 
 STATE="${GAIN_STATE:-$HOME/.local/state/gain/sources.tsv}"
+SNAPS="${GAIN_SNAPSHOTS:-$HOME/.local/state/gain/snapshots}"
 NOW="${GAIN_NOW:-$(date '+%Y-%m-%d')}"
 
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 
-usage() { printf 'usage: gain-state due <sources.yaml> | record <scope> <key> <findings> | prune <sources.yaml> | list <sources.yaml>\n' >&2; exit 64; }
+usage() { printf 'usage: gain-state due <sources.yaml> | record <scope> <key> <findings> | prune <sources.yaml> | list <sources.yaml> | snapshot <scope> <key> < content\n' >&2; exit 64; }
 
 # ISO week, not sqlite's `weekday` modifier: that one advances to the *next*
 # given weekday and stays put when today already is it, which lands a week
@@ -72,7 +75,14 @@ def emit(scope, key, note):
 for scope, items in d.items():
     if scope == 'peers':
         for h in (items or {}).get('handles', []) or []:
-            emit('peers', h, '')
+            # A handle may be written bare or with its note. Keep reading the
+            # bare form: a hand edit leaves one behind, and dropping it would
+            # silently stop watching that peer.
+            if isinstance(h, dict):
+                if h.get('handle'):
+                    emit('peers', h['handle'], h.get('note'))
+            elif h:
+                emit('peers', h, '')
         continue
     for it in items or []:
         k = KEY.get(scope)
@@ -172,6 +182,20 @@ cmd_prune() {
 # creates the directory or fails, with no window in between.
 # `due` reads only, and every write lands by mv (atomic), so readers never see
 # a half-written file and take no lock.
+# The state file must be a regular file, and every subcommand has to say so
+# before touching it -- readers included, which take no lock. `[ -f ]` alone
+# folds "missing" and "something else is there" into the same false, and both
+# readers then fail quietly: awk on a directory errors into /dev/null and
+# reports every source as never visited, and awk on a FIFO blocks for a writer
+# that never comes. Both look like an answer. "Missing" stays fine: that is
+# what a first run looks like.
+check_state() {
+  if [ -e "$STATE" ] && [ ! -f "$STATE" ]; then
+    printf 'gain-state: %s is not a regular file\n' "$STATE" >&2
+    return 1
+  fi
+}
+
 with_lock() {
   local dir="$STATE.lock" waited=0 rc
   # `${STATE%/*}` hands back the whole string when it holds no slash, so an
@@ -179,10 +203,6 @@ with_lock() {
   # file. mv then drops the rewrite inside it and still reports success: the
   # write is gone, every source stays due forever, and nothing says so.
   case "$STATE" in */*) mkdir -p "${STATE%/*}" 2>/dev/null ;; esac
-  if [ -e "$STATE" ] && [ ! -f "$STATE" ]; then
-    printf 'gain-state: %s is not a regular file\n' "$STATE" >&2
-    return 1
-  fi
   until mkdir "$dir" 2>/dev/null; do
     waited=$((waited + 1))
     # 30s. A writer holds the lock for milliseconds, so this only trips when a
@@ -207,10 +227,50 @@ with_lock() {
   return "$rc"
 }
 
+# Sources whose page carries no dated entries -- a reference doc rather than a
+# changelog -- have nothing to extract by date. Scoring them "collected, found
+# nothing" reads a shape mismatch as a poor track record, and that is exactly
+# what decides which sources get dropped. Compare against the last copy instead.
+#
+# The first run prints nothing: emitting the whole page as a diff would fill a
+# digest with one entry. Silence means "nothing changed", which is the answer
+# the digest wants either way.
+cmd_snapshot() {
+  local scope="$1" key="$2" py3
+  py3="$(mise which python3 2>/dev/null || command -v python3)"
+  [ -n "$py3" ] || { printf 'gain-state: no python3 found\n' >&2; return 1; }
+  # Pass the program with -c, not on stdin. `python3 -` reads the program from
+  # stdin, which is where the page content has to arrive -- the program would
+  # eat it and every run would look unchanged.
+  "$py3" -c '
+import difflib, re, sys
+from pathlib import Path
+root, scope, key = Path(sys.argv[1]), sys.argv[2], sys.argv[3]
+# The key is a repo path, a URL or a Japanese query, so it cannot be a file
+# name as written. Fold everything else to _: with no separator left, no
+# spelling of the key can climb out of the snapshot directory.
+name = re.sub(r"[^A-Za-z0-9._-]", "_", key)[:120]
+if name.strip(".") == "":
+    name = "_"
+safe_scope = re.sub(r"[^A-Za-z0-9._-]", "_", scope)[:40] or "_"
+path = root / safe_scope / name
+path.parent.mkdir(parents=True, exist_ok=True)
+now = sys.stdin.read()
+was = path.read_text(encoding="utf-8") if path.is_file() else None
+path.write_text(now, encoding="utf-8")
+if was is None or was == now:
+    raise SystemExit(0)
+sys.stdout.writelines(difflib.unified_diff(
+    was.splitlines(keepends=True), now.splitlines(keepends=True),
+    fromfile=f"{scope}/{key} (前回)", tofile=f"{scope}/{key} (今回)", n=2))
+' "$SNAPS" "$scope" "$key"
+}
+
 case "${1:-}" in
-  due)    [ $# -eq 2 ] || usage; cmd_due "$2" ;;
-  record) [ $# -eq 4 ] || usage; with_lock cmd_record "$2" "$3" "$4" ;;
-  prune)  [ $# -eq 2 ] || usage; with_lock cmd_prune "$2" ;;
-  list)   [ $# -eq 2 ] || usage; cmd_list "$2" ;;
+  due)    [ $# -eq 2 ] || usage; check_state || exit 1; cmd_due "$2" ;;
+  record) [ $# -eq 4 ] || usage; check_state || exit 1; with_lock cmd_record "$2" "$3" "$4" ;;
+  prune)  [ $# -eq 2 ] || usage; check_state || exit 1; with_lock cmd_prune "$2" ;;
+  list)   [ $# -eq 2 ] || usage; check_state || exit 1; cmd_list "$2" ;;
+  snapshot) [ $# -eq 3 ] || usage; cmd_snapshot "$2" "$3" ;;
   *)      usage ;;
 esac

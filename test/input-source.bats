@@ -20,6 +20,11 @@ teardown() {
     if [ -n "${IME_RESTORE:-}" ]; then
         "$IS" --set "$IME_RESTORE" || echo "restore failed: $IME_RESTORE" >&2
     fi
+    # The screen test stops its own session, but a failure or a skip leaves it
+    # running, and the next run then attaches to a stale one.
+    if [ -n "${SESSION:-}" ] && [ -n "${SCREEN:-}" ]; then
+        "$SCREEN" stop "$SESSION" 2>/dev/null || true
+    fi
     return 0
 }
 
@@ -135,6 +140,11 @@ teardown() {
     # screen, and a libuv callback that calls a Vimscript function raises E5560
     # on the first keystroke while every headless check still passes.
     printf 'local x = 1\n' > "$BATS_TEST_TMPDIR/t.lua"
+    # The ruler paints on the indicator's own timer, so a single capture can
+    # end before it lands. Retry the capture rather than lengthening a fixed
+    # wait: the last attempt still fails on the real diagnostic.
+    checked=
+    for _ in 1 2 3; do
     run python3 "$REPO_DIR/test/helpers/nvim-pty.py" "$BATS_TEST_TMPDIR/t.lua"
     [ "$status" -eq 0 ]
     printf '%s' "$output" > "$BATS_TEST_TMPDIR/out.json"
@@ -153,7 +163,10 @@ if not re.search(r'(?:^|\\s)' + re.escape(want) + r'\\s+\\d+,\\d+', d['text']):
     problems.append('label ' + want + ' not on screen')
 print(','.join(problems) if problems else 'OK')
 "
-    [ "$output" = "OK" ]
+    checked="$output"
+    if [ "$checked" = "OK" ]; then break; fi
+    done
+    [ "$checked" = "OK" ]
 }
 
 @test "IME を切り替えると画面の表示が追従する" {
@@ -197,6 +210,20 @@ print(','.join(problems) if problems else 'OK')
         return 0
     }
 
+    # The OS side, read straight from the API rather than off the screen.
+    # Without it a failure cannot say which half broke: `--set` never landing
+    # and the indicator never noticing both end as "the label did not change".
+    wait_os() {  # $1 = expected label, $2 = seconds to allow
+        local deadline=$(( SECONDS + $2 )) got=
+        while [ "$SECONDS" -lt "$deadline" ]; do
+            got=$("$IS" --label)
+            if [ "$got" = "$1" ]; then break; fi
+            sleep 0.2
+        done
+        printf '%s' "$got"
+        return 0
+    }
+
     "$IS" --set com.apple.keylayout.ABC
     "$SCREEN" start "$SESSION" "nvim $BATS_TEST_TMPDIR/t.lua"
     first=$(wait_label A 20)
@@ -204,9 +231,18 @@ print(','.join(problems) if problems else 'OK')
     # Switched from outside, with no keystroke sent: the indicator has to notice
     # on its own, which is the whole point of polling.
     "$IS" --set com.apple.inputmethod.Kotoeri.RomajiTyping.Japanese
+    # Kotoeri has to be an enabled input source in this login session for the
+    # switch to land at all. When it does not, the precondition is missing --
+    # the indicator is not at fault, so skip rather than report a defect.
+    if [ "$(wait_os あ 10)" != "あ" ]; then
+        skip "Kotoeri へ切り替えられない環境（入力ソースが有効になっていない）"
+    fi
     second=$(wait_label あ 20)
 
     "$IS" --set com.apple.keylayout.ABC
+    if [ "$(wait_os A 10)" != "A" ]; then
+        skip "ABC へ戻せない環境"
+    fi
     third=$(wait_label A 20)
 
     "$SCREEN" stop "$SESSION"

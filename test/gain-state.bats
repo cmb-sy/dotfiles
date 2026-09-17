@@ -393,3 +393,174 @@ YAML
   due 2026-09-07
   printf '%s\n' "$output" | head -1 | awk -F'\t' '{ exit (NF == 2 ? 0 : 1) }'
 }
+
+# --- 読み取り側の状態ファイル検査 ---
+#
+# 検査を with_lock に置いたので、ロックを取らない due / list は守られない。
+# `[ -f ]` は「無い」と「違うものが在る」を同じ偽に潰すため、ディレクトリだと
+# awk が黙って失敗し、全件を「未巡回 / due」と誤って出す。FIFO なら読み手待ちで
+# 止まる。どちらも「正しく見えて違う」ので、出力からは気付けない。
+
+@test "due は状態ファイルが通常ファイルでなければ止まる" {
+  mkdir -p "$GAIN_STATE"
+  run bash "$GS" due "$SRC"
+  [ "$status" -ne 0 ]
+  printf '%s' "$output" | grep -qF 'is not a regular file'
+}
+
+@test "list は状態ファイルが通常ファイルでなければ止まる" {
+  mkdir -p "$GAIN_STATE"
+  run bash "$GS" list "$SRC"
+  [ "$status" -ne 0 ]
+  printf '%s' "$output" | grep -qF 'is not a regular file'
+}
+
+@test "検査に落ちたら行を 1 つも出さない" {
+  # 誤った表を出してから非 0 を返すと、出力だけ読む手順が誤る。
+  mkdir -p "$GAIN_STATE"
+  run bash "$GS" list "$SRC"
+  n=$(printf '%s' "$output" | grep -cF 'owner/alpha') || n=0
+  [ "$n" -eq 0 ]
+}
+
+@test "読み取りは FIFO の状態ファイルでハングしない" {
+  if ! command -v timeout >/dev/null 2>&1; then skip "timeout が無い環境"; fi
+  rm -f "$GAIN_STATE"
+  mkfifo "$GAIN_STATE"
+  run timeout 5 bash "$GS" due "$SRC"
+  [ "$status" -ne 0 ]
+  [ "$status" -ne 124 ]
+  run timeout 5 bash "$GS" list "$SRC"
+  [ "$status" -ne 0 ]
+  [ "$status" -ne 124 ]
+}
+
+@test "検査は状態ファイルが無いときは通す" {
+  # 「無い」は正常。初回実行がここで止まってはいけない。
+  rm -f "$GAIN_STATE"
+  run bash "$GS" due "$SRC"
+  [ "$status" -eq 0 ]
+  run bash "$GS" list "$SRC"
+  [ "$status" -eq 0 ]
+}
+
+# --- peers の note ---
+#
+# peers だけ `handles: [文字列]` + YAML の行末コメントで、他の scope は
+# `[{key, note}]`。コメントはパーサから見えないので、peers の説明は
+# 永久に空で返る。「なぜ見るのか」が読めない監視先は、除外候補に挙がった
+# 時点で判断できない。構造化した形を読めるようにする。
+
+@test "peers は handle と note を構造化して持てる" {
+  printf 'peers:\n  handles:\n    - handle: alice\n      note: なぜ見るのか\n' > "$SRC"
+  lst
+  [ "$(col peers alice)" = "-|0|0|なぜ見るのか" ]
+}
+
+@test "peers は素の文字列でも読める" {
+  # 手で編集したときに素の文字列が残りうる。壊さない。
+  printf 'peers:\n  handles:\n    - bob\n' > "$SRC"
+  lst
+  [ "$(col peers bob)" = "-|0|0|" ]
+}
+
+@test "peers は素の文字列と構造化形が混ざっていても読める" {
+  printf 'peers:\n  handles:\n    - bob\n    - handle: alice\n      note: x\n' > "$SRC"
+  lst
+  n=$(printf '%s\n' "$output" | grep -c .) || n=0
+  [ "$n" -eq 2 ]
+}
+
+@test "peers の handle が無い要素は落とす" {
+  printf 'peers:\n  handles:\n    - note: handle がない\n    - alice\n' > "$SRC"
+  lst
+  n=$(printf '%s\n' "$output" | grep -c .) || n=0
+  [ "$n" -eq 1 ]
+}
+
+@test "due も peers の構造化形を読む" {
+  printf 'peers:\n  handles:\n    - handle: alice\n      note: x\n' > "$SRC"
+  due 2026-09-07
+  printf '%s' "$output" | grep -qF "$(printf 'peers\talice')"
+}
+
+# --- snapshot: 日付つきエントリを持たない監視先 ---
+#
+# services の取得は「直近 14 日以内のエントリ抽出」を前提にしている。docs の
+# ような文書には抽出するエントリが無く、収穫 0 で記録される。形の不一致が
+# 実績の低さとして誤って積み上がり、除外候補の判定を狂わせる。こちらは
+# 前回の内容との差分で見る。
+
+# `run` をパイプの右辺に置くとサブシェルになり、$status と $output が失われる。
+# 内容はファイルに落として、リダイレクトで渡す。
+snap() {  # $1 = 内容, $2 = scope, $3 = key
+  printf '%s' "$1" > "$BATS_TEST_TMPDIR/in"
+  GAIN_SNAPSHOTS="$BATS_TEST_TMPDIR/snaps" run bash "$GS" snapshot "$2" "$3" < "$BATS_TEST_TMPDIR/in"
+}
+
+@test "snapshot は初回に保存して何も出さない" {
+  # 初回に全文を差分として出すと、ダイジェストが 1 件で埋まる。
+  snap $'a\nb\n' services doc
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "snapshot は変化が無ければ何も出さない" {
+  snap $'a\nb\n' services doc
+  snap $'a\nb\n' services doc
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "snapshot は変化した行を差分で出す" {
+  snap $'a\nb\n' services doc
+  snap $'a\nc\n' services doc
+  [ "$status" -eq 0 ]
+  printf '%s' "$output" | grep -qF -- '+c'
+  # `-b` は grep のオプションとして食われる。`--` で引数の終わりを示す。
+  printf '%s' "$output" | grep -qF -- '-b'
+}
+
+@test "snapshot は差分を出した後の内容を次回の基準にする" {
+  snap $'a\n' services doc
+  snap $'b\n' services doc
+  snap $'b\n' services doc
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "snapshot は scope が違えば別物として扱う" {
+  snap $'a\n' services same
+  snap $'z\n' engineers same
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "snapshot は key のスラッシュや空白で外に出ない" {
+  snap $'a\n' services "../../escaped key/x"
+  [ "$status" -eq 0 ]
+  n=$(find "$BATS_TEST_TMPDIR/snaps" -type f | wc -l | tr -d ' ')
+  [ "$n" -eq 1 ]
+  inside=$(find "$BATS_TEST_TMPDIR/snaps/services" -type f | wc -l | tr -d ' ')
+  [ "$inside" -eq 1 ]
+}
+
+@test "snapshot は保存先ディレクトリが無ければ作る" {
+  rm -rf "$BATS_TEST_TMPDIR/snaps"
+  snap $'a\n' services doc
+  [ "$status" -eq 0 ]
+  [ -d "$BATS_TEST_TMPDIR/snaps/services" ]
+}
+
+@test "snapshot は空の入力でも壊れない" {
+  snap $'a\n' services doc
+  snap '' services doc
+  [ "$status" -eq 0 ]
+  printf '%s' "$output" | grep -qF -- '-a'
+}
+
+@test "snapshot は引数が足りなければ拒否する" {
+  run bash "$GS" snapshot services
+  [ "$status" -ne 0 ]
+  printf '%s' "$output" | grep -qF 'usage:'
+}

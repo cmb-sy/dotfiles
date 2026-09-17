@@ -81,9 +81,12 @@ AskUserQuestion は 1 問最大 4 択のため 2 段構成にする。人が直�
 |---|---|---|
 | peers | commit（`gh api /repos/{owner}/{name}/commits?since=<iso8601>`）+ 新規追加ファイル + 注目ファイル（README.md/Brewfile/`*.json`/`*.yaml`/`flake.nix`/`chezmoi*.toml`）更新有無 + star 数 | 高 |
 | github | `gh api /repos/{repo}/commits?since=<iso>` + `/releases` | 高 |
-| services | changelog URL を WebFetch → 直近 14 日以内のエントリ抽出 | 中〜高 |
+| services（`watch: changelog`・既定） | changelog URL を WebFetch → 直近 14 日以内のエントリ抽出 | 中〜高 |
+| services（`watch: diff`） | `curl -sSL <url>` の出力を `$HOME/dotfiles/bin/gain-state snapshot <scope> <key>` に渡し、返ってきた差分を読む。空なら「変更なし」 | 高 |
 | engineers | blog は RSS/Atom を WebFetch（無ければスクレイプにフォールバック）、SNS は WebSearch で直近の注目投稿 | blog 高 / SNS **低（best-effort）** |
 | news | クエリごとに WebSearch → 影響度・新しさでフィルタ | 中 |
+
+**`watch: diff` を使う理由:** 日付つきエントリを持たない文書（リファレンス docs、公開 system prompt）は、日付で抽出するものが無い。既定ルールで取ると毎週「収穫 0」として記録され、**形の不一致が実績の低さとして積み上がって除外候補の判定を狂わせる。** 差分で見れば、変わったときだけ収穫になる。初回は差分が空になる（全文を出すとダイジェストが 1 件で埋まるため）。
 
 **peers の対象解決:** `key` は handle。`peers.overrides` に該当があればその `owner/name`、無ければ `<handle>/dotfiles`。`gh api /repos/{owner}/{name}` で存在確認し、404 は 1 行警告で skip する（skip 分は Step 4 の `gain-state record` を呼ばない）。
 
@@ -155,14 +158,24 @@ Step 1 で 0 行だった場合はその旨のみ報告する。
 
 `$HOME/dotfiles/bin/gain-state list $HOME/dotfiles/claude/skills/distill-gain-latest-info/sources.yaml` を実行する。1 行 1 監視先で `scope / key / 最終 / 巡回 / 収穫 / 説明` がタブ区切りで出る。
 
+**`list` の終了ステータスを先に見る。** 非 0 なら表を出さずに、`## エラーハンドリング` に従って報告し終了する。状態ファイルが壊れている（ディレクトリ・FIFO 等）ときも行自体は出るので、**出力の見た目では気付けない。** そのまま表にすると、全件を「未巡回」と誤って見せる。
+
 scope ごとに表にして見せる。列は `key | 巡回 | 収穫 | 最終 | 説明`。
 
 - **巡回 1 以上で収穫 0** の行は「外す候補」として太字にする。外すかどうかの主材料はここにしかない
 - **巡回 0**（最終が `-`）は「未巡回」と書く。実績が無いのではなく、まだ見ていない
-- peers の説明は `sources.yaml` の行末コメントにあり、表には出ない。その旨を 1 行添える
 - 巡回 1 回だけで収穫 0 のものを外す判断は早い。スキルの基準は「2〜3 回続けて同水準なら除外候補」で、1 回で外すなら**そう明示した判断**として扱う
 
 続けて、直近の `$HOME/develop/distill-vault/情報収集/YYYY-MM-DD.md` の `## 改善提案` を読み、未反映の提案を日付つきで表の下に並べる。無ければ「未反映の改善提案: なし」と書く。提案は表と**同じ画面**で見せる。別々に見せると、提案の根拠（実績）と提案が結び付かない。
+
+**反映済みかどうかは `gain-state list` の出力と突き合わせて判定する。** 記憶や読み返しに頼らない。ダイジェストが増えるほど手で辿るのは重くなり、間違いやすくなる。
+
+| 提案の型 | 反映済みの判定 |
+|---|---|
+| 追加（`<scope>` に `<key>` を足す） | その `<key>` が `list` の出力に有る |
+| 除外（`<key>` を外す） | その `<key>` が `list` の出力に無い |
+| URL・説明の変更 | `sources.yaml` の現在値が提案後の値と一致する |
+| 作業の提案（監視先の変更ではないもの） | **判定対象外**と明記して並べる。消さない |
 
 ### Step 2: 何を変えるか決める
 
@@ -304,4 +317,5 @@ scopes: [peers, github, services, engineers, news]
 - sources モードで、表を出さずに編集に入る（外す判断の材料が無い）
 - 転送元の URL を `sources.yaml` に書く（着地先を書く）
 - 存在を確認せずに repo や handle を足す
+- 日付つきエントリを持たないページを changelog として扱う（`watch: diff` を使う）
 - `sources.yaml` 以外の変更を巻き込んで commit する

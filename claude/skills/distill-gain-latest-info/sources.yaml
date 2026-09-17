@@ -4,15 +4,21 @@
 # Before uncommenting an example, remove the `[]` from that key first —
 # a key set to `[]` followed by uncommented `- ` list items is invalid YAML.
 
-# dotfiles peers — adoption workflow targets (absorbed from peer-watch)
-#   handles: GitHub handles to watch, one per line
+# dotfiles peers — adoption workflow targets
+#   handles: GitHub handles to watch, each with the reason for watching it
 #   overrides: owner/name only for repos differing from default <handle>/dotfiles
+# The note is a field, not a trailing comment: a comment is invisible to the
+# parser, so the reason would never reach the table the review reads.
 peers:
   handles:
-    - neko-neko    # Tokyo; traditional tmux/Tailscale/sesh stack
-    - joshukraine  # Claude Code skills via _shared/house-style.html
-    - shunk031     # AGENTS.md SSOT + symlinks for Claude/Codex/Gemini
-    - yutkat       # version-tag releases; NixOS/Arch; bundled Codex prompts
+    - handle: neko-neko
+      note: Tokyo; traditional tmux/Tailscale/sesh stack
+    - handle: joshukraine
+      note: Claude Code skills via _shared/house-style.html
+    - handle: shunk031
+      note: AGENTS.md SSOT + symlinks for Claude/Codex/Gemini
+    - handle: yutkat
+      note: version-tag releases; NixOS/Arch; bundled Codex prompts
   overrides: {}
 
 # General repos — watch commits/releases (not limited to dotfiles)
@@ -31,12 +37,18 @@ github:
     note: releases only — new versions of the free local runtime behind Handy voice post-processing
 
 # Service changelog / release pages
+#   watch: changelog (default) — the page lists entries with dates; take the
+#          ones inside the window. watch: diff — the page is a reference doc
+#          with nothing to extract by date; compare it against last week's copy.
+#          Taking a doc as a changelog records "found nothing" every week, and
+#          that is what decides which sources get dropped.
 services:
   - name: Claude Code
     url: https://code.claude.com/docs/en/changelog
     note: primary daily tool; weekly feature drops. This page dates each entry, which the GitHub CHANGELOG does not -- the 14-day window needs the dates
   - name: Claude Code skills docs
     url: https://code.claude.com/docs/en/skills
+    watch: diff
     note: listing and re-attach budgets live here, not in the changelog; they decide whether a skill fires at all
   - name: Anthropic API
     url: https://platform.claude.com/docs/en/release-notes/overview
@@ -52,6 +64,7 @@ services:
     note: VIEW のスキーマ固定や Delta の読み取り挙動はここに出る。2026-09-02 の 5 時間障害は VIEW のスキーマ変更が原因だった
   - name: Claude system prompt
     url: https://platform.claude.com/docs/en/release-notes/system-prompts/overview.md
+    watch: diff
     note: .md suffix gives a diffable body; harness behaviour changes show up here first
 
 # Engineers to follow via blog (RSS) and SNS (best-effort)
