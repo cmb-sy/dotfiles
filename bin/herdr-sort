@@ -1,0 +1,132 @@
+#!/bin/bash
+# Float marked sessions to the top of herdr's agent panel.
+#
+# The panel has no sort of its own beyond agent_panel_sort, and in "priority"
+# mode it orders rows by agent state and ignores the manual order entirely
+# (verified: moving a workspace to index 0 does not move its row). Only "spaces"
+# mode follows the workspace and tab order, which is what this reorders.
+#
+# Rows group by workspace there, so a marked tab cannot rise above a workspace
+# that sits higher -- its unmarked siblings come with it. A workspace therefore
+# counts as marked when it carries a marker itself or holds any marked tab.
+#
+# workspace.move and tab.move exist only on the socket API, not in the herdr
+# CLI, so the moves go through the socket directly.
+#
+#   herdr-sort          reorder now
+#   herdr-sort --plan   print the moves without making them
+#
+# Called by herdr-mark after every change, so the order follows the markers
+# without a second key.
+
+set -euo pipefail
+
+_here="${BASH_SOURCE[0]%/*}"
+[ "$_here" = "${BASH_SOURCE[0]}" ] && _here=.
+HERE="$(cd -- "$_here" && pwd)"
+
+# Exported: the collector runs as a separate python process and reads both.
+export MARKS="${HERDR_MARKS:-🤖 📤 🟢 🔵}"
+export HERDR_BIN="${HERDR_BIN:-herdr}"
+SOCKET="${HERDR_SOCKET_PATH:-$HOME/.config/herdr/herdr.sock}"
+
+plan_only=0
+case "${1:-}" in
+  '') ;;
+  --plan) plan_only=1 ;;
+  *) printf 'herdr-sort: unknown argument: %s (expected --plan)\n' "$1" >&2; exit 1 ;;
+esac
+
+command -v "$HERDR_BIN" >/dev/null 2>&1 || { printf 'herdr-sort: herdr not found on PATH\n' >&2; exit 1; }
+
+# Collect the current order as "kind<TAB>id<TAB>marked", workspaces first and
+# each workspace's tabs right after it, so the planner never has to call back.
+collect() {
+  "$HERDR_BIN" workspace list 2>/dev/null | python3 -c '
+import json, subprocess, sys, os
+marks = tuple(os.environ["MARKS"].split())
+herdr = os.environ["HERDR_BIN"]
+def marked(label): return any(label.startswith(m) for m in marks)
+try:
+    workspaces = json.load(sys.stdin)["result"]["workspaces"]
+except Exception:
+    sys.exit(1)
+for w in workspaces:
+    out = subprocess.run([herdr, "tab", "list", "--workspace", w["workspace_id"]],
+                         capture_output=True, text=True).stdout
+    try:
+        tabs = json.loads(out)["result"]["tabs"]
+    except Exception:
+        tabs = []
+    # A workspace inherits its tabs marks: rows group by workspace, so the
+    # workspace has to rise for a marked tab inside it to be visible up top.
+    w_marked = marked(w["label"]) or any(marked(t["label"]) for t in tabs)
+    print("ws\t%s\t%d" % (w["workspace_id"], 1 if w_marked else 0))
+    for t in tabs:
+        print("tab\t%s\t%d\t%s" % (t["tab_id"], 1 if marked(t["label"]) else 0, w["workspace_id"]))
+'
+}
+
+# Marked first, relative order kept. Placing left to right keeps every index
+# already written correct, so only positions 0..n-2 are ever addressed -- the
+# last slot fills itself, which also sidesteps insert_index clamping at the end.
+plan() {
+  python3 -c '
+import sys
+groups, order = {}, []
+for line in sys.stdin:
+    parts = line.rstrip("\n").split("\t")
+    if not parts or not parts[0]: continue
+    if parts[0] == "ws":
+        key = "ws"
+        item = (parts[1], parts[2] == "1")
+    else:
+        key = parts[3]
+        item = (parts[1], parts[2] == "1")
+    if key not in groups:
+        groups[key] = []
+        order.append(key)
+    groups[key].append(item)
+
+for key in order:
+    items = groups[key]
+    cur = [i for i, _ in items]
+    want = [i for i, m in items if m] + [i for i, m in items if not m]
+    method = "workspace.move" if key == "ws" else "tab.move"
+    field = "workspace_id" if key == "ws" else "tab_id"
+    for idx in range(len(want) - 1):
+        if cur[idx] != want[idx]:
+            print("%s\t%s\t%d" % (method, field, idx), end="\t")
+            print(want[idx])
+            cur.remove(want[idx]); cur.insert(idx, want[idx])
+'
+}
+
+moves="$(collect | plan)" || { printf 'herdr-sort: could not read the current order\n' >&2; exit 1; }
+
+if [ "$plan_only" -eq 1 ]; then
+  printf '%s' "$moves"
+  [ -n "$moves" ] && printf '\n'
+  exit 0
+fi
+
+[ -n "$moves" ] || exit 0
+
+printf '%s\n' "$moves" | HERDR_SORT_SOCKET="$SOCKET" python3 -c '
+import json, os, socket, sys
+sock = os.environ["HERDR_SORT_SOCKET"]
+def call(method, params):
+    c = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM); c.settimeout(5)
+    c.connect(sock)
+    c.sendall((json.dumps({"id": "sort", "method": method, "params": params}) + "\n").encode())
+    buf = b""
+    while not buf.endswith(b"\n"):
+        chunk = c.recv(65536)
+        if not chunk: break
+        buf += chunk
+for line in sys.stdin:
+    parts = line.rstrip("\n").split("\t")
+    if len(parts) != 4: continue
+    method, field, index, ident = parts
+    call(method, {field: ident, "insert_index": int(index)})
+'

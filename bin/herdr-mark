@@ -22,6 +22,11 @@
 
 set -euo pipefail
 
+_here="${BASH_SOURCE[0]%/*}"
+[ "$_here" = "${BASH_SOURCE[0]}" ] && _here=.
+HERE="$(cd -- "$_here" && pwd)"
+SORT_BIN="${HERDR_SORT_BIN:-$HERE/herdr-sort}"
+
 # Offered by the picker, in display order.
 MARK_EMOJI=("🤖" "📤" "🟢")
 MARK_LABEL=("対応中" "返事待ち" "general")
@@ -175,3 +180,8 @@ else
   rename_ws "${want}${ws_base}"
   rename_tab "$tab_base"
 fi
+
+# Float the marked rows to the top, so the order follows the markers without a
+# second key. Best-effort: the marker is already written, and failing here would
+# report the mark itself as failed.
+[ -x "$SORT_BIN" ] && "$SORT_BIN" >/dev/null 2>&1 || true

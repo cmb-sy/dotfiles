@@ -25,6 +25,10 @@ setup() {
   FZF_MENU="$TEST_TMPDIR/fzf-menu"
   export CALLS WS_JSON TAB_JSON FZF_MENU
   export HERDR_MARK_BREADCRUMB="$BREAD"
+  # 並べ替えは socket API を使うので、ここでは呼ばれたことだけ記録する。
+  export HERDR_SORT_BIN="$TEST_TMPDIR/herdr-sort"
+  printf '#!/bin/bash\nprintf "sort\\n" >>"$CALLS"\n' >"$HERDR_SORT_BIN"
+  chmod +x "$HERDR_SORT_BIN"
   PATH="$STUB:$PATH"
 
   cat >"$STUB/herdr" <<'STUB'
@@ -68,9 +72,11 @@ tab() {
 
 ws_renamed_to() { printf 'ws\tw1\t%s' "$1"; }
 tab_renamed_to() { printf 'tab\tw1:t1\t%s' "$1"; }
+# rename だけを数える。並べ替えも同じファイルに記録するため、全行を数えると
+# 「rename を呼ばない」の検査が並べ替えの 1 行で必ず落ちる。
 call_count() {
   local n
-  n=$(grep -c . "$CALLS" 2>/dev/null) || n=0
+  n=$(grep -c -E '^(ws|tab)	' "$CALLS" 2>/dev/null) || n=0
   printf '%s' "$n"
 }
 
@@ -260,4 +266,12 @@ call_count() {
   [ "$status" -ne 0 ]
   printf '%s' "$output" | grep -qF 'picker returned an unknown marker'
   [ "$(call_count)" -eq 0 ]
+}
+
+@test "印を変えたら並べ替えも走る" {
+  workspace 'proj' 3 true
+  tab 'general' true
+  run bash "$REPO_DIR/bin/herdr-mark" set '🤖'
+  [ "$status" -eq 0 ]
+  cat "$CALLS" | grep -qxF 'sort'
 }
