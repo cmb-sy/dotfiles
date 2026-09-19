@@ -199,9 +199,9 @@ fi
 # repo can live at any path. Skipped in CI: the runner has no Handy/Ghostty,
 # so the agents would only respawn and fail on a timer.
 #----------------------------------------------------------
-if ! util::is_ci && util::confirm "Install user LaunchAgents (handy-warm, secure-input-watch, voice-quota-watch, voice-week-reset, discord-relay-flush, discord-relay-poll)?"; then
+if ! util::is_ci && util::confirm "Install user LaunchAgents (handy-warm, secure-input-watch, voice-quota-watch, voice-length-watch, voice-week-reset, discord-relay-flush, discord-relay-poll)?"; then
   mkdir -p "$HOME/Library/LaunchAgents"
-  for name in local.handy-warm local.secure-input-watch local.voice-quota-watch local.voice-week-reset local.discord-relay-flush local.discord-relay-poll; do
+  for name in local.handy-warm local.secure-input-watch local.voice-quota-watch local.voice-length-watch local.voice-week-reset local.discord-relay-flush local.discord-relay-poll; do
     src="${REPO_DIR}/macos/${name}.plist"
     dest="$HOME/Library/LaunchAgents/${name}.plist"
     if [[ ! -f "${src}" ]]; then

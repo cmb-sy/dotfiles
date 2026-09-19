@@ -1,0 +1,91 @@
+#!/bin/bash
+# Hand voice input over to Handy after a dictation comes close to Typeless's
+# per-dictation character cap.
+#
+# Typeless truncates a single dictation at a fixed number of characters. The
+# length is only known once the text is final, so this cannot save the dictation
+# that hit the cap -- it moves the *next* one to Handy, which has no such cap.
+#
+# Run periodically by launchd via macos/local.voice-length-watch.plist.
+# Each invocation is a fresh process; $STATE_FILE remembers which dictation was
+# last examined, so one long dictation switches once rather than every poll.
+#
+# Nothing switches back. voice-week-reset already returns the engine to Typeless
+# on Monday, which is the intended way out.
+
+set -euo pipefail
+
+_here="${BASH_SOURCE[0]%/*}"
+[ "$_here" = "${BASH_SOURCE[0]}" ] && _here=.
+HERE="$(cd -- "$_here" && pwd)"
+. "$HERE/lib/voice.sh" || exit 1
+
+CONF="${VOICE_LENGTH_CONF:-$HERE/../handy/typeless-quota.conf}"
+# Not ~/.cache: losing this would make the next poll look like a first run,
+# which deliberately does not switch, silently disabling the agent for one
+# dictation.
+STATE_FILE="${VOICE_LENGTH_STATE:-$HOME/.local/state/voice-length-watch.state}"
+SQLITE_BIN="${SQLITE_BIN:-/usr/bin/sqlite3}"
+VOICE_SWITCH="${VOICE_SWITCH_BIN:-$HERE/voice-switch}"
+
+log() { printf 'voice-length-watch: %s\n' "$1" >&2; }
+
+# The cap is a property of Typeless, not of this machine, so it has a default.
+# The config may still override it without editing this script.
+if [ -f "$CONF" ]; then
+  # shellcheck disable=SC1090
+  . "$CONF"
+fi
+THRESHOLD="${TYPELESS_LENGTH_LIMIT:-1900}"
+
+# A threshold that is not a positive integer would reach sqlite as part of an
+# expression and compare as text, which silently matches everything or nothing.
+case "$THRESHOLD" in
+  '' | *[!0-9]*) log "TYPELESS_LENGTH_LIMIT must be a positive integer, got '$THRESHOLD'"; exit 1 ;;
+esac
+[ "$THRESHOLD" -gt 0 ] || { log "TYPELESS_LENGTH_LIMIT must be above 0"; exit 1; }
+
+[ -x "$SQLITE_BIN" ] || { log "no sqlite3 at $SQLITE_BIN"; exit 0; }
+[ -f "$TYPELESS_DB" ] || { log "no Typeless database at $TYPELESS_DB"; exit 0; }
+
+# Only the newest finished dictation matters: an older one either was already
+# acted on or was superseded. Reading id and length only -- never the text.
+row=$("$SQLITE_BIN" -separator '	' "$TYPELESS_DB" \
+  "SELECT id, length(refined_text) FROM history_v2
+   WHERE status = 'completed' AND refined_text IS NOT NULL
+   ORDER BY created_at DESC LIMIT 1" 2>/dev/null) || row=""
+[ -n "$row" ] || exit 0
+
+last_id="${row%%	*}"
+last_len="${row##*	}"
+case "$last_len" in
+  '' | *[!0-9]*) log "unexpected length for dictation $last_id"; exit 0 ;;
+esac
+
+record() { mkdir -p "${STATE_FILE%/*}"; printf '%s\n' "$1" > "$STATE_FILE"; }
+
+# First run: take a bearing, do not act. Without this the newest row in the
+# table is treated as something that just happened, so a long dictation from
+# months ago switches the engine the moment this agent is installed.
+if [ ! -f "$STATE_FILE" ]; then
+  record "$last_id"
+  log "first run; noted dictation $last_id without switching"
+  exit 0
+fi
+
+read -r seen_id < "$STATE_FILE" || seen_id=""
+[ "$seen_id" != "$last_id" ] || exit 0
+
+record "$last_id"
+[ "$last_len" -ge "$THRESHOLD" ] || exit 0
+
+# Already on Handy: Typeless is quit, so this row cannot be new. Switching again
+# would quit and relaunch an app the user may be dictating into.
+if ! typeless_running; then
+  log "dictation reached ${last_len} chars but Typeless is not running; leaving the engine alone"
+  exit 0
+fi
+
+log "dictation reached ${last_len} chars (limit ${THRESHOLD}); switching to Handy"
+"$VOICE_SWITCH" local >/dev/null 2>&1 || { log "voice-switch local failed"; exit 1; }
+notify "Voice input" "Dictation neared the Typeless limit. Switched to Handy (local)."

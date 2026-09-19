@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Typeless truncates a single dictation at a fixed number of characters. This
+  agent watches for a dictation that came close to that cap and hands voice
+  input over to Handy, which has no such cap. See bin/voice-length-watch.
+
+  The length is only known once the text is final, so the dictation that hit the
+  cap cannot be saved -- only the next one moves. Nothing switches back here;
+  local.voice-week-reset returns the engine to Typeless on Monday.
+
+  Five minutes, matching local.voice-quota-watch: the check is a single SQLite
+  read, but a switch quits and relaunches an app, so polling faster only raises
+  the chance of doing that while the user is mid-sentence.
+
+  The program path below is a placeholder; setup/install.zsh substitutes the
+  repo path into it at install time, so the repo can live anywhere.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>local.voice-length-watch</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>__DOTFILES__/bin/voice-length-watch</string>
+    </array>
+    <key>StartInterval</key>
+    <integer>300</integer>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/tmp/voice-length-watch.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/voice-length-watch.log</string>
+</dict>
+</plist>
