@@ -1,5 +1,6 @@
 #!/bin/bash
-# Put a marker on the focused herdr session, chosen from a list.
+# Put a marker on the focused herdr session, chosen from a list. Typing a
+# symbol the list does not have adds it to the set.
 #
 # A row in the agents panel reads "<workspace label> · <tab label>", one row per
 # agent, so a session is a tab: marking the workspace marks every session under
@@ -16,28 +17,17 @@
 # pane so fzf has a terminal to draw in. The pane lives in the current tab, so
 # the focused workspace and tab are still the ones the marker should land on.
 #
-#   herdr-mark            pick from the list (default)
-#   herdr-mark set <emoji>  apply one marker without the picker
-#   herdr-mark off        remove whatever marker is there
+#   herdr-mark              pick from the list, or type a new marker
+#   herdr-mark set <marker> apply one marker without the picker
+#   herdr-mark off          remove whatever marker is there
 
 set -euo pipefail
 
 _here="${BASH_SOURCE[0]%/*}"
 [ "$_here" = "${BASH_SOURCE[0]}" ] && _here=.
 HERE="$(cd -- "$_here" && pwd)"
+. "$HERE/lib/herdr-marks.sh" || exit 1
 SORT_BIN="${HERDR_SORT_BIN:-$HERE/herdr-sort}"
-
-# Offered by the picker, in display order.
-MARK_EMOJI=("🤖" "📤" "🟢")
-MARK_LABEL=("対応中" "返事待ち" "general")
-# Stripped but no longer offered, so rows marked before the set existed can
-# still be cleared.
-LEGACY_EMOJI=("🔵")
-
-# Built once: "${LEGACY_EMOJI[@]}" on an empty array is an unbound-variable
-# error under set -u, so the last legacy marker could never be retired.
-STRIPPABLE=("${MARK_EMOJI[@]}")
-if [ "${#LEGACY_EMOJI[@]}" -gt 0 ]; then STRIPPABLE+=("${LEGACY_EMOJI[@]}"); fi
 
 CLEAR_KEY="✕"
 
@@ -50,37 +40,32 @@ die() {
 }
 
 # The key binding runs in a throwaway pane that closes the moment this exits,
-# so an error message on screen is gone before it can be read. One overwritten
-# line tells "the key never fired" from "it fired and failed".
+# so an error on screen is gone before it can be read. One overwritten line
+# tells "the key never fired" from "it fired and failed".
 BREADCRUMB="${HERDR_MARK_BREADCRUMB:-/private/tmp/herdr-mark.last}"
 printf '%s invoked action=%s\n' "$(date '+%Y-%m-%dT%H:%M:%S')" "$action" \
   >"$BREADCRUMB" 2>/dev/null || true
 
-# Strip any known marker, current or legacy, from the front of a label.
+# Strip any known marker, offered or retired, from the front of a label.
 strip_mark() {
   local label="$1" m
-  for m in "${STRIPPABLE[@]}"; do
+  while IFS= read -r m; do
+    [ -n "$m" ] || continue
     if [ "${label#"$m"}" != "$label" ]; then
       printf '%s' "${label#"$m"}"
       return 0
     fi
-  done
+  done <<EOF
+$(marks_strippable)
+EOF
   printf '%s' "$label"
-}
-
-is_known_mark() {
-  local want="$1" m
-  for m in "${MARK_EMOJI[@]}"; do
-    if [ "$m" = "$want" ]; then return 0; fi
-  done
-  return 1
 }
 
 case "$action" in
   pick | off) ;;
   set)
-    [ $# -ge 2 ] || die "set needs a marker (one of: ${MARK_EMOJI[*]})"
-    is_known_mark "$2" || die "unknown marker: $2 (expected one of: ${MARK_EMOJI[*]})"
+    [ $# -ge 2 ] || die "set needs a marker (one of: $(marks_entries | cut -f1 | tr '\n' ' '))"
+    marks_is_offered "$2" || die "unknown marker: $2 (expected one of: $(marks_entries | cut -f1 | tr '\n' ' '))"
     ;;
   *) die "unknown action: $action (expected pick, set, or off)" ;;
 esac
@@ -140,19 +125,39 @@ if [ "$tab_count" -gt 1 ]; then target=tab; else target=workspace; fi
 if [ "$action" = pick ]; then
   command -v fzf >/dev/null 2>&1 || die "fzf not found on PATH"
   current="$(if [ "$target" = tab ]; then printf '%s' "$tab_label"; else printf '%s' "$ws_label"; fi)"
-  menu=""
-  for i in $(seq 0 $((${#MARK_EMOJI[@]} - 1))); do
-    menu="${menu}${MARK_EMOJI[$i]} ${MARK_LABEL[$i]}"$'\n'
-  done
-  menu="${menu}${CLEAR_KEY} 印を外す"
-  chosen="$(printf '%s' "$menu" | fzf --prompt="$current > " --reverse --height=100% --no-info)" || exit 0
-  [ -n "$chosen" ] || exit 0
-  chosen_mark="${chosen%% *}"
-  if [ "$chosen_mark" = "$CLEAR_KEY" ]; then
-    want=""
+  menu="$(marks_entries | awk -F'\t' '{ if ($2 == "") print $1; else print $1 " " $2 }')"
+  menu="${menu}
+${CLEAR_KEY} 印を外す"
+
+  # --print-query so a symbol that matches nothing is still readable: that is
+  # how a new marker is added, without a separate "add" entry to find.
+  set +e
+  picked="$(printf '%s\n' "$menu" | fzf --print-query --prompt="$current > " \
+    --reverse --height=100% --no-info \
+    --header='選ぶか、新しい印を打ち込んで Enter')"
+  rc=$?
+  set -e
+  [ "$rc" -eq 130 ] && exit 0
+
+  query="$(printf '%s' "$picked" | sed -n '1p')"
+  chosen="$(printf '%s' "$picked" | sed -n '2p')"
+
+  if [ -n "$chosen" ]; then
+    chosen_mark="${chosen%% *}"
+    if [ "$chosen_mark" = "$CLEAR_KEY" ]; then
+      want=""
+    else
+      marks_is_offered "$chosen_mark" || die "picker returned an unknown marker: $chosen_mark"
+      want="$chosen_mark"
+    fi
+  elif [ -n "$query" ]; then
+    # Nothing matched: treat what was typed as a marker to add.
+    printf '%s の説明（空のままで可）: ' "$query" >&2
+    read -r new_label || new_label=""
+    marks_add "$query" "$new_label" || die "could not add $query to the set"
+    want="$query"
   else
-    is_known_mark "$chosen_mark" || die "picker returned an unknown marker: $chosen_mark"
-    want="$chosen_mark"
+    exit 0
   fi
 elif [ "$action" = off ]; then
   want=""

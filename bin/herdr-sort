@@ -25,8 +25,12 @@ _here="${BASH_SOURCE[0]%/*}"
 [ "$_here" = "${BASH_SOURCE[0]}" ] && _here=.
 HERE="$(cd -- "$_here" && pwd)"
 
+. "$HERE/lib/herdr-marks.sh" || exit 1
+
 # Exported: the collector runs as a separate python process and reads both.
-export MARKS="${HERDR_MARKS:-🤖 📤 🟢 🔵}"
+# The set comes from the shared file so the picker can add to it without this
+# script and herdr-mark drifting apart.
+export MARKS="${HERDR_MARKS:-$(marks_strippable | tr '\n' ' ')}"
 export HERDR_BIN="${HERDR_BIN:-herdr}"
 SOCKET="${HERDR_SOCKET_PATH:-$HOME/.config/herdr/herdr.sock}"
 
