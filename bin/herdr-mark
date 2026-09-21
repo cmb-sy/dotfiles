@@ -2,13 +2,11 @@
 # Put a marker on the focused herdr session, chosen from a list. Typing a
 # symbol the list does not have adds it to the set.
 #
-# A row in the agents panel reads "<workspace label> · <tab label>", one row per
-# agent, so a session is a tab: marking the workspace marks every session under
-# it. But the panel drops the tab half when a workspace holds a single tab
-# (AITF and dotfiles both have a tab named "1"; only dotfiles shows it), so a
-# tab-level mark would be invisible there. Hence: mark the tab when the
-# workspace has several, the workspace when it has one. Either way exactly one
-# row changes.
+# A row in the agents panel reads "<workspace label> · <tab label>", so the left
+# edge of every row is the workspace name. The marker goes there, which means a
+# workspace holding several sessions shows it on all of them. That is the
+# accepted trade: a marker on the tab reaches one row but sits after the
+# separator, where it does not line up with the rest and is easy to miss.
 #
 # herdr has no pin or star. Names are the only per-row field that survives a
 # server restart (session.json custom_name), so the marker is a name prefix.
@@ -82,34 +80,21 @@ fi
 
 command -v herdr >/dev/null 2>&1 || die "herdr not found on PATH"
 
-# Rows, not tabs. The panel lists one row per agent, so a workspace with three
-# tabs but one agent is a single row -- and a single row can carry the marker on
-# the workspace, where it sits at the left edge instead of after the separator.
 ws_line="$(herdr workspace list 2>/dev/null | python3 -c '
-import json, subprocess, sys
+import json, sys
 try:
     workspaces = json.load(sys.stdin)["result"]["workspaces"]
 except Exception:
     sys.exit(1)
-focused = next((w for w in workspaces if w.get("focused")), None)
-if focused is None:
-    sys.exit(0)
-try:
-    agents = json.loads(subprocess.run(["herdr", "agent", "list"],
-                                       capture_output=True, text=True).stdout)["result"]["agents"]
-    rows = sum(1 for a in agents if a.get("workspace_id") == focused["workspace_id"])
-except Exception:
-    rows = 0
-# 0 when agent list could not be read. That falls on the same side of the
-# "more than one row" test as 1 does, so a failure here degrades to marking
-# the workspace rather than to marking nothing.
-print("%s\t%s\t%s" % (focused["workspace_id"], rows, focused.get("label", "")))
+for w in workspaces:
+    if w.get("focused"):
+        print("%s\t%s" % (w["workspace_id"], w.get("label", "")))
+        break
 ' 2>/dev/null)" || die "cannot read the workspace list (is the herdr server running?)"
 [ -n "$ws_line" ] || die "no focused workspace"
 
 ws_id="$(printf '%s' "$ws_line" | cut -f1)"
-row_count="$(printf '%s' "$ws_line" | cut -f2)"
-ws_label="$(printf '%s' "$ws_line" | cut -f3-)"
+ws_label="$(printf '%s' "$ws_line" | cut -f2-)"
 [ -n "$ws_id" ] || die "workspace list returned no id"
 [ -n "$ws_label" ] || die "focused workspace $ws_id has no label"
 tab_line="$(herdr tab list --workspace "$ws_id" 2>/dev/null | python3 -c '
@@ -136,15 +121,9 @@ tab_base="$(strip_mark "$tab_label")"
 [ -n "$ws_base" ] || die "label of $ws_id is only a marker; rename it by hand"
 [ -n "$tab_base" ] || die "label of $tab_id is only a marker; rename it by hand"
 
-# One row means the workspace maps to exactly that row, so the marker goes on
-# the workspace name: it shows at the left edge and reaches nothing else. With
-# several rows the workspace name is shared, so the marker has to go on the tab
-# even though that puts it after the separator.
-if [ "$row_count" -gt 1 ]; then target=tab; else target=workspace; fi
-
 if [ "$action" = pick ]; then
   command -v fzf >/dev/null 2>&1 || die "fzf not found on PATH"
-  current="$(if [ "$target" = tab ]; then printf '%s' "$tab_label"; else printf '%s' "$ws_label"; fi)"
+  current="$ws_label"
   menu="$(marks_entries | awk -F'\t' '{ if ($2 == "") print $1; else print $1 " " $2 }')"
   menu="${menu}
 ${CLEAR_KEY} 印を外す"
@@ -207,15 +186,10 @@ rename_tab() {
   fi
 }
 
-# The non-target is always cleared: a marker left on the workspace would show
-# on every sibling session, which is the bug this replaced.
-if [ "$target" = tab ]; then
-  rename_tab "${want}${tab_base}"
-  rename_ws "$ws_base"
-else
-  rename_ws "${want}${ws_base}"
-  rename_tab "$tab_base"
-fi
+# The tab is always cleared alongside: a marker left there would show a second
+# symbol in the middle of the row, and earlier versions put it there.
+rename_ws "${want}${ws_base}"
+rename_tab "$tab_base"
 
 # Float the marked rows to the top, so the order follows the markers without a
 # second key. Best-effort: the marker is already written, and failing here would

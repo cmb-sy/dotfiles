@@ -1,10 +1,10 @@
 #!/usr/bin/env bats
 # フォーカス中のセッションに、一覧から選んだ印を付け外しする。
 #
-# agents パネルの 1 行は「ワークスペース名 · タブ名」で、セッションはタブに
-# あたる。ワークスペース名に付けると同じワークスペースの全セッションに付いて
-# しまうため、タブが複数あるならタブ側、1 つだけならワークスペース側に付ける
-# （1 タブのときパネルはタブ名を表示しないため）。
+# agents パネルの 1 行は「ワークスペース名 · タブ名」なので、行の左端は必ず
+# ワークスペース名。印は左端に揃えたいので常にワークスペース名へ付ける。
+# 複数セッションを持つワークスペースでは全行に出るが、それは受け入れた対価。
+# タブ側は常に掃除する（以前の版がそこに付けていたため）。
 #
 # herdr も fzf も呼ばない。PATH の先頭にスタブを差し込み、workspace list と
 # tab list には固定の JSON を返させ、rename 系は引数を記録させて検査する。
@@ -69,18 +69,11 @@ teardown() {
   rm -rf "$TEST_TMPDIR"
 }
 
-# $1 = workspace label, $2 = パネルに出る行数, $3 = focused (true/false)
-# 行数はエージェント数で決まるので、agent list 側にその数だけ並べる。
+# $1 = workspace label, $2 = そのワークスペースの行数（印の位置には影響しない）,
+# $3 = focused (true/false)
 workspace() {
   printf '{"result":{"workspaces":[{"workspace_id":"w1","label":"%s","focused":%s}]}}' \
     "$1" "$3" >"$WS_JSON"
-  local out="" i=1
-  while [ "$i" -le "$2" ]; do
-    [ "$i" -eq 1 ] || out="$out,"
-    out="$out{\"workspace_id\":\"w1\",\"tab_id\":\"w1:t$i\"}"
-    i=$((i + 1))
-  done
-  printf '{"result":{"agents":[%s]}}' "$out" >"$AGENT_JSON"
 }
 
 # $1 = tab label, $2 = focused (true/false)
@@ -112,17 +105,16 @@ call_count() {
   [ "$n" -eq 4 ]
 }
 
-@test "選んだ印がタブ名に付く（兄弟セッションは巻き込まない）" {
+@test "セッションが複数でも印はワークスペース名に付く（左端に揃える）" {
+  # 兄弟セッションにも出るが、左端に揃うことを優先した結果。
   workspace 'Databricks-Analysis' 5 true
   tab 'general' true
   FZF_PICK='📤 返事待ち' run bash "$REPO_DIR/bin/herdr-mark"
   [ "$status" -eq 0 ]
-  cat "$CALLS" | grep -qF "$(tab_renamed_to '📤general')"
-  n=$(grep -c '^ws' "$CALLS") || n=0
-  [ "$n" -eq 0 ]
+  cat "$CALLS" | grep -qF "$(ws_renamed_to '📤Databricks-Analysis')"
 }
 
-@test "タブが 1 つだけならワークスペース名に付く" {
+@test "セッションが 1 つならワークスペース名に付く" {
   workspace 'distill-vault' 1 true
   tab 'AI-コーチング' true
   FZF_PICK='🟢 general' run bash "$REPO_DIR/bin/herdr-mark"
@@ -133,11 +125,11 @@ call_count() {
 }
 
 @test "別の印を選ぶと前の印を重ねずに置き換わる" {
-  workspace 'proj' 3 true
-  tab '🤖general' true
+  workspace '🤖proj' 3 true
+  tab 'general' true
   FZF_PICK='📤 返事待ち' run bash "$REPO_DIR/bin/herdr-mark"
   [ "$status" -eq 0 ]
-  cat "$CALLS" | grep -qF "$(tab_renamed_to '📤general')"
+  cat "$CALLS" | grep -qF "$(ws_renamed_to '📤proj')"
 }
 
 @test "「外す」を選ぶと印が消える" {
@@ -173,21 +165,12 @@ call_count() {
   [ "$(call_count)" -eq 0 ]
 }
 
-@test "ワークスペース側に残った印は、タブに付けるときに掃除する" {
-  workspace '🔵Databricks-Analysis' 5 true
-  tab 'general' true
-  run bash "$REPO_DIR/bin/herdr-mark" set '🤖'
-  [ "$status" -eq 0 ]
-  cat "$CALLS" | grep -qF "$(tab_renamed_to '🤖general')"
-  cat "$CALLS" | grep -qF "$(ws_renamed_to 'Databricks-Analysis')"
-}
-
 @test "名前に空白を含んでも欠けずに印が付く" {
-  workspace 'proj' 3 true
-  tab 'my long tab' true
+  workspace 'my long project' 3 true
+  tab 'general' true
   run bash "$REPO_DIR/bin/herdr-mark" set '🟢'
   [ "$status" -eq 0 ]
-  cat "$CALLS" | grep -qF "$(tab_renamed_to '🟢my long tab')"
+  cat "$CALLS" | grep -qF "$(ws_renamed_to '🟢my long project')"
 }
 
 @test "集合に無い印を set に渡すと理由を示して失敗する" {
@@ -291,7 +274,7 @@ call_count() {
   tab 'general' true
   FZF_QUERY='🔥' run bash -c "'$REPO_DIR/bin/herdr-mark' </dev/null 2>&1"
   [ "$status" -eq 0 ]
-  cat "$CALLS" | grep -qF "$(tab_renamed_to '🔥general')"
+  cat "$CALLS" | grep -qF "$(ws_renamed_to '🔥proj')"
   cut -f1 "$HERDR_MARKS_FILE" | grep -qxF '🔥'
 }
 
@@ -406,24 +389,3 @@ call_count() {
   [ "$n" -eq 1 ]
 }
 
-@test "タブが複数でも行が 1 つならワークスペース名に付く（左端に出す）" {
-  # dotfiles はタブ 3 つだがエージェントは 1 つ。パネルは 1 行しか出さないので、
-  # ワークスペース名に付ければ左端に出て、しかも誰も巻き込まない。
-  workspace 'dotfiles' 1 true
-  tab '1' true
-  run bash "$REPO_DIR/bin/herdr-mark" set '🟢'
-  [ "$status" -eq 0 ]
-  cat "$CALLS" | grep -qF "$(ws_renamed_to '🟢dotfiles')"
-  n=$(grep -c '^tab' "$CALLS") || n=0
-  [ "$n" -eq 0 ]
-}
-
-@test "agent list が壊れていても 1 行として扱い、印は付く" {
-  # 行数が取れないときに落ちると、印がまったく付かなくなる。
-  printf '{"result":{"workspaces":[{"workspace_id":"w1","label":"proj","focused":true}]}}' >"$WS_JSON"
-  printf 'not json' >"$AGENT_JSON"
-  tab 'general' true
-  run bash "$REPO_DIR/bin/herdr-mark" set '🤖'
-  [ "$status" -eq 0 ]
-  cat "$CALLS" | grep -qF "$(ws_renamed_to '🤖proj')"
-}
