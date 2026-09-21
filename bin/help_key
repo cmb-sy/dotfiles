@@ -78,7 +78,7 @@ show_herdr() {
   kv "Cmd+Opt+Up / Down"  "Previous / Next workspace"
   kv "fn+Cmd+Up / Down"   "Previous / Next workspace (Karabiner remap)"
   kv "Cmd+Opt+W"          "Close workspace"
-  kv "Cmd+Opt+M"          "Mark this session: pick from the list, or type a new marker"
+  kv "Cmd+Opt+M"          "Mark this session: pick, type a new marker, Ctrl-D to drop one"
 
   group "Tools"
   kv "Cmd+Ctrl+G"         "lazygit in a throwaway pane (closes on exit)"

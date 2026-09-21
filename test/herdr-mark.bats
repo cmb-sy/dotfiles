@@ -27,6 +27,7 @@ setup() {
   export HERDR_MARK_BREADCRUMB="$BREAD"
   # 印の集合は実行時に書き換わるので、毎テスト使い捨ての場所に置く。
   export HERDR_MARKS_FILE="$TEST_TMPDIR/marks.tsv"
+  export HERDR_MARKS_RETIRED="$TEST_TMPDIR/marks-retired.tsv"
   # 並べ替えは socket API を使うので、ここでは呼ばれたことだけ記録する。
   export HERDR_SORT_BIN="$TEST_TMPDIR/herdr-sort"
   printf '#!/bin/bash\nprintf "sort\\n" >>"$CALLS"\n' >"$HERDR_SORT_BIN"
@@ -44,13 +45,14 @@ case "$1 $2" in
 esac
 STUB
 
-  # 渡された一覧を記録する。--print-query なので 1 行目は必ず入力文字列で、
-  # 2 行目に選択行が来る。FZF_PICK が空で FZF_QUERY だけなら「一致なし」(1)、
-  # 両方空なら中断 (130) を模す。
+  # 渡された一覧を記録する。--print-query と --expect により 1 行目は入力文字列、
+  # 2 行目は閉じたキー（Enter なら空）、3 行目が選択行。FZF_PICK が空で
+  # FZF_QUERY だけなら「一致なし」(1)、両方空なら中断 (130) を模す。
   cat >"$STUB/fzf" <<'STUB'
 #!/bin/bash
 cat >"$FZF_MENU"
 printf '%s\n' "${FZF_QUERY:-}"
+printf '%s\n' "${FZF_KEY:-}"
 if [ -n "${FZF_PICK:-}" ]; then printf '%s\n' "$FZF_PICK"; exit 0; fi
 if [ -n "${FZF_QUERY:-}" ]; then exit 1; fi
 exit 130
@@ -330,4 +332,74 @@ call_count() {
   run bash -c "'$REPO_DIR/bin/herdr-mark' </dev/null 2>&1"
   [ "$status" -eq 0 ]
   [ "$(call_count)" -eq 0 ]
+}
+
+@test "Ctrl-D で選択中の印を一覧から削除する" {
+  workspace 'proj' 3 true
+  tab 'general' true
+  FZF_KEY=ctrl-d FZF_PICK='📤 返事待ち' run bash -c "'$REPO_DIR/bin/herdr-mark' </dev/null 2>&1"
+  [ "$status" -eq 0 ]
+  n=$(cut -f1 "$HERDR_MARKS_FILE" | grep -cxF '📤') || n=0
+  [ "$n" -eq 0 ]
+  [ "$(call_count)" -eq 0 ]
+}
+
+@test "削除した印は選択肢から消える" {
+  workspace 'proj' 3 true
+  tab 'general' true
+  FZF_KEY=ctrl-d FZF_PICK='📤 返事待ち' run bash -c "'$REPO_DIR/bin/herdr-mark' </dev/null 2>&1"
+  FZF_PICK='🤖 対応中' run bash -c "'$REPO_DIR/bin/herdr-mark' </dev/null 2>&1"
+  n=$(grep -cF '📤' "$FZF_MENU") || n=0
+  [ "$n" -eq 0 ]
+}
+
+@test "削除した印が付いている行は、その後も外せる" {
+  # 一覧から消えても剥がせなければ、その行は永久に印を持ち続ける。
+  workspace 'proj' 3 true
+  tab '📤general' true
+  FZF_KEY=ctrl-d FZF_PICK='📤 返事待ち' run bash -c "'$REPO_DIR/bin/herdr-mark' </dev/null 2>&1"
+  run bash "$REPO_DIR/bin/herdr-mark" off
+  [ "$status" -eq 0 ]
+  cat "$CALLS" | grep -qF "$(tab_renamed_to 'general')"
+}
+
+@test "Ctrl-D では「印を外す」を削除できず、理由もそう言う" {
+  workspace 'proj' 3 true
+  tab 'general' true
+  FZF_KEY=ctrl-d FZF_PICK='✕ 印を外す' run bash -c "'$REPO_DIR/bin/herdr-mark' </dev/null 2>&1"
+  [ "$status" -ne 0 ]
+  # 理由まで見る。ガードを外しても marks_remove が別の理由で弾くため、
+  # 終了コードだけでは「印を外す」専用の保護が生きているか判別できない。
+  printf '%s' "$output" | grep -qF '一覧から削除できません'
+  n=$(grep -c . "$HERDR_MARKS_FILE") || n=0
+  [ "$n" -eq 3 ]
+}
+
+@test "forget は一覧から削除し、セッション名には触らない" {
+  workspace 'proj' 3 true
+  tab 'general' true
+  run bash "$REPO_DIR/bin/herdr-mark" forget '🟢'
+  [ "$status" -eq 0 ]
+  n=$(cut -f1 "$HERDR_MARKS_FILE" | grep -cxF '🟢') || n=0
+  [ "$n" -eq 0 ]
+  [ "$(call_count)" -eq 0 ]
+}
+
+@test "一覧に無い印は forget できない" {
+  workspace 'proj' 3 true
+  tab 'general' true
+  run bash "$REPO_DIR/bin/herdr-mark" forget '💀'
+  [ "$status" -ne 0 ]
+  printf '%s' "$output" | grep -qF 'unknown marker'
+}
+
+@test "印の削除はラベルに同じ記号を含む別の行を巻き込まない" {
+  # 行全体で照合すると、ラベルに🤖を含む📤の行まで消える。第1列だけを見る。
+  printf '🤖\t対応中\n📤\t🤖からの返事待ち\n' > "$HERDR_MARKS_FILE"
+  workspace 'proj' 3 true
+  tab 'general' true
+  run bash "$REPO_DIR/bin/herdr-mark" forget '🤖'
+  [ "$status" -eq 0 ]
+  n=$(cut -f1 "$HERDR_MARKS_FILE" | grep -cxF '📤') || n=0
+  [ "$n" -eq 1 ]
 }

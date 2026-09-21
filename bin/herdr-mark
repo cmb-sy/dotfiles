@@ -17,9 +17,12 @@
 # pane so fzf has a terminal to draw in. The pane lives in the current tab, so
 # the focused workspace and tab are still the ones the marker should land on.
 #
-#   herdr-mark              pick from the list, or type a new marker
-#   herdr-mark set <marker> apply one marker without the picker
-#   herdr-mark off          remove whatever marker is there
+#   herdr-mark                 pick from the list, or type a new marker
+#   herdr-mark set <marker>    apply one marker without the picker
+#   herdr-mark off             remove whatever marker is there
+#   herdr-mark forget <marker> retire a marker from the list
+#
+# In the picker, Ctrl-D retires the highlighted marker instead of applying it.
 
 set -euo pipefail
 
@@ -63,12 +66,19 @@ EOF
 
 case "$action" in
   pick | off) ;;
-  set)
-    [ $# -ge 2 ] || die "set needs a marker (one of: $(marks_entries | cut -f1 | tr '\n' ' '))"
+  set | forget)
+    [ $# -ge 2 ] || die "$action needs a marker (one of: $(marks_entries | cut -f1 | tr '\n' ' '))"
     marks_is_offered "$2" || die "unknown marker: $2 (expected one of: $(marks_entries | cut -f1 | tr '\n' ' '))"
     ;;
-  *) die "unknown action: $action (expected pick, set, or off)" ;;
+  *) die "unknown action: $action (expected pick, set, forget, or off)" ;;
 esac
+
+# Retiring touches only the set, never a session name, so it is done before
+# any of the workspace lookups below and exits there.
+if [ "$action" = forget ]; then
+  marks_remove "$2" || die "could not retire $2"
+  exit 0
+fi
 
 command -v herdr >/dev/null 2>&1 || die "herdr not found on PATH"
 
@@ -132,15 +142,26 @@ ${CLEAR_KEY} 印を外す"
   # --print-query so a symbol that matches nothing is still readable: that is
   # how a new marker is added, without a separate "add" entry to find.
   set +e
-  picked="$(printf '%s\n' "$menu" | fzf --print-query --prompt="$current > " \
-    --reverse --height=100% --no-info \
-    --header='選ぶか、新しい印を打ち込んで Enter')"
+  picked="$(printf '%s\n' "$menu" | fzf --print-query --expect=ctrl-d \
+    --prompt="$current > " --reverse --height=100% --no-info \
+    --header='Enter で付ける / 打ち込んで Enter で追加 / Ctrl-D で一覧から削除')"
   rc=$?
   set -e
   [ "$rc" -eq 130 ] && exit 0
 
+  # --print-query then --expect: line 1 is what was typed, line 2 the key that
+  # closed the picker (empty for Enter), line 3 the highlighted row.
   query="$(printf '%s' "$picked" | sed -n '1p')"
-  chosen="$(printf '%s' "$picked" | sed -n '2p')"
+  pressed="$(printf '%s' "$picked" | sed -n '2p')"
+  chosen="$(printf '%s' "$picked" | sed -n '3p')"
+
+  if [ "$pressed" = "ctrl-d" ]; then
+    [ -n "$chosen" ] || exit 0
+    doomed="${chosen%% *}"
+    [ "$doomed" != "$CLEAR_KEY" ] || die "印を外す は一覧から削除できません"
+    marks_remove "$doomed" || die "could not retire $doomed"
+    exit 0
+  fi
 
   if [ -n "$chosen" ]; then
     chosen_mark="${chosen%% *}"
