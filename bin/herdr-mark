@@ -82,28 +82,36 @@ fi
 
 command -v herdr >/dev/null 2>&1 || die "herdr not found on PATH"
 
+# Rows, not tabs. The panel lists one row per agent, so a workspace with three
+# tabs but one agent is a single row -- and a single row can carry the marker on
+# the workspace, where it sits at the left edge instead of after the separator.
 ws_line="$(herdr workspace list 2>/dev/null | python3 -c '
-import json, sys
+import json, subprocess, sys
 try:
     workspaces = json.load(sys.stdin)["result"]["workspaces"]
 except Exception:
     sys.exit(1)
-for w in workspaces:
-    if w.get("focused"):
-        print("%s\t%s\t%s" % (w["workspace_id"], w.get("tab_count", 1), w.get("label", "")))
-        break
+focused = next((w for w in workspaces if w.get("focused")), None)
+if focused is None:
+    sys.exit(0)
+try:
+    agents = json.loads(subprocess.run(["herdr", "agent", "list"],
+                                       capture_output=True, text=True).stdout)["result"]["agents"]
+    rows = sum(1 for a in agents if a.get("workspace_id") == focused["workspace_id"])
+except Exception:
+    rows = 0
+# 0 when agent list could not be read. That falls on the same side of the
+# "more than one row" test as 1 does, so a failure here degrades to marking
+# the workspace rather than to marking nothing.
+print("%s\t%s\t%s" % (focused["workspace_id"], rows, focused.get("label", "")))
 ' 2>/dev/null)" || die "cannot read the workspace list (is the herdr server running?)"
 [ -n "$ws_line" ] || die "no focused workspace"
 
 ws_id="$(printf '%s' "$ws_line" | cut -f1)"
-tab_count="$(printf '%s' "$ws_line" | cut -f2)"
+row_count="$(printf '%s' "$ws_line" | cut -f2)"
 ws_label="$(printf '%s' "$ws_line" | cut -f3-)"
 [ -n "$ws_id" ] || die "workspace list returned no id"
 [ -n "$ws_label" ] || die "focused workspace $ws_id has no label"
-case "$tab_count" in
-  '' | *[!0-9]*) die "workspace $ws_id reported a non-numeric tab count: $tab_count" ;;
-esac
-
 tab_line="$(herdr tab list --workspace "$ws_id" 2>/dev/null | python3 -c '
 import json, sys
 try:
@@ -128,9 +136,11 @@ tab_base="$(strip_mark "$tab_label")"
 [ -n "$ws_base" ] || die "label of $ws_id is only a marker; rename it by hand"
 [ -n "$tab_base" ] || die "label of $tab_id is only a marker; rename it by hand"
 
-# One tab means the panel shows no tab half, so the workspace is the only
-# thing that can carry a visible mark — and it maps to exactly one row anyway.
-if [ "$tab_count" -gt 1 ]; then target=tab; else target=workspace; fi
+# One row means the workspace maps to exactly that row, so the marker goes on
+# the workspace name: it shows at the left edge and reaches nothing else. With
+# several rows the workspace name is shared, so the marker has to go on the tab
+# even though that puts it after the separator.
+if [ "$row_count" -gt 1 ]; then target=tab; else target=workspace; fi
 
 if [ "$action" = pick ]; then
   command -v fzf >/dev/null 2>&1 || die "fzf not found on PATH"

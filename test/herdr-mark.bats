@@ -28,6 +28,8 @@ setup() {
   # 印の集合は実行時に書き換わるので、毎テスト使い捨ての場所に置く。
   export HERDR_MARKS_FILE="$TEST_TMPDIR/marks.tsv"
   export HERDR_MARKS_RETIRED="$TEST_TMPDIR/marks-retired.tsv"
+  AGENT_JSON="$TEST_TMPDIR/agents.json"
+  export AGENT_JSON
   # 並べ替えは socket API を使うので、ここでは呼ばれたことだけ記録する。
   export HERDR_SORT_BIN="$TEST_TMPDIR/herdr-sort"
   printf '#!/bin/bash\nprintf "sort\\n" >>"$CALLS"\n' >"$HERDR_SORT_BIN"
@@ -38,6 +40,7 @@ setup() {
 #!/bin/bash
 case "$1 $2" in
   "workspace list") cat "$WS_JSON" ;;
+  "agent list") cat "$AGENT_JSON" ;;
   "tab list") cat "$TAB_JSON" ;;
   "workspace rename") printf 'ws\t%s\t%s\n' "$3" "$4" >>"$CALLS" ;;
   "tab rename") printf 'tab\t%s\t%s\n' "$3" "$4" >>"$CALLS" ;;
@@ -66,10 +69,18 @@ teardown() {
   rm -rf "$TEST_TMPDIR"
 }
 
-# $1 = workspace label, $2 = tab_count, $3 = focused (true/false)
+# $1 = workspace label, $2 = パネルに出る行数, $3 = focused (true/false)
+# 行数はエージェント数で決まるので、agent list 側にその数だけ並べる。
 workspace() {
-  printf '{"result":{"workspaces":[{"workspace_id":"w1","label":"%s","tab_count":%s,"focused":%s}]}}' \
-    "$1" "$2" "$3" >"$WS_JSON"
+  printf '{"result":{"workspaces":[{"workspace_id":"w1","label":"%s","focused":%s}]}}' \
+    "$1" "$3" >"$WS_JSON"
+  local out="" i=1
+  while [ "$i" -le "$2" ]; do
+    [ "$i" -eq 1 ] || out="$out,"
+    out="$out{\"workspace_id\":\"w1\",\"tab_id\":\"w1:t$i\"}"
+    i=$((i + 1))
+  done
+  printf '{"result":{"agents":[%s]}}' "$out" >"$AGENT_JSON"
 }
 
 # $1 = tab label, $2 = focused (true/false)
@@ -221,15 +232,6 @@ call_count() {
   run bash "$REPO_DIR/bin/herdr-mark" off
   [ "$status" -ne 0 ]
   printf '%s' "$output" | grep -qF 'no focused tab'
-  [ "$(call_count)" -eq 0 ]
-}
-
-@test "タブ数が数値でなければ理由を示して失敗する" {
-  printf '{"result":{"workspaces":[{"workspace_id":"w1","label":"x","tab_count":"many","focused":true}]}}' >"$WS_JSON"
-  tab '1' true
-  run bash "$REPO_DIR/bin/herdr-mark" off
-  [ "$status" -ne 0 ]
-  printf '%s' "$output" | grep -qF 'non-numeric tab count'
   [ "$(call_count)" -eq 0 ]
 }
 
@@ -402,4 +404,26 @@ call_count() {
   [ "$status" -eq 0 ]
   n=$(cut -f1 "$HERDR_MARKS_FILE" | grep -cxF '📤') || n=0
   [ "$n" -eq 1 ]
+}
+
+@test "タブが複数でも行が 1 つならワークスペース名に付く（左端に出す）" {
+  # dotfiles はタブ 3 つだがエージェントは 1 つ。パネルは 1 行しか出さないので、
+  # ワークスペース名に付ければ左端に出て、しかも誰も巻き込まない。
+  workspace 'dotfiles' 1 true
+  tab '1' true
+  run bash "$REPO_DIR/bin/herdr-mark" set '🟢'
+  [ "$status" -eq 0 ]
+  cat "$CALLS" | grep -qF "$(ws_renamed_to '🟢dotfiles')"
+  n=$(grep -c '^tab' "$CALLS") || n=0
+  [ "$n" -eq 0 ]
+}
+
+@test "agent list が壊れていても 1 行として扱い、印は付く" {
+  # 行数が取れないときに落ちると、印がまったく付かなくなる。
+  printf '{"result":{"workspaces":[{"workspace_id":"w1","label":"proj","focused":true}]}}' >"$WS_JSON"
+  printf 'not json' >"$AGENT_JSON"
+  tab 'general' true
+  run bash "$REPO_DIR/bin/herdr-mark" set '🤖'
+  [ "$status" -eq 0 ]
+  cat "$CALLS" | grep -qF "$(ws_renamed_to '🤖proj')"
 }
