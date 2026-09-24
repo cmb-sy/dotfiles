@@ -21,7 +21,13 @@ LIVE = re.compile(r'以前|以降|時点|なら|場合|とき|使わない|同�
 
 # Every md a skill loads, not only SKILL.md: shared specs, references and
 # done-criteria are read at run time too, so the rule applies there as well.
+#
+# synced/ is the exception: those skills come down from claude.ai, are
+# overwritten by the next sync, and are not authored here. Holding them to a
+# rule about how this repo writes skills fails a check nobody can fix.
 for path in sorted(pathlib.Path(sys.argv[1]).rglob('*.md')):
+    if 'synced' in path.parts:
+        continue
     for num, line in enumerate(path.read_text().splitlines(), 1):
         bare = re.sub(r'`[^`]*`', '', line)
         for kind, pattern in (('dated', DATE), ('lineage', LINEAGE), ('removal', REMOVAL)):
@@ -120,4 +126,18 @@ print(','.join(NG) if NG else 'OK')
 "
   [ "$status" -eq 0 ]
   printf '%s' "$output" | grep -qF "OK"
+}
+
+@test "同期されたスキルは検査対象から外れている" {
+  # 外し方が緩すぎると自作スキルまで検査されなくなるので、両方を確かめる。
+  synced="$REPO_DIR/claude/skills/synced/probe-check/SKILL.md"
+  own="$REPO_DIR/claude/skills/probe-check-own/SKILL.md"
+  mkdir -p "${synced%/*}" "${own%/*}"
+  printf -- '- 2026-07-10 に計測した。\n' > "$synced"
+  printf -- '- 2026-07-10 に計測した。\n' > "$own"
+  found="$(skill_findings_of_kind dated)"
+  rm -rf "${synced%/*}" "${own%/*}"
+  printf '%s' "$found" | grep -qF 'probe-check-own'
+  n=$(printf '%s' "$found" | grep -c 'synced/probe-check/') || n=0
+  [ "$n" -eq 0 ]
 }

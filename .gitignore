@@ -20,6 +20,10 @@ docs/superpowers/specs/*
 !docs/superpowers/specs/2026-07-11-oci-claude-server-design.md
 
 # pptx-dev: python venv + per-session artifacts
+# Skills synced down from claude.ai. Written by the sync, overwritten by it,
+# and shared with the other account -- nothing here is authored in this repo.
+claude/skills/synced/
+
 claude/skills/pptx-dev/scripts/.venv/
 claude/skills/pptx-dev/scripts/uv.lock
 .pptx-dev/
