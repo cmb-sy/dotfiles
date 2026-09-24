@@ -45,11 +45,22 @@ if [[ -n "${GHOSTTY_RESOURCES_DIR}" ]] && [[ -f "${GHOSTTY_RESOURCES_DIR}/shell-
     # Chain zle-line-init — fires AFTER all precmd hooks, so it overrides
     # Ghostty's title reset when Claude Code just finished
     #
-    # Save the original once. On a re-source zle-line-init is already the
-    # wrapper below, so saving again would point _orig_zle_line_init_ct at the
-    # wrapper -- which calls it. zsh reports that as "maximum nested function
-    # level reached" and the line editor stops working.
-    if (( $+widgets[zle-line-init] )) && (( ! $+widgets[_orig_zle_line_init_ct] )); then
+    # On a re-source zle-line-init is already the wrapper below, so saving it
+    # again would point _orig_zle_line_init_ct at the wrapper -- which calls
+    # it. zsh reports that as "maximum nested function level reached" and the
+    # line editor stops working.
+    #
+    # Drop a saved widget that is already the wrapper. A shell poisoned by the
+    # earlier version carries one, and only this repairs it in place: the guard
+    # below would otherwise see "something is saved" and leave it.
+    if (( $+widgets[_orig_zle_line_init_ct] )) \
+      && [[ ${widgets[_orig_zle_line_init_ct]} == *_claude_tab_line_init ]]; then
+      zle -D _orig_zle_line_init_ct
+    fi
+    # Save the real original once, and never save the wrapper as the original.
+    if (( $+widgets[zle-line-init] )) \
+      && [[ ${widgets[zle-line-init]} != *_claude_tab_line_init ]] \
+      && (( ! $+widgets[_orig_zle_line_init_ct] )); then
       zle -A zle-line-init _orig_zle_line_init_ct
     fi
     _claude_tab_line_init() {

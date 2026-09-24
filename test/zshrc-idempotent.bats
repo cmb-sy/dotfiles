@@ -60,3 +60,22 @@ load_zshrc() {
   n=$(printf '%s' "$output" | grep -c 'maximum nested function level') || n=0
   [ "$n" -eq 0 ]
 }
+
+@test "既に壊れたシェルは、読み込み直すと修復される" {
+  # 旧コードが動いた既存シェルは、退避先が wrapper 自身になったまま残る。
+  # 予防だけでは救えないので、読み込み直しで壊れた退避先を捨てられること。
+  run zsh -c "
+    export GHOSTTY_RESOURCES_DIR='$GH'
+    zle -N zle-line-init 2>/dev/null
+    source '$REPO_DIR/.zshrc' >/dev/null 2>&1
+    _claude_tab_setup
+    zle -A zle-line-init _orig_zle_line_init_ct
+    print -r -- \"poisoned=\${widgets[_orig_zle_line_init_ct]}\"
+    _claude_tab_setup
+    print -r -- \"repaired=\${widgets[_orig_zle_line_init_ct]:-none}\"
+  "
+  # 汚染を実際に作れていること（作れていなければ修復の検査が空回りする）
+  printf '%s' "$output" | grep -qF 'poisoned=user:_claude_tab_line_init'
+  n=$(printf '%s' "$output" | grep -c 'repaired=user:_claude_tab_line_init') || n=0
+  [ "$n" -eq 0 ]
+}
