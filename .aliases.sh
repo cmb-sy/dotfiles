@@ -207,7 +207,7 @@ claude-work() {
   _claude_run_for_account "${CLAUDE_ACCOUNT_WORK_DIR}" "${_claude_default_flags[@]}" "$@"
 }
 
-# Short: clp / clw / clpa / clwa
+# Short: clp / clw / clpa / clwa / clpc / clwc
 clp() {
   claude-private "$@"
 }
@@ -236,6 +236,27 @@ clwa() {
   [ -z "$q" ] && q="$_claude_autonomous_default_prompt"
   _claude_build_default_flags "$CLAUDE_WORK_DEFAULT_EFFORT" "$CLAUDE_WORK_DEFAULT_MODEL"
   _claude_run_for_account "${CLAUDE_ACCOUNT_WORK_DIR}" "${_claude_default_flags[@]}" --dangerously-skip-permissions "$q"
+}
+
+# Same as clpa/clwa but resuming the last conversation in this directory
+# instead of starting one. clpa/clwa always pass a prompt, and a prompt starts
+# a new session, so there was no way back into a conversation left behind by an
+# update or a closed terminal. Extra arguments are forwarded, so `clwc "..."`
+# resumes and sends that message.
+clpc() {
+  _claude_require_cli || return $?
+  _claude_sync_shared
+  claude-use-private
+  _claude_build_default_flags "$CLAUDE_PRIVATE_DEFAULT_EFFORT" "$CLAUDE_PRIVATE_DEFAULT_MODEL"
+  _claude_run_for_account "${CLAUDE_ACCOUNT_PRIVATE_DIR}" "${_claude_default_flags[@]}" --dangerously-skip-permissions --continue "$@"
+}
+
+clwc() {
+  _claude_require_cli || return $?
+  _claude_sync_shared
+  claude-use-work
+  _claude_build_default_flags "$CLAUDE_WORK_DEFAULT_EFFORT" "$CLAUDE_WORK_DEFAULT_MODEL"
+  _claude_run_for_account "${CLAUDE_ACCOUNT_WORK_DIR}" "${_claude_default_flags[@]}" --dangerously-skip-permissions --continue "$@"
 }
 
 alias claude-auto='clwa'

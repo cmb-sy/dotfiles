@@ -127,6 +127,8 @@ show_shell() {
   kv "clw"                 "claude（会社）"
   kv "clpa"                "自律（個人）"
   kv "clwa / claude-auto"  "自律（会社）"
+  kv "clpc"                "続きから + 自律（個人）"
+  kv "clwc"                "続きから + 自律（会社）"
   kv "claude-link-shared" "共有設定を両アカウントにリンク"
 
   group "Dev Tools"
