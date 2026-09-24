@@ -18,6 +18,12 @@ if [[ -n "${GHOSTTY_RESOURCES_DIR}" ]] && [[ -f "${GHOSTTY_RESOURCES_DIR}/shell-
   typeset -gi _claude_running=0
   typeset -gi _claude_exit=0
 
+  # add-zsh-hook refuses to register a function twice, so sourcing this file
+  # again in a live shell re-registers rather than stacking a second copy.
+  # typeset -gU on the arrays does not survive: plugins loaded later re-declare
+  # them and the unique flag goes with it.
+  autoload -Uz add-zsh-hook
+
   _claude_tab_preexec() {
     if [[ "$1" == claude* ]]; then
       _claude_running=1
@@ -33,12 +39,19 @@ if [[ -n "${GHOSTTY_RESOURCES_DIR}" ]] && [[ -f "${GHOSTTY_RESOURCES_DIR}/shell-
 
   # Deferred setup: runs after Ghostty's deferred init on the first precmd
   _claude_tab_setup() {
-    preexec_functions+=(_claude_tab_preexec)
-    precmd_functions+=(_claude_tab_precmd)
+    add-zsh-hook preexec _claude_tab_preexec
+    add-zsh-hook precmd _claude_tab_precmd
 
     # Chain zle-line-init — fires AFTER all precmd hooks, so it overrides
     # Ghostty's title reset when Claude Code just finished
-    (( $+widgets[zle-line-init] )) && zle -A zle-line-init _orig_zle_line_init_ct
+    #
+    # Save the original once. On a re-source zle-line-init is already the
+    # wrapper below, so saving again would point _orig_zle_line_init_ct at the
+    # wrapper -- which calls it. zsh reports that as "maximum nested function
+    # level reached" and the line editor stops working.
+    if (( $+widgets[zle-line-init] )) && (( ! $+widgets[_orig_zle_line_init_ct] )); then
+      zle -A zle-line-init _orig_zle_line_init_ct
+    fi
     _claude_tab_line_init() {
       (( $+widgets[_orig_zle_line_init_ct] )) && zle _orig_zle_line_init_ct
       if (( _claude_running )); then
@@ -52,9 +65,9 @@ if [[ -n "${GHOSTTY_RESOURCES_DIR}" ]] && [[ -f "${GHOSTTY_RESOURCES_DIR}/shell-
     }
     zle -N zle-line-init _claude_tab_line_init
 
-    precmd_functions=(${precmd_functions:#_claude_tab_setup})
+    add-zsh-hook -d precmd _claude_tab_setup
   }
-  precmd_functions+=(_claude_tab_setup)
+  add-zsh-hook precmd _claude_tab_setup
 fi
 
 # ----------------------------------------------------------
