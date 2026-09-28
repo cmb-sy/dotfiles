@@ -1,0 +1,48 @@
+#!/bin/bash
+# 作業ディレクトリの記録を、distill のどのプロジェクトに書くかを決めて 1 行で出す。
+#
+#   distill-repo-name [<dir>]
+#
+# 1. vault の概要.md の frontmatter の repo: が、このリポジトリの origin と
+#    同じプロジェクト（https と git@ の書き方の違いは揃えて比べる）
+# 2. 無ければ、元のリポジトリのディレクトリ名（worktree でも元の名前）
+# 3. それも取れなければ、作業ツリーの最上位ディレクトリの名前
+#
+# ディレクトリ名で決めるだけだと、プロジェクトの名前を人が付け直したとき
+# （ai-coaching → AIコーチング）や worktree（dxp-2266）で、同じプロジェクトが
+# 2 つに割れる。記録を書くスキルと記録フックが同じ規則で決めるよう、ここに置く。
+# git リポジトリの外なら何も出さず 1 で抜ける。
+set -uo pipefail
+
+dir="${1:-.}"
+VAULT="${DISTILL_VAULT:-$HOME/develop/distill-vault}"
+
+top=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null) || exit 1
+
+# URL を host/owner/name の小文字に揃える。スキーム・ユーザー名・末尾の .git と / を落とす。
+norm() {
+  printf '%s' "$1" | sed -E 's#^[a-zA-Z+]+://##; s#^[^@/]+@##; s#:#/#; s#\.git/?$##; s#/+$##' |
+    tr '[:upper:]' '[:lower:]'
+}
+
+remote=$(git -C "$dir" remote get-url origin 2>/dev/null || true)
+if [ -n "$remote" ] && [ -d "$VAULT/プロジェクト" ]; then
+  want=$(norm "$remote")
+  for f in "$VAULT"/プロジェクト/*/概要.md; do
+    [ -f "$f" ] || continue
+    # frontmatter の中の repo: だけを見る。本文の同じ文字列には反応しない。
+    url=$(awk 'NR == 1 && $0 != "---" { exit }
+               NR > 1 && $0 == "---" { exit }
+               NR > 1 && /^repo:/ { sub(/^repo:[ \t]*/, ""); print; exit }' "$f")
+    if [ -n "$url" ] && [ "$(norm "$url")" = "$want" ]; then
+      basename "$(dirname "$f")"
+      exit 0
+    fi
+  done
+fi
+
+common=$(git -C "$dir" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
+case "$common" in
+  */.git) basename "$(dirname "$common")" ;;
+  *) basename "$top" ;;
+esac

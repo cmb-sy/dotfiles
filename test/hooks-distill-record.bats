@@ -681,3 +681,12 @@ blocklist_must_block() {
   failed=$(grep -cF "c16: 記録が作られなかった" "$TEST_TMPDIR/home/.distill/logs/record.log" || true)
   [ "$failed" -eq 0 ]
 }
+
+@test "distill-record: worktree のセッションは元のリポジトリの名前で記録する" {
+  # 名前がスキルと食い違うと、除外の判定も記録の置き場所もずれる。
+  mkdir -p "$TEST_TMPDIR/home"
+  local wt="$TEST_TMPDIR/wt-123"
+  git -C "$GIT_REPO" worktree add -q -b feature "$wt"
+  run_hook "c17" "$wt" "$TX" >/dev/null
+  grep -qF "c17: 記録を開始（$(basename "$GIT_REPO")" "$TEST_TMPDIR/home/.distill/logs/record.log"
+}

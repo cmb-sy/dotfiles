@@ -372,11 +372,21 @@ URL に焼くと、存在しないブランチ名を頼りに記録を探すこ�
 sha があれば `distill stale` が「未反映の変更が何 commit あるか」を数えられる。
 無いと、古いかどうかを判定するために毎回全文を読み直すことになる。
 
-- `<リポジトリ名>` = `basename $(git rev-parse --show-toplevel)`
+- `<リポジトリ名>` = `$HOME/dotfiles/bin/distill-repo-name` が出す名前。概要.md の
+  `repo:` が今のリポジトリの origin と同じプロジェクトがあればそれ、無ければ元の
+  リポジトリのディレクトリ名（worktree でも元の名前）。ディレクトリ名だけで決めると、
+  名前を付け直したプロジェクトや worktree が別のプロジェクトとして割れる
 - 記録の frontmatter の `branch` は `git branch --show-current` の値を**そのまま**
   書く。`feat/new-ui` の `/` を置き換える必要はない（ディレクトリ名にしないため）
 - `概要.md` は**そのリポジトリで初回のときだけ**作る。既にあれば、コードが
   変わっていれば更新し、変わっていなければ触らない
+- **既にある概要を更新するときは、コードから書けない節を書き換えずに残す。**
+  業務や会議に由来する節（どういうサービスか・決まっていること・未決の論点・
+  次にやること・定例・参加者など）は、コードを読んでも正しく書けない。更新するのは
+  コードに由来する節と frontmatter の `sha` だけにする。消した節は取り戻せない
+- **frontmatter の `keep:` に名指しされた節は、見出しも本文も一字も変えない。**
+  どの節がコードに由来するかの判断に迷わないよう、人が残す節を列挙したもの
+  （例: `keep: [説明, いま何が決まっているか, 次にやること]`）。`keep:` 自体も消さない
 
 ### 1 セッション 1 ファイル。同じセッションで再実行したら書き直す
 
@@ -472,7 +482,9 @@ session: <CLAUDE_CODE_SESSION_ID の値>
 
 ### 1. 対象を確定する
 ```bash
-REPO=$(basename "$(git rev-parse --show-toplevel)")
+# 書き先のプロジェクト。概要.md の repo: が origin と同じプロジェクト → 元のリポジトリの
+# 名前（worktree でも元の名前）の順に決める。記録フックも同じスクリプトで決める。
+REPO=$("$HOME/dotfiles/bin/distill-repo-name" . 2>/dev/null || basename "$(git rev-parse --show-toplevel)")
 BRANCH=$(git branch --show-current | tr '/' '-')
 VAULT="$HOME/develop/distill-vault"
 ```

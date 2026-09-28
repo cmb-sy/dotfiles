@@ -267,7 +267,10 @@ if [ -z "$repo_root" ]; then
   remember "$recorded"
   exit 0
 fi
-repo=$(basename "$repo_root")
+# 書き先のプロジェクト名。スキルと同じ規則で決める（名前を付け直したプロジェクトや
+# worktree を、元のプロジェクトに寄せる）。取れなければリポジトリの名前。
+repo=$(/bin/bash "$HOOK_DIR/../../bin/distill-repo-name" "$repo_root" 2>/dev/null)
+[ -n "$repo" ] || repo=$(basename "$repo_root")
 
 # --- 判定 3: 前回の記録より後に会話があるか ---
 existing=$(records_of "$sid" | head -1)
