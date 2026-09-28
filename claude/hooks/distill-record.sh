@@ -75,11 +75,17 @@ frontmatter の session には ${sid} をそのまま入れてください。${n
   return 0
 }
 
-# ブロックリストのアカウントを実パスで 1 行ずつ出す。読めなければ失敗を返す。
+# ブロックリストのアカウントを実パスで 1 行ずつ出す。リストが通常の
+# ファイルとして読めない、または絶対パスにならない行があれば失敗を返す
+# （呼び出し側はすべてブロックする）。書き損じた 1 行を黙って捨てると、
+# そのアカウントが素通しになる。先頭の BOM はエディタが付けることがある。
+# 有効な行が 1 つも無いリストも失敗にする。誤って空にしただけで素通しになる。
 blocked_accounts() {
-  [ -r "$BLOCKLIST" ] || return 1
-  local line
+  [ -f "$BLOCKLIST" ] && [ -r "$BLOCKLIST" ] || return 1
+  local line bom found=0
+  bom=$(printf '\357\273\277')
   while IFS= read -r line || [ -n "$line" ]; do
+    line="${line#"$bom"}"
     line="${line%%#*}"
     line="${line%"${line##*[![:space:]]}"}"
     line="${line#"${line%%[![:space:]]*}"}"
@@ -87,8 +93,11 @@ blocked_accounts() {
     # 書かれた「~/」という文字を探す。シェルに展開させない。
     # shellcheck disable=SC2088
     case "$line" in "~/"*) line="$HOME/${line#"~/"}" ;; esac
+    case "$line" in /*) ;; *) return 1 ;; esac
     (cd "$line" 2>/dev/null && pwd -P) || printf '%s\n' "$line"
-  done <"$BLOCKLIST"
+    found=1
+  done <"$BLOCKLIST" || return 1
+  [ "$found" = 1 ]
 }
 
 # そのディレクトリがブロックしたアカウントの中か。実パスで比べる。
@@ -131,10 +140,11 @@ if [ "${1:-}" = "--write" ]; then
   write_record "$@"
   exit $?
 fi
-# 巡回がアカウントを走査する前に聞く。0 ならブロック。
+# 巡回がアカウントを走査する前に聞く。通してよいときだけ 3 を返す。
+# 1 は bash が異常終了したときにも返るので、「通す」の意味に使わない。
 if [ "${1:-}" = "--is-blocked-dir" ]; then
-  dir_blocked "${2:?ディレクトリが要る}"
-  exit $?
+  dir_blocked "${2:?ディレクトリが要る}" && exit 0
+  exit 3
 fi
 
 case "$MIN_EDITS" in
@@ -166,7 +176,12 @@ esac
 
 # --- 判定 0: 記録に使わないアカウントか ---
 # ブロックしたアカウントのセッションは、transcript を開く前に返す。状態も
-# ロックも作らない。ログにも session を残さない。
+# ロックも作らない。ログにも session を残さない。ブロックリスト自体が
+# 使えないときは、どのセッションも記録しない。
+if ! blocked_accounts >/dev/null; then
+  say "ブロックリストを読めない、空、または絶対パスにならない行がある（${BLOCKLIST}）。何も記録しない"
+  exit 0
+fi
 if session_blocked "$sid" "$tx"; then
   say "記録に使わないアカウントのセッション。何もしない"
   exit 0
@@ -177,7 +192,11 @@ fi
 # --- 同じ transcript を同時に判定しない（SessionEnd と巡回が重なる）---
 # 強制終了で残ったロックは 30 分で見限る。SessionEnd の hook は時間切れで殺される。
 lock="$STATE_DIR/${sid}.lock"
-find "$lock" -maxdepth 0 -mmin +30 -exec rmdir {} \; 2>/dev/null
+# 中にファイルが入っていても消す。rmdir で消せないロックが残ると、その
+# セッションは黙って記録されなくなる。
+if [ -n "$(find "$lock" -maxdepth 0 -mmin +30 2>/dev/null)" ]; then
+  rm -rf "$lock" && say "${sid}: 取り残されたロックを外した"
+fi
 mkdir "$lock" 2>/dev/null || exit 0
 trap 'rmdir "$lock" 2>/dev/null' EXIT
 
@@ -189,6 +208,9 @@ recorded="" seen=""
 [ -f "$state" ] && read -r recorded seen <"$state"
 case "$recorded" in '' | *[!0-9]*) recorded="" ;; esac
 case "$seen" in '' | *[!0-9]*) seen="" ;; esac
+# 桁あふれする値は壊れている。比較で落ちて、そのセッションが止まり続ける。
+[ "${#recorded}" -le 15 ] || recorded=""
+[ "${#seen}" -le 15 ] || seen=""
 
 # 前回判定したときから会話が伸びていなければ、判定も前回と同じになる。
 # 巡回は候補を毎回すべて渡してくるので、ここで黙って返す。
@@ -222,7 +244,14 @@ esac
 if [ -z "$cwd" ]; then
   cwd=$(grep -o '"cwd":"[^"]*"' "$tx" | tail -1 | sed 's/^"cwd":"//; s/"$//')
 fi
-repo_root=$(cd "${cwd:-.}" 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null)
+# 分からないときに今の場所で代用すると、巡回を起こした別のセッションの
+# リポジトリに紐付いてしまう。
+if [ -z "$cwd" ]; then
+  say "${sid}: 作業ディレクトリが分からない。記録しない"
+  remember "$recorded"
+  exit 0
+fi
+repo_root=$(cd "$cwd" 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null)
 if [ -z "$repo_root" ]; then
   say "${sid}: git リポジトリ外。記録しない"
   remember "$recorded"
@@ -254,7 +283,8 @@ continued=0
 # --- 判定 4: 実際に何かを変えたか ---
 # 会話しかしていない区間に記録を作ると、一覧が薄い記録で埋まる。届かない
 # 区間は捨てずに持ち越し、次の区間と合わせて数える。
-edits=$(tail -c +"$((recorded + 1))" "$tx" 2>/dev/null |
+# 区間は測った会話の終わりまで。後から足された分は次の区間で数える。
+edits=$(head -c "$upto" "$tx" 2>/dev/null | tail -c +"$((recorded + 1))" |
   grep -o '"name":"\(Edit\|Write\|NotebookEdit\)"' | wc -l | tr -d ' ')
 if [ "${edits:-0}" -lt "$MIN_EDITS" ]; then
   say "${sid}: 編集 ${edits} 件 < ${MIN_EDITS}。記録しない（${repo}）"
@@ -286,7 +316,7 @@ fi
 # 名前に位置を入れる。先に渡した書き込みがまだ digest を読んでいても潰さない。
 digest="$TMP_DIR/${sid}-${recorded}.md"
 rm -f "$digest"
-extract_out=$(/usr/bin/python3 "$EXTRACT" "$tx" "$digest" --from-byte "$recorded" 2>&1)
+extract_out=$(/usr/bin/python3 "$EXTRACT" "$tx" "$digest" --from-byte "$recorded" --to-byte "$upto" 2>&1)
 printf '%s\n' "$extract_out" >>"$LOG"
 if [ ! -s "$digest" ]; then
   say "${sid}: 会話を抽出できなかった。記録しない"

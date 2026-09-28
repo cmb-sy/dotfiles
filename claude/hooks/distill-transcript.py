@@ -18,7 +18,7 @@ earlier record is known (a record written by hand inside the session).
 An open session also keeps appending bookkeeping lines with no conversation,
 so --last-activity reports when and where the conversation itself ends.
 
-    distill-transcript.py <transcript.jsonl> <out.md> [--max-bytes N] [--from-byte N]
+    distill-transcript.py <transcript.jsonl> <out.md> [--max-bytes N] [--from-byte N] [--to-byte N]
     distill-transcript.py --offset-after <epoch> <transcript.jsonl>
     distill-transcript.py --last-activity <transcript.jsonl>...
 """
@@ -152,11 +152,17 @@ def last_activity(path: Path) -> tuple[float, int]:
     return 0.0, 0
 
 
-def digest(path: Path, start: int = 0) -> list[tuple[str, str]]:
-    """Return [(role, text)] in order. Unreadable lines are skipped."""
+def digest(path: Path, start: int = 0, stop: int | None = None) -> list[tuple[str, str]]:
+    """Return [(role, text)] in order. Unreadable lines are skipped.
+
+    `stop` bounds the part to read; lines starting at or after it are left
+    for the next record.
+    """
     turns: list[tuple[str, str]] = []
     with path.open("rb") as f:
-        for _, line in _lines_from(f, start):
+        for pos, line in _lines_from(f, start):
+            if stop is not None and pos >= stop:
+                break
             line = line.strip()
             if not line:
                 continue
@@ -201,6 +207,7 @@ def main() -> int:
     ap.add_argument("out", nargs="?")
     ap.add_argument("--max-bytes", type=int, default=120_000)
     ap.add_argument("--from-byte", type=int, default=0)
+    ap.add_argument("--to-byte", type=int)
     ap.add_argument("--offset-after", type=float, metavar="EPOCH")
     ap.add_argument("--last-activity", nargs="+", metavar="TRANSCRIPT")
     args = ap.parse_args()
@@ -208,6 +215,8 @@ def main() -> int:
         ap.error("--max-bytes は 1 以上")
     if args.from_byte < 0:
         ap.error("--from-byte は 0 以上")
+    if args.to_byte is not None and args.to_byte < 0:
+        ap.error("--to-byte は 0 以上")
 
     if args.last_activity:
         # 巡回は候補をまとめて 1 回で聞く。python の起動を候補ごとに払わない。
@@ -232,7 +241,7 @@ def main() -> int:
         return 0
     if args.out is None:
         ap.error("out が要る（--offset-after のときだけ省ける）")
-    turns = digest(src, args.from_byte)
+    turns = digest(src, args.from_byte, args.to_byte)
     if not turns:
         print("会話が取れなかった", file=sys.stderr)
         return 2

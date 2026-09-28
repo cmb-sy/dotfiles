@@ -50,6 +50,22 @@ export PATH
 mkdir -p "$(dirname "$LOG")" "$STATE_DIR"
 say() { printf '%s sweep: %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" >>"$LOG"; }
 
+# --- Stop フックからの入口 ---
+# 応答のたびに走るので速く返す。前回起こしてから INTERVAL_MIN 分たって
+# いなければ何もしない。たっていれば巡回を切り離して走らせ、待たずに返す
+# （応答の後処理を LLM の書き込みで待たせない）。どんな場合も 0 で返す。
+# Stop フックが 2 で返すと、Claude は止まらずに応答を続けさせられる。
+if [ "${1:-}" = "--kick" ]; then
+  case "$INTERVAL_MIN" in
+    '' | *[!0-9]* | 0) say "DISTILL_SWEEP_INTERVAL_MIN は 1 以上の整数にする（${INTERVAL_MIN}）"; exit 0 ;;
+  esac
+  stamp="$STATE_DIR/sweep.kicked"
+  [ -n "$(find "$stamp" -mmin -"$INTERVAL_MIN" 2>/dev/null)" ] && exit 0
+  touch "$stamp" 2>/dev/null
+  nohup /bin/bash "$SELF" </dev/null >/dev/null 2>&1 &
+  exit 0
+fi
+
 need_count() {
   case "$2" in
     '' | *[!0-9]*) ;;
@@ -64,25 +80,16 @@ need_count DISTILL_SWEEP_IDLE_MIN "$IDLE_MIN"
 need_count DISTILL_SWEEP_LOOKBACK_DAYS "$LOOKBACK_DAYS"
 need_count DISTILL_SWEEP_MAX "$MAX"
 
-# --- Stop フックからの入口 ---
-# 応答のたびに走るので速く返す。前回起こしてから INTERVAL_MIN 分たって
-# いなければ何もしない。たっていれば巡回を切り離して走らせ、待たずに返す
-# （応答の後処理を LLM の書き込みで待たせない）。
-if [ "${1:-}" = "--kick" ]; then
-  stamp="$STATE_DIR/sweep.kicked"
-  [ -n "$(find "$stamp" -mmin -"$INTERVAL_MIN" 2>/dev/null)" ] && exit 0
-  touch "$stamp"
-  nohup /bin/bash "$SELF" </dev/null >/dev/null 2>&1 &
-  exit 0
-fi
-
 [ -f "$HOOK" ] || { say "フックが無い（${HOOK}）"; exit 1; }
 
 # 巡回は 1 本だけ。応答が重なって 2 本起きても、後から来たほうは何もしない。
 # 書かせた記録の無人実行も Stop を起こすが、ここで止まる。強制終了で残った
 # ロックは 3 時間で見限る（1 件の書き込みは最長 30 分、上限 3 件）。
 lock="$STATE_DIR/sweep.lock"
-find "$lock" -maxdepth 0 -mmin +180 -exec rmdir {} \; 2>/dev/null
+# 中にファイルが入っていても消す。消せないロックが残ると巡回が黙って止まる。
+if [ -n "$(find "$lock" -maxdepth 0 -mmin +180 2>/dev/null)" ]; then
+  rm -rf "$lock" && say "取り残された巡回のロックを外した"
+fi
 mkdir "$lock" 2>/dev/null || exit 0
 trap 'rmdir "$lock" 2>/dev/null' EXIT
 
@@ -94,7 +101,9 @@ IFS=: read -r -a accounts <<<"$ACCOUNTS"
 for acct in "${accounts[@]}"; do
   # ブロックしたアカウントは走査もしない。transcript の名前も読まない。
   # 判定はフックと同じもの（ブロックリストを読めなければ、すべて止まる）。
-  /bin/bash "$RECORD_SH" --is-blocked-dir "$acct" && continue
+  # 通してよいのは 3 のときだけ。フックが見つからない・落ちたときも止める。
+  /bin/bash "$RECORD_SH" --is-blocked-dir "$acct"
+  [ $? -eq 3 ] || continue
   [ -d "$acct/projects" ] || continue
   # 手元の clp / clw と同じく、そのアカウントのトークンで動かす。無ければ
   # Keychain の資格情報に任せる。別アカウントのトークンは持ち込まない。
@@ -110,12 +119,15 @@ for acct in "${accounts[@]}"; do
     sid=$(basename "$tx" .jsonl)
     payload=$(/usr/bin/python3 -c 'import json, sys
 print(json.dumps({"session_id": sys.argv[1], "transcript_path": sys.argv[2]}))' "$sid" "$tx")
+    # トークンは代入の前置きで渡す。env の引数に置くと ps から見える。
     if [ -n "$token" ]; then
-      printf '%s' "$payload" | env CLAUDE_CONFIG_DIR="$acct" CLAUDE_CODE_OAUTH_TOKEN="$token" \
+      printf '%s' "$payload" | CLAUDE_CONFIG_DIR="$acct" CLAUDE_CODE_OAUTH_TOKEN="$token" \
         DISTILL_RECORD_FOREGROUND=1 /bin/bash "$HOOK"
     else
-      printf '%s' "$payload" | env -u CLAUDE_CODE_OAUTH_TOKEN CLAUDE_CONFIG_DIR="$acct" \
-        DISTILL_RECORD_FOREGROUND=1 /bin/bash "$HOOK"
+      printf '%s' "$payload" | (
+        unset CLAUDE_CODE_OAUTH_TOKEN
+        CLAUDE_CONFIG_DIR="$acct" DISTILL_RECORD_FOREGROUND=1 /bin/bash "$HOOK"
+      )
     fi
     # 10 は「書き込みを渡した」。それ以外は判定で落ちたか、既に済んでいる。
     if [ $? -eq 10 ]; then

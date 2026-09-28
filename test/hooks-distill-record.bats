@@ -482,8 +482,9 @@ run_blocked_hook() {
 }
 
 assert_untouched() {
-  local sid="$1" log="$TEST_TMPDIR/home/.distill/logs/record.log"
-  grep -qF "記録に使わないアカウントのセッション" "$log"
+  local sid="$1" why="${2:-記録に使わないアカウントのセッション}"
+  local log="$TEST_TMPDIR/home/.distill/logs/record.log"
+  grep -qF "$why" "$log"
   # session もログに残さない。状態もロックも作らない。
   local named
   named=$(grep -cF "$sid" "$log" || true)
@@ -548,7 +549,66 @@ assert_untouched() {
   setup_blocked
   rm -f "$TEST_TMPDIR/blocklist"
   run_blocked_hook "open-f" "$TX" || true
-  assert_untouched "open-f"
+  assert_untouched "open-f" "ブロックリストを読めない"
+}
+
+# 書き損じたブロックリストで黙って素通しにしない。ブロック先の transcript は
+# 読めない権限にして、開こうとしたら判定がそれとわかる形で崩れるようにする。
+blocklist_must_block() {
+  local sid="$1" why="$2" tx="$BLOCKED/projects/p/$1.jsonl"
+  cp "$TX" "$tx"
+  chmod 000 "$tx"
+  run_blocked_hook "$sid" "$tx" || true
+  chmod 600 "$tx"
+  assert_untouched "$sid" "$why"
+}
+
+@test "distill-record: ブロックリストがディレクトリなら何も記録しない" {
+  setup_blocked
+  rm -f "$TEST_TMPDIR/blocklist"
+  mkdir "$TEST_TMPDIR/blocklist"
+  blocklist_must_block "bl-dir" "ブロックリストを読めない"
+}
+
+@test "distill-record: 先頭に BOM があってもブロック先として読む" {
+  # エディタが保存時に付けることがある。付くと 1 行目が別の文字列になる。
+  setup_blocked
+  printf '\357\273\277%s\n' "$BLOCKED" >"$TEST_TMPDIR/blocklist"
+  blocklist_must_block "bl-bom" "記録に使わないアカウントのセッション"
+}
+
+@test "distill-record: 空のブロックリストでは何も記録しない" {
+  # 誤って空にしただけで、ブロックしていたアカウントが素通しになる。
+  setup_blocked
+  local body
+  for body in "" "# 注釈だけ\n\n"; do
+    printf "$body" >"$TEST_TMPDIR/blocklist"
+    blocklist_must_block "bl-empty-${#body}" "ブロックリストを読めない、空"
+  done
+}
+
+@test "distill-record: 絶対パスにならない行があれば何も記録しない" {
+  # 相対パスは作業ディレクトリで意味が変わる。$HOME の文字は展開しない。
+  setup_blocked
+  local bad
+  for bad in "acct-private" '$HOME/.claude-private'; do
+    printf '%s\n%s\n' "$BLOCKED" "$bad" >"$TEST_TMPDIR/blocklist"
+    blocklist_must_block "bl-rel-${#bad}" "絶対パスにならない行がある"
+  done
+}
+
+@test "distill-record: 通してよいときだけ 3 を返す（--is-blocked-dir）" {
+  # 1 は bash が異常終了したときにも返る。巡回はこれを「通す」と読まない。
+  setup_blocked
+  local rc
+  rc=0
+  env HOME="$TEST_TMPDIR/home" DISTILL_RECORD_BLOCKLIST="$TEST_TMPDIR/blocklist" \
+    bash "$SCRIPT" --is-blocked-dir "$BLOCKED" || rc=$?
+  [ "$rc" -eq 0 ]
+  rc=0
+  env HOME="$TEST_TMPDIR/home" DISTILL_RECORD_BLOCKLIST="$TEST_TMPDIR/blocklist" \
+    bash "$SCRIPT" --is-blocked-dir "$TEST_TMPDIR/home" || rc=$?
+  [ "$rc" -eq 3 ]
 }
 
 @test "distill-record: ブロック先でないセッションは注釈つきのリストでも記録する" {
@@ -560,4 +620,48 @@ assert_untouched() {
 @test "distill-record: private アカウントはブロックリストに載っている" {
   # 記録に一切使わないと決めたアカウント。行が消えると SessionEnd から記録が始まる。
   grep -qx '~/.claude-private' "${BATS_TEST_DIRNAME}/../claude/hooks/distill-record.blocklist"
+}
+
+@test "distill-record: 取り残されたロックは中身があっても外す" {
+  # rmdir で消せないロックが残ると、そのセッションは黙って記録されなくなる。
+  local lock="$TEST_TMPDIR/home/.distill/state/record/c13.lock"
+  mkdir -p "$lock"
+  : >"$lock/.DS_Store"
+  touch -t "$(date -v-31M +%Y%m%d%H%M)" "$lock"
+  make_fake_claude
+  run_hook_fg "c13" "$GIT_REPO" "$TX" || true
+  [ "$(calls)" -eq 1 ]
+  grep -qF "c13: 取り残されたロックを外した" "$TEST_TMPDIR/home/.distill/logs/record.log"
+}
+
+@test "distill-record: 桁あふれした状態は壊れたものとして読み直す" {
+  mkdir -p "$TEST_TMPDIR/home/.distill/state/record"
+  printf '99999999999999999999 99999999999999999999\n' >"$TEST_TMPDIR/home/.distill/state/record/c14"
+  make_fake_claude
+  run_hook_fg "c14" "$GIT_REPO" "$TX" || true
+  [ "$(calls)" -eq 1 ]
+}
+
+@test "distill-record: 作業ディレクトリが分からないセッションは記録しない" {
+  # 今の場所で代用すると、巡回を起こした別のセッションのリポジトリに紐付く。
+  mkdir -p "$TEST_TMPDIR/home"
+  make_fake_claude
+  printf '{"session_id":"c15","transcript_path":"%s"}' "$TX" \
+    | (cd "$GIT_REPO" && HOME="$TEST_TMPDIR/home" PATH="$TEST_TMPDIR/bin:$PATH" \
+        DISTILL_RECORD_FOREGROUND=1 FAKE_CLAUDE_CALLS="$TEST_TMPDIR/calls" bash "$SCRIPT") \
+    >/dev/null 2>&1 || true
+  grep -qF "c15: 作業ディレクトリが分からない" "$TEST_TMPDIR/home/.distill/logs/record.log"
+  [ "$(calls)" -eq 0 ]
+}
+
+@test "distill-transcript: --to-byte より後の行は読まない" {
+  # 会話の終わりを測ったあとに足された行は、次の区間に回す。
+  local out="$TEST_TMPDIR/digest.md" stop
+  stop=$(head -2 "$TX" | wc -c | tr -d ' ')
+  printf '%s\n' '{"type":"user","message":{"content":"後から来た依頼"}}' >>"$TX"
+  /usr/bin/python3 "$EXTRACT" "$TX" "$out" --to-byte "$stop" >/dev/null
+  grep -qF "直しました" "$out"
+  local late
+  late=$(grep -cF "後から来た依頼" "$out" || true)
+  [ "$late" -eq 0 ]
 }

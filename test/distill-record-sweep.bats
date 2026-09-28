@@ -136,7 +136,7 @@ called() { local n; n=$(grep -c "^$1 " "$CALLS" 2>/dev/null) || true; echo "${n:
   put_tx "$ACCT_A/projects/p/idle.jsonl" 180
   local bad
   for bad in "DISTILL_SWEEP_MAX=abc" "DISTILL_SWEEP_MAX=0" "DISTILL_SWEEP_IDLE_MIN=1.5" \
-    "DISTILL_SWEEP_LOOKBACK_DAYS=-1" "DISTILL_SWEEP_INTERVAL_MIN=0"; do
+    "DISTILL_SWEEP_LOOKBACK_DAYS=-1"; do
     run_sweep "$bad"
     [ "$status" -eq 2 ]
   done
@@ -271,4 +271,47 @@ wait_sweep() {
   run_sweep
   [ "$(called idle)" -eq 1 ]
   [ ! -e "$FAKE_HOME/.distill/state/sweep.lock" ]
+}
+
+@test "sweep: --kick は設定が壊れていても 0 で返す" {
+  # Stop フックが 2 で返すと、Claude は止まらずに応答を続けさせられる。
+  local bad rc
+  for bad in "DISTILL_SWEEP_INTERVAL_MIN=0" "DISTILL_SWEEP_INTERVAL_MIN=x" "DISTILL_SWEEP_MAX=abc"; do
+    rc=0
+    kick "$bad" || rc=$?
+    [ "$rc" -eq 0 ]
+  done
+  grep -qF "DISTILL_SWEEP_INTERVAL_MIN は 1 以上" "$FAKE_HOME/.distill/logs/record.log"
+  # 壊れた MAX で起きた巡回は、自分で止まって何も書かせない。
+  sleep 1
+  [ ! -e "$CALLS" ]
+}
+
+@test "sweep: トークンをコマンドの引数に載せない" {
+  # 引数は ps から誰でも見える。env を偽物にして、渡された引数を残させる。
+  put_tx "$ACCT_A/projects/p/in-a.jsonl" 180
+  printf 'token-a' >"$ACCT_A/oauth-token"
+  mkdir -p "$TEST_TMPDIR/bin"
+  printf '#!/bin/bash\nprintf "%%s\\n" "$@" >>"%s"\nexec /usr/bin/env "$@"\n' "$TEST_TMPDIR/env-argv" >"$TEST_TMPDIR/bin/env"
+  chmod +x "$TEST_TMPDIR/bin/env"
+  run_sweep PATH="$TEST_TMPDIR/bin:$PATH"
+  grep -qE '^in-a acct-a token-a ' "$CALLS"
+  local leaked
+  leaked=$(cat "$TEST_TMPDIR/env-argv" 2>/dev/null | grep -cF token-a || true)
+  [ "$leaked" -eq 0 ]
+}
+
+@test "sweep: 取り残された巡回のロックは中身があっても外す" {
+  put_tx "$ACCT_A/projects/p/idle.jsonl" 180
+  mkdir -p "$FAKE_HOME/.distill/state/sweep.lock"
+  : >"$FAKE_HOME/.distill/state/sweep.lock/.DS_Store"
+  touch -t "$(date -v-181M +%Y%m%d%H%M)" "$FAKE_HOME/.distill/state/sweep.lock"
+  run_sweep
+  [ "$(called idle)" -eq 1 ]
+  grep -qF "取り残された巡回のロックを外した" "$FAKE_HOME/.distill/logs/record.log"
+}
+
+@test "sweep: ブロック判定が 3 以外を返したアカウントは走査しない" {
+  # 1 は bash の異常終了でも返る。「通す」は 3 だけ。
+  grep -qF '[ $? -eq 3 ] || continue' "$SWEEP"
 }
