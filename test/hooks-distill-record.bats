@@ -178,7 +178,7 @@ n=$(wc -l <"$calls" | tr -d ' ')
 printf '%s\n' "$prompt" >"$calls.prompt.$n"
 cp "$digest" "$calls.digest.$n"
 [ -n "${FAKE_CLAUDE_NOWRITE:-}" ] && exit 0
-dest="$HOME/develop/distill-vault/プロジェクト/$(basename "$PWD")/記録"
+dest="$HOME/develop/distill-vault/プロジェクト/${FAKE_CLAUDE_PROJECT:-$(basename "$PWD")}/記録"
 mkdir -p "$dest"
 f=$(grep -l "^session: ${sid}\$" "$dest"/*.md 2>/dev/null | head -1)
 [ -n "$f" ] || f="$dest/2026-01-01-0000.md"
@@ -664,4 +664,20 @@ blocklist_must_block() {
   local late
   late=$(grep -cF "後から来た依頼" "$out" || true)
   [ "$late" -eq 0 ]
+}
+
+@test "distill-record: スキルが別のプロジェクトに置いた記録も書けたと判定する" {
+  # worktree（例: dxp-2266）の記録を、スキルは元のプロジェクト（dxp）に寄せる。
+  # フックがリポジトリ名の下だけを探すと、書けたのに失敗と記録する。
+  mkdir -p "$TEST_TMPDIR/home"
+  make_fake_claude
+  FAKE_CLAUDE_PROJECT=base-proj run_hook_fg "c16" "$GIT_REPO" "$TX" || true
+  grep -qF "c16: 記録を書いた" "$TEST_TMPDIR/home/.distill/logs/record.log"
+  # 続きも、その記録を既存として書き足させる。
+  append_turn "$TX" "続きの依頼"
+  FAKE_CLAUDE_PROJECT=base-proj run_hook_fg "c16" "$GIT_REPO" "$TX" || true
+  grep -qF "続きを書き足して" "$TEST_TMPDIR/calls.prompt.2"
+  local failed
+  failed=$(grep -cF "c16: 記録が作られなかった" "$TEST_TMPDIR/home/.distill/logs/record.log" || true)
+  [ "$failed" -eq 0 ]
 }

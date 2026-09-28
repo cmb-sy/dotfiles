@@ -45,10 +45,19 @@ command -v gtimeout >/dev/null && TIMEOUT_BIN="gtimeout -k 30 1800"
 mkdir -p "$LOG_DIR" "$TMP_DIR" "$STATE_DIR"
 say() { printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" >>"$LOG"; }
 
+# そのセッションの記録ファイルを出す。どのプロジェクトの下にあってもよい。
+# 2 つ目以降の引数は find の条件（-newer など）。
+records_of() {
+  local sid="$1"
+  shift
+  find "$VAULT/プロジェクト" -mindepth 3 -maxdepth 3 -path '*/記録/*.md' "$@" \
+    -exec grep -l "^session: ${sid}\$" {} + 2>/dev/null
+}
+
 # 書き込み本体。detach した先でも、巡回の前景でも同じものを走らせる。
 write_record() {
   local sid="$1" repo_root="$2" repo="$3" digest="$4" continued="$5"
-  local dest="$VAULT/プロジェクト/${repo}/記録" mark="${digest%.md}.start" note=""
+  local mark="${digest%.md}.start" note=""
   : >"$mark"
   if [ "$continued" = 1 ]; then
     note="このセッションには既に記録があります。digest には前回の記録より後の\
@@ -64,8 +73,9 @@ frontmatter の session には ${sid} をそのまま入れてください。${n
   # 終了コードは信じない。支出上限などで API に拒否されても claude は 0 で
   # 抜けるため、成功と区別できない。記録が書き換わったかで判定する。
   # 続きを書き足すときは記録が既にあるので、有無ではなく更新を見る。
-  if find "$dest" -maxdepth 1 -name '*.md' -newer "$mark" \
-       -exec grep -l "^session: ${sid}\$" {} + 2>/dev/null | grep -q .; then
+  # 置き場所はスキルが決める（worktree 名ではなく元のプロジェクトに寄せる）
+  # ので、プロジェクトを決め打ちせずに全体から探す。
+  if records_of "$sid" -newer "$mark" | grep -q .; then
     say "${sid}: 記録を書いた"
   else
     say "${sid}: 記録が作られなかった（直前のログを見る）"
@@ -260,8 +270,7 @@ fi
 repo=$(basename "$repo_root")
 
 # --- 判定 3: 前回の記録より後に会話があるか ---
-existing=$(find "$VAULT/プロジェクト/${repo}/記録" -maxdepth 1 -name '*.md' \
-  -exec grep -l "^session: ${sid}\$" {} + 2>/dev/null | head -1)
+existing=$(records_of "$sid" | head -1)
 if [ -z "$recorded" ]; then
   recorded=0
   if [ -n "$existing" ]; then
