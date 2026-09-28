@@ -133,14 +133,21 @@ stale, undated = m.plan_purge(datetime.date.today(), open_urls)
 
 削除したファイルは Step 7 の commit に含まれる。
 
-### Step 2.7: 1 週間を過ぎた作業記録とダイジェストを捨てる
+### Step 2.7: 古い作業記録とダイジェストを捨てる
 
-distill の正本（`$HOME/develop/distill-vault`）から、7 日より前の
-`プロジェクト/*/記録/*.md` と `情報収集/*.md` を削除する。**承認は求めず、そのまま実行する。**
+distill の正本（`$HOME/develop/distill-vault`）から、14 日より前の
+`プロジェクト/*/記録/*.md` と 7 日より前の `情報収集/*.md` を削除する。
+**承認は求めず、そのまま実行する。**
 
 ```bash
-~/develop/other/distill-of-ai-process/.venv/bin/distill purge --days 7 --apply
+~/develop/other/distill-of-ai-process/.venv/bin/distill purge --apply
 ```
+
+- 日数は purge の既定値（記録 14 日・情報収集 7 日）に任せ、`--record-days` /
+  `--digest-days` を付けない。launchd の `com.distill.purge` が毎朝 07:00 に同じ
+  コマンドを動かしているので、ここで指定すると両者の日数が食い違う
+- 毎朝のジョブが先に消しているため、通常は削除 0 件になる。電源が切れていて
+  朝のジョブが走らなかった日の取りこぼしを拾う
 
 - 記録とダイジェストはその日の作業を写したもので、要点は `概要.md` と学習メモへ移った後。
   原文を残し続けると一覧が埋まり、読むべきものが見えなくなる
