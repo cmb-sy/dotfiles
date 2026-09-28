@@ -315,3 +315,18 @@ wait_sweep() {
   # 1 は bash の異常終了でも返る。「通す」は 3 だけ。
   grep -qF '[ $? -eq 3 ] || continue' "$SWEEP"
 }
+
+@test "sweep: Stop フックが --kick で起こす" {
+  # 応答が終わるたびに起こす。外れると、閉じないセッションがまた記録されなくなる。
+  run /usr/bin/python3 -c "
+import json
+d = json.load(open('$REPO_DIR/claude/settings.json'))
+hits = [h for g in d['hooks']['Stop'] for h in g['hooks']
+        if 'bin/distill-record-sweep' in h.get('command', '') and '--kick' in h['command']]
+assert len(hits) == 1, hits
+# 応答の後処理を待たせない。--kick はすぐ返るので短くてよい。
+assert hits[0].get('timeout', 60) <= 10, hits[0]
+print('ok')
+"
+  [ "$status" -eq 0 ]
+}
