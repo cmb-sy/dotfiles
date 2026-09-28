@@ -32,7 +32,7 @@ github:
   - repo: netresearch/agent-system-evals
     note: how to measure agent behaviour; the layer my bats suite lacks
   - repo: cjpais/Handy
-    note: releases only — local is 0.8.3 and upstream moves without me noticing
+    note: releases only — upstream moves without me noticing. Check the local version in /Applications/Handy.app Info.plist (CFBundleShortVersionString), never a fixed number here
   - repo: ollama/ollama
     note: releases only — new versions of the free local runtime behind Handy voice post-processing
 
@@ -53,14 +53,15 @@ services:
     note: vault workflow foundation
   - name: Databricks
     url: https://docs.databricks.com/aws/en/release-notes/product/
-    note: 業務の中核。Databricks-Analysis / data-platform / 白書自動化がすべて依存する。Delta Lake・VIEW・Genie・SQL 関数の挙動変更は直接影響する
+    note: 業務の中核。Databricks-Analysis / data-platform / 白書自動化がすべて依存する。Delta Lake・VIEW・Genie・SQL 関数の挙動変更は直接影響する。この一覧ページには日付が無い。日付は月別ページ（/release-notes/product/YYYY/{month}）にあるので、収集時はリンクを辿る
   - name: Databricks SQL
     url: https://docs.databricks.com/aws/en/sql/release-notes/
     note: VIEW のスキーマ固定や Delta の読み取り挙動はここに出る。2026-09-02 の 5 時間障害は VIEW のスキーマ変更が原因だった
   - name: Claude system prompt
     url: https://platform.claude.com/docs/en/release-notes/system-prompts/overview.md
-    note: the page dates its entries. The .md body would also diff cleanly between
-      versions, but nothing here compares versions yet -- it is read as a changelog
+    note: this overview has no dates -- it only links to per-model pages, which carry
+      the dates. Follow those links when collecting. The .md body would also diff cleanly
+      between versions, but nothing here compares versions yet -- it is read as a changelog
 
 # Engineers to follow via blog (RSS) and SNS (best-effort)
 engineers:
