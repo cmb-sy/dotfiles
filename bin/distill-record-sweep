@@ -1,0 +1,134 @@
+#!/bin/bash
+# 開いたままのセッションを distill の記録に回す。Claude が応答し終えるたびに
+# Stop フックが --kick で起こす（claude/settings.json）。
+#
+# 記録の引き金が SessionEnd だけだと、閉じないセッション（herdr のペインで
+# 何日も開いたまま）は永久に記録されない。会話が止まって一定時間たったら
+# 「一区切りついた」とみなし、SessionEnd と同じフックに渡す。判定・二重記録の
+# 防止・続きだけを書く処理はフック側にある。
+#
+# フックは何かが起きたときにしか走らないので、会話が止まったままであることは
+# そのセッション自身の Stop では見えない。応答が終わるたびに、ほかの
+# セッションも含めて止まったものを探しに行く。Claude を使っていない間は
+# 何も走らない。
+#
+# 書き込みは 1 件ずつ終わるのを待ってから次へ進む。同時に書かせると 用語.md を
+# 取り合う。1 回に書かせる件数には上限を置き、残りは次の巡回に回す。
+#
+#   distill-record-sweep --kick                       間が空いていれば裏で巡回し、すぐ返す
+#   distill-record-sweep                              いま巡回する
+#   DISTILL_RECORD_DRY_RUN=1 distill-record-sweep     書かずに対象だけ判定する
+set -uo pipefail
+
+SELF="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+RECORD_SH="$DOTFILES_DIR/claude/hooks/distill-record.sh"
+HOOK="${DISTILL_SWEEP_HOOK:-$RECORD_SH}"
+EXTRACT="$DOTFILES_DIR/claude/hooks/distill-transcript.py"
+# --kick が巡回を起こす最短の間隔（分）。応答のたびに走査しない。
+INTERVAL_MIN="${DISTILL_SWEEP_INTERVAL_MIN:-30}"
+# 会話が止まってから記録に回すまでの分数。昼休みの中断で細切れにしない長さ。
+IDLE_MIN="${DISTILL_SWEEP_IDLE_MIN:-120}"
+# これより前から止まっているものは見ない。初回に過去を丸ごと書かせないため。
+LOOKBACK_DAYS="${DISTILL_SWEEP_LOOKBACK_DAYS:-7}"
+# 1 回の巡回で書かせる件数の上限。1 件ごとに LLM を 1 回起こす。
+MAX="${DISTILL_SWEEP_MAX:-3}"
+# アカウントごとの設定ディレクトリ（.aliases.sh の CLAUDE_ACCOUNT_*_DIR と同じ
+# 既定）。~/.claude はどちらかへの symlink なので数えない。記録に使わない
+# アカウントは claude/hooks/distill-record.blocklist で止める（ここから外すだけ
+# では、SessionEnd の経路が残る）。
+ACCOUNTS="${DISTILL_SWEEP_ACCOUNTS:-$HOME/.claude-private:$HOME/.claude-work}"
+STATE_DIR="$HOME/.distill/state"
+LOG="$HOME/.distill/logs/record.log"
+
+# 最小の環境（cron など）から起こしても claude と gtimeout を見つけられる
+# ように Homebrew を足す。後ろに足す。前に足すと、呼び出し側が PATH で
+# 差し替えた claude より優先される。
+PATH="$PATH:/opt/homebrew/bin:/usr/local/bin"
+export PATH
+
+mkdir -p "$(dirname "$LOG")" "$STATE_DIR"
+say() { printf '%s sweep: %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" >>"$LOG"; }
+
+need_count() {
+  case "$2" in
+    '' | *[!0-9]*) ;;
+    *) [ "$2" -ge 1 ] && return 0 ;;
+  esac
+  say "${1} は 1 以上の整数にする（${2}）"
+  echo "distill-record-sweep: ${1} は 1 以上の整数にする（${2}）" >&2
+  exit 2
+}
+need_count DISTILL_SWEEP_INTERVAL_MIN "$INTERVAL_MIN"
+need_count DISTILL_SWEEP_IDLE_MIN "$IDLE_MIN"
+need_count DISTILL_SWEEP_LOOKBACK_DAYS "$LOOKBACK_DAYS"
+need_count DISTILL_SWEEP_MAX "$MAX"
+
+# --- Stop フックからの入口 ---
+# 応答のたびに走るので速く返す。前回起こしてから INTERVAL_MIN 分たって
+# いなければ何もしない。たっていれば巡回を切り離して走らせ、待たずに返す
+# （応答の後処理を LLM の書き込みで待たせない）。
+if [ "${1:-}" = "--kick" ]; then
+  stamp="$STATE_DIR/sweep.kicked"
+  [ -n "$(find "$stamp" -mmin -"$INTERVAL_MIN" 2>/dev/null)" ] && exit 0
+  touch "$stamp"
+  nohup /bin/bash "$SELF" </dev/null >/dev/null 2>&1 &
+  exit 0
+fi
+
+[ -f "$HOOK" ] || { say "フックが無い（${HOOK}）"; exit 1; }
+
+# 巡回は 1 本だけ。応答が重なって 2 本起きても、後から来たほうは何もしない。
+# 書かせた記録の無人実行も Stop を起こすが、ここで止まる。強制終了で残った
+# ロックは 3 時間で見限る（1 件の書き込みは最長 30 分、上限 3 件）。
+lock="$STATE_DIR/sweep.lock"
+find "$lock" -maxdepth 0 -mmin +180 -exec rmdir {} \; 2>/dev/null
+mkdir "$lock" 2>/dev/null || exit 0
+trap 'rmdir "$lock" 2>/dev/null' EXIT
+
+now=$(date +%s)
+idle_before=$((now - IDLE_MIN * 60))
+since=$((now - LOOKBACK_DAYS * 86400))
+dispatched=0
+IFS=: read -r -a accounts <<<"$ACCOUNTS"
+for acct in "${accounts[@]}"; do
+  # ブロックしたアカウントは走査もしない。transcript の名前も読まない。
+  # 判定はフックと同じもの（ブロックリストを読めなければ、すべて止まる）。
+  /bin/bash "$RECORD_SH" --is-blocked-dir "$acct" && continue
+  [ -d "$acct/projects" ] || continue
+  # 手元の clp / clw と同じく、そのアカウントのトークンで動かす。無ければ
+  # Keychain の資格情報に任せる。別アカウントのトークンは持ち込まない。
+  token=""
+  [ -r "$acct/oauth-token" ] && token=$(cat "$acct/oauth-token")
+  # 深さ 2 だけを見る。サブエージェントの transcript はその下にあり、会話の
+  # 本体ではない。開いたままのセッションは会話が無くても管理用の行を足し
+  # 続けるので、更新時刻は候補を絞るだけに使い、止まったかどうかは最後の
+  # 会話の時刻で見る。止まってから長いものを先に渡し、上限で打ち切るときは
+  # 待たせたものを先に書く。
+  while IFS=$'\t' read -r _ _ tx; do
+    [ -n "$tx" ] || continue
+    sid=$(basename "$tx" .jsonl)
+    payload=$(/usr/bin/python3 -c 'import json, sys
+print(json.dumps({"session_id": sys.argv[1], "transcript_path": sys.argv[2]}))' "$sid" "$tx")
+    if [ -n "$token" ]; then
+      printf '%s' "$payload" | env CLAUDE_CONFIG_DIR="$acct" CLAUDE_CODE_OAUTH_TOKEN="$token" \
+        DISTILL_RECORD_FOREGROUND=1 /bin/bash "$HOOK"
+    else
+      printf '%s' "$payload" | env -u CLAUDE_CODE_OAUTH_TOKEN CLAUDE_CONFIG_DIR="$acct" \
+        DISTILL_RECORD_FOREGROUND=1 /bin/bash "$HOOK"
+    fi
+    # 10 は「書き込みを渡した」。それ以外は判定で落ちたか、既に済んでいる。
+    if [ $? -eq 10 ]; then
+      dispatched=$((dispatched + 1))
+      if [ "$dispatched" -ge "$MAX" ]; then
+        say "上限 ${MAX} 件に達した。残りは次の巡回で書く"
+        exit 0
+      fi
+    fi
+  done < <(find "$acct/projects" -mindepth 2 -maxdepth 2 -name '*.jsonl' \
+    -mtime "-$LOOKBACK_DAYS" -print0 2>/dev/null |
+    xargs -0 /usr/bin/python3 "$EXTRACT" --last-activity 2>/dev/null |
+    awk -F'\t' -v since="$since" -v before="$idle_before" '$1 >= since && $1 <= before' |
+    sort -n)
+done
+exit 0

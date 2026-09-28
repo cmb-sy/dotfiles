@@ -73,6 +73,9 @@ run_hook() {
   printf -- '---\nsession: s5\n---\n# 既存\n' > "$rec/2026-01-01-0000.md"
   run_hook "s5" "$GIT_REPO" "$TX" >/dev/null
   grep -qF "既に記録がある" "$TEST_TMPDIR/home/.distill/logs/record.log"
+  local started
+  started=$(grep -cF "記録を開始" "$TEST_TMPDIR/home/.distill/logs/record.log" || true)
+  [ "$started" -eq 0 ]
 }
 
 @test "distill-record: 日本語に接する変数参照は中括弧で閉じる" {
@@ -153,4 +156,408 @@ run_hook() {
   prompt_line=$(grep -n 'claude -p' "$SCRIPT" | head -1 | cut -d: -f1)
   add_dir_line=$(grep -n -- '--add-dir' "$SCRIPT" | head -1 | cut -d: -f1)
   [ "$add_dir_line" -gt "$prompt_line" ]
+}
+
+# --- 開いたままのセッションを何度かに分けて記録する -----------------------
+#
+# 巡回（bin/distill-record-sweep）は同じセッションを何度も渡してくる。
+# どこまで書いたかを覚えていないと、同じ会話を書き直すか、続きを落とす。
+
+# 書き込みまで走らせる。claude は偽物に差し替え、渡されたプロンプトと digest を
+# 手元に残して、記録を 1 つ書く（FAKE_CLAUDE_NOWRITE なら書かない）。
+make_fake_claude() {
+  mkdir -p "$TEST_TMPDIR/bin"
+  cat >"$TEST_TMPDIR/bin/claude" <<'SH'
+#!/bin/bash
+prompt="$2"
+calls="$FAKE_CLAUDE_CALLS"
+digest=$(printf '%s' "$prompt" | sed -n "s/.*会話の代わりに '\([^']*\)'.*/\1/p")
+sid=$(printf '%s' "$prompt" | sed -n 's/.*session には \([A-Za-z0-9_-]*\) を.*/\1/p')
+printf '%s\n' "$sid" >>"$calls"
+n=$(wc -l <"$calls" | tr -d ' ')
+printf '%s\n' "$prompt" >"$calls.prompt.$n"
+cp "$digest" "$calls.digest.$n"
+[ -n "${FAKE_CLAUDE_NOWRITE:-}" ] && exit 0
+dest="$HOME/develop/distill-vault/プロジェクト/$(basename "$PWD")/記録"
+mkdir -p "$dest"
+f=$(grep -l "^session: ${sid}\$" "$dest"/*.md 2>/dev/null | head -1)
+[ -n "$f" ] || f="$dest/2026-01-01-0000.md"
+{ printf -- '---\nsession: %s\n---\n' "$sid"; cat "$digest"; } >"$f"
+SH
+  chmod +x "$TEST_TMPDIR/bin/claude"
+}
+
+# 前景で走らせ、終了コードを返す。10 は「書き込みを渡した」。
+run_hook_fg() {
+  local sid="$1" cwd="$2" tx="$3"
+  printf '{"session_id":"%s","cwd":"%s","transcript_path":"%s"}' "$sid" "$cwd" "$tx" \
+    | HOME="$TEST_TMPDIR/home" PATH="$TEST_TMPDIR/bin:$PATH" DISTILL_RECORD_FOREGROUND=1 \
+      FAKE_CLAUDE_CALLS="$TEST_TMPDIR/calls" bash "$SCRIPT" >/dev/null 2>&1
+}
+
+calls() { [ -f "$TEST_TMPDIR/calls" ] && wc -l <"$TEST_TMPDIR/calls" | tr -d ' ' || echo 0; }
+
+# 会話 1 往復と編集 3 件を足す。
+append_turn() {
+  local tx="$1" text="$2"
+  {
+    printf '{"type":"user","message":{"content":"%s"}}\n' "$text"
+    printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"text","text":"対応しました"}]}}'
+    printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Edit"}]}}'
+    printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Edit"}]}}'
+    printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Write"}]}}'
+  } >>"$tx"
+}
+
+@test "distill-record: 2 回目は前回の記録より後の会話だけを渡す" {
+  mkdir -p "$TEST_TMPDIR/home"
+  make_fake_claude
+  local rc=0
+  run_hook_fg "c1" "$GIT_REPO" "$TX" || rc=$?
+  [ "$rc" -eq 10 ]
+  grep -qF "直してください" "$TEST_TMPDIR/calls.digest.1"
+  grep -qF "記録を書いた" "$TEST_TMPDIR/home/.distill/logs/record.log"
+
+  append_turn "$TX" "続きをお願いします"
+  rc=0
+  run_hook_fg "c1" "$GIT_REPO" "$TX" || rc=$?
+  [ "$rc" -eq 10 ]
+  grep -qF "続きをお願いします" "$TEST_TMPDIR/calls.digest.2"
+  local old
+  old=$(grep -cF "直してください" "$TEST_TMPDIR/calls.digest.2" || true)
+  [ "$old" -eq 0 ]
+  # 既存の記録へ書き足させる。新しい記録として書かせると 1 セッションが割れる。
+  grep -qF "続きを書き足して" "$TEST_TMPDIR/calls.prompt.2"
+  local first
+  first=$(grep -cF "続きを書き足して" "$TEST_TMPDIR/calls.prompt.1" || true)
+  [ "$first" -eq 0 ]
+}
+
+@test "distill-record: 伸びていない transcript は黙って飛ばす" {
+  # 巡回は 30 分ごとに同じ候補を渡す。毎回ログを足すと読めなくなる。
+  mkdir -p "$TEST_TMPDIR/home"
+  make_fake_claude
+  run_hook_fg "c2" "$GIT_REPO" "$TX" || true
+  local before after
+  before=$(wc -l <"$TEST_TMPDIR/home/.distill/logs/record.log")
+  run_hook_fg "c2" "$GIT_REPO" "$TX" || true
+  after=$(wc -l <"$TEST_TMPDIR/home/.distill/logs/record.log")
+  [ "$before" -eq "$after" ]
+  [ "$(calls)" -eq 1 ]
+}
+
+@test "distill-record: 管理用の行が増えただけなら判定し直さない" {
+  # 開いたままのセッションは会話が無くても mode などを足し続ける。大きさで
+  # 見ると、足されるたびに判定をやり直してログを埋める。
+  mkdir -p "$TEST_TMPDIR/home"
+  make_fake_claude
+  run_hook_fg "c2b" "$GIT_REPO" "$TX" || true
+  local before after
+  before=$(wc -l <"$TEST_TMPDIR/home/.distill/logs/record.log")
+  printf '%s\n' '{"type":"mode","mode":"normal"}' '{"type":"last-prompt","lastPrompt":"x"}' >>"$TX"
+  run_hook_fg "c2b" "$GIT_REPO" "$TX" || true
+  after=$(wc -l <"$TEST_TMPDIR/home/.distill/logs/record.log")
+  [ "$before" -eq "$after" ]
+  [ "$(calls)" -eq 1 ]
+}
+
+@test "distill-record: 書かせた区間は失敗しても書かせ直さない" {
+  # 支出上限で断られ続けると、巡回のたびに LLM を起こすことになる。
+  mkdir -p "$TEST_TMPDIR/home"
+  make_fake_claude
+  FAKE_CLAUDE_NOWRITE=1 run_hook_fg "c3" "$GIT_REPO" "$TX" || true
+  grep -qF "記録が作られなかった" "$TEST_TMPDIR/home/.distill/logs/record.log"
+  # 状態を消さない限り、同じ transcript をもう一度渡しても起動しない。
+  FAKE_CLAUDE_NOWRITE=1 run_hook_fg "c3" "$GIT_REPO" "$TX" || true
+  [ "$(calls)" -eq 1 ]
+}
+
+@test "distill-record: 届かなかった区間は持ち越して次と合わせて数える" {
+  mkdir -p "$TEST_TMPDIR/home"
+  make_fake_claude
+  local tx="$TEST_TMPDIR/small.jsonl"
+  {
+    printf '%s\n' '{"type":"user","message":{"content":"最初の小さな依頼"}}'
+    printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Edit"}]}}'
+  } >"$tx"
+  run_hook_fg "c4" "$GIT_REPO" "$tx" || true
+  [ "$(calls)" -eq 0 ]
+  append_turn "$tx" "次の依頼"
+  run_hook_fg "c4" "$GIT_REPO" "$tx" || true
+  [ "$(calls)" -eq 1 ]
+  grep -qF "最初の小さな依頼" "$TEST_TMPDIR/calls.digest.1"
+  grep -qF "次の依頼" "$TEST_TMPDIR/calls.digest.1"
+}
+
+@test "distill-record: 手で書いた記録より後の会話だけを見る" {
+  # 位置の記録が無いのに記録がある = セッション内で distill-project を
+  # 手で走らせた。記録の更新時刻で区切る。
+  mkdir -p "$TEST_TMPDIR/home"
+  make_fake_claude
+  local repo rec tx="$TEST_TMPDIR/stamped.jsonl"
+  repo="$(basename "$GIT_REPO")"
+  rec="$TEST_TMPDIR/home/develop/distill-vault/プロジェクト/$repo/記録"
+  mkdir -p "$rec"
+  printf -- '---\nsession: c5\n---\n# 既存\n' >"$rec/2026-01-01-0000.md"
+  {
+    printf '%s\n' '{"type":"user","timestamp":"2000-01-01T00:00:00.000Z","message":{"content":"書く前の依頼"}}'
+    printf '%s\n' '{"type":"assistant","timestamp":"2000-01-01T00:00:01.000Z","message":{"content":[{"type":"tool_use","name":"Edit"}]}}'
+    printf '%s\n' '{"type":"user","timestamp":"2099-01-01T00:00:00.000Z","message":{"content":"書いた後の依頼"}}'
+    printf '%s\n' '{"type":"assistant","timestamp":"2099-01-01T00:00:01.000Z","message":{"content":[{"type":"tool_use","name":"Edit"}]}}'
+    printf '%s\n' '{"type":"assistant","timestamp":"2099-01-01T00:00:02.000Z","message":{"content":[{"type":"tool_use","name":"Edit"}]}}'
+    printf '%s\n' '{"type":"assistant","timestamp":"2099-01-01T00:00:03.000Z","message":{"content":[{"type":"tool_use","name":"Write"}]}}'
+  } >"$tx"
+  run_hook_fg "c5" "$GIT_REPO" "$tx" || true
+  [ "$(calls)" -eq 1 ]
+  grep -qF "書いた後の依頼" "$TEST_TMPDIR/calls.digest.1"
+  local old
+  old=$(grep -cF "書く前の依頼" "$TEST_TMPDIR/calls.digest.1" || true)
+  [ "$old" -eq 0 ]
+  grep -qF "続きを書き足して" "$TEST_TMPDIR/calls.prompt.1"
+}
+
+@test "distill-record: SDK からの無人実行は記録しない" {
+  # 記録を書く実行も SessionEnd を起こす（sdk-cli）。通すと記録の記録を書きに
+  # 行く。SDK から自動で起こされるレビューなど（sdk-py）も会話の記録ではない。
+  mkdir -p "$TEST_TMPDIR/home"
+  make_fake_claude
+  local entry tx
+  for entry in sdk-cli sdk-py sdk-ts some-new-runner; do
+    tx="$TEST_TMPDIR/$entry.jsonl"
+    printf '{"type":"user","entrypoint":"%s","message":{"content":"自動の依頼"}}\n' "$entry" >"$tx"
+    append_turn "$tx" "書いてください"
+    run_hook_fg "e-$entry" "$GIT_REPO" "$tx" || true
+    grep -qF "e-${entry}: 対話ではないセッション（${entry}）" "$TEST_TMPDIR/home/.distill/logs/record.log"
+  done
+  [ "$(calls)" -eq 0 ]
+}
+
+@test "distill-record: アプリからの対話は記録する" {
+  mkdir -p "$TEST_TMPDIR/home"
+  make_fake_claude
+  local tx="$TEST_TMPDIR/desktop.jsonl"
+  printf '%s\n' '{"type":"user","entrypoint":"claude-desktop","message":{"content":"直してください"}}' >"$tx"
+  append_turn "$tx" "続き"
+  run_hook_fg "e-desktop" "$GIT_REPO" "$tx" || true
+  [ "$(calls)" -eq 1 ]
+}
+
+@test "distill-record: 除外.md に載ったリポジトリは LLM を起こさない" {
+  # 判定は distill 本体に任せる。ここでは「除外」と答える偽物で、答えに
+  # 従うことだけを見る。
+  mkdir -p "$TEST_TMPDIR/home"
+  make_fake_claude
+  printf '#!/bin/sh\ncat >/dev/null\nexit 0\n' >"$TEST_TMPDIR/bin/distill-py"
+  chmod +x "$TEST_TMPDIR/bin/distill-py"
+  DISTILL_RECORD_PY="$TEST_TMPDIR/bin/distill-py" run_hook_fg "c7" "$GIT_REPO" "$TX" || true
+  grep -qF "除外.md に載っている" "$TEST_TMPDIR/home/.distill/logs/record.log"
+  [ "$(calls)" -eq 0 ]
+}
+
+@test "distill-record: 除外を判定できなければ記録を続ける" {
+  mkdir -p "$TEST_TMPDIR/home"
+  make_fake_claude
+  printf '#!/bin/sh\ncat >/dev/null\nexit 1\n' >"$TEST_TMPDIR/bin/distill-py"
+  chmod +x "$TEST_TMPDIR/bin/distill-py"
+  DISTILL_RECORD_PY="$TEST_TMPDIR/bin/distill-py" run_hook_fg "c8" "$GIT_REPO" "$TX" || true
+  grep -qF "判定できなかった" "$TEST_TMPDIR/home/.distill/logs/record.log"
+  [ "$(calls)" -eq 1 ]
+}
+
+@test "distill-record: cwd の無い入力は transcript の最後の cwd を使う" {
+  # 巡回は transcript しか知らない。
+  mkdir -p "$TEST_TMPDIR/home"
+  local tx="$TEST_TMPDIR/cwd.jsonl"
+  printf '{"type":"user","cwd":"%s","message":{"content":"最初"}}\n' "$TEST_TMPDIR" >"$tx"
+  printf '{"type":"user","cwd":"%s","message":{"content":"移った先で依頼"}}\n' "$GIT_REPO" >>"$tx"
+  append_turn "$tx" "続き"
+  printf '{"session_id":"c9","transcript_path":"%s"}' "$tx" \
+    | HOME="$TEST_TMPDIR/home" DISTILL_RECORD_DRY_RUN=1 bash "$SCRIPT" >/dev/null 2>&1
+  grep -qF "記録を開始（$(basename "$GIT_REPO")" "$TEST_TMPDIR/home/.distill/logs/record.log"
+}
+
+@test "distill-record: 同じセッションを判定中なら手を出さない" {
+  # SessionEnd と巡回が重なったとき、両方が書かせると記録が二重になる。
+  mkdir -p "$TEST_TMPDIR/home/.distill/state/record/c10.lock"
+  make_fake_claude
+  local rc=0
+  run_hook_fg "c10" "$GIT_REPO" "$TX" || rc=$?
+  [ "$rc" -eq 0 ]
+  [ "$(calls)" -eq 0 ]
+}
+
+@test "distill-record: 取り残されたロックは 30 分で見限る" {
+  local lock="$TEST_TMPDIR/home/.distill/state/record/c11.lock"
+  mkdir -p "$lock"
+  touch -t "$(date -v-31M +%Y%m%d%H%M)" "$lock"
+  make_fake_claude
+  run_hook_fg "c11" "$GIT_REPO" "$TX" || true
+  [ "$(calls)" -eq 1 ]
+}
+
+@test "distill-record: dry-run は状態を残さない" {
+  # 対象を確かめるだけの実行で「判定済み」にすると、本番で黙って飛ばされる。
+  # 判定で落ちる経路も見る。判定を通る経路は状態を書く前に抜ける。
+  mkdir -p "$TEST_TMPDIR/home"
+  run_hook "c12" "$GIT_REPO" "$TX" >/dev/null
+  printf '{"session_id":"c12b","cwd":"%s","transcript_path":"%s"}' "$GIT_REPO" "$TX" \
+    | HOME="$TEST_TMPDIR/home" DISTILL_RECORD_MIN_EDITS=99 \
+      DISTILL_RECORD_DRY_RUN=1 bash "$SCRIPT" >/dev/null 2>&1
+  grep -qF "c12b: 編集" "$TEST_TMPDIR/home/.distill/logs/record.log"
+  [ ! -e "$TEST_TMPDIR/home/.distill/state/record/c12" ]
+  [ ! -e "$TEST_TMPDIR/home/.distill/state/record/c12b" ]
+}
+
+@test "distill-record: パスになる session_id は受け付けない" {
+  mkdir -p "$TEST_TMPDIR/home"
+  run_hook "../x" "$GIT_REPO" "$TX" >/dev/null
+  grep -qF "session_id の形が想定外" "$TEST_TMPDIR/home/.distill/logs/record.log"
+  [ ! -e "$TEST_TMPDIR/home/.distill/state/x" ]
+}
+
+@test "distill-transcript: --from-byte は行の途中から読み始めない" {
+  local out="$TEST_TMPDIR/digest.md" off
+  # 1 行目の途中を指す。半端な行は捨て、次の行から読む。
+  off=$(( $(head -1 "$TX" | wc -c) - 5 ))
+  /usr/bin/python3 "$EXTRACT" "$TX" "$out" --from-byte "$off" >/dev/null
+  local first
+  first=$(grep -cF "直してください" "$out" || true)
+  [ "$first" -eq 0 ]
+  grep -qF "直しました" "$out"
+}
+
+@test "distill-transcript: --offset-after は指定時刻より後の最初の行を指す" {
+  local tx="$TEST_TMPDIR/ts.jsonl" off size
+  printf '%s\n' '{"type":"user","timestamp":"2000-01-01T00:00:00.000Z","message":{"content":"a"}}' >"$tx"
+  printf '%s\n' '{"type":"mode"}' >>"$tx"
+  printf '%s\n' '{"type":"user","timestamp":"2099-01-01T00:00:00.000Z","message":{"content":"b"}}' >>"$tx"
+  off=$(/usr/bin/python3 "$EXTRACT" --offset-after 1000000000 "$tx")
+  [ "$off" -eq "$(head -2 "$tx" | wc -c)" ]
+  # 後の行が無ければ全部済んだ扱い（ファイルの大きさ）。
+  off=$(/usr/bin/python3 "$EXTRACT" --offset-after 5000000000 "$tx")
+  size=$(wc -c <"$tx")
+  [ "$off" -eq "$size" ]
+}
+
+@test "distill-transcript: 負の --from-byte は受け付けない" {
+  run /usr/bin/python3 "$EXTRACT" "$TX" "$TEST_TMPDIR/d.md" --from-byte -1
+  [ "$status" -eq 2 ]
+}
+
+@test "distill-transcript: --last-activity は最後の会話の時刻と終わりを返す" {
+  # 後ろに続く管理用の行は会話ではない。終わりはその手前。
+  local tx="$TEST_TMPDIR/la.jsonl" empty="$TEST_TMPDIR/empty.jsonl" out
+  printf '%s\n' '{"type":"user","timestamp":"2026-01-01T00:00:00.000Z","message":{"content":"a"}}' >"$tx"
+  printf '%s\n' '{"type":"assistant","timestamp":"2026-01-01T00:01:00.000Z","message":{"content":"b"}}' >>"$tx"
+  local conv_end
+  conv_end=$(wc -c <"$tx" | tr -d ' ')
+  printf '%s\n' '{"type":"mode","mode":"normal"}' '{"type":"ai-title","aiTitle":"t"}' >>"$tx"
+  printf '%s\n' '{"type":"mode","mode":"normal"}' >"$empty"
+  out=$(/usr/bin/python3 "$EXTRACT" --last-activity "$tx" "$empty")
+  printf '%s\n' "$out" | grep -qF "$(printf '1767225660\t%s\t%s' "$conv_end" "$tx")"
+  printf '%s\n' "$out" | grep -qF "$(printf '0\t0\t%s' "$empty")"
+}
+
+# --- 記録に使わないアカウント（ブロックリスト）-------------------------------
+#
+# ブロックしたアカウントのセッションは、記録しないだけでなく transcript を
+# 開きもしない。判定の前に中身を読むと「取得しない」が守れない。
+
+# ブロックリストを置き、そこに載せるアカウントを作る。transcript は読めない
+# 権限にして、開こうとしたら判定がそれとわかる形で崩れるようにする。
+setup_blocked() {
+  BLOCKED="$TEST_TMPDIR/acct-private"
+  mkdir -p "$BLOCKED/projects/p" "$TEST_TMPDIR/home"
+  printf '# 注釈\n\n  %s   # 末尾の注釈\n' "$BLOCKED" >"$TEST_TMPDIR/blocklist"
+  make_fake_claude
+}
+
+run_blocked_hook() {
+  local sid="$1" tx="$2"
+  shift 2
+  printf '{"session_id":"%s","cwd":"%s","transcript_path":"%s"}' "$sid" "$GIT_REPO" "$tx" \
+    | env HOME="$TEST_TMPDIR/home" PATH="$TEST_TMPDIR/bin:$PATH" DISTILL_RECORD_FOREGROUND=1 \
+      FAKE_CLAUDE_CALLS="$TEST_TMPDIR/calls" DISTILL_RECORD_BLOCKLIST="$TEST_TMPDIR/blocklist" \
+      "$@" bash "$SCRIPT" >/dev/null 2>&1
+}
+
+assert_untouched() {
+  local sid="$1" log="$TEST_TMPDIR/home/.distill/logs/record.log"
+  grep -qF "記録に使わないアカウントのセッション" "$log"
+  # session もログに残さない。状態もロックも作らない。
+  local named
+  named=$(grep -cF "$sid" "$log" || true)
+  [ "$named" -eq 0 ]
+  [ ! -e "$TEST_TMPDIR/home/.distill/state/record/$sid" ]
+  [ ! -e "$TEST_TMPDIR/home/.distill/state/record/$sid.lock" ]
+  [ "$(calls)" -eq 0 ]
+}
+
+@test "distill-record: ブロックしたアカウントの transcript は開かずに止める" {
+  setup_blocked
+  local tx="$BLOCKED/projects/p/blocked-a.jsonl"
+  cp "$TX" "$tx"
+  chmod 000 "$tx"
+  run_blocked_hook "blocked-a" "$tx" || true
+  chmod 600 "$tx"
+  assert_untouched "blocked-a"
+}
+
+@test "distill-record: symlink 経由の置き場所でも実パスで止める" {
+  # ~/.claude はアカウントを指す symlink。transcript_path はその経由で来る。
+  setup_blocked
+  ln -s "$BLOCKED" "$TEST_TMPDIR/claude-link"
+  cp "$TX" "$BLOCKED/projects/p/blocked-b.jsonl"
+  run_blocked_hook "blocked-b" "$TEST_TMPDIR/claude-link/projects/p/blocked-b.jsonl" || true
+  assert_untouched "blocked-b"
+}
+
+@test "distill-record: CLAUDE_CONFIG_DIR がブロック先なら止める" {
+  setup_blocked
+  run_blocked_hook "blocked-c" "$TX" CLAUDE_CONFIG_DIR="$BLOCKED" || true
+  assert_untouched "blocked-c"
+}
+
+@test "distill-record: symlink で指した CLAUDE_CONFIG_DIR も実パスで止める" {
+  # ブロック先に transcript が無く、手掛かりが設定ディレクトリだけの場合。
+  # 文字列で比べると ~/.claude のような symlink 経由の指定を素通しする。
+  setup_blocked
+  ln -s "$BLOCKED" "$TEST_TMPDIR/config-link"
+  run_blocked_hook "blocked-c2" "$TX" CLAUDE_CONFIG_DIR="$TEST_TMPDIR/config-link" || true
+  assert_untouched "blocked-c2"
+}
+
+@test "distill-record: 同じ session の transcript がブロック先にあれば止める" {
+  # 途中で ~/.claude の指す先が変わると、置き場所だけでは見分けられない。
+  setup_blocked
+  : >"$BLOCKED/projects/p/blocked-d.jsonl"
+  run_blocked_hook "blocked-d" "$TX" || true
+  assert_untouched "blocked-d"
+}
+
+@test "distill-record: ~/ で書いたブロック先を HOME で解く" {
+  setup_blocked
+  mkdir -p "$TEST_TMPDIR/home/.claude-x/projects/p"
+  printf '~/.claude-x\n' >"$TEST_TMPDIR/blocklist"
+  cp "$TX" "$TEST_TMPDIR/home/.claude-x/projects/p/blocked-e.jsonl"
+  run_blocked_hook "blocked-e" "$TEST_TMPDIR/home/.claude-x/projects/p/blocked-e.jsonl" || true
+  assert_untouched "blocked-e"
+}
+
+@test "distill-record: ブロックリストを読めなければ何も記録しない" {
+  setup_blocked
+  rm -f "$TEST_TMPDIR/blocklist"
+  run_blocked_hook "open-f" "$TX" || true
+  assert_untouched "open-f"
+}
+
+@test "distill-record: ブロック先でないセッションは注釈つきのリストでも記録する" {
+  setup_blocked
+  run_blocked_hook "open-g" "$TX" || true
+  [ "$(calls)" -eq 1 ]
+}
+
+@test "distill-record: private アカウントはブロックリストに載っている" {
+  # 記録に一切使わないと決めたアカウント。行が消えると SessionEnd から記録が始まる。
+  grep -qx '~/.claude-private' "${BATS_TEST_DIRNAME}/../claude/hooks/distill-record.blocklist"
 }
