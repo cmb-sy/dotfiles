@@ -3,7 +3,7 @@ name: distill-gain-latest-info
 description: >-
   技術情報を「集めて得る」ときに使う情報収集スキル。watch モード（GitHub /
   サービス changelog / エンジニア発信 / ニュース / dotfiles peer を横断観測し
-  Obsidian にダイジェスト蓄積）と research モード（トピックを Web + 自リポジトリ
+  distill の正本にダイジェスト蓄積）と research モード（トピックを Web + 自リポジトリ
   横断で深掘り）に加え、sources モード（監視先の一覧を巡回・収穫の実績つきで
   表にし、対話で外す・追加する・直す）を持つ。フラグは本文の「起動」を参照。
 argument-hint: "[watch [--only <scope>] [--target X] | research <topic> | sources]"
@@ -219,9 +219,9 @@ commit: <短縮ハッシュ>
 
 変更が無ければ「変更なし」とだけ報告する。
 
-## ダイジェストの構造（Obsidian）
+## ダイジェストの構造
 
-出力は `情報収集/YYYY-MM-DD.md` の 1 ファイルに一本化する。Obsidian の callout・表・Mermaid を活用し、以下の構造で書く。
+出力は `情報収集/YYYY-MM-DD.md` の 1 ファイルに一本化する。callout・表・Mermaid を活用し、以下の構造で書く。
 
 **全 scope 共通の深さ原則:** 「何が起きたか（事実）」ではなく **「何がどう変わったか + なぜ重要か + 自分の環境でどう変わるか」** を主役にする。リリースノートやニュース見出しをそのまま訳しただけの項目は不可。
 
@@ -284,8 +284,6 @@ scopes: [peers, github, services, engineers, news]
 
 **深さの基準:** 選ばれた 3〜5 件は 1 件あたり 10〜20 行を目安に、「何が変わったか」は前提概念から書く（CLAUDE.md 技術メモと同じ教育深度）。比較対象が3つ以上あるときは表を必須とする。Mermaid 図は構造・フローの理解を速めるときだけ使い、装飾目的では使わない。
 
-- vault の commit/push はしない（`/eod` に委譲）
-
 ## エラーハンドリング
 
 | 状況 | 対応 |
@@ -312,7 +310,6 @@ scopes: [peers, github, services, engineers, news]
 - SNS を「信頼度低」ラベルなしで他ソースと同列に出す
 - ユーザー承認なしに `sources.yaml` へアドホック対象を追記する
 - `## 改善提案` の内容をこのスキル自身が `sources.yaml` に適用する（承認は呼び出し元が行う）
-- distill-gain-latest-info が vault を自動 commit する（`/eod` に委譲）
 - sources モードで、表を出さずに編集に入る（外す判断の材料が無い）
 - 転送元の URL を `sources.yaml` に書く（着地先を書く）
 - 存在を確認せずに repo や handle を足す
