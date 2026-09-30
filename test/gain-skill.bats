@@ -243,6 +243,31 @@ setup() {
   grep -qF 'Jev のキーが無効' "$SK"
 }
 
+@test "深掘りは Jev の点数を見る前に選ぶ" {
+  # 点数を見てから選ぶと、Claude の選び方と Jev の点数の比較が成り立たない。
+  grep -qF '点数を見る前' "$SK"
+  pick=$(grep -nF '**3〜5 件**を深掘りに選ぶ' "$SK" | head -1 | cut -d: -f1)
+  rate=$(grep -nF '$HOME/dotfiles/bin/gain-score rate' "$SK" | head -1 | cut -d: -f1)
+  logl=$(grep -nF '$HOME/dotfiles/bin/gain-score log' "$SK" | head -1 | cut -d: -f1)
+  [ -n "$pick" ]
+  [ "$pick" -lt "$rate" ]
+  [ "$rate" -lt "$logl" ]
+}
+
+@test "採点のその他の失敗と候補 0 件の扱いがある" {
+  n=$(grep -cF 'Jev 採点失敗（exit <code>）' "$SK") || n=0
+  [ "$n" -ge 2 ]
+  grep -qF '| `gain-score rate` が exit 0 以外 |' "$SK"
+  n=$(grep -cF 'exit 3・4' "$SK") || n=0
+  [ "$n" -eq 0 ]
+  grep -qF '候補が 0 件なら `rate` を呼ばず' "$SK"
+}
+
+@test "Jev との一致の上位 N 件が定義されている" {
+  grep -qF '`error` の行を除き `score` の高い順' "$SK"
+  grep -qF '<N> は深掘りに選んだ件数' "$SK"
+}
+
 @test "採点は選び方を変えず、失敗で watch を止めない" {
   grep -qF '採点は選び方を変えない' "$SK"
   grep -qF '`gain-score` の失敗で watch を止める' "$SK"
