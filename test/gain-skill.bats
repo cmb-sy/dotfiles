@@ -230,3 +230,31 @@ setup() {
   n=$(grep -c '行末コメントにあり' "$SK") || n=0
   [ "$n" -eq 0 ]
 }
+
+@test "採点は gain-score を絶対パスで呼ぶ" {
+  grep -qF '$HOME/dotfiles/bin/gain-score rate' "$SK"
+  grep -qF '$HOME/dotfiles/bin/gain-score log' "$SK"
+  n=$(grep -oE '[^`[:space:]]*bin/gain-score' "$SK" | grep -cvF '$HOME/dotfiles/bin/gain-score') || n=0
+  [ "$n" -eq 0 ]
+}
+
+@test "採点の終了ステータスごとの扱いがある" {
+  grep -qF 'Jev 未設定（採点なし）' "$SK"
+  grep -qF 'Jev のキーが無効' "$SK"
+}
+
+@test "採点は選び方を変えず、失敗で watch を止めない" {
+  grep -qF '採点は選び方を変えない' "$SK"
+  grep -qF '`gain-score` の失敗で watch を止める' "$SK"
+}
+
+@test "動向の節があり、news と engineers を採点しない" {
+  grep -qF '## 動向' "$SK"
+  grep -qF '`news`・`engineers` の候補を `gain-score` に渡す' "$SK"
+}
+
+@test "深さ原則が自分に効く区分に限られている" {
+  n=$(grep -c '全 scope 共通の深さ原則' "$SK") || n=0
+  [ "$n" -eq 0 ]
+  grep -qF '自分に効く区分（`services`・`github`・`peers`）の深さ原則' "$SK"
+}
