@@ -11,3 +11,4 @@
 ハンディ→Handy
 スキル図→skills
 はてな→？
+一周→issue
