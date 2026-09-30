@@ -10,3 +10,4 @@
 オラマ→ollama
 ハンディ→Handy
 スキル図→skills
+はてな→？
