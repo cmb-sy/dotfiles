@@ -11,6 +11,7 @@ missing or rejected key ends the run early.
 JEV_API_KEY, JEV_ENDPOINT, JEV_BACKOFF_BASE, JEV_TIMEOUT, JEV_KEYCHAIN_SERVICE
 and GAIN_JEV_STATE override the defaults so tests never reach the real API.
 """
+import datetime
 import json
 import os
 import subprocess
@@ -33,6 +34,9 @@ REQUIRED = ("id", "note", "title", "summary")
 
 EXIT_NO_KEY, EXIT_UNAUTHORIZED, EXIT_USAGE = 3, 4, 64
 USAGE = "usage: gain-score rate | gain-score log <YYYY-MM-DD>"
+STATE = os.environ.get("GAIN_JEV_STATE",
+                       os.path.expanduser("~/.local/state/gain/jev-scores.tsv"))
+LOG_FIELDS = ("scope", "key", "title", "score", "level", "confidence")
 
 
 class Unauthorized(Exception):
@@ -149,9 +153,50 @@ def cmd_rate(lines):
     return EXIT_UNAUTHORIZED if unauthorized else 0
 
 
+def clean(value):
+    # The log is TSV; a tab or newline inside a value would shift the columns.
+    return "" if value is None else " ".join(str(value).split())
+
+
+def valid_day(day):
+    # fromisoformat also takes 20260930 and 2026-W40-3; require the dashed form.
+    try:
+        return datetime.date.fromisoformat(day).isoformat() == day
+    except ValueError:
+        return False
+
+
+def cmd_log(day, lines):
+    if not valid_day(day):
+        print(f"gain-score: date must be YYYY-MM-DD, got {day}", file=sys.stderr)
+        return EXIT_USAGE
+    rows, skipped = [], 0
+    for line in lines:
+        if not line.strip():
+            continue
+        try:
+            c = json.loads(line)
+            if not isinstance(c, dict):
+                raise ValueError
+        except ValueError:
+            skipped += 1
+            continue
+        cells = [day] + [clean(c.get(k)) for k in LOG_FIELDS] + ["1" if c.get("picked") else "0"]
+        rows.append("\t".join(cells) + "\n")
+    if skipped:
+        print(f"gain-score: skipped {skipped} line(s) that were not JSON objects", file=sys.stderr)
+    if rows:
+        os.makedirs(os.path.dirname(STATE), exist_ok=True)
+        with open(STATE, "a", encoding="utf-8") as f:
+            f.writelines(rows)
+    return 0
+
+
 def main(argv):
     if len(argv) == 1 and argv[0] == "rate":
         return cmd_rate(sys.stdin)
+    if len(argv) == 2 and argv[0] == "log":
+        return cmd_log(argv[1], sys.stdin)
     print(USAGE, file=sys.stderr)
     return EXIT_USAGE
 

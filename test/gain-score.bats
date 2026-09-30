@@ -157,3 +157,41 @@ cand() {  # cand <id> -- one valid candidate line
   [ "$status" -eq 0 ]
   printf '%s\n' "$output" | jq -e 'select(.id=="c1") | .error | startswith("network")'
 }
+
+@test "log が 1 行 1 候補で追記する" {
+  run bash -c "printf '%s\n' \
+    '{\"id\":\"c1\",\"scope\":\"github\",\"key\":\"ollama/ollama\",\"title\":\"v0.33.3\",\"score\":3.1,\"level\":3,\"confidence\":0.9,\"picked\":true}' \
+    '{\"id\":\"c2\",\"scope\":\"services\",\"key\":\"Obsidian\",\"title\":\"1.9\",\"error\":\"http 422\",\"picked\":false}' \
+    | '$GS' log 2026-09-30"
+  [ "$status" -eq 0 ]
+  printf '2026-09-30\tgithub\tollama/ollama\tv0.33.3\t3.1\t3\t0.9\t1\n' > "$BATS_TEST_TMPDIR/want"
+  printf '2026-09-30\tservices\tObsidian\t1.9\t\t\t\t0\n' >> "$BATS_TEST_TMPDIR/want"
+  cmp "$GAIN_JEV_STATE" "$BATS_TEST_TMPDIR/want"
+}
+
+@test "log は値の中のタブと改行を空白に置き換える" {
+  run bash -c "printf '%s\n' \
+    '{\"id\":\"c1\",\"scope\":\"news\",\"key\":\"k\",\"title\":\"a\\tb\\nc\",\"score\":1,\"level\":0,\"confidence\":0.5,\"picked\":false}' \
+    | '$GS' log 2026-09-30"
+  [ "$status" -eq 0 ]
+  n=$(awk -F'\t' '{print NF}' "$GAIN_JEV_STATE")
+  [ "$n" -eq 8 ]
+  grep -qF 'a b c' "$GAIN_JEV_STATE"
+}
+
+@test "log は日付が不正なら何も書かず終了ステータス 64" {
+  run bash -c "printf '{}\n' | '$GS' log 2026-9-30"
+  [ "$status" -eq 64 ]
+  n=0; [ -f "$GAIN_JEV_STATE" ] && n=$(grep -c . "$GAIN_JEV_STATE")
+  [ "$n" -eq 0 ]
+}
+
+@test "log は JSON でない行を飛ばして残りを書く" {
+  run bash -c "printf '%s\n' 'oops' \
+    '{\"id\":\"c1\",\"scope\":\"github\",\"key\":\"k\",\"title\":\"t\",\"score\":1,\"level\":1,\"confidence\":0.5,\"picked\":false}' \
+    | '$GS' log 2026-09-30 2>&1"
+  [ "$status" -eq 0 ]
+  printf '%s' "$output" | grep -qF 'skipped'
+  n=$(grep -c . "$GAIN_JEV_STATE")
+  [ "$n" -eq 1 ]
+}
