@@ -1,0 +1,160 @@
+#!/usr/bin/env python3
+"""Score gain-watch candidates with Jev: does this update affect my setup?
+
+  gain-score rate          JSON Lines in -> one JSON line out per candidate
+  gain-score log <date>    JSON Lines in -> appended to the comparison log
+
+Scoring is side information for the digest, so a failure here never stops
+the watch: every per-candidate problem becomes an "error" line, and only a
+missing or rejected key ends the run early.
+
+JEV_API_KEY, JEV_ENDPOINT, JEV_BACKOFF_BASE, JEV_TIMEOUT, JEV_KEYCHAIN_SERVICE
+and GAIN_JEV_STATE override the defaults so tests never reach the real API.
+"""
+import json
+import os
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.request
+
+ENDPOINT = os.environ.get("JEV_ENDPOINT", "https://api.typesafe.ai/v1/systemone")
+KEYCHAIN_SERVICE = os.environ.get("JEV_KEYCHAIN_SERVICE", "typesafe-jev-api-key")
+BACKOFF_BASE = float(os.environ.get("JEV_BACKOFF_BASE", "1"))
+TIMEOUT = float(os.environ.get("JEV_TIMEOUT", "10"))
+RETRIES = 3
+
+CRITERIA = ["無関係", "名前が同じだけ", "知っておくとよい",
+            "設定や使い方を見直す価値がある", "すぐ対応が要る"]
+INSTRUCTIONS = ("この理由で監視している人の手元の環境に、"
+                "この更新がどれだけ効くかを判定する")
+REQUIRED = ("id", "note", "title", "summary")
+
+EXIT_NO_KEY, EXIT_UNAUTHORIZED, EXIT_USAGE = 3, 4, 64
+USAGE = "usage: gain-score rate | gain-score log <YYYY-MM-DD>"
+
+
+class Unauthorized(Exception):
+    pass
+
+
+def emit(obj):
+    print(json.dumps(obj, ensure_ascii=False), flush=True)
+
+
+def api_key():
+    key = os.environ.get("JEV_API_KEY", "")
+    if key:
+        return key
+    try:
+        out = subprocess.run(
+            ["/usr/bin/security", "find-generic-password", "-s", KEYCHAIN_SERVICE, "-w"],
+            capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    return out.stdout.strip() if out.returncode == 0 else ""
+
+
+def build_request(c):
+    return {
+        "state": f"監視している理由: {c['note']}\n見出し: {c['title']}\n要約: {c['summary']}",
+        "model": "jev-latest",
+        "questions": {"impact": {"type": "score", "instructions": INSTRUCTIONS,
+                                 "criteria": CRITERIA}},
+    }
+
+
+def level_of(probabilities):
+    # The reference does not say how probabilities are keyed; accept the
+    # criterion label or its index.
+    best, best_p = None, -1.0
+    for k, p in probabilities.items():
+        if k in CRITERIA:
+            i = CRITERIA.index(k)
+        elif str(k).isdigit() and int(k) < len(CRITERIA):
+            i = int(k)
+        else:
+            continue
+        if isinstance(p, (int, float)) and p > best_p:
+            best, best_p = i, p
+    return best
+
+
+def parse_answer(raw):
+    a = json.loads(raw)["answers"]["impact"]
+    level = level_of(a["probabilities"])
+    if level is None:
+        raise ValueError("no known criterion in probabilities")
+    return {"score": a["score"], "level": level, "confidence": a["confidence"]}
+
+
+def post(payload, key):
+    req = urllib.request.Request(
+        ENDPOINT, data=json.dumps(payload, ensure_ascii=False).encode(), method="POST",
+        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
+        return r.read()
+
+
+def rate_one(c, key):
+    for attempt in range(RETRIES + 1):
+        try:
+            return parse_answer(post(build_request(c), key))
+        except urllib.error.HTTPError as e:
+            if e.code == 401:
+                raise Unauthorized() from e
+            if e.code in (429, 529) and attempt < RETRIES:
+                time.sleep(BACKOFF_BASE * 2 ** attempt)
+                continue
+            return {"error": f"http {e.code}"}
+        except (urllib.error.URLError, OSError) as e:
+            return {"error": f"network: {e}"}
+        except (ValueError, KeyError, TypeError, AttributeError) as e:
+            return {"error": f"bad response: {e}"}
+    return {"error": "retries exhausted"}
+
+
+def cmd_rate(lines):
+    key = api_key()
+    if not key:
+        print(f"gain-score: Jev 未設定 (no key in Keychain service {KEYCHAIN_SERVICE})",
+              file=sys.stderr)
+        return EXIT_NO_KEY
+    unauthorized = False
+    for n, line in enumerate(lines, 1):
+        if not line.strip():
+            continue
+        try:
+            c = json.loads(line)
+        except ValueError:
+            emit({"id": None, "error": f"line {n}: not JSON"})
+            continue
+        if not isinstance(c, dict):
+            emit({"id": None, "error": f"line {n}: not an object"})
+            continue
+        missing = [k for k in REQUIRED if not isinstance(c.get(k), str) or not c.get(k)]
+        if missing:
+            emit({"id": c.get("id"), "error": "missing " + ",".join(missing)})
+            continue
+        if unauthorized:
+            emit({"id": c["id"], "error": "unauthorized"})
+            continue
+        try:
+            emit({"id": c["id"], **rate_one(c, key)})
+        except Unauthorized:
+            unauthorized = True
+            print("gain-score: Jev のキーが無効 (401)", file=sys.stderr)
+            emit({"id": c["id"], "error": "unauthorized"})
+    return EXIT_UNAUTHORIZED if unauthorized else 0
+
+
+def main(argv):
+    if len(argv) == 1 and argv[0] == "rate":
+        return cmd_rate(sys.stdin)
+    print(USAGE, file=sys.stderr)
+    return EXIT_USAGE
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
