@@ -5,7 +5,7 @@
   https://github.com/ghostty-org/ghostty/discussions/10480) enable macOS
   Secure Input Mode for a password prompt and fail to disable it afterward.
   While enabled, the holding app exclusively receives all keyboard input,
-  silently blocking other apps' global hotkeys (e.g. Typeless/Handy voice
+  silently blocking other apps' global hotkeys (e.g. Handy voice
   input via Karabiner Caps Lock). This agent polls every 60s. When Ghostty
   holds Secure Input because its "Secure Keyboard Entry" menu toggle is
   persisted ON, it clicks that menu item to release it -- which needs

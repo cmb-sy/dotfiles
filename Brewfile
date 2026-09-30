@@ -45,15 +45,14 @@ cask 'claude-code@latest'
 cask 'flux-app'
 cask 'wireshark-app'
 cask 'karabiner-elements'
-# Voice input: Handy (local STT) + ollama (offline LLM post-processing server),
-# and Typeless (GUI/cloud alternative). Switch between them via `voice-switch`.
+# Voice input: Handy (local STT) + ollama (offline LLM post-processing server).
+# Switch modes via `voice-switch`.
 # Cloud post-processing (opt-in via `voice-switch cloud`) targets Cerebras, which
 # does not retain or train on request data:
 #   https://support.cerebras.net/articles/1811589793-does-cerebras-retain-my-data
 #   https://www.cerebras.ai/terms-of-service
 cask 'handy'
 cask 'ollama-app'
-cask 'typeless'
 
 # Fonts terminal/ghostty/config names. Without these the config points at
 # families that do not exist, the OS falls back per glyph, and the characters

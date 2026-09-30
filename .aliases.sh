@@ -281,12 +281,11 @@ alias tfo='terraform output'
 alias tfw='terraform workspace'
 
 # ----------------------------------------------------------
-# Voice input engine switch (Handy / Typeless via voice-switch)
+# Voice input mode switch (Handy via voice-switch)
 # ----------------------------------------------------------
 alias vsja='voice-switch ja'
 alias vsen='voice-switch en'
 alias vscl='voice-switch cloud'
-alias vsty='voice-switch typeless'
 alias vslo='voice-switch local'   # same as vsja (local mode is ja-locked)
 
 # ----------------------------------------------------------

@@ -1,18 +1,14 @@
 #!/bin/zsh
-# Switch the active voice-input engine (Handy or Typeless), anytime.
+# Switch Handy's voice-input mode (STT language + post-processing LLM), anytime.
 #
 #   voice-switch ja            -> Handy + ollama qwen3:4b (offline; STT locked to ja)
 #   voice-switch en            -> Handy + ollama qwen3:4b (offline; STT locked to en)
 #   voice-switch cloud [model] -> Handy + Cerebras gpt-oss-120b (STT=auto, bilingual)
 #   voice-switch local         -> alias for `ja`
-#   voice-switch typeless      -> Typeless (built-in LLM, GUI-managed). Handy is quit.
 #   voice-switch reapply       -> re-run apply with current Handy provider+language
-#                                 (no-op + notice if Typeless is the active engine)
-#   voice-switch status        -> print active engine + (if Handy) provider/model/language
+#   voice-switch status        -> print whether Handy runs + provider/model/language
 #
-# Handy: settings_store.json を CLI から書き換えるので Quit -> apply -> Relaunch。
-# Typeless: 設定は GUI/クラウド管理のため、外側からは起動/終了のみ制御する。
-# 両者はマイクとホットキーを取り合うので排他切替。
+# settings_store.json を CLI から書き換えるので Quit -> apply -> Relaunch。
 
 set -euo pipefail
 
@@ -23,15 +19,6 @@ APPLY="${HERE:h}/handy/apply-settings.py"
 . "$HERE/lib/voice.sh"
 
 die() { print -u2 "voice-switch: $*"; exit 1 }
-
-set_karabiner_engine() {
-  # Karabiner variable で Caps Lock の分岐を切替する。
-  # voice_engine=typeless: Caps Lock を Virtual HID 経由で F18 emit (Typeless が確実に受信)
-  # voice_engine=handy   : Caps Lock を bin/voice-toggle 経由 (Handy --toggle-post-process)
-  local engine="$1"   # "typeless" or "handy"
-  [[ -x "$KARABINER_CLI" ]] || return 0
-  "$KARABINER_CLI" --set-variables "{\"voice_engine\":\"$engine\"}" >/dev/null 2>&1 || true
-}
 
 quit_handy() {
   /usr/bin/osascript -e 'quit app "Handy"' >/dev/null 2>&1 || true
@@ -51,44 +38,7 @@ relaunch_handy() {
   done
 }
 
-quit_typeless() {
-  /usr/bin/osascript -e 'quit app "Typeless"' >/dev/null 2>&1 || true
-  local n=0
-  while typeless_running; do
-    (( ++n > 50 )) && die "Typeless did not quit within 5s"
-    sleep 0.1
-  done
-}
-
-wait_typeless_running() {
-  local n=0
-  until typeless_running; do
-    (( ++n > 75 )) && { print -u2 "voice-switch: Typeless did not start in ~15s; run 'open -a Typeless' manually"; break; }
-    sleep 0.2
-  done
-}
-
-ensure_handy_active() {
-  # Switching to a Handy mode: make sure Typeless is not holding the mic/hotkeys.
-  # Guard with `if` rather than `typeless_running && quit_typeless`: that form
-  # is the function's only statement, so when Typeless is already stopped the
-  # && list returns 1, the function returns 1, and set -e aborts the switch
-  # silently. Every Handy-to-Handy switch hits that, since Typeless is down.
-  if typeless_running; then
-    quit_typeless
-  fi
-}
-
 print_status() {
-  if typeless_running && handy_running; then
-    print "engine = both (unexpected; please quit one)"
-    return
-  fi
-  if typeless_running; then
-    print "engine = typeless"
-    print "(settings: GUI / cloud-managed by Typeless)"
-    return
-  fi
   if ! handy_running; then
     print "engine = none"
     return
@@ -116,34 +66,20 @@ apply_cloud() {
   key="$(/usr/bin/security find-generic-password -s "$KEYCHAIN_SVC" -w 2>/dev/null || true)"
   [[ -n "$key" ]] || die "no Cerebras key in Keychain. Add it once:
   security add-generic-password -s $KEYCHAIN_SVC -a \"\$USER\" -w \"<KEY>\""
-  ensure_handy_active
   quit_handy
   if [[ -n "$model_arg" ]]; then
     CEREBRAS_API_KEY="$key" /usr/bin/python3 "$APPLY" --provider cloud --language "$lang" --model "$model_arg"
   else
     CEREBRAS_API_KEY="$key" /usr/bin/python3 "$APPLY" --provider cloud --language "$lang"
   fi
-  set_karabiner_engine handy
   relaunch_handy
 }
 
 apply_local() {
   local lang="$1"
-  ensure_handy_active
   quit_handy
   /usr/bin/python3 "$APPLY" --provider local --language "$lang"
-  set_karabiner_engine handy
   relaunch_handy
-}
-
-apply_typeless() {
-  [[ -d "$TYPELESS_APP" ]] || die "Typeless.app not found at $TYPELESS_APP. Install it once:
-  brew install --cask typeless"
-  handy_running && quit_handy
-  set_karabiner_engine typeless
-  /usr/bin/open -a Typeless
-  wait_typeless_running
-  print -r -- "-> TYPELESS (built-in LLM)。Caps Lock 録音は Karabiner が Virtual HID 経由で F18 直接 emit します。"
 }
 
 case "${1:-status}" in
@@ -162,14 +98,7 @@ case "${1:-status}" in
     apply_cloud auto "${2:-}"
     print -r -- "-> CLOUD (Handy + Cerebras, language=auto). Bilingual; text sent to US, no retention/training."
     ;;
-  typeless)
-    apply_typeless
-    ;;
   reapply)
-    if typeless_running; then
-      print -r -- "voice-switch: 現在 Typeless モードのため reapply は不要 (設定は GUI 管理)。"
-      exit 0
-    fi
     cur="$(/usr/bin/python3 - "$HANDY_SETTINGS" <<'PY'
 import json, sys
 s = json.load(open(sys.argv[1])).get("settings", {})
@@ -187,6 +116,6 @@ PY
     print -r -- "-> reapplied provider=$cur_provider language=$cur_language"
     ;;
   *)
-    die "usage: voice-switch [ja | en | cloud [model] | local | typeless | reapply | status]"
+    die "usage: voice-switch [ja | en | cloud [model] | local | reapply | status]"
     ;;
 esac

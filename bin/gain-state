@@ -30,7 +30,7 @@ usage() { printf 'usage: gain-state due <sources.yaml> | record <scope> <key> <f
 
 # ISO week, not sqlite's `weekday` modifier: that one advances to the *next*
 # given weekday and stays put when today already is it, which lands a week
-# early every Monday (bin/voice-quota-watch documents the same trap).
+# early every Monday.
 same_week() {  # $1 = YYYY-MM-DD, $2 = YYYY-MM-DD -> exit 0 when in the same ISO week
   python3 - "$1" "$2" << 'PY'
 import sys

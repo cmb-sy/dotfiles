@@ -276,21 +276,17 @@ if has_val "$DIR"; then
 fi
 
 # ==============================================================================
-# [6] Voice input mode (Handy / Typeless)
+# [6] Voice input mode (Handy)
 #
-# If Typeless is running, show "typeless" (detected via bundle path, robust
-# to Electron binary-name drift). Otherwise read provider + selected_language
-# from Handy's settings_store.json and map them to the voice-switch mode
-# (ja / en / cloud). Hide the section if the file is missing or unparsable.
+# Read provider + selected_language from Handy's settings_store.json and map
+# them to the voice-switch mode (ja / en / cloud). Hide the section if the file
+# is missing or unparsable.
 # ==============================================================================
 
 sec_voice=""
-TYPELESS_BIN_DIR="/Applications/Typeless.app/Contents/MacOS/"
 HANDY_SETTINGS="$HOME/Library/Application Support/com.pais.handy/settings_store.json"
 
-if /usr/bin/pgrep -f "$TYPELESS_BIN_DIR" >/dev/null 2>&1; then
-  sec_voice="${WHT}voice${RST} ${C_VOICE}typeless${RST}"
-elif [ -s "$HANDY_SETTINGS" ]; then
+if [ -s "$HANDY_SETTINGS" ]; then
   eval "$(jq -r '
     (.settings // .) |
     @sh "V_PROV=\(.post_process_provider_id // "")",

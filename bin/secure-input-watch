@@ -12,7 +12,7 @@
 #
 # While Secure Input is enabled, the holding app receives ALL keyboard
 # input exclusively, silently blocking other apps' global hotkeys
-# (e.g. Typeless/Handy via Karabiner).
+# (e.g. Handy via Karabiner).
 #
 # Run periodically by launchd via macos/local.secure-input-watch.plist,
 # which is installed by setup/install.zsh.

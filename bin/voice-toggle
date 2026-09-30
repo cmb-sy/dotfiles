@@ -1,16 +1,9 @@
 #!/bin/bash
-# Toggle Handy recording. Bound to Caps Lock via Karabiner ONLY when
-# voice_engine != "typeless" (Karabiner variable). Typeless モード時は Karabiner が
-# Virtual HID 経由で F18 を直接 emit するため、本来このスクリプトは呼ばれない。
+# Toggle Handy recording. Bound to Caps Lock via Karabiner.
 #
 # - Handy が起動中: handy --toggle-post-process
-# - Handy が停止中: open -a Handy (Typeless 不在時のフォールバック起動。Caps Lock を
-#   押した = 音声入力したい = Handy を立ち上げて使える状態にする、という意図的な
-#   ショートカット)
-# - Typeless が起動中なのにこのスクリプトに到達した場合:
-#   karabiner_grabber の再起動などで voice_engine variable が揮発した状態。
-#   variable=typeless を復帰させて次回押下から正規ルート (Virtual HID 経由 F18 emit)
-#   に戻し、今回の押下分は emit 不能なのでユーザーに再押下を促す通知を出す。
+# - Handy が停止中: open -a Handy (Caps Lock を押した = 音声入力したい = Handy を
+#   立ち上げて使える状態にする、という意図的なショートカット)
 #
 # Karabiner runs this in a minimal launchd env, so use absolute paths.
 
@@ -18,15 +11,6 @@
 _here="${BASH_SOURCE[0]%/*}"
 [ "$_here" = "${BASH_SOURCE[0]}" ] && _here=.
 . "$_here/lib/voice.sh" || exit 1
-
-HANDY_BIN="/Applications/Handy.app/Contents/MacOS/handy"
-
-if typeless_running; then
-  [[ -x "$KARABINER_CLI" ]] && "$KARABINER_CLI" \
-    --set-variables '{"voice_engine":"typeless"}' >/dev/null 2>&1
-  notify "voice-toggle" "voice_engine=typeless に復帰しました。もう一度 Caps Lock を押してください。"
-  exit 0
-fi
 
 if ! handy_running; then
   /usr/bin/open -a Handy

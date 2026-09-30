@@ -124,13 +124,13 @@ voice_script_paths() {
 # send the source at <name>/lib/voice.sh.
 # Run the real script, not a copy of its idiom: an inline re-implementation stays
 # green after the script itself regresses. A stub lib rather than the real one --
-# every branch of voice-toggle has a side effect (launching Handy, an osascript
-# banner, writing a Karabiner variable), so the real lib cannot be used here.
+# both branches of voice-toggle have a side effect (launching Handy, toggling its
+# recording), so the real lib cannot be used here.
 @test "the lib resolves when a script is invoked without a slash" {
   make_tmpdir
   mkdir -p "$TEST_TMPDIR/lib"
   cp "$REPO_DIR/bin/voice-toggle" "$TEST_TMPDIR/"
-  printf 'typeless_running() { return 0; }\nnotify() { :; }\nKARABINER_CLI=/nonexistent\n' \
+  printf 'handy_running() { return 0; }\nHANDY_BIN=/usr/bin/true\n' \
     > "$TEST_TMPDIR/lib/voice.sh"
   run bash -c "cd '$TEST_TMPDIR' && bash voice-toggle 2>&1"
   notfound=$(printf '%s' "$output" | grep -cF 'lib/voice.sh') || notfound=0

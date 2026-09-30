@@ -3,8 +3,7 @@
 #
 # 「今週見たか」を ISO 週（月曜起点）で判定する。sqlite の `weekday` 修飾子は
 # 「次の N 曜へ進める。今日が N なら動かない」挙動で、素直に書くと月曜に 1 週
-# ずれる。bin/voice-quota-watch がその回避策を記録している。ここは python3 の
-# isocalendar() を使い、同じ罠に近寄らない。
+# ずれる。ここは python3 の isocalendar() を使い、この罠に近寄らない。
 
 load "helpers/common"
 

@@ -19,19 +19,7 @@
 # "Handy has not written settings yet", so refuse it instead.
 HANDY_SETTINGS="${HOME:?voice.sh: HOME is not set}/Library/Application Support/com.pais.handy/settings_store.json"
 
-# Typeless is Electron-based, so its binary name can shift between releases.
-# Detect it by bundle path instead of by name.
-TYPELESS_APP="/Applications/Typeless.app"
-TYPELESS_BIN_DIR="$TYPELESS_APP/Contents/MacOS/"
-
-# Typeless logs every dictation with its duration here. It records no quota,
-# limit or reset date -- the server decides and shows an upgrade ad -- so the
-# only way to know the weekly allowance is to add up this log.
-# Overridable so tests can point at a stub database, as bin/secure-input-watch
-# does for its binaries.
-TYPELESS_DB="${TYPELESS_DB:-${HOME:?voice.sh: HOME is not set}/Library/Application Support/Typeless/typeless.db}"
-
-KARABINER_CLI="/Library/Application Support/org.pqrs/Karabiner-Elements/bin/karabiner_cli"
+HANDY_BIN="/Applications/Handy.app/Contents/MacOS/handy"
 
 # PATH for the scripts launchd and Karabiner start: those run with a minimal
 # environment that has no homebrew.
@@ -46,10 +34,6 @@ PGREP_BIN="${PGREP_BIN:-/usr/bin/pgrep}"
 # and matching the wrong case silently reports "not running".
 handy_running() {
   "$PGREP_BIN" -x handy >/dev/null 2>&1
-}
-
-typeless_running() {
-  "$PGREP_BIN" -f "$TYPELESS_BIN_DIR" >/dev/null 2>&1
 }
 
 # notify <title> <message> — macOS banner. Callers pass fixed short strings:

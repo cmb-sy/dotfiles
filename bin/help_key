@@ -163,11 +163,9 @@ show_voice() {
   kv "vsja / voice-switch ja"        "Handy + ローカル(ollama) + STT=ja。日本語専用、最高精度、オフライン"
   kv "vsen / voice-switch en"        "Handy + ローカル(ollama) + STT=en。英語専用、最高精度、オフライン"
   kv "vscl / voice-switch cloud"     "Handy + Cerebras + STT=auto。bilingual、ネット要、品質高"
-  kv "vsty / voice-switch typeless"  "Typeless に切替 (後処理 LLM 内蔵、翻訳モードあり)"
   kv "vslo / voice-switch local"     "ja のエイリアス (vsja と等価)"
-  kv "voice-switch reapply"          "現在のモードのまま再適用 (Handy 時のみ意味あり)"
-  kv "voice-switch status"           "現在エンジン + Handy ならモード詳細を表示"
-  kv "voice-glossary-list"           "Handy 用語集の正表記側を表示 (Typeless GUI 入力用)"
+  kv "voice-switch reapply"          "現在のモードのまま再適用"
+  kv "voice-switch status"           "Handy の起動状態とモード詳細を表示"
 }
 
 case "${1:-all}" in

@@ -17,7 +17,7 @@
 # トグル: 既に発話中なら kill して exit 0 (同じキーで再生/停止)
 # 通知: 開始/停止/失敗のたびに macOS 通知バナーを出す (osascript display notification)。
 #       「押しても反応がわからない」を防ぐための最小限のフィードバック。
-# 競合: Typeless / Handy 起動中でも読み上げ続行 (feedback loop 防止は要ヘッドホン)
+# 競合: Handy 起動中でも読み上げ続行 (feedback loop 防止は要ヘッドホン)
 # 失敗: 処理自体は best-effort だが、失敗時も通知は出す。詳細ログは
 #       CLAUDE_TTS_DEBUG=1 で /tmp/voice-out.log
 #
@@ -173,7 +173,7 @@ voice_out_main() {
     exit 0
   fi
 
-  # Typeless / Handy 起動中でも読み上げを継続する設計とする。
+  # Handy 起動中でも読み上げを継続する設計とする。
   # feedback loop (TTS → スピーカー → マイク → 録音アプリの誤認識) を防ぐには
   # ヘッドホン使用を推奨。詳細は docs/debug/2026-06-23-caps-lock-rogue-dictation.md。
 
