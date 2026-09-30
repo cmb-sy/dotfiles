@@ -15,7 +15,10 @@ setup() {
 }
 
 teardown() {
-  [ -n "$FAKE_PID" ] && kill "$FAKE_PID" 2>/dev/null
+  if [ -n "$FAKE_PID" ]; then
+    kill "$FAKE_PID" 2>/dev/null
+    wait "$FAKE_PID" 2>/dev/null  # reap so bash prints no "Terminated"
+  fi
   return 0
 }
 
@@ -32,6 +35,7 @@ start_fake() {
     [ -s "$BATS_TEST_TMPDIR/port" ] && break
     sleep 0.1
   done
+  [ -s "$BATS_TEST_TMPDIR/port" ] || { echo "fake server did not start" >&2; return 1; }
   export JEV_ENDPOINT="http://127.0.0.1:$(cat "$BATS_TEST_TMPDIR/port")/v1/systemone"
 }
 
@@ -99,4 +103,57 @@ cand() {  # cand <id> -- one valid candidate line
   [ "$status" -eq 64 ]
   run "$GS" nope
   [ "$status" -eq 64 ]
+}
+
+@test "401 でそれ以降は送らず、残りは unauthorized で終了ステータス 4" {
+  start_fake '[[401, "{\"error\":\"invalid key\"}"]]'
+  run bash -c "$(declare -f cand); { cand c1; cand c2; } | '$GS' rate 2>/dev/null"
+  [ "$status" -eq 4 ]
+  printf '%s\n' "$output" | jq -e 'select(.id=="c1") | .error=="unauthorized"'
+  printf '%s\n' "$output" | jq -e 'select(.id=="c2") | .error=="unauthorized"'
+  n=$(grep -c . "$REQ_LOG") || n=0
+  [ "$n" -eq 1 ]
+}
+
+@test "429 の後に成功すれば再試行して点数を返す" {
+  body=$(ok_body "すぐ対応が要る")
+  start_fake "[[429, \"{}\"], [200, $(printf '%s' "$body" | jq -Rs .)]]"
+  run bash -c "$(declare -f cand); cand c1 | '$GS' rate"
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$output" | jq -e 'select(.id=="c1") | .level==4'
+  n=$(grep -c . "$REQ_LOG") || n=0
+  [ "$n" -eq 2 ]
+}
+
+@test "529 が続けば 3 回再試行してその候補だけ error" {
+  start_fake '[[529, "{}"]]'
+  run bash -c "$(declare -f cand); cand c1 | '$GS' rate"
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$output" | jq -e 'select(.id=="c1") | .error=="http 529"'
+  n=$(grep -c . "$REQ_LOG") || n=0
+  [ "$n" -eq 4 ]
+}
+
+@test "422 はその候補だけ error にして次の候補を採点する" {
+  body=$(ok_body "知っておくとよい")
+  start_fake "[[422, \"{}\"], [200, $(printf '%s' "$body" | jq -Rs .)]]"
+  run bash -c "$(declare -f cand); { cand c1; cand c2; } | '$GS' rate"
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$output" | jq -e 'select(.id=="c1") | .error=="http 422"'
+  printf '%s\n' "$output" | jq -e 'select(.id=="c2") | .level==2'
+}
+
+@test "壊れた応答はその候補だけ error" {
+  start_fake '[[200, "not json"]]'
+  run bash -c "$(declare -f cand); cand c1 | '$GS' rate"
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$output" | jq -e 'select(.id=="c1") | .error | startswith("bad response")'
+}
+
+@test "応答が遅すぎればその候補だけ error" {
+  export JEV_TIMEOUT=1
+  start_fake '[[200, "{}", 3]]'
+  run bash -c "$(declare -f cand); cand c1 | '$GS' rate"
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$output" | jq -e 'select(.id=="c1") | .error | startswith("network")'
 }
