@@ -5,26 +5,52 @@
   gain-score log <date>    JSON Lines in -> appended to the comparison log
 
 Scoring is side information for the digest, so a failure here never stops
-the watch: every per-candidate problem becomes an "error" line, and only a
-missing or rejected key ends the run early.
+the watch: every candidate gets one output line, with "error" when it could
+not be scored. A missing key exits 3 before any request; a rejected key (401)
+marks the rest "unauthorized" without sending them and exits 4. The whole run
+is bounded by JEV_DEADLINE seconds (later candidates get "deadline"), and
+after 3 candidates in a row fail on the network the rest get "network down".
 
-JEV_API_KEY, JEV_ENDPOINT, JEV_BACKOFF_BASE, JEV_TIMEOUT, JEV_KEYCHAIN_SERVICE
-and GAIN_JEV_STATE override the defaults so tests never reach the real API.
+JEV_API_KEY, JEV_ENDPOINT, JEV_BACKOFF_BASE, JEV_TIMEOUT, JEV_DEADLINE,
+JEV_KEYCHAIN_SERVICE and GAIN_JEV_STATE override the defaults so tests never
+reach the real API. JEV_ENDPOINT must be https unless it is on this machine.
 """
 import datetime
+import http.client
 import json
+import math
 import os
 import subprocess
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
+
+EXIT_NO_KEY, EXIT_UNAUTHORIZED, EXIT_USAGE = 3, 4, 64
+
+
+def env_seconds(name, default, allow_zero=False):
+    raw = os.environ.get(name, default)
+    try:
+        value = float(raw)
+    except ValueError:
+        value = math.nan
+    if not math.isfinite(value) or value < 0 or (value == 0 and not allow_zero):
+        print(f"gain-score: {name} must be a {'non-negative' if allow_zero else 'positive'}"
+              f" number of seconds, got {raw!r}", file=sys.stderr)
+        sys.exit(EXIT_USAGE)
+    return value
+
 
 ENDPOINT = os.environ.get("JEV_ENDPOINT", "https://api.typesafe.ai/v1/systemone")
 KEYCHAIN_SERVICE = os.environ.get("JEV_KEYCHAIN_SERVICE", "typesafe-jev-api-key")
-BACKOFF_BASE = float(os.environ.get("JEV_BACKOFF_BASE", "1"))
-TIMEOUT = float(os.environ.get("JEV_TIMEOUT", "10"))
+BACKOFF_BASE = env_seconds("JEV_BACKOFF_BASE", "1", allow_zero=True)
+TIMEOUT = env_seconds("JEV_TIMEOUT", "10")
+DEADLINE = env_seconds("JEV_DEADLINE", "90")
 RETRIES = 3
+BREAKER = 3  # consecutive network failures that mean the API is unreachable
+LOCAL_HOSTS = ("127.0.0.1", "localhost")
 
 CRITERIA = ["無関係", "名前が同じだけ", "知っておくとよい",
             "設定や使い方を見直す価値がある", "すぐ対応が要る"]
@@ -32,11 +58,11 @@ INSTRUCTIONS = ("この理由で監視している人の手元の環境に、"
                 "この更新がどれだけ効くかを判定する")
 REQUIRED = ("id", "note", "title", "summary")
 
-EXIT_NO_KEY, EXIT_UNAUTHORIZED, EXIT_USAGE = 3, 4, 64
 USAGE = "usage: gain-score rate | gain-score log <YYYY-MM-DD>"
 STATE = os.environ.get("GAIN_JEV_STATE",
                        os.path.expanduser("~/.local/state/gain/jev-scores.tsv"))
-LOG_FIELDS = ("scope", "key", "title", "score", "level", "confidence")
+LOG_TEXT = ("scope", "key", "title")
+LOG_NUMBERS = ("score", "level", "confidence")
 
 
 class Unauthorized(Exception):
@@ -69,63 +95,93 @@ def build_request(c):
     }
 
 
+def is_number(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+
+
+def number(v, name):
+    if not is_number(v):
+        raise ValueError(f"{name} is not a finite number: {v!r}")
+    return v
+
+
+INDEX_KEYS = [str(i) for i in range(len(CRITERIA))]
+
+
 def level_of(probabilities):
-    # The reference does not say how probabilities are keyed; accept the
-    # criterion label or its index.
-    best, best_p = None, -1.0
-    for k, p in probabilities.items():
-        if k in CRITERIA:
-            i = CRITERIA.index(k)
-        elif str(k).isdigit() and int(k) < len(CRITERIA):
-            i = int(k)
-        else:
-            continue
-        if isinstance(p, (int, float)) and p > best_p:
-            best, best_p = i, p
-    return best
+    # The reference does not say how probabilities are keyed; accept exactly
+    # the criterion labels or exactly their 0-based indexes, nothing looser.
+    if not isinstance(probabilities, dict):
+        raise ValueError(f"probabilities is not an object: {probabilities!r}")
+    keys = list(probabilities)
+    if set(keys) == set(CRITERIA):
+        order = CRITERIA
+    elif set(keys) == set(INDEX_KEYS):
+        order = INDEX_KEYS
+    else:
+        raise ValueError(f"unexpected probability keys {keys}")
+    ps = [number(probabilities[k], f"probability {k}") for k in order]
+    return ps.index(max(ps))
 
 
 def parse_answer(raw):
     a = json.loads(raw)["answers"]["impact"]
     level = level_of(a["probabilities"])
-    if level is None:
-        raise ValueError("no known criterion in probabilities")
-    return {"score": a["score"], "level": level, "confidence": a["confidence"]}
+    confidence = number(a["confidence"], "confidence")
+    if not 0 <= confidence <= 1:
+        raise ValueError(f"confidence is outside [0, 1]: {confidence!r}")
+    return {"score": number(a["score"], "score"), "level": level, "confidence": confidence}
 
 
-def post(payload, key):
+def safe_endpoint(url):
+    # The Keychain key goes wherever this points; never send it in clear text
+    # off this machine.
+    parts = urllib.parse.urlsplit(url)
+    return parts.scheme == "https" or (parts.scheme == "http" and parts.hostname in LOCAL_HOSTS)
+
+
+def post(payload, key, timeout):
     req = urllib.request.Request(
         ENDPOINT, data=json.dumps(payload, ensure_ascii=False).encode(), method="POST",
         headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
+    with urllib.request.urlopen(req, timeout=timeout) as r:
         return r.read()
 
 
-def rate_one(c, key):
+def rate_one(c, key, deadline):
     for attempt in range(RETRIES + 1):
+        left = deadline - time.monotonic()
+        if left <= 0:
+            return {"error": "deadline"}
         try:
-            return parse_answer(post(build_request(c), key))
+            return parse_answer(post(build_request(c), key, min(TIMEOUT, left)))
         except urllib.error.HTTPError as e:
             if e.code == 401:
                 raise Unauthorized() from e
-            if e.code in (429, 529) and attempt < RETRIES:
-                time.sleep(BACKOFF_BASE * 2 ** attempt)
+            wait = BACKOFF_BASE * 2 ** attempt
+            if (e.code in (429, 529) and attempt < RETRIES
+                    and time.monotonic() + wait < deadline):
+                time.sleep(wait)
                 continue
             return {"error": f"http {e.code}"}
-        except (urllib.error.URLError, OSError) as e:
-            return {"error": f"network: {e}"}
+        except (urllib.error.URLError, OSError, http.client.HTTPException) as e:
+            return {"error": f"network: {str(e) or repr(e)}"}
         except (ValueError, KeyError, TypeError, AttributeError) as e:
             return {"error": f"bad response: {e}"}
-    return {"error": "retries exhausted"}
 
 
 def cmd_rate(lines):
+    if not safe_endpoint(ENDPOINT):
+        print(f"gain-score: JEV_ENDPOINT must be https unless on {' or '.join(LOCAL_HOSTS)},"
+              f" got {ENDPOINT}", file=sys.stderr)
+        return EXIT_USAGE
+    deadline = time.monotonic() + DEADLINE
     key = api_key()
     if not key:
         print(f"gain-score: Jev 未設定 (no key in Keychain service {KEYCHAIN_SERVICE})",
               file=sys.stderr)
         return EXIT_NO_KEY
-    unauthorized = False
+    unauthorized, network_failures = False, 0
     for n, line in enumerate(lines, 1):
         if not line.strip():
             continue
@@ -144,8 +200,14 @@ def cmd_rate(lines):
         if unauthorized:
             emit({"id": c["id"], "error": "unauthorized"})
             continue
+        if network_failures >= BREAKER:
+            emit({"id": c["id"], "error": "network down"})
+            continue
         try:
-            emit({"id": c["id"], **rate_one(c, key)})
+            result = rate_one(c, key, deadline)
+            failed = result.get("error", "").startswith("network:")
+            network_failures = network_failures + 1 if failed else 0
+            emit({"id": c["id"], **result})
         except Unauthorized:
             unauthorized = True
             print("gain-score: Jev のキーが無効 (401)", file=sys.stderr)
@@ -166,6 +228,15 @@ def valid_day(day):
         return False
 
 
+def loggable(c):
+    # A value of the wrong type would still land in the TSV and skew the
+    # comparison ("false" read as picked, a list as a score), so drop the line.
+    return (isinstance(c, dict)
+            and isinstance(c.get("picked"), bool)
+            and all(isinstance(c.get(k), str) and c.get(k).strip() for k in LOG_TEXT)
+            and all(c.get(k) is None or is_number(c.get(k)) for k in LOG_NUMBERS))
+
+
 def cmd_log(day, lines):
     if not valid_day(day):
         print(f"gain-score: date must be YYYY-MM-DD, got {day}", file=sys.stderr)
@@ -176,15 +247,16 @@ def cmd_log(day, lines):
             continue
         try:
             c = json.loads(line)
-            if not isinstance(c, dict):
-                raise ValueError
         except ValueError:
+            c = None
+        if not loggable(c):
             skipped += 1
             continue
-        cells = [day] + [clean(c.get(k)) for k in LOG_FIELDS] + ["1" if c.get("picked") else "0"]
+        cells = ([day] + [clean(c[k]) for k in LOG_TEXT] + [clean(c.get(k)) for k in LOG_NUMBERS]
+                 + ["1" if c["picked"] else "0"])
         rows.append("\t".join(cells) + "\n")
     if skipped:
-        print(f"gain-score: skipped {skipped} line(s) that were not JSON objects", file=sys.stderr)
+        print(f"gain-score: skipped {skipped} line(s) that were not valid log records", file=sys.stderr)
     if rows:
         os.makedirs(os.path.dirname(STATE), exist_ok=True)
         with open(STATE, "a", encoding="utf-8") as f:

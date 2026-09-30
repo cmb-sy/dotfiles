@@ -40,7 +40,10 @@ start_fake() {
 }
 
 ok_body() {  # ok_body <top-criterion> -- a score answer whose max probability is that label
-  printf '{"model":"jev-1.13","answers":{"impact":{"type":"score","score":3.1,"legend":{},"probabilities":{"無関係":0.01,"名前が同じだけ":0.02,"知っておくとよい":0.07,"%s":0.8,"すぐ対応が要る":0.1},"confidence":0.9}},"usage":{"input_tokens":40,"output_tokens":0}}' "$1"
+  jq -cn --arg top "$1" '{model:"jev-1.13",answers:{impact:{type:"score",score:3.1,legend:{},
+    probabilities:(["無関係","名前が同じだけ","知っておくとよい","設定や使い方を見直す価値がある","すぐ対応が要る"]
+      | map({key:., value:(if . == $top then 0.8 else 0.05 end)}) | from_entries),
+    confidence:0.9}},usage:{input_tokens:40,output_tokens:0}}'
 }
 
 cand() {  # cand <id> -- one valid candidate line
@@ -158,6 +161,103 @@ cand() {  # cand <id> -- one valid candidate line
   printf '%s\n' "$output" | jq -e 'select(.id=="c1") | .error | startswith("network")'
 }
 
+@test "応答が途中で切れてもその候補だけ error にして次を採点する" {
+  body=$(ok_body "無関係")
+  js=$(printf '%s' "$body" | jq -Rs .)
+  start_fake "[[200, $js, 0, true], [200, $js]]"
+  run bash -c "$(declare -f cand); { cand c1; cand c2; } | '$GS' rate"
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$output" | jq -e 'select(.id=="c1") | .error | startswith("network")'
+  printf '%s\n' "$output" | jq -e 'select(.id=="c2") | .level==0'
+}
+
+@test "全体の持ち時間を超えたら残りは送らず deadline" {
+  export JEV_DEADLINE=1 JEV_TIMEOUT=5
+  body=$(ok_body "無関係")
+  start_fake "[[200, $(printf '%s' "$body" | jq -Rs .), 2]]"
+  run bash -c "$(declare -f cand); { cand c1; cand c2; cand c3; } | '$GS' rate"
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$output" | jq -e 'select(.id=="c3") | .error=="deadline"'
+  n=$(grep -c . "$REQ_LOG") || n=0
+  [ "$n" -lt 3 ]
+}
+
+@test "network の失敗が 3 候補続いたら残りは送らず network down" {
+  export JEV_TIMEOUT=1
+  start_fake '[[200, "{}", 2]]'
+  run bash -c "$(declare -f cand); { cand c1; cand c2; cand c3; cand c4; } | '$GS' rate"
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$output" | jq -e 'select(.id=="c3") | .error | startswith("network:")'
+  printf '%s\n' "$output" | jq -e 'select(.id=="c4") | .error=="network down"'
+  n=$(grep -c . "$REQ_LOG") || n=0
+  [ "$n" -eq 3 ]
+}
+
+@test "https でない外部の送り先は拒否して終了ステータス 64" {
+  export JEV_ENDPOINT="http://example.com/x"
+  run bash -c "$(declare -f cand); cand c1 | '$GS' rate 2>&1"
+  [ "$status" -eq 64 ]
+  printf '%s' "$output" | grep -qF 'https'
+  n=$(printf '%s\n' "$output" | grep -cF '"id"') || n=0
+  [ "$n" -eq 0 ]
+}
+
+@test "数値の環境変数が不正なら終了ステータス 64" {
+  export JEV_DEADLINE=abc
+  run bash -c "$(declare -f cand); cand c1 | '$GS' rate 2>&1"
+  [ "$status" -eq 64 ]
+  printf '%s' "$output" | grep -qF 'JEV_DEADLINE'
+}
+
+# rate_body <probabilities-json> [score] [confidence] -- an answer with those fields
+rate_body() {
+  printf '{"model":"jev","answers":{"impact":{"type":"score","score":%s,"legend":{},"probabilities":%s,"confidence":%s}},"usage":{}}' \
+    "${2:-1.0}" "$1" "${3:-0.5}"
+}
+
+@test "probabilities が 1 始まりの番号なら受け取ったキーを添えて error" {
+  body=$(rate_body '{"1":0.1,"2":0.7,"3":0.1,"4":0.05,"5":0.05}')
+  start_fake "[[200, $(printf '%s' "$body" | jq -Rs .)]]"
+  run bash -c "$(declare -f cand); cand c1 | '$GS' rate"
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$output" | jq -e 'select(.id=="c1") | .error | startswith("bad response: unexpected probability keys")'
+  printf '%s\n' "$output" | jq -e 'select(.id=="c1") | .error | contains("'"'5'"'")'
+}
+
+@test "確率が true なら error" {
+  body=$(rate_body '{"0":true,"1":0.1,"2":0.1,"3":0.1,"4":0.1}')
+  start_fake "[[200, $(printf '%s' "$body" | jq -Rs .)]]"
+  run bash -c "$(declare -f cand); cand c1 | '$GS' rate"
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$output" | jq -e 'select(.id=="c1") | .error | startswith("bad response")'
+}
+
+@test "score が文字列なら error" {
+  body=$(rate_body '{"0":0.6,"1":0.1,"2":0.1,"3":0.1,"4":0.1}' '"high"')
+  start_fake "[[200, $(printf '%s' "$body" | jq -Rs .)]]"
+  run bash -c "$(declare -f cand); cand c1 | '$GS' rate"
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$output" | jq -e 'select(.id=="c1") | .error | startswith("bad response")'
+}
+
+@test "score が NaN でも出力は正しい JSON で error" {
+  body=$(rate_body '{"0":0.6,"1":0.1,"2":0.1,"3":0.1,"4":0.1}' 'NaN')
+  start_fake "[[200, $(printf '%s' "$body" | jq -Rs .)]]"
+  run bash -c "$(declare -f cand); cand c1 | '$GS' rate"
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$output" | jq -e 'select(.id=="c1") | .error | startswith("bad response")'
+}
+
+@test "confidence が null や範囲外なら error" {
+  body=$(rate_body '{"0":0.6,"1":0.1,"2":0.1,"3":0.1,"4":0.1}' 1.0 null)
+  body2=$(rate_body '{"0":0.6,"1":0.1,"2":0.1,"3":0.1,"4":0.1}' 1.0 1.5)
+  start_fake "[[200, $(printf '%s' "$body" | jq -Rs .)], [200, $(printf '%s' "$body2" | jq -Rs .)]]"
+  run bash -c "$(declare -f cand); { cand c1; cand c2; } | '$GS' rate"
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$output" | jq -e 'select(.id=="c1") | .error | startswith("bad response")'
+  printf '%s\n' "$output" | jq -e 'select(.id=="c2") | .error | startswith("bad response")'
+}
+
 @test "log が 1 行 1 候補で追記する" {
   run bash -c "printf '%s\n' \
     '{\"id\":\"c1\",\"scope\":\"github\",\"key\":\"ollama/ollama\",\"title\":\"v0.33.3\",\"score\":3.1,\"level\":3,\"confidence\":0.9,\"picked\":true}' \
@@ -186,6 +286,12 @@ cand() {  # cand <id> -- one valid candidate line
   [ "$n" -eq 0 ]
 }
 
+@test "log は区切りの無い日付も拒否して理由を出す" {
+  run bash -c "printf '{}\n' | '$GS' log 20260930 2>&1"
+  [ "$status" -eq 64 ]
+  printf '%s' "$output" | grep -qF 'date must be YYYY-MM-DD'
+}
+
 @test "log は JSON でない行を飛ばして残りを書く" {
   run bash -c "printf '%s\n' 'oops' \
     '{\"id\":\"c1\",\"scope\":\"github\",\"key\":\"k\",\"title\":\"t\",\"score\":1,\"level\":1,\"confidence\":0.5,\"picked\":false}' \
@@ -194,4 +300,19 @@ cand() {  # cand <id> -- one valid candidate line
   printf '%s' "$output" | grep -qF 'skipped'
   n=$(grep -c . "$GAIN_JEV_STATE")
   [ "$n" -eq 1 ]
+}
+
+@test "log は型の合わない行を飛ばして数え、前後の正しい行は書く" {
+  run bash -c "printf '%s\n' \
+    '{\"id\":\"c1\",\"scope\":\"github\",\"key\":\"k\",\"title\":\"t1\",\"score\":1,\"level\":1,\"confidence\":0.5,\"picked\":true}' \
+    '{\"id\":\"c2\",\"scope\":\"github\",\"key\":\"k\",\"title\":\"t2\",\"score\":1,\"level\":1,\"confidence\":0.5,\"picked\":\"false\"}' \
+    '{\"id\":\"c3\",\"scope\":\"github\",\"key\":\"k\",\"title\":\"t3\",\"score\":[1,2],\"level\":1,\"confidence\":0.5,\"picked\":false}' \
+    '{\"id\":\"c4\",\"scope\":\"github\",\"key\":\"\",\"title\":\"t4\",\"picked\":false}' \
+    '{\"id\":\"c5\",\"scope\":\"github\",\"key\":\"k\",\"title\":\"t5\",\"score\":null,\"error\":\"http 422\",\"picked\":false}' \
+    | '$GS' log 2026-09-30 2>&1"
+  [ "$status" -eq 0 ]
+  printf '%s' "$output" | grep -qF 'skipped 3'
+  printf '2026-09-30\tgithub\tk\tt1\t1\t1\t0.5\t1\n' > "$BATS_TEST_TMPDIR/want"
+  printf '2026-09-30\tgithub\tk\tt5\t\t\t\t0\n' >> "$BATS_TEST_TMPDIR/want"
+  cmp "$GAIN_JEV_STATE" "$BATS_TEST_TMPDIR/want"
 }
