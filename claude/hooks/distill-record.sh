@@ -47,11 +47,12 @@ command -v gtimeout >/dev/null && TIMEOUT_BIN="gtimeout -k 30 1800"
 mkdir -p "$LOG_DIR" "$TMP_DIR" "$STATE_DIR"
 say() { printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" >>"$LOG"; }
 
-# The organization part of a repository's origin, for the deny check.
-# Organizations rather than repository names, so new repositories are covered.
+# The organization part of a repository's remote (origin by default), for the
+# deny check. Organizations rather than repository names, so new repositories
+# are covered.
 project_owner() {
   local url
-  url=$(git -C "$1" remote get-url origin 2>/dev/null) || return 0
+  url=$(git -C "$1" remote get-url "${2:-origin}" 2>/dev/null) || return 0
   [ -n "$url" ] || return 0
   url="${url%/}"; url="${url%.git}"
   url="${url%/*}"
@@ -284,18 +285,34 @@ fi
 # --- 判定 2b: 記録してよい組織の repo か ---
 # 記録は vault に入り、vault は外部サイトへ配信される。業務の自由文は
 # 伏せ字化で落ちないので、組織単位で入口を閉じる。owner の表記は clone の
-# 仕方で揺れるので、大文字小文字を無視して比べる。
-deny_owners="${DISTILL_RECORD_DENY_OWNERS:-Resily}"
-owner=$(project_owner "$repo_root" | tr '[:upper:]' '[:lower:]')
-if [ -n "$owner" ]; then
-  for d in $deny_owners; do
-    if [ "$owner" = "$(printf '%s' "$d" | tr '[:upper:]' '[:lower:]')" ]; then
-      say "${sid}: 記録しない組織の repo。記録しない"
-      remember "$recorded"
-      exit 0
-    fi
+# 仕方で揺れるので、大文字小文字を無視して比べる。fork は upstream も見る。
+# 最後の repo だけでなく、会話中にいたすべての repo を見る。途中で業務の
+# repo にいた会話も本文に残る。見るのは cwd の欄だけで、本文は読まない。
+# 指定は read -a で分ける。for で展開すると * がファイル名に化ける。
+read -ra deny_list <<<"$(printf '%s' "${DISTILL_RECORD_DENY_OWNERS:-Resily}" | tr '[:upper:]' '[:lower:]')"
+repo_denied() {
+  local remote o d
+  for remote in origin upstream; do
+    o=$(project_owner "$1" "$remote" | tr '[:upper:]' '[:lower:]')
+    [ -n "$o" ] || continue
+    for d in ${deny_list[@]+"${deny_list[@]}"}; do
+      [ "$o" = "$d" ] && return 0
+    done
   done
-fi
+  return 1
+}
+while IFS= read -r dir; do
+  [ -n "$dir" ] || continue
+  root=$(cd "$dir" 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null) || continue
+  if [ -n "$root" ] && repo_denied "$root"; then
+    say "${sid}: 記録しない組織の repo。記録しない"
+    remember "$recorded"
+    exit 0
+  fi
+done < <({
+  printf '%s\n' "$repo_root"
+  grep -o '"cwd":"[^"]*"' "$tx" | sed 's/^"cwd":"//; s/"$//'
+} | sort -u)
 # 書き先のプロジェクト名。スキルと同じ規則で決める（名前を付け直したプロジェクトや
 # worktree を、元のプロジェクトに寄せる）。取れなければリポジトリの名前。
 repo=$(/bin/bash "$HOOK_DIR/../../bin/distill-repo-name" "$repo_root" 2>/dev/null)

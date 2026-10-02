@@ -730,3 +730,48 @@ load_project_owner() {
   denied=$(grep -cF "記録しない組織" "$TEST_TMPDIR/home/.distill/logs/record.log" || true)
   [ "$denied" -eq 0 ]
 }
+
+@test "distill-record: 途中で記録しない組織の repo にいたセッションは記録しない" {
+  # 巡回は最後の cwd、SessionEnd は今の cwd しか見ない。途中で業務の repo に
+  # いた会話も、本文は vault に入れてはいけない。
+  mkdir -p "$TEST_TMPDIR/home"
+  local work
+  work="$(make_tmp_git_repo)"
+  git -C "$work" remote add origin "https://github.com/Resily/dxp.git"
+  git -C "$GIT_REPO" remote add origin "https://github.com/cmb-sy/dotfiles.git"
+  local tx="$TEST_TMPDIR/moved.jsonl"
+  {
+    printf '{"type":"user","cwd":"%s","message":{"content":"業務の依頼"}}\n' "$work"
+    printf '{"type":"user","cwd":"%s","message":{"content":"別の依頼"}}\n' "$GIT_REPO"
+    tail -n +2 "$TX"
+  } > "$tx"
+  run_hook "o3" "$GIT_REPO" "$tx" >/dev/null
+  rm -rf "$work"
+  grep -qF "o3: 記録しない組織" "$TEST_TMPDIR/home/.distill/logs/record.log"
+  local started
+  started=$(grep -cF "o3: 記録を開始" "$TEST_TMPDIR/home/.distill/logs/record.log" || true)
+  [ "$started" -eq 0 ]
+}
+
+@test "distill-record: upstream が記録しない組織の fork は記録しない" {
+  mkdir -p "$TEST_TMPDIR/home"
+  git -C "$GIT_REPO" remote add origin "https://github.com/cmb-sy/dxp.git"
+  git -C "$GIT_REPO" remote add upstream "https://github.com/Resily/dxp.git"
+  run_hook "o4" "$GIT_REPO" "$TX" >/dev/null
+  grep -qF "o4: 記録しない組織" "$TEST_TMPDIR/home/.distill/logs/record.log"
+  local started
+  started=$(grep -cF "o4: 記録を開始" "$TEST_TMPDIR/home/.distill/logs/record.log" || true)
+  [ "$started" -eq 0 ]
+}
+
+@test "distill-record: 除外する組織の指定はファイル名に展開しない" {
+  # 展開されると、hook を起こした場所のファイル名が除外の対象にすり替わる。
+  mkdir -p "$TEST_TMPDIR/home" "$TEST_TMPDIR/here"
+  touch "$TEST_TMPDIR/here/cmb-sy"
+  git -C "$GIT_REPO" remote add origin "https://github.com/cmb-sy/dotfiles.git"
+  ( cd "$TEST_TMPDIR/here" && DISTILL_RECORD_DENY_OWNERS='cmb-s*' run_hook "o5" "$GIT_REPO" "$TX" >/dev/null )
+  grep -qF "o5: 記録を開始" "$TEST_TMPDIR/home/.distill/logs/record.log"
+  local denied
+  denied=$(grep -cF "記録しない組織" "$TEST_TMPDIR/home/.distill/logs/record.log" || true)
+  [ "$denied" -eq 0 ]
+}
