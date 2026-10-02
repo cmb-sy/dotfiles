@@ -23,8 +23,6 @@ peers:
 
 # General repos — watch commits/releases (not limited to dotfiles)
 github:
-  - repo: neko-neko/belt
-    note: LLM-driven Agent Skills workflow engine; directly relevant to my skill ops
   - repo: mizchi/vibe-lang
     note: active experimental language for AI coding
   - repo: netresearch/agent-harness-skill
@@ -35,6 +33,8 @@ github:
     note: releases only — upstream moves without me noticing. Check the local version in /Applications/Handy.app Info.plist (CFBundleShortVersionString), never a fixed number here
   - repo: ollama/ollama
     note: releases only — new versions of the free local runtime behind Handy voice post-processing
+  - repo: jdx/mise
+    note: releases only — runtime/tool manager behind the Brewfile and .zshrc here; its dotfiles features (mise dot) move weekly, and peer yutkat applies dotfiles with it
 
 # Service changelog / release pages
 # Every entry here has to be a page that dates its own entries: collection
@@ -44,7 +44,7 @@ github:
 services:
   - name: Claude Code
     url: https://code.claude.com/docs/en/changelog
-    note: primary daily tool; weekly feature drops. This page dates each entry, which the GitHub CHANGELOG does not -- the 14-day window needs the dates
+    note: primary daily tool; weekly feature drops. This page dates each entry, which the GitHub CHANGELOG does not -- the 7-day window needs the dates
   - name: Anthropic API
     url: https://platform.claude.com/docs/en/release-notes/overview
     note: model/API updates; feeds Databricks & AI work
