@@ -42,26 +42,25 @@ if util::confirm "Install the runtimes mise pins (python, node, deno)?"; then
     # Failure here is not cosmetic: the python step below then falls back to an
     # interpreter it cannot install into, so say what breaks.
     mise install \
-      || util::warning "mise install failed; pygments/pyyaml cannot be installed and the tests that need them will skip."
+      || util::warning "mise install failed; pyyaml cannot be installed and the tests that need them will skip."
   else
     util::warning "mise not found; skipping runtimes (install the Brewfile first)."
   fi
 fi
 
 #----------------------------------------------------------
-# Python packages (tests + bin/highlight-code)
+# Python packages (tests)
 #
-# Homebrew cannot express these: its pygments formula is a private virtualenv
-# exposing only the pygmentize CLI, and pyyaml has no formula at all. Both must
-# be importable by the python3 on PATH, so install them against that
-# interpreter with uv (from the Brewfile above).
+# Homebrew cannot express this: pyyaml has no formula at all. It must be
+# importable by the python3 on PATH, so install it against that interpreter
+# with uv (from the Brewfile above).
 #
 # Refuse the Xcode command-line-tools interpreter: it is root-owned, so the
 # install either fails on permissions or pollutes a tree that a CLT update
 # wipes -- and either way the tests keep skipping, which is the failure this
 # step exists to prevent.
 #----------------------------------------------------------
-if util::confirm "Install python packages (pygments, pyyaml)?"; then
+if util::confirm "Install python packages (pyyaml)?"; then
   # `mise install` does not change PATH in this process, and mise activates from
   # .zshrc, which a non-interactive setup never reads -- so ask mise directly and
   # keep command -v only as the fallback for a machine without mise.
@@ -77,9 +76,9 @@ if util::confirm "Install python packages (pygments, pyyaml)?"; then
     # outright rather than half-installing.
     util::warning "python3 is Homebrew's (${PY}), which is externally managed; mise install did not provide one."
   else
-    util::info "Installing pygments and pyyaml into ${PY}"
-    uv pip install --quiet --python "${PY}" pygments pyyaml \
-      || util::warning "python packages failed; highlight-code and server tests will skip."
+    util::info "Installing pyyaml into ${PY}"
+    uv pip install --quiet --python "${PY}" pyyaml \
+      || util::warning "python packages failed; the tests that import yaml will skip."
   fi
 fi
 
@@ -104,31 +103,6 @@ fi
 #----------------------------------------------------------
 if ! util::is_ci && util::confirm "Apply macOS settings?"; then
   source "${REPO_DIR}/macos/install.zsh"
-fi
-
-#----------------------------------------------------------
-# TCP keepalive tuning (corporate firewall NAT idle timeout workaround)
-#
-# Details: docs/superpowers/specs/2026-07-09-tcp-keepalive-firewall-timeout-design.md
-# LaunchDaemon, not LaunchAgent, since sysctl -w needs root. Copied (not
-# symlinked) with root:wheel 644, since launchd checks plist ownership.
-#----------------------------------------------------------
-if util::confirm "Apply TCP keepalive tuning (企業ファイアウォールのタイムアウト対策)?"; then
-  PLIST_NAME="local.tcp-keepalive-tuning.plist"
-  SRC_PLIST="${REPO_DIR}/macos/${PLIST_NAME}"
-  DEST_PLIST="/Library/LaunchDaemons/${PLIST_NAME}"
-  if [[ -f "${SRC_PLIST}" ]]; then
-    sudo cp "${SRC_PLIST}" "${DEST_PLIST}"
-    sudo chown root:wheel "${DEST_PLIST}"
-    sudo chmod 644 "${DEST_PLIST}"
-    sudo launchctl bootstrap system "${DEST_PLIST}" 2>/dev/null \
-      || sudo launchctl load -w "${DEST_PLIST}"
-    sudo sysctl -w net.inet.tcp.keepidle=5000 net.inet.tcp.keepintvl=3000 \
-      net.inet.tcp.keepcnt=8 net.inet.tcp.always_keepalive=1
-    util::info "TCP keepalive tuning applied and persisted via LaunchDaemon."
-  else
-    util::info "Skip: macos/${PLIST_NAME} not found."
-  fi
 fi
 
 #----------------------------------------------------------
@@ -183,12 +157,19 @@ if util::confirm "Install slackcli?"; then
   if command -v slackcli &>/dev/null; then
     util::info "slackcli already installed: $(slackcli --version)"
   else
+    # Warn and fall through: this file is sourced, so a return here would
+    # skip every later step.
     local tmp
-    tmp="$(mktemp -t slackcli)" || return 1
-    curl -fSL "https://github.com/shaharia-lab/slackcli/releases/latest/download/slackcli-${suffix}" -o "${tmp}"
-    chmod +x "${tmp}"
-    mv "${tmp}" "$dest"
-    util::info "slackcli installed to $dest"
+    if ! tmp="$(mktemp -t slackcli)"; then
+      util::warning "mktemp failed; skipping slackcli."
+    elif ! curl -fSL "https://github.com/shaharia-lab/slackcli/releases/latest/download/slackcli-${suffix}" -o "${tmp}"; then
+      rm -f "${tmp}"
+      util::warning "slackcli download failed; skipping (install it manually later)."
+    else
+      chmod +x "${tmp}"
+      mv "${tmp}" "$dest"
+      util::info "slackcli installed to $dest"
+    fi
   fi
 fi
 

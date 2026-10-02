@@ -24,6 +24,8 @@ brew 'tmux'
 brew 'herdr'
 brew 'jq'
 brew 'tfenv'
+# Lints the bash scripts under bin/ and claude/hooks/.
+brew 'shellcheck'
 tap 'manaflow-ai/cmux'
 
 # -----------------------------------------------------------
@@ -34,6 +36,8 @@ cask 'ghostty'
 cask 'wezterm'
 cask 'cmux'
 cask 'cursor'
+# setup links .vscode/ settings into it and installs its extensions.
+cask 'visual-studio-code'
 cask 'docker-desktop'
 cask 'slack'
 cask 'obsidian'
@@ -63,3 +67,5 @@ cask 'ollama-app'
 cask 'font-hackgen'
 cask 'font-monaspace'
 cask 'font-fira-code-nerd-font'
+# The VS Code / Cursor integrated terminal font (.vscode/settings.json).
+cask 'font-hack-nerd-font'

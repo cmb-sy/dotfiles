@@ -43,3 +43,22 @@ load "helpers/common"
   [ "$strays" -eq 0 ]
   rm -rf "$TEST_TMPDIR"
 }
+
+@test "keybindings.json は VS Code と Cursor の User ディレクトリへ張られる" {
+  code=$(grep -v '^[[:space:]]*#' "$REPO_DIR/setup/setup.zsh")
+  printf '%s' "$code" | grep -qF '".vscode/keybindings.json|${HOME}/Library/Application Support/Code/User/keybindings.json|file"'
+  printf '%s' "$code" | grep -qF '".vscode/keybindings.json|${HOME}/Library/Application Support/Cursor/User/keybindings.json|file"'
+}
+
+# The old setups left these as dangling links in $HOME; cleanup and the CI
+# check must both name them, and README documents the same list.
+@test "legacy 掃除リストに旧セットアップの 4 名が入っている" {
+  # `;` -> space so the last name is matched like the others
+  line=$(grep -E '^for legacy in ' "$REPO_DIR/setup/setup.zsh" | tr ';' ' ')
+  ci=$(grep -E '^[[:space:]]*for bad in ' "$REPO_DIR/.github/workflows/ci.yml" | tr ';' ' ')
+  for n in .aliases .zsh .chezmoi .tmux.conf; do
+    printf '%s\n' "$line" | grep -qF " $n "
+    printf '%s\n' "$ci" | grep -qF " $n "
+    grep -F 'no legacy bad symlinks' "$REPO_DIR/README.md" | grep -qF "\`~/$n\`"
+  done
+}

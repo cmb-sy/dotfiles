@@ -50,6 +50,10 @@ defaults write -g AppleShowScrollBars -string "Always" # show scroll bars always
 # ----------------------------------------------------------
 defaults write -g NSAutomaticSpellingCorrectionEnabled -bool false # disable spelling correction
 defaults write com.apple.inputmethod.Kotoeri JIMPrefLiveConversionKey -bool false # disable live conversion
+# Dictation competes with Handy for the voice hotkey; turn it off everywhere.
+defaults write com.apple.HIToolbox AppleDictationAutoEnable -bool false
+defaults write com.apple.assistant.support 'Dictation Enabled' -bool false
+launchctl disable "gui/$(id -u)/com.apple.DictationIM"
 
 # ----------------------------------------------------------
 # system dialog settings

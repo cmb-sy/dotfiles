@@ -52,7 +52,7 @@ GitHub Actions runs `setup/setup.zsh` on a `macOS-latest` runner on every push a
 - Brewfile formulas on PATH (gh, jq, starship, uv, mise, ...)
 - `~/.claude/skills` SKILL.md inventory (≥ 20)
 - `~/.claude/settings.json` is valid JSON
-- no legacy bad symlinks (`~/.git`, `~/.Brewfile`, etc.)
+- no legacy bad symlinks (`~/.Brewfile`, `~/.bin`, `~/.docs`, `~/.git`, `~/.macos`, `~/.aliases`, `~/.zsh`, `~/.chezmoi`, `~/.tmux.conf`)
 - no machine-local keys in `.vscode/settings.json`
 - the `bats` suite in `test/`
 

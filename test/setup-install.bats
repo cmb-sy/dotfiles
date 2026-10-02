@@ -17,7 +17,7 @@ load "helpers/common"
   [ "$output" -eq 0 ]
 }
 
-# The python step is what keeps the pygments/pyyaml skips from being permanent,
+# The python step is what keeps the pyyaml skips from being permanent,
 # and the skip messages point at it by name, so deleting it has to fail here.
 # uv against the Xcode CLT interpreter either fails on permissions or writes to
 # a tree that a CLT update wipes; both leave the tests skipping forever.
@@ -67,7 +67,10 @@ run_python_block() {  # $1 = what `mise which python3` should return
 @test "install.zsh は mise の python3 には uv で導入する" {
   run run_python_block "$HOME/.local/share/mise/installs/python/3.13.9/bin/python3"
   printf '%s' "$output" | grep -qF 'UV CALLED'
-  printf '%s' "$output" | grep -qF 'pygments pyyaml'
+  printf '%s' "$output" | grep -qF 'pyyaml'
+  # pygments only served the removed bin/highlight-code
+  hits=$(printf '%s' "$output" | grep -cF 'pygments') || hits=0
+  [ "$hits" -eq 0 ]
 }
 
 # The pin only takes effect if the runtimes are actually installed, and it must
@@ -85,4 +88,40 @@ run_python_block() {  # $1 = what `mise which python3` should return
 # version comes from an unmanaged ~/.config/mise/config.toml.
 @test "mise 設定がリポジトリで python を固定している" {
   grep -qF 'python = ' "$REPO_DIR/setup/mise-config.toml"
+}
+
+# Measured on the real network: the drops came from a transparent proxy, and
+# keepalive tuning did not help. setup must not install the daemon again.
+@test "install.zsh は TCP keepalive 調整を入れない" {
+  hits=$(grep -v '^[[:space:]]*#' "$REPO_DIR/setup/install.zsh" | grep -ciF 'keepalive') || hits=0
+  [ "$hits" -eq 0 ]
+  [ ! -e "$REPO_DIR/macos/local.tcp-keepalive-tuning.plist" ]
+}
+
+@test "highlight-code は削除されている" {
+  [ ! -e "$REPO_DIR/bin/highlight-code" ]
+  hits=$(git -C "$REPO_DIR" grep -c 'highlight-code' -- setup .github bin test/*.bats ':!test/setup-install.bats' | wc -l | tr -d ' ')
+  [ "$hits" -eq 0 ]
+}
+
+# A failed download used to `return 1` out of the sourced install.zsh, which
+# silently skipped every step after it (LaunchAgents included). Run the live
+# block with a failing curl and check that control reaches the next line.
+@test "slackcli の取得失敗は警告で済み後続を止めない" {
+  local stub="$BATS_TEST_TMPDIR/stub" home="$BATS_TEST_TMPDIR/home"
+  mkdir -p "$stub" "$home"
+  printf '#!/bin/bash\nexit 22\n' > "$stub/curl"
+  chmod +x "$stub/curl"
+  awk '/^# slackcli/{f=1} f' "$REPO_DIR/setup/install.zsh" \
+    | awk '/^fi$/{print; exit} {print}' > "$BATS_TEST_TMPDIR/block.zsh"
+  # A function, like the sourced file it stands in for: return leaves it.
+  run env HOME="$home" CI=true zsh -c "
+    PATH='$stub':/usr/bin:/bin
+    source '$REPO_DIR/setup/util.zsh'
+    run_block() { source '$BATS_TEST_TMPDIR/block.zsh'; echo AFTER_SLACKCLI; }
+    run_block
+  "
+  printf '%s' "$output" | grep -qF 'slackcli download failed'
+  printf '%s' "$output" | grep -qF 'AFTER_SLACKCLI'
+  [ ! -e "$home/.local/bin/slackcli" ]
 }

@@ -57,8 +57,6 @@ else
   fi
 fi
 
-project_name=$(basename "$selected")
-
 # ── WezTerm 内なら新しいワークスペースで開く ──
 if [[ "$TERM_PROGRAM" == "WezTerm" ]] && command -v wezterm &>/dev/null; then
   # 新しいタブで nvim を起動（Neo-tree を自動表示）

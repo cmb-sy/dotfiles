@@ -41,5 +41,5 @@ sibiraj-s.vscode-scss-formatter    # SCSS formatter
 # ----------------------------------------------------------
 # Theme & UI
 # ----------------------------------------------------------
-akamud.vscode-theme-onedarkpro-darker        # One Dark Pro Darker
+akamud.vscode-theme-onedark        # Atom One Dark
 vscode-icons-team.vscode-icons     # Icon theme set

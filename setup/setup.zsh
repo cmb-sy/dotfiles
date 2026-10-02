@@ -42,6 +42,8 @@ LINKS=(
   "setup/mise-config.toml|${HOME}/.config/mise/config.toml|file"
   ".vscode/settings.json|${HOME}/Library/Application Support/Code/User/settings.json|file"
   ".vscode/settings.json|${HOME}/Library/Application Support/Cursor/User/settings.json|file"
+  ".vscode/keybindings.json|${HOME}/Library/Application Support/Code/User/keybindings.json|file"
+  ".vscode/keybindings.json|${HOME}/Library/Application Support/Cursor/User/keybindings.json|file"
   # Cursor reads the same skills as Claude
   "claude/skills|${HOME}/.cursor/skills|dir"
 )
@@ -98,7 +100,7 @@ done
 # Cleanup: remove wrong symlinks a previous glob-based version created in $HOME
 # (~/.git in particular breaks git). Delete only symlinks pointing into this repo.
 #----------------------------------------------------------
-for legacy in .Brewfile .bin .docs .git .macos .claude-old; do
+for legacy in .Brewfile .bin .docs .git .macos .claude-old .aliases .zsh .chezmoi .tmux.conf; do
   target="${HOME}/${legacy}"
   if [[ -L "${target}" ]]; then
     link_target="$(readlink "${target}")"

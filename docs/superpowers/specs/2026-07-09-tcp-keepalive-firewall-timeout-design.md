@@ -1,10 +1,12 @@
 ---
 title: 企業ファイアウォールのNATタイムアウト対策（TCP keepalive調整）
-status: approved
+status: superseded
 created: 2026-07-09
 ---
 
 # 企業ファイアウォールのNATタイムアウト対策（TCP keepalive調整）設計書
+
+> **結論（superseded）**: 原因は社内の透過プロキシで、keepalive 調整は効果が無かった。setup からこの調整と LaunchDaemon は外した。
 
 ## 目的・スコープ
 

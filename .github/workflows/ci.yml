@@ -69,7 +69,7 @@ jobs:
           set -e
           # Legacy symlinks the old setup.zsh created by mistake must not
           # come back; ~/.git in particular breaks git entirely.
-          for bad in .Brewfile .bin .docs .git .macos; do
+          for bad in .Brewfile .bin .docs .git .macos .aliases .zsh .chezmoi .tmux.conf; do
             if [[ -L "$HOME/$bad" ]]; then
               echo "FAIL: legacy symlink ~/$bad still exists (setup.zsh should not create this)"
               exit 1
@@ -156,8 +156,8 @@ jobs:
       # ----------------------------------------------------------
       # Step 7: the python packages the suite imports
       #
-      # Without this the pygments and PyYAML tests would skip on CI and nothing
-      # would report that setup's install step had stopped working.
+      # Without this the PyYAML tests would skip on CI and nothing would
+      # report that setup's install step had stopped working.
       # ----------------------------------------------------------
       - name: Verify the python packages the tests import
         run: |
@@ -165,13 +165,13 @@ jobs:
           export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
           PY="$(mise which python3 2>/dev/null || command -v python3)"
           echo "python3 -> $PY"
-          if ! "$PY" -c 'import pygments, yaml' 2>/dev/null; then
-            echo "FAIL: $PY cannot import pygments/yaml."
+          if ! "$PY" -c 'import yaml' 2>/dev/null; then
+            echo "FAIL: $PY cannot import yaml."
             echo "setup installs them into the interpreter mise pins; check the mise install output above."
             mise ls python || true
             exit 1
           fi
-          "$PY" -c 'import pygments, yaml; print("pygments", pygments.__version__)'
+          "$PY" -c 'import yaml; print("pyyaml", yaml.__version__)'
 
       # ----------------------------------------------------------
       # Step 8: bats test suite
