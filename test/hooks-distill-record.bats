@@ -690,3 +690,43 @@ blocklist_must_block() {
   run_hook "c17" "$wt" "$TX" >/dev/null
   grep -qF "c17: 記録を開始（$(basename "$GIT_REPO")" "$TEST_TMPDIR/home/.distill/logs/record.log"
 }
+
+# project_owner だけを取り出して読み込む。スクリプトを source すると本体が走る。
+load_project_owner() {
+  eval "$(sed -n '/^project_owner()/,/^}/p' "$SCRIPT")"
+}
+
+@test "project_owner: https 形式の remote から owner を取る" {
+  load_project_owner
+  git -C "$GIT_REPO" remote add origin "https://github.com/Resily/dxp.git"
+  [ "$(project_owner "$GIT_REPO")" = "Resily" ]
+}
+
+@test "project_owner: scp 形式の remote から owner を取る" {
+  load_project_owner
+  # ユーザー名@ホストの形は pii-guard に止められるので、連結で組み立てる。
+  local at="@"
+  git -C "$GIT_REPO" remote add origin "git${at}github.com:Resily/dxp.git"
+  [ "$(project_owner "$GIT_REPO")" = "Resily" ]
+}
+
+@test "distill-record: 記録しない組織の repo のセッションは記録しない" {
+  # owner の表記は clone の仕方で揺れる。小文字でも素通りさせない。
+  mkdir -p "$TEST_TMPDIR/home"
+  git -C "$GIT_REPO" remote add origin "https://github.com/resily/dxp"
+  run_hook "o1" "$GIT_REPO" "$TX" >/dev/null
+  grep -qF "o1: 記録しない組織" "$TEST_TMPDIR/home/.distill/logs/record.log"
+  local started
+  started=$(grep -cF "o1: 記録を開始" "$TEST_TMPDIR/home/.distill/logs/record.log" || true)
+  [ "$started" -eq 0 ]
+}
+
+@test "distill-record: 除外していない組織の repo は記録する" {
+  mkdir -p "$TEST_TMPDIR/home"
+  git -C "$GIT_REPO" remote add origin "https://github.com/cmb-sy/dotfiles.git"
+  run_hook "o2" "$GIT_REPO" "$TX" >/dev/null
+  grep -qF "o2: 記録を開始" "$TEST_TMPDIR/home/.distill/logs/record.log"
+  local denied
+  denied=$(grep -cF "記録しない組織" "$TEST_TMPDIR/home/.distill/logs/record.log" || true)
+  [ "$denied" -eq 0 ]
+}

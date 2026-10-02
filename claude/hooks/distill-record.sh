@@ -13,6 +13,8 @@
 #
 # 判定を通らないセッションでは走らせない。1 往復の質問にまで記録を作ると、
 # 一覧が薄い記録で埋まり、探せなくなる。
+# 記録は外部サイトへ配信されるので、業務の組織（DISTILL_RECORD_DENY_OWNERS）の
+# repo のセッションも、origin の owner で見て記録しない。
 #
 # どこまで記録したかは transcript のバイト位置で持つ（STATE_DIR/<session>）。
 # 1 行に「記録した位置 判定した時点の会話の終わり」。2 回目以降はその位置より
@@ -44,6 +46,17 @@ command -v gtimeout >/dev/null && TIMEOUT_BIN="gtimeout -k 30 1800"
 
 mkdir -p "$LOG_DIR" "$TMP_DIR" "$STATE_DIR"
 say() { printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" >>"$LOG"; }
+
+# The organization part of a repository's origin, for the deny check.
+# Organizations rather than repository names, so new repositories are covered.
+project_owner() {
+  local url
+  url=$(git -C "$1" remote get-url origin 2>/dev/null) || return 0
+  [ -n "$url" ] || return 0
+  url="${url%/}"; url="${url%.git}"
+  url="${url%/*}"
+  printf '%s\n' "${url##*[/:]}"
+}
 
 # そのセッションの記録ファイルを出す。どのプロジェクトの下にあってもよい。
 # 2 つ目以降の引数は find の条件（-newer など）。
@@ -266,6 +279,22 @@ if [ -z "$repo_root" ]; then
   say "${sid}: git リポジトリ外。記録しない"
   remember "$recorded"
   exit 0
+fi
+
+# --- 判定 2b: 記録してよい組織の repo か ---
+# 記録は vault に入り、vault は外部サイトへ配信される。業務の自由文は
+# 伏せ字化で落ちないので、組織単位で入口を閉じる。owner の表記は clone の
+# 仕方で揺れるので、大文字小文字を無視して比べる。
+deny_owners="${DISTILL_RECORD_DENY_OWNERS:-Resily}"
+owner=$(project_owner "$repo_root" | tr '[:upper:]' '[:lower:]')
+if [ -n "$owner" ]; then
+  for d in $deny_owners; do
+    if [ "$owner" = "$(printf '%s' "$d" | tr '[:upper:]' '[:lower:]')" ]; then
+      say "${sid}: 記録しない組織の repo。記録しない"
+      remember "$recorded"
+      exit 0
+    fi
+  done
 fi
 # 書き先のプロジェクト名。スキルと同じ規則で決める（名前を付け直したプロジェクトや
 # worktree を、元のプロジェクトに寄せる）。取れなければリポジトリの名前。
