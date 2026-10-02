@@ -306,3 +306,22 @@ setup() {
   [ "$n" -eq 0 ]
   grep -qF '自分に効く区分（`services`・`github`・`peers`）の深さ原則' "$SK"
 }
+
+# --- 層ごとの失敗と期間 ---
+
+@test "全ソース失敗の行が監視先の層を名指ししている" {
+  # 層を書かないと、流れの層が取れていてもファイルを作らない読みになる。
+  grep -qF '監視先の層の全ソースが失敗' "$SK"
+  n=$(grep -c '| 全ソース取得失敗 |' "$SK") || n=0
+  [ "$n" -eq 0 ]
+}
+
+@test "期間を 3 日に切り詰めたら window に書く" {
+  n=$(grep -F 'window' "$SK" | grep -cF '3 日') || n=0
+  [ "$n" -ge 1 ]
+}
+
+@test "description がエンジニア発信を謳っていない" {
+  n=$(awk 'NR==1{next} /^---$/{exit} {print}' "$SK" | grep -c 'エンジニア発信') || n=0
+  [ "$n" -eq 0 ]
+}

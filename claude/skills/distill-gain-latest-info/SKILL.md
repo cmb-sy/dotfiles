@@ -1,10 +1,11 @@
 ---
 name: distill-gain-latest-info
 description: >-
-  技術情報を「集めて得る」ときに使う情報収集スキル。watch モード（GitHub /
-  サービス changelog / エンジニア発信 / ニュース / dotfiles peer を横断観測し
-  distill の正本にダイジェスト蓄積）と research モード（トピックを Web + 自リポジトリ
-  横断で深掘り）に加え、sources モード（監視先の一覧を巡回・収穫の実績つきで
+  技術情報を「集めて得る」ときに使う情報収集スキル。watch モード（HN・はてブ・
+  Qiita・Zenn・Bluesky などの流れから今日の流れ・話題の技術・キャリア・定点を
+  毎日のダイジェストにし、GitHub / サービス changelog / dotfiles peer の監視先は
+  週 1 回深掘りして distill の正本に蓄積）と research モード（トピックを Web +
+  自リポジトリ横断で深掘り）に加え、sources モード（監視先の一覧を巡回・収穫の実績つきで
   表にし、対話で外す・追加する・直す）を持つ。フラグは本文の「起動」を参照。
 argument-hint: "[watch [--only <scope>] [--target X] | research <topic> | sources]"
 user-invocable: true
@@ -58,18 +59,25 @@ AskUserQuestion は 1 問最大 4 択のため 2 段構成にする。人が直�
 
 ### Step 0: 流れの層（毎回）
 
-1. 期間の開始を決める。`$HOME/develop/distill-vault/情報収集/` の最新の `YYYY-MM-DD.md` の日付の 0 時（JST）を ISO8601 の UTC に直す。ファイルが無い、または 3 日より前なら、3 日前の 0 時（JST）にする
-2. `$HOME/dotfiles/bin/gain-stream budget $HOME/dotfiles/claude/skills/distill-gain-latest-info/sources.yaml` を実行する。非 0 なら流れの層を始めず、完了報告に「topics が多すぎる（budget 超過）」と書いて Step 1 へ進む
-3. `$HOME/dotfiles/bin/gain-stream topics --since <開始> <sources.yaml>` と `$HOME/dotfiles/bin/gain-stream discover --since <開始> <sources.yaml>` を実行する。標準出力は 1 行 1 件の JSON、標準エラーは出どころごとの成否
+`--only` / `--target` があるときは Step 0 を飛ばす（1 つの監視先を狙う起動なので、流れの層は作らない）。
 
-| exit | 意味 | 対応 |
+Step 0 は毎日の部分を組み立てるだけで、ファイルには書かない。ファイルは Step 4 で 1 回だけ書く。
+
+1. 期間の開始を決める。`$HOME/develop/distill-vault/情報収集/` の最新の `YYYY-MM-DD.md` の日付の 0 時（JST）を ISO8601 の UTC に直す。ファイルが無い、または 3 日より前なら、3 日前の 0 時（JST）に切り詰め、ダイジェストの front matter の `window:` に切り詰めた後の実際の期間を書き、`（3 日に切り詰め）` と添える
+2. `$HOME/dotfiles/bin/gain-stream budget $HOME/dotfiles/claude/skills/distill-gain-latest-info/sources.yaml` を実行する。非 0 なら流れの層を始めず、完了報告に「topics が多すぎる（budget 超過）」と書いて Step 1 へ進む
+3. `$HOME/dotfiles/bin/gain-stream topics --since <開始> <sources.yaml>` と `$HOME/dotfiles/bin/gain-stream discover --since <開始> <sources.yaml>` を実行する。標準出力は 1 行 1 件の JSON、標準エラーは出どころごとの成否。**終了ステータスは `topics` と `discover` で別々に判定する**
+
+| exit | 意味 | そのコマンドの扱い |
 |---|---|---|
 | 0 | 全部取れた | そのまま使う |
-| 2 | 一部が失敗 | 取れた分で書く。失敗した出どころ（標準エラーの `"ok": false` の行）を末尾の「取得できなかった」に `<source>（<error>）` で書く |
-| 1 | 全部が失敗、または sources.yaml を読めない | 流れの層は書かない。Step 1 へ進む |
+| 2 | 一部が失敗 | 取れた分を使う。失敗した出どころ（標準エラーの `"ok": false` の行）を末尾の「取得できなかった」に `<source>（<error>）` で書く |
+| 1 | 全部が失敗、または sources.yaml を読めない | 使わない。末尾の「取得できなかった」に `gain-stream <サブコマンド>（exit 1）` と書く |
+| 64 | 使い方の誤り（呼び出し側がコマンドを組み違えた） | exit 1 と同じに扱い、完了報告に「`gain-stream <サブコマンド>` の呼び出しが誤り（exit 64）」と書く |
+
+流れの層は、exit 0 か 2 で返った方の結果から書く。**両方が使えない（exit 1 か 64）ときだけ**流れの層を作らずに Step 1 へ進む。
 
 4. 既出照合: 直近 7 日分の `情報収集/*.md` に出た URL を除く。同じ話題が前の日にも出ていれば「続報」として 1 行にする
-5. 束ねて書く（`## ダイジェストの構造` の毎日の部分）。**流れは、2 つ以上の出どころに同時に出た話題だけ**。`section: career` の項目は `## キャリア`、`kind: discover` の項目は `## 話題の技術` の材料にする。`section: people` の項目は流れ・話題の技術・キャリアの根拠に使う
+5. 束ねて毎日の部分を組み立てる（`## ダイジェストの構造` の毎日の部分。書き出しは Step 4）。**流れは、2 つ以上の出どころに同時に出た話題だけ**。`section: career` の項目は `## キャリア`、`kind: discover` の項目は `## 話題の技術` の材料にする。`section: people` の項目は流れ・話題の技術・キャリアの根拠に使う
 6. **自分に効くもの** は、上で書いた項目のうち自分の環境に当たるものを、次の範囲を実際に grep して決める（LLM の推測で書かない）: `$HOME/dotfiles`、`$HOME/develop/distill-vault/プロジェクト/*/概要.md`、`$HOME/develop` 直下の各リポジトリの `CLAUDE.md`・`package.json`・`pyproject.toml`・`databricks.yml`・`Brewfile`
 
 流れの層の候補は `gain-score` に渡さない（採点は監視先の層の候補だけ）。
@@ -86,8 +94,8 @@ AskUserQuestion は 1 問最大 4 択のため 2 段構成にする。人が直�
 
 | exit | 意味 | 対応 |
 |---|---|---|
-| 非 0 | sources.yaml を読めなかった（不在・parse 不能） | `## エラーハンドリング` の該当行に従って報告し終了する。**「確認済み」とは報告しない。** `record` を呼ばないので、**`sources.yaml` を直して再実行すれば同じ週のうちに全件そのまま対象に残る**（週明けを待つ必要はない） |
-| 0 かつ 0 行 | 今週は全監視先を確認済み | 今週は全監視先を確認済み。流れの層だけを書く（流れの層も書く物が無ければファイルを作らない） |
+| 非 0 | sources.yaml を読めなかった（不在・parse 不能） | `## エラーハンドリング` の該当行に従って報告する。監視先の層は進めない。Step 0 の結果があれば Step 4 で書く。**「確認済み」とは報告しない。** `record` を呼ばないので、**`sources.yaml` を直して再実行すれば同じ週のうちに全件そのまま対象に残る**（週明けを待つ必要はない） |
+| 0 かつ 0 行 | 今週は全監視先を確認済み | 「今週は全監視先を確認済み」（`--only` 指定時は「`<scope>` は今週確認済み」）と報告し、Step 2・3 を飛ばして Step 4 へ進む |
 
 どちらの場合も**監視先の層の部分は書かない。** 取得失敗を「確認済み」と報告すると、その週の観測が丸ごと飛んだことに誰も気付けない。
 
@@ -155,7 +163,7 @@ github の深掘りは `gh pr list --repo <repo> --state merged --search "merged
 
 ### Step 4: 記録・出力
 
-`$HOME/develop/distill-vault/情報収集/YYYY-MM-DD.md` に書く（無ければ作成、同日ならファイルの既存見出しに追記し重複させない）。
+`$HOME/develop/distill-vault/情報収集/YYYY-MM-DD.md` に 1 回だけ書く。上に Step 0 の毎日の部分、下に Step 3 の週 1 回の部分（あるときだけ）を置く。無ければ作成、同日ならファイルの既存見出しに追記し重複させない。**両方とも書く物が無ければファイルを作らない。**
 
 **取得に成功した**監視先ごとに `$HOME/dotfiles/bin/gain-state record <scope> <key> <採用件数>` を呼ぶ。**採用 0 件でも呼ぶ**（「取得はできたが収穫が無かった」という記録自体が翌週までのクールダウンと `## 改善提案` の根拠になる）。取得自体が失敗した監視先は呼ばない（詳細は `## エラーハンドリング` を参照。次回実行時にそのまま対象に残り、一時的な失敗で観測が丸々1週間飛ぶことを避ける）。
 
@@ -186,7 +194,7 @@ Step 1 で 0 行だった場合は、監視先の層についてはその旨の�
 - 技術選定 → 導入可否・影響範囲・既存コードとの整合性
 - 外部リポ理解 → 設計/実装の要約 + 自リポへの取り込みポイント
 
-出力: `$HOME/develop/distill-vault/情報収集/YYYY-MM-DD.md` に `## Research: <topic>` 節として追記する。同日に watch を実行済みで既に `## 改善提案` 節がある場合は、その節の直前に挿入する（`## 改善提案` は常にファイル末尾に置く）。
+出力: `$HOME/develop/distill-vault/情報収集/YYYY-MM-DD.md` に `## Research: <topic>` 節として追記する。同日に watch を実行済みで既に `## 改善提案` 節がある場合は、その節の直前に挿入する（`## 改善提案` は「取得できなかった」の行の直前に置く）。
 
 ## sources モード（監視先の編集）
 
@@ -297,7 +305,7 @@ window: <開始 ISO> 〜 <実行 ISO>
 ```
 
 - **今日の流れ** は 2〜3 本。2 つ以上の出どころに同時に出た話題だけ。足りない日は「今日の流れ: 目立った動きなし」と 1 行で書き、弱い話題を格上げしない
-- **話題の技術** は 2〜4 件。記事の見出しではなく技術・ツールの名前を主語にし、同じ技術の記事は 1 件にまとめる。今日の流れと重なるものはそちらに寄せる。GitHub の新規リポジトリは同名の別製品があるので、説明文を読んで判断する
+- **話題の技術** は 2〜4 件。discover の入口のうち、2 つ以上に出たもの、または 1 つでも点数が際立つものを選ぶ。記事の見出しではなく技術・ツールの名前を主語にし、同じ技術の記事は 1 件にまとめる。今日の流れと重なるものはそちらに寄せる。GitHub の新規リポジトリは同名の別製品があるので、説明文を読んで判断する
 - **キャリア** は 0〜2 件。書き手が実際に何を選び、どうなったかが書かれている記事を選ぶ。無い日は節ごと省く
 - **定点** はローカル LLM・Handy・Claude Code・Databricks のうち、動いた項目だけを 1 行で書く
 - **自分に効くもの** は 0〜2 件
@@ -343,13 +351,13 @@ Jev との一致: Claude が選んだ <N> 件のうち、Jev の点数でも上�
 | リポジトリ 404 | 1 行警告で skip、他は続行（`gain-state record` は呼ばない） |
 | RSS/changelog 取得失敗 | 当該ソースを skip、他は続行（`gain-state record` は呼ばない。取得自体の失敗は次回そのまま再訪する。一時的な回線断で週次の枠を消費しない） |
 | SNS 取得ゼロ | 正常扱い（「該当なし」。取得は成功しているため `gain-state record` は findings=0 で呼ぶ） |
-| 全ソース取得失敗 | 「データを取得できませんでした」と報告し終了（ファイルは作らない） |
+| 監視先の層の全ソースが失敗 | 監視先の層は書かない。流れの層があればその部分だけを書く。両方とも何も無ければファイルを作らない |
 | `gain-state prune` が失敗 | 1 行報告して `due` へ進む。掃除は実績の見栄えの問題で、収集は止めない |
 | deep-research 未利用可（research モード） | Web を内蔵 WebSearch で縮退実行し明示 |
 | `gain-score rate` が exit 0 以外 | 点数なしで続行し、週 1 回の部分の先頭（`## 深掘り 1` の前）に Step 3 の表の文言で 1 行書く。`gain-score log` は呼ばない |
 | `gain-stream budget` が非 0 | 流れの層を始めず、完了報告に「topics が多すぎる（budget 超過）」と書く |
 | `gain-stream` が exit 2 | 取れた分で書き、失敗した出どころを末尾の「取得できなかった」に書く |
-| `gain-stream` が exit 1 | 流れの層は書かない。監視先の層だけ進める |
+| `gain-stream` が exit 1 か 64 | そのコマンドの結果は使わない。`topics`・`discover` の両方が使えないときだけ流れの層を書かず、監視先の層だけ進める。64 は完了報告に呼び出しの誤りとして書く |
 
 **`gain-state record` を呼ぶかどうかの基準は「取得に成功したか」であり「findings があったか」ではない。** 取得自体が失敗した監視先（404 / RSS・changelog 取得失敗など）は `record` を呼ばず、次回実行時にそのまま対象に残す。取得に成功して収穫が 0 件だった場合（SNS 取得ゼロ等）は `record` を findings=0 で呼び、来週まで再訪しない。
 
