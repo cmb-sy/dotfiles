@@ -40,8 +40,8 @@ DEFAULT_CLOUD_MODEL = "gpt-oss-120b"
 # STT language is set per invocation via --language {ja,en,auto}. The three voice-switch modes are:
 #   ja    -> local + ja   (Japanese-locked, max JP accuracy, offline)
 #   en    -> local + en   (English-locked, max EN accuracy, offline)
-#   cloud -> cerebras + auto (bilingual; whisper auto-detects each utterance)
-# Local whisper-turbo cannot reliably auto-detect language on short or accented utterances, so
+#   cloud -> cerebras + auto (bilingual; STT auto-detects each utterance)
+# Local STT cannot reliably auto-detect language on short or accented utterances, so
 # bilingual on local is unstable in practice. Lock per session instead, or use cloud for mixing.
 # "auto" is Handy's own default literal (Contents/Resources/resources/default_settings.json).
 # Cancel the current recording with Escape, which is also Handy's own default.
@@ -79,7 +79,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--provider", choices=["local", "cloud"], required=True)
     ap.add_argument("--language", choices=["ja", "en", "auto"], required=True,
-                    help="STT language: ja/en for locked mode, auto for whisper's per-utterance detection")
+                    help="STT language: ja/en for locked mode, auto for per-utterance detection")
     ap.add_argument("--model", default=None, help="override cloud model id")
     args = ap.parse_args()
 

@@ -6,9 +6,6 @@ claude/slackcli
 # `docs/*` not `docs/`: git cannot re-include a file whose parent directory is
 # excluded, so each level is excluded by glob and re-included by name.
 docs/*
-!docs/debug/
-docs/debug/*
-!docs/debug/2026-06-23-caps-lock-rogue-dictation.md
 !docs/superpowers/
 docs/superpowers/*
 !docs/superpowers/specs/
@@ -44,8 +41,3 @@ claude/skills/pptx-dev/scripts/uv.lock
 
 # python bytecode cache, written when a test imports a helper module
 __pycache__/
-
-# The global gitignore drops lib/ as build output; bin/lib is tracked source.
-# Un-ignore the directory itself: git cannot re-include a file whose parent
-# directory is excluded.
-!bin/lib/

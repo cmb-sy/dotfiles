@@ -8,7 +8,7 @@ Configuration files for setting up a macOS development environment.
 .aliases.sh          # Shell aliases (docker, terraform, claude, etc.)
 .function.zsh        # Custom shell functions
 .zshrc / .zshenv     # Zsh configuration
-.config/             # XDG config (starship prompt)
+.config/             # XDG config (nvim, lazygit, sheldon, starship)
 .gitignore_global    # Global gitignore
 Brewfile             # Homebrew packages & casks
 git/                 # .gitconfig
@@ -20,7 +20,7 @@ claude/              # Claude Code configuration (skills, agents, hooks)
 bin/                 # Custom scripts
 setup/               # Setup scripts
 test/                # bats test suite (run with `bats test/`)
-docs/                # Architecture notes & learnings
+docs/                # Design docs referenced by code (other notes stay local)
 ```
 
 ## Setup
@@ -30,17 +30,13 @@ git clone https://github.com/cmb-sy/dotfiles.git
 cd dotfiles
 ```
 
-Create symlinks and apply base configuration:
+Create symlinks, then install Homebrew packages, VSCode/Cursor extensions and macOS settings (`setup.zsh` runs `install.zsh` at the end):
 
 ```bash
 zsh setup/setup.zsh
 ```
 
-Install Homebrew packages, VSCode/Cursor extensions, and apply macOS settings:
-
-```bash
-zsh setup/install.zsh
-```
+To reinstall packages only, run `zsh setup/install.zsh`.
 
 Restart your terminal to apply all changes.
 

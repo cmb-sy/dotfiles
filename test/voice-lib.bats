@@ -66,8 +66,7 @@ voice_script_paths() {
 }
 
 @test "the voice lib is tracked by git" {
-  # The global gitignore drops lib/ as build output, so an un-negated bin/lib
-  # would be skipped by `git add` and break every voice script on a fresh clone.
+  # Every voice script sources it; an untracked copy breaks a fresh clone.
   git -C "$REPO_DIR" ls-files --error-unmatch bin/lib/voice.sh
 }
 

@@ -174,8 +174,8 @@ voice_out_main() {
   fi
 
   # Handy 起動中でも読み上げを継続する設計とする。
-  # feedback loop (TTS → スピーカー → マイク → 録音アプリの誤認識) を防ぐには
-  # ヘッドホン使用を推奨。詳細は docs/debug/2026-06-23-caps-lock-rogue-dictation.md。
+  # スピーカー出力はマイクに拾われ、録音中の Handy が読み上げを文字起こしする
+  # (feedback loop)。ヘッドホンか TTS 専用の出力デバイスで使う。
 
   # --- 引数解析 ---
   TEXT=""

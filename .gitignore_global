@@ -4,7 +4,8 @@
 .DS_Store
 .AppleDouble
 .LSOverride
-Icon
+# Folder icon file "Icon\r". Two literal CRs: git strips one as a line ending.
+Icon
 ._*
 .DocumentRevisions-V100
 .fseventsd
@@ -41,12 +42,6 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.so
-env/
-build/
-dist/
-downloads/
-eggs/
-lib/
 venv/
 
 **/.claude/settings.local.json

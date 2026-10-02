@@ -14,11 +14,11 @@ Claude Code のバックグラウンドサブエージェント実行中に「AP
 
 ## 調査で判明した事実
 
-会社ネットワーク（Advantagegroup.co.jp、DNS 10.250.1.35、FortiClient VPN常駐）上で発生。以下を実機調査で確認・除外した:
+社内ネットワーク（split-tunnel VPN 常駐）上で発生。以下を実機調査で確認・除外した:
 
 - システムHTTPプロキシ: 未設定（Wi-Fi/Secure Web Proxyともに無効）
 - SSL/TLS介入（企業MITM証明書検査）: なし。`api.anthropic.com` の証明書は正規の Google Trust Services 発行
-- VPN(FortiClient)経由の問題: そもそも経由していない。`route get <api.anthropic.comのIP>` で `interface: en0` （通常のWi-Fiインターフェース）が使われることを確認。VPNトンネル(utun0-3)は社内向け(10.250.x.x)のみに使われるsplit-tunnel構成
+- VPN経由の問題: そもそも経由していない。`route get <api.anthropic.comのIP>` で `interface: en0` （通常のWi-Fiインターフェース）が使われることを確認。VPNトンネル(utun0-3)は社内向けアドレス帯のみに使われるsplit-tunnel構成
 - MTU/パケットロス: 実経路で1472byte pingが0%ロス・7.7ms、健全
 - Wi-Fi切断・ローミング: 直近2時間の `log show` にdisassociation/roamイベントなし
 - カスタムAPIエンドポイント/社内AIゲートウェイ: なし。標準の Anthropic API に直接接続
@@ -57,7 +57,7 @@ macOSのデフォルト `net.inet.tcp.keepidle` は 7200000ms（2時間）で、
 
 ## スコープ外（YAGNI）
 
-- ファイアウォールの実際のタイムアウト値の特定（IT部門のFortinet機器ログが必要で、ユーザー権限では取得不可）
+- ファイアウォールの実際のタイムアウト値の特定（IT部門のファイアウォール機器ログが必要で、ユーザー権限では取得不可）
 - Anthropic側の対策（クライアント側の制御範囲外）
 - 個別アプリケーションごとのkeepalive設定（system-wideで十分と判断）
 

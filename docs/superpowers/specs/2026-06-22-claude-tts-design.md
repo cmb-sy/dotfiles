@@ -6,6 +6,8 @@ status: design
 
 # Claude Code TTS 統合 設計書
 
+> 注記: 起動キーは Caps Lock + Z から **F1** に変更した（実装は `karabiner/karabiner.json` の `F1 → voice-out`）。本文の「Caps Lock + Z」は F1 と読み替える。
+
 ## 1. 概要
 
 Claude Code の応答を macOS `say` で音声化する。発火はキー押下時のみ（自動発火なし）。Caps Lock + Z で「直前の応答を再生」、同じキーで「停止」。長文応答の途中で離席して戻ってきた時に、画面を見ずに耳で結論を拾える状態を作る。

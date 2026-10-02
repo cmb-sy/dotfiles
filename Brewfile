@@ -26,7 +26,6 @@ brew 'jq'
 brew 'tfenv'
 # Lints the bash scripts under bin/ and claude/hooks/.
 brew 'shellcheck'
-tap 'manaflow-ai/cmux'
 
 # -----------------------------------------------------------
 # Cask
