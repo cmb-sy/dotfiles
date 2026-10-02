@@ -1,5 +1,4 @@
 ---
-name: evidence-catalog
 description: エビデンスカタログ。Audit Agent が Evidence Plan 生成時に参照する全エビデンス種別と適用条件の定義。
 ---
 

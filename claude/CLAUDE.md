@@ -186,7 +186,7 @@ skill の新規作成・編集時に適用する。`writing-skills` 等のスキ
 - /feature-dev, /debug-flow のフェーズ遷移時、done-criteria に定義された監査ゲートは例外なく実行すること
 - audit: required → phase-auditor エージェントを起動。省略・スキップ禁止
 - audit: lite → オーケストレーターが基準を直接検証。省略・スキップ禁止
-- audit 種別（required/lite）はフェーズ単位の監査方式。done-criteria 内の severity（blocker/quality）は基準単位の判定強度であり、別概念（criteria-template.md 参照）
+- audit 種別（required/lite）はフェーズ単位の監査方式。done-criteria 内の severity（blocker/quality）は基準単位の判定強度であり、別概念（`~/.claude/skills/_shared/references/criteria-template.md` 参照）
 - 監査未実行のフェーズ遷移は無効とみなす
 - コンテキスト逼迫・時間的制約を理由にした監査スキップは認めない。逼迫時は handover を実行せよ
 

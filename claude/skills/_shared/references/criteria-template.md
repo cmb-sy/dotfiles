@@ -1,5 +1,4 @@
 ---
-name: criteria-template
 description: done-criteria ファイルのテンプレートと品質ルール。新規 done-criteria 作成時に参照する。
 ---
 

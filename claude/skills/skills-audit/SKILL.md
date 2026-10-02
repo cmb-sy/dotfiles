@@ -36,7 +36,7 @@ user-invocable: true
 
 ### Phase 1: Inventory（スキル台帳の作成）
 
-1. `claude/skills/**/SKILL.md` を再帰走査し、以下を抽出:
+1. `claude/skills/**/SKILL.md` を再帰走査し、以下を抽出する。`claude/skills/synced/` 配下は claude.ai から同期され gitignore で追跡外のため、走査から除く（Delete・Merge の対象にもしない）:
    - `name`
    - `description`
    - `argument-hint`

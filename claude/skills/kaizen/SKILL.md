@@ -80,7 +80,7 @@ Claude Code セッションを 4 視点で振り返り、ハルシネーショ�
 2. global CLAUDE.md（`~/.claude/CLAUDE.md` または `~/.claude-work/CLAUDE.md`）
 3. project CLAUDE.md（cwd から探索）
 4. settings.json（global + project）
-5. 既存 skill 一覧（`claude/skills/*/SKILL.md` の frontmatter）
+5. 既存 skill 一覧（`~/.claude/skills/*/SKILL.md` の frontmatter）
 6. learning-log（`~/.kaizen/learning-log.md` の過去 finding）
 
 ---

@@ -244,11 +244,13 @@ overrides:
 `scripts/generate.py` を実行して `.pptx` を生成する。
 
 ```bash
-uv --directory claude/skills/pptx-dev/scripts run python generate.py \
-  --plan .pptx-dev/<session-id>/slide-plan.yaml \
-  --tokens .pptx-dev/<session-id>/tokens.yaml \
-  --output .pptx-dev/<session-id>/output.pptx
+uv --directory "$HOME/.claude/skills/pptx-dev/scripts" run python generate.py \
+  --plan "$PWD/.pptx-dev/<session-id>/slide-plan.yaml" \
+  --tokens "$PWD/.pptx-dev/<session-id>/tokens.yaml" \
+  --output "$PWD/.pptx-dev/<session-id>/output.pptx"
 ```
+
+`uv --directory` はスクリプトの cwd をそのディレクトリへ移すため、成果物のパスは作業リポジトリを起点に `$PWD` で絶対パスにして渡す。
 
 初回実行時に uv が `pyproject.toml` から python-pptx 等を自動インストールする。
 
@@ -270,10 +272,10 @@ uv --directory claude/skills/pptx-dev/scripts run python generate.py \
 
 実行:
 ```bash
-uv --directory claude/skills/pptx-dev/scripts run python audit_visual.py \
-  --pptx .pptx-dev/<session-id>/output.pptx \
-  --tokens .pptx-dev/<session-id>/tokens.yaml \
-  --output .pptx-dev/<session-id>/visual-audit.json
+uv --directory "$HOME/.claude/skills/pptx-dev/scripts" run python audit_visual.py \
+  --pptx "$PWD/.pptx-dev/<session-id>/output.pptx" \
+  --tokens "$PWD/.pptx-dev/<session-id>/tokens.yaml" \
+  --output "$PWD/.pptx-dev/<session-id>/visual-audit.json"
 ```
 
 phase-auditor で `done-criteria/visual-audit.md` を基準に評価。blocker が 0 件になるまで Phase 9 へループ。

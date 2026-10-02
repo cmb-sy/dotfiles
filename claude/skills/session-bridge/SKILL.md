@@ -8,7 +8,7 @@ user-invocable: true
 # Session Bridge
 
 ## 概要
-同一マシン・同一ユーザー上の別リポジトリ間で、`~/.claude/session-bridge/` を介して文脈を往復させる。各共有は上書きしない immutable message として発行し、`thread_id` と `parent_slug` で会話を継続する。初回の `share` だけで終了せず、相手に渡す情報が後から生じた時点で `reply` する。
+同一マシン・同一ユーザー上の別リポジトリ間で、`~/.local/state/session-bridge/` を介して文脈を往復させる。各共有は上書きしない immutable message として発行し、`thread_id` と `parent_slug` で会話を継続する。初回の `share` だけで終了せず、相手に渡す情報が後から生じた時点で `reply` する。
 
 - **送る側**（repo A）: `/session-bridge share <topic>`
 - **受け取る側**（repo B、別 repo 可）: `/session-bridge open <slug>`
@@ -23,14 +23,14 @@ user-invocable: true
 
 ## メッセージ形式
 ```
-~/.claude/session-bridge/<slug>/
+~/.local/state/session-bridge/<slug>/
   project-state.json   # handover と同一スキーマのスナップショット
   brief.md             # project-state.json から生成した人間可読ビュー
   meta.json            # bridge_version, message_type, thread_id, parent_slug, expects_reply, topic, request, origin_repo, origin_branch, created_at
 ```
 
 ## 全コマンド共通: 自動掃除
-`share` / `open` / `reply` / `list` の開始時に、以下をユーザー確認なしで best-effort 実行する。削除対象は `~/.claude/session-bridge/` 直下の1階層だけとし、base directory 自体や配下を再帰探索して対象を広げない。
+`share` / `open` / `reply` / `list` の開始時に、base directory が無ければ `mkdir -p -m 0700 ~/.local/state/session-bridge` で作る。続けて以下をユーザー確認なしで best-effort 実行する。削除対象は `~/.local/state/session-bridge/` 直下の1階層だけとし、base directory 自体や配下を再帰探索して対象を広げない。
 
 1. 通常 message:
    - 名前が `^[a-z0-9][a-z0-9-]{0,79}$` を満たす実ディレクトリだけを候補にする。ディレクトリまたは3ファイルが symlink なら削除せず警告する。
@@ -57,17 +57,17 @@ message を公開したら **slug 単体で終わらせず、相手が別セッ�
 1. `<topic>` は表示用テキストとして扱い、パスには直接使わない。省略時は現在のタスクから短い topic を生成する。
 2. slug を `<topic-kebab>-<YYYYMMDD-HHMMSS>-<hex16>` で生成する。最終結果が `^[a-z0-9][a-z0-9-]{0,79}$` を満たすことを検証する。満たさない場合は `session-<timestamp>-<hex16>` を使う。
 3. 既存 slug は上書きしない。衝突、または一時ディレクトリの排他的作成に失敗した場合は slug 全体を再生成する。
-4. `~/.claude/session-bridge/.tmp-<slug>/` を排他的に mode `0700` で作り、以下をすべて書く:
+4. `~/.local/state/session-bridge/.tmp-<slug>/` を排他的に mode `0700` で作り、以下をすべて書く:
    - `project-state.json`: `handover` version 5 スキーマ。パスは絶対パスにし、受信側への依頼・確定事実・`next_action` を本文だけで理解できるようにする。
    - `brief.md`: `project-state.json` から生成する。未コミット参照物は、別 repo から参照不能であることと必要な要点を明記する。
    - `meta.json`: `bridge_version: 2`, `message_type: "request"`, `thread_id: <新規slug>`, `parent_slug: null`, `expects_reply`, `topic`, `request`, `origin_repo`, `origin_branch`, `created_at`。`request` は受信側にしてほしいことを1〜3文で記述する。`expects_reply` は作業結果・回答を戻してほしい場合は `true`、一方向の情報共有なら `false` とし、不明なら公開前にユーザーへ確認する。
 5. 3ファイルを再読してJSON妥当性と必須フィールドを検証し、既知のPII・secretをレビューして除去する。自動検出だけで完全性を保証しない。問題があれば一時ディレクトリを削除して終了する。
-6. 一時ディレクトリを、既存パスを置換しない排他的な atomic rename で `~/.claude/session-bridge/<slug>/` へ公開する。競合なら一時ディレクトリを削除し、slug 生成から再試行する。公開後の3ファイルは変更せず、更新時は新しい message を発行する。
+6. 一時ディレクトリを、既存パスを置換しない排他的な atomic rename で `~/.local/state/session-bridge/<slug>/` へ公開する。競合なら一時ディレクトリを削除し、slug 生成から再試行する。公開後の3ファイルは変更せず、更新時は新しい message を発行する。
 7. 「公開後の出力（share / reply 共通）」に従い、受信コマンド `/session-bridge open <slug>` と（`expects_reply: true` なら）返信コマンド `/session-bridge reply <slug>`、origin/thread_id を提示する。
 
 ## open（受け取る側）
 1. `<slug>` が `^[a-z0-9][a-z0-9-]{0,79}$` を満たすことを確認する。不正なら読み込まない。
-2. 解決後のパスが `~/.claude/session-bridge/` 直下であること、ディレクトリと3ファイルが symlink ではない通常ファイルであることを確認する。
+2. 解決後のパスが `~/.local/state/session-bridge/` 直下であること、ディレクトリと3ファイルが symlink ではない通常ファイルであることを確認する。
 3. `meta.json` の `bridge_version` と必須フィールド、`project-state.json` の version 5・status・active_tasks を検証する。version 1 は legacy root message として読み、`thread_id: <slug>`, `parent_slug: null`, `message_type: "request"` とみなす。`expects_reply` は不明として、作業開始前にユーザーへ確認する。不正・欠落・書き込み途中なら作業せず報告する。
 4. origin repo/branch、作成日時、topic、request、message type、返信要否、未完了タスク、`next_action`、blocker、未コミット参照物を提示する。あわせて、このメッセージへ返す手段を提示する:
    - `printf '%s' "/session-bridge reply <slug>" | pbcopy` で **返信コマンドをクリップボードへコピー**する（macOS 前提。`pbcopy` 不在ならスキップ）。

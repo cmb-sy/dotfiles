@@ -91,7 +91,7 @@ phase-auditor の verdict なしに Phase N+1 のアナウンスや作業開始�
 書き出し先は handover と同じセッションディレクトリ:
 
 ```bash
-source "${HOME}/dotfiles/claude/skills/handover/scripts/handover-lib.sh"
+source "${HOME}/.claude/skills/handover/scripts/handover-lib.sh"
 session_dir=$(find_active_session_dir "$(pwd)") || exit 0   # 記録できないだけで進行は止めない
 trace="${session_dir}/trace.jsonl"
 ```

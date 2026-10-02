@@ -324,7 +324,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${HOME}/dotfiles/claude/hooks/distill-record.sh\"",
+            "command": "bash \"${HOME}/.claude/hooks/distill-record.sh\"",
             "timeout": 20
           }
         ]
