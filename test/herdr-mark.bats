@@ -107,11 +107,11 @@ call_count() {
 
 @test "セッションが複数でも印はワークスペース名に付く（左端に揃える）" {
   # 兄弟セッションにも出るが、左端に揃うことを優先した結果。
-  workspace 'Databricks-Analysis' 5 true
+  workspace 'probe-analysis' 5 true
   tab 'general' true
   FZF_PICK='📤 返事待ち' run bash "$REPO_DIR/bin/herdr-mark"
   [ "$status" -eq 0 ]
-  cat "$CALLS" | grep -qF "$(ws_renamed_to '📤Databricks-Analysis')"
+  cat "$CALLS" | grep -qF "$(ws_renamed_to '📤probe-analysis')"
 }
 
 @test "セッションが 1 つならワークスペース名に付く" {

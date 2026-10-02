@@ -10,6 +10,7 @@
 # side; lexing them kept opening bypasses.
 # Temporary areas stay deletable: /var/folders is macOS's $TMPDIR.
 
+# A missing jq exits 0 here (fail-open); jq is installed from the Brewfile.
 cmd=$(jq -r '.tool_input.command // empty' 2>/dev/null) || exit 0
 [ -n "$cmd" ] || exit 0
 
@@ -33,6 +34,8 @@ norm() {
     \~ | \~/*) t="$home${t#\~}" ;;
     '$HOME' | '$HOME/'*) t="$home${t#\$HOME}" ;;
     '${HOME}' | '${HOME}/'*) t="$home${t#\$\{HOME\}}" ;;
+    # ${HOME:?}, ${HOME%/}, ${HOME:-x} and the like all expand to home.
+    '${HOME'[:%#/=+?^,-]*'}'*) t="$home${t##*\}}" ;;
   esac
   while :; do
     case "$t" in
@@ -79,9 +82,11 @@ while IFS= read -r seg; do
   in_rm=0 rec=0 endopts=0 hit=""
   for w in "${words[@]}"; do
     if [ "$in_rm" -eq 0 ]; then
-      # Quotes, command substitution, subshells and an alias-bypassing
-      # backslash glue their opener to the word.
-      w="${w#\"}"; w="${w#\$(}"; w="${w#\(}"; w="${w#\`}"; w="${w#\\}"
+      # A substitution can open mid-word (x=$(rm ..), pre`rm ..`): keep what
+      # follows the last opener. Quotes around the command word, a subshell
+      # paren and an alias-bypassing backslash are dropped.
+      w="${w##*\$(}"; w="${w##*\`}"
+      w="${w//\"/}"; w="${w//\'/}"; w="${w#\(}"; w="${w#\\}"
       [ "${w##*/}" = rm ] && in_rm=1
       continue
     fi

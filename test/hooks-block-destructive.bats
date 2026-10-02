@@ -33,6 +33,28 @@ allowed() { run_hook "$1"; [ "$status" -eq 0 ]; }
   done
 }
 
+@test "演算子つきの HOME 展開も home として止める" {
+  for c in 'rm -rf ${HOME:?}' 'rm -rf ${HOME:?}/' 'rm -rf "${HOME:?}/"' \
+           'rm -rf ${HOME%/}' 'rm -rf "${HOME%/}"/*' 'rm -rf ${HOME:-/x}' \
+           'rm -rf ${HOME#/x}' 'rm -rf ${HOME:?}/..' 'rm -rf ${HOME:-${X}}'; do
+    blocked "$c" || { echo "not blocked: $c"; return 1; }
+  done
+}
+
+@test "引用符で囲んだコマンド名の rm も止める" {
+  for c in '"rm" -rf ~' "'rm' -rf /" '"/bin/rm" -rf ~' "'/bin/rm' -rf \$HOME" \
+           'sudo "rm" -rf /'; do
+    blocked "$c" || { echo "not blocked: $c"; return 1; }
+  done
+}
+
+@test "代入や語の途中のコマンド置換の中の rm も止める" {
+  for c in 'x=$(rm -rf ~)' 'foo=$(rm -rf /)' 'x=`rm -rf ~`' 'out="$(rm -rf ~)"' \
+           'echo pre$(rm -rf ~)' 'x=$("rm" -rf /)' 'x=$(/bin/rm -rf ~)'; do
+    blocked "$c" || { echo "not blocked: $c"; return 1; }
+  done
+}
+
 @test "連結やコマンド置換の中の rm も止める" {
   for c in 'rm -rf ~ ; echo x' 'echo ok && rm -rf ~' 'true || rm -rf /' \
            'ls | xargs rm -rf ~' 'echo $(rm -rf ~)' 'echo x;rm -rf ~' \
@@ -91,7 +113,9 @@ allowed() { run_hook "$1"; [ "$status" -eq 0 ]; }
            'rm -rf /private/var/folders/xx/T/foo' 'rm -rf "$TMPDIR/foo"' \
            'rm -rf ./build' 'rm -rf ~/project/build' 'rm -rf node_modules' \
            'rm file.txt' 'rm -f /usr/local/foo' 'ls /usr' 'rm -rf build && ls ~' \
-           'rm -rf "$(pwd)/build"' 'rm -rf ~tester/project'; do
+           'rm -rf "$(pwd)/build"' 'rm -rf ~tester/project' \
+           'rm -rf ${HOME:?}/project/build' 'rm -rf "${HOME%/}/project"' \
+           'rm -rf ${HOMEDIR}' 'x=$(ls ~)' '"ls" -la /' 'x=$(rm -f ~/a.txt)'; do
     allowed "$c" || { echo "wrongly blocked: $c"; return 1; }
   done
 }

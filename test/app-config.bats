@@ -63,6 +63,9 @@ teardown() {
   # macOS git grep -E has no \b, so bound the IP by hand. pii-guard.py holds
   # example private IPs on purpose.
   pat='advantage''group|forti''client|forti''gate|(^|[^0-9.])10\.[0-9]+\.[0-9]+\.[0-9]+'
+  # Positive control: the pattern must catch known-bad samples, not a version.
+  hits=$(grep -c -i -E "$pat" <<<"$(printf '%s\n' 'Forti''Gate proxy' 'host 10.''1.2.3' 'ADVANTAGE''GROUP' 'v2.10.3.4')") || hits=0
+  [ "$hits" -eq 3 ]
   count=$(git -C "$REPO_DIR" grep -c -i -E "$pat" -- ':!claude/hooks/pii-guard.py' | wc -l | tr -d ' ')
   [ "$count" -eq 0 ]
 }

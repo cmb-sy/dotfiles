@@ -86,10 +86,10 @@ shells() {
 
 @test "見出し・注意書き・例示つきの一覧でも名指しされたものだけ止まる" {
   need_distill
-  body='# 除外\n\n説明。\n\n## プロジェクト\n\n- cwd  <!-- 使い捨て -->\n- dotfiles  <!-- 手元の道具 -->\n\n## 記録\n\n<!-- 例: - dxp/2026-09-10-1550 -->\n\n---\n\n## 書き方\n\n- 見出しの下に置く\n'
+  body='# 除外\n\n説明。\n\n## プロジェクト\n\n- cwd  <!-- 使い捨て -->\n- dotfiles  <!-- 手元の道具 -->\n\n## 記録\n\n<!-- 例: - probe-repo/2026-09-10-1550 -->\n\n---\n\n## 書き方\n\n- 見出しの下に置く\n'
   for sh in $(shells); do
     assert_stops "$sh" dotfiles "$body"
-    assert_goes_on "$sh" dxp "$body"
+    assert_goes_on "$sh" probe-repo "$body"
   done
 }
 

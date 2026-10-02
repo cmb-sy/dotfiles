@@ -156,11 +156,33 @@ print(','.join(NG) if NG else 'OK')
 # repo 名の一覧や業務内容は ~/.config/dotfiles-local/<skill>.md（git 管理外）に
 # 置き、スキルはそれがあれば読む。組織名だけ（`Resily` 単体や `Resily/{repo}` の
 # 書式）は対象外で、名指しされた repo（`Resily/<名前>`）だけを数える。
-@test "claude/ に勤務先の repo 名（org/名前）が出ない" {
-  found="$(git -C "$REPO_DIR" grep -n -E 'Resily/[A-Za-z]' -- claude || true)"
+# テストは組織名で拒否を確かめるので、架空の repo 名（probe-repo）だけを許す。
+# 大文字小文字は clone の仕方で揺れるので区別しない。
+EMPLOYER_REPO_RE='Resily/[A-Za-z0-9]'
+FAKE_REPO_RE='Resily/probe-repo(\.git)?([^A-Za-z0-9_.-]|$)'
+
+employer_repo_findings() {
+  git -C "$REPO_DIR" grep -n -i -E "$EMPLOYER_REPO_RE" -- claude test bin \
+    | grep -v -i -E "$FAKE_REPO_RE" || true
+}
+
+@test "claude/ test/ bin/ に勤務先の repo 名（org/名前）が出ない" {
+  found="$(employer_repo_findings)"
   echo "$found"
   hits=$(printf '%s' "$found" | grep -c .) || hits=0
   [ "$hits" -eq 0 ]
+}
+
+@test "勤務先の repo 名の検査は、名指しを拾い架空の名前だけを通す" {
+  # The samples are built by concatenation so this file never matches itself.
+  org="Resi""ly"
+  hits=$(printf '%s\n' "$org/some-app" "${org}/Other" | grep -c -i -E "$EMPLOYER_REPO_RE") || hits=0
+  [ "$hits" -eq 2 ]
+  lower=$(printf '%s\n' "resi""ly/some-app" | grep -c -i -E "$EMPLOYER_REPO_RE") || lower=0
+  [ "$lower" -eq 1 ]
+  kept=$(printf '%s\n' "$org/probe-repo.git" "$org/probe-repo" "$org/probe-repository" \
+    | grep -v -i -E "$FAKE_REPO_RE" | grep -c .) || kept=0
+  [ "$kept" -eq 1 ]
 }
 
 @test "勤務先固有の一覧を外したスキルは、ローカル設定を読む宣言を持つ" {

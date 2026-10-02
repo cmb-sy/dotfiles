@@ -667,7 +667,7 @@ blocklist_must_block() {
 }
 
 @test "distill-record: スキルが別のプロジェクトに置いた記録も書けたと判定する" {
-  # worktree（例: dxp-2266）の記録を、スキルは元のプロジェクト（dxp）に寄せる。
+  # worktree（例: probe-repo-123）の記録を、スキルは元のプロジェクト（probe-repo）に寄せる。
   # フックがリポジトリ名の下だけを探すと、書けたのに失敗と記録する。
   mkdir -p "$TEST_TMPDIR/home"
   make_fake_claude
@@ -698,7 +698,7 @@ load_project_owner() {
 
 @test "project_owner: https 形式の remote から owner を取る" {
   load_project_owner
-  git -C "$GIT_REPO" remote add origin "https://github.com/Resily/dxp.git"
+  git -C "$GIT_REPO" remote add origin "https://github.com/Resily/probe-repo.git"
   [ "$(project_owner "$GIT_REPO")" = "Resily" ]
 }
 
@@ -706,14 +706,14 @@ load_project_owner() {
   load_project_owner
   # ユーザー名@ホストの形は pii-guard に止められるので、連結で組み立てる。
   local at="@"
-  git -C "$GIT_REPO" remote add origin "git${at}github.com:Resily/dxp.git"
+  git -C "$GIT_REPO" remote add origin "git${at}github.com:Resily/probe-repo.git"
   [ "$(project_owner "$GIT_REPO")" = "Resily" ]
 }
 
 @test "distill-record: 記録しない組織の repo のセッションは記録しない" {
   # owner の表記は clone の仕方で揺れる。小文字でも素通りさせない。
   mkdir -p "$TEST_TMPDIR/home"
-  git -C "$GIT_REPO" remote add origin "https://github.com/resily/dxp"
+  git -C "$GIT_REPO" remote add origin "https://github.com/resily/probe-repo"
   run_hook "o1" "$GIT_REPO" "$TX" >/dev/null
   grep -qF "o1: 記録しない組織" "$TEST_TMPDIR/home/.distill/logs/record.log"
   local started
@@ -737,7 +737,7 @@ load_project_owner() {
   mkdir -p "$TEST_TMPDIR/home"
   local work
   work="$(make_tmp_git_repo)"
-  git -C "$work" remote add origin "https://github.com/Resily/dxp.git"
+  git -C "$work" remote add origin "https://github.com/Resily/probe-repo.git"
   git -C "$GIT_REPO" remote add origin "https://github.com/cmb-sy/dotfiles.git"
   local tx="$TEST_TMPDIR/moved.jsonl"
   {
@@ -755,8 +755,8 @@ load_project_owner() {
 
 @test "distill-record: upstream が記録しない組織の fork は記録しない" {
   mkdir -p "$TEST_TMPDIR/home"
-  git -C "$GIT_REPO" remote add origin "https://github.com/cmb-sy/dxp.git"
-  git -C "$GIT_REPO" remote add upstream "https://github.com/Resily/dxp.git"
+  git -C "$GIT_REPO" remote add origin "https://github.com/cmb-sy/probe-repo.git"
+  git -C "$GIT_REPO" remote add upstream "https://github.com/Resily/probe-repo.git"
   run_hook "o4" "$GIT_REPO" "$TX" >/dev/null
   grep -qF "o4: 記録しない組織" "$TEST_TMPDIR/home/.distill/logs/record.log"
   local started
