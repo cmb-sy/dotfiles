@@ -88,7 +88,7 @@ link::from_manifest() {
 # Explicit list only: globbing `*` missed hidden files (.zshrc etc.) and
 # wrongly linked Brewfile/git/macos into $HOME, breaking git.
 #----------------------------------------------------------
-HOME_DOTFILES=(.zshrc .zshenv .aliases.sh .function.zsh .gitignore_global)
+HOME_DOTFILES=(.zshrc .zshenv .gitignore_global)
 
 for name in ${HOME_DOTFILES[@]}; do
   util::link "${DOTFILES_DIR}/${name}" "${HOME}/${name}"
@@ -120,11 +120,10 @@ done
 #----------------------------------------------------------
 mkdir -p "${HOME}/.config"
 
-for name in ${DOTFILES_DIR}/.config/*; do
-  name="$(basename "${name}")"
-  # karabiner is a manifest entry (source is the top-level karabiner/); skip it
-  # here so this glob cannot double-link an untracked runtime dir.
-  [[ "${name}" == "karabiner" ]] && continue
+# Tracked entries only: a glob would also link untracked app runtime dirs.
+# Real dirs an app created first are retired, or util::link would skip them.
+for name in ${(u)${(f)"$(git -C "${DOTFILES_DIR}" ls-files .config | cut -d/ -f2)"}}; do
+  link::retire_real_dir "${HOME}/.config/${name}"
   util::link "${DOTFILES_DIR}/.config/${name}" "${HOME}/.config/${name}"
 done
 

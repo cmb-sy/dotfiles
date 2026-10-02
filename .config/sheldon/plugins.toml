@@ -3,9 +3,6 @@ shell = "zsh"
 [plugins.zsh-256color]
 github = "chrissicool/zsh-256color"
 
-[plugins.dircolors-solarized]
-github = "seebi/dircolors-solarized"
-
 [plugins.zsh-autosuggestions]
 github = "zsh-users/zsh-autosuggestions"
 

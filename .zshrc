@@ -129,26 +129,6 @@ setopt no_beep              # No beep on errors
 setopt interactive_comments # Allow `#` comments on the command line
 
 # ----------------------------------------------------------
-# Completion styling
-# ----------------------------------------------------------
-# compinit audits every directory in $fpath for unsafe permissions, and that
-# audit is half the shell's startup time (34ms of 50ms here). The dump file
-# records when it last ran; auditing once a day keeps the check while paying for
-# it once, and -C on the other runs skips straight to loading the dump.
-autoload -Uz compinit
-_zcompdump="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/zcompdump-${ZSH_VERSION}"
-mkdir -p "${_zcompdump:h}"
-if [[ -n ${_zcompdump}(#qN.mh-24) ]]; then
-  compinit -C -d "$_zcompdump"      # audited within the day: load the dump
-else
-  compinit -d "$_zcompdump"         # stale or missing: full audit, rewrite it
-fi
-unset _zcompdump
-zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'       # Case-insensitive
-zstyle ':completion:*:default' menu select=2              # Arrow-key menu
-zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"   # Colored listings
-
-# ----------------------------------------------------------
 # fzf (fuzzy directory, history, file insert)
 # ----------------------------------------------------------
 if command -v fzf &>/dev/null; then
@@ -171,6 +151,16 @@ fi
 eval "$(sheldon source)"
 eval "$(starship init zsh)"
 
+# Up/Down search history by the typed prefix. Guarded so the keys keep their
+# default when the plugin is not loaded. ^[O* is what the keys send while the
+# terminal is in application cursor mode.
+if (( $+widgets[history-substring-search-up] )); then
+  bindkey '^[[A' history-substring-search-up
+  bindkey '^[[B' history-substring-search-down
+  bindkey '^[OA' history-substring-search-up
+  bindkey '^[OB' history-substring-search-down
+fi
+
 # ----------------------------------------------------------
 # PATH (before .aliases.sh so `command -v claude` sees the CLI)
 # claude は Homebrew (/opt/homebrew/bin/claude) に一本化。他の場所にインストールしないこと
@@ -182,7 +172,7 @@ eval "$(starship init zsh)"
 export PATH="/usr/local/bin:$PATH"
 export PATH="/opt/homebrew/bin:$PATH"
 export PATH="${DOTFILES:-${HOME}/dotfiles}/bin:$PATH"   # voice-switch, dev, ai-format, help_key
-export PATH="$HOME/.local/bin:$PATH"                    # slackcli, tmux-sessionizer
+export PATH="$HOME/.local/bin:$PATH"                    # uv, wt, browser-use
 export PATH="$HOME/bin:$PATH"                          # check-databricks-auth.sh
 
 # mise (runtime version manager) — must come after PATH so mise shims take priority
@@ -198,6 +188,33 @@ fi
 if [[ -f "${DOTFILES:-${HOME}/dotfiles}/.aliases.sh" ]]; then
   source "${DOTFILES:-${HOME}/dotfiles}/.aliases.sh"
 fi
+
+# ----------------------------------------------------------
+# Completion (after sheldon so plugin fpath entries are in the dump, and after
+# .aliases.sh so LS_COLORS is set when list-colors reads it)
+# ----------------------------------------------------------
+# compinit audits every directory in $fpath for unsafe permissions, and that
+# audit is half the shell's startup time (34ms of 50ms here). The dump file
+# records when it last ran; auditing once a day keeps the check while paying for
+# it once, and -C on the other runs skips straight to loading the dump.
+# The (#q) glob qualifier needs extended_glob; without it the test is always true.
+_zshrc_dump_is_fresh() {
+  setopt local_options extended_glob
+  [[ -n $1(#qN.mh-24) ]]
+}
+autoload -Uz compinit
+_zcompdump="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/zcompdump-${ZSH_VERSION}"
+mkdir -p "${_zcompdump:h}"
+if _zshrc_dump_is_fresh "$_zcompdump"; then
+  compinit -C -d "$_zcompdump"      # audited within the day: load the dump
+else
+  compinit -d "$_zcompdump"         # stale or missing: full audit, rewrite it
+fi
+unset _zcompdump
+zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'       # Case-insensitive
+zstyle ':completion:*:default' menu select=2              # Arrow-key menu
+zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"   # Colored listings
+
 # ----------------------------------------------------------
 # bun (curl installer 製、Homebrew 管理外) / maestro (同じく管理外)
 # ----------------------------------------------------------

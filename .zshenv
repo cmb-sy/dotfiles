@@ -1,5 +1,8 @@
 #!/bin/zsh
 
+# Keep path entries unique; the first (highest-priority) occurrence wins.
+typeset -U path PATH
+
 # ----------------------------------------------------------
 # Basic Settings
 # ----------------------------------------------------------
@@ -8,7 +11,6 @@ export LC_ALL=en_US.UTF-8
 export TZ=Asia/Tokyo
 export EDITOR=nvim
 export PAGER=less
-export SHELL=zsh
 export XDG_CONFIG_HOME=${HOME}/.config
 export XDG_CACHE_HOME=${HOME}/.cache
 export XDG_DATA_HOME=${HOME}/.local/share
