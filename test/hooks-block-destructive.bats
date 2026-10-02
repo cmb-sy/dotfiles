@@ -17,7 +17,8 @@ allowed() { run_hook "$1"; [ "$status" -eq 0 ]; }
 
 @test "root を消す形はすべて止める" {
   for c in 'rm -rf /' 'rm -rf /*' 'rm -fr /' 'rm -r -f /' 'rm -Rf /' \
-           'rm --recursive --force /' 'rm -rf -- /' 'rm -r /' 'sudo rm -rf /'; do
+           'rm --recursive --force /' 'rm -rf -- /' 'rm -r /' 'sudo rm -rf /' \
+           '\rm -rf /'; do
     blocked "$c" || { echo "not blocked: $c"; return 1; }
   done
 }
@@ -26,7 +27,8 @@ allowed() { run_hook "$1"; [ "$status" -eq 0 ]; }
   for c in 'rm -rf ~' 'rm -rf ~/' 'rm -rf ~/*' 'rm -rf $HOME' 'rm -rf $HOME/' \
            'rm -rf "$HOME"' 'rm -rf "${HOME}/"' 'rm -rf /Users/tester' 'rm -rf /Users' \
            'rm -rf "$HOME"/' 'rm -rf ~/..' 'rm -rf /Users/tester/../tester' \
-           'rm -rf ~tester' 'rm -rf ~tester/' "$(printf 'rm -rf \\\n~')"; do
+           'rm -rf ~tester' 'rm -rf ~tester/' "$(printf 'rm -rf \\\n~')" \
+           'rm -rf ~ ""'; do
     blocked "$c" || { echo "not blocked: $c"; return 1; }
   done
 }
@@ -34,8 +36,39 @@ allowed() { run_hook "$1"; [ "$status" -eq 0 ]; }
 @test "連結やコマンド置換の中の rm も止める" {
   for c in 'rm -rf ~ ; echo x' 'echo ok && rm -rf ~' 'true || rm -rf /' \
            'ls | xargs rm -rf ~' 'echo $(rm -rf ~)' 'echo x;rm -rf ~' \
-           "$(printf 'cat <<EOF\n$(rm -rf ~)\nEOF')" \
-           "$(printf 'cat <<EOF\n# `rm -rf /` runs here\nEOF')"; do
+           'echo "$(rm -rf ~)"' 'echo "$(rm -rf ~ )"' 'echo "$(rm -rf /)"' \
+           "$(printf 'cat <<EOF\n$(rm -rf ~)\nEOF')"; do
+    blocked "$c" || { echo "not blocked: $c"; return 1; }
+  done
+}
+
+@test "シェルが読む heredoc の中の rm を止める" {
+  for c in "$(printf "bash <<'EOF'\nrm -rf ~\nEOF")" \
+           "$(printf "sh <<'EOF'\nrm -rf ~\nEOF")" \
+           "$(printf "cat <<'EOF' | sh\nrm -rf ~\nEOF")" \
+           "$(printf "ssh h bash <<'EOF'\nrm -rf ~\nEOF")"; do
+    blocked "$c" || { echo "not blocked: $c"; return 1; }
+  done
+}
+
+@test "引用符の中の # や入れ子の引用符があっても後ろの rm を止める" {
+  for c in 'echo "a #b" $(rm -rf /)' "echo 'x #y' \`rm -rf ~\`" \
+           "echo \"it's #x\" \$(rm -rf /)" 'echo "a;#" $(rm -rf ~)' \
+           'echo "a|#" `rm -rf ~`' 'echo "a\" #" $(rm -rf ~)' \
+           "$(printf 'echo "a\n#" $(rm -rf ~)')" 'echo `x #` ; rm -rf ~' \
+           'x="$(printf " #")"; rm -rf ~' 'echo "$(echo " #"; rm -rf ~; echo)"' \
+           'echo "${x:-" #"}"; rm -rf ~'; do
+    blocked "$c" || { echo "not blocked: $c"; return 1; }
+  done
+}
+
+# Accepted trade-off: the hook does not lex comments, strings or heredocs, so
+# an rm that is only written down is blocked too. Lexing them kept opening
+# bypasses; a false block is the safe side.
+@test "コメントや文字列に書いただけの rm も止める（安全側に倒す）" {
+  for c in '# rm -rf /' 'echo ok # rm -rf ~' 'echo "rm -rf ~"' \
+           'git commit -m "rm -rf ~ is blocked"' \
+           "$(printf "cat <<'EOF'\n# rm -rf / is pinned\nEOF")"; do
     blocked "$c" || { echo "not blocked: $c"; return 1; }
   done
 }
@@ -57,31 +90,9 @@ allowed() { run_hook "$1"; [ "$status" -eq 0 ]; }
   for c in 'rm -rf /private/tmp/foo' 'rm -rf /var/folders/xx/T/foo' \
            'rm -rf /private/var/folders/xx/T/foo' 'rm -rf "$TMPDIR/foo"' \
            'rm -rf ./build' 'rm -rf ~/project/build' 'rm -rf node_modules' \
-           'rm file.txt' 'rm -f /usr/local/foo' 'ls /usr' 'rm -rf build && ls ~'; do
+           'rm file.txt' 'rm -f /usr/local/foo' 'ls /usr' 'rm -rf build && ls ~' \
+           'rm -rf "$(pwd)/build"' 'rm -rf ~tester/project'; do
     allowed "$c" || { echo "wrongly blocked: $c"; return 1; }
-  done
-}
-
-@test "文字列の中に書かれただけの rm は通す" {
-  for c in 'echo "rm -rf ~"' 'git commit -m "rm -rf ~ is blocked"'; do
-    allowed "$c" || { echo "wrongly blocked: $c"; return 1; }
-  done
-}
-
-@test "コメントの中に書かれただけの rm は通す" {
-  for c in '# `rm -rf /` belongs to the hook' 'echo ok # rm -rf ~' \
-           "$(printf "cat <<'EOF'\n# \`rm -rf /\` is pinned\nEOF")" \
-           "$(printf "python3 - <<'EOF'\nprint(\"it's\")  # rm -rf ~\nEOF\necho done")"; do
-    allowed "$c" || { echo "wrongly blocked: $c"; return 1; }
-  done
-}
-
-@test "引用符の中の # はコメント扱いせず後ろの rm を止める" {
-  for c in 'echo "a #b" $(rm -rf /)' "echo 'x #y' \`rm -rf ~\`" \
-           "echo \"it's #x\" \$(rm -rf /)" 'echo "a;#" $(rm -rf ~)' \
-           'echo "a|#" `rm -rf ~`' 'echo "a\" #" $(rm -rf ~)' \
-           "$(printf 'echo "a\n#" $(rm -rf ~)')" 'echo `x #` ; rm -rf ~'; do
-    blocked "$c" || { echo "not blocked: $c"; return 1; }
   done
 }
 
