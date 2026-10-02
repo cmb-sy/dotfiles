@@ -226,3 +226,76 @@ yaml() { printf '%s\n' "$1" > "$Y"; }
   [ "$status" -eq 1 ]
   printf '%s\n' "$stderr" | grep -qF 'gain-stream: sources.yaml: people[0].bluesky must be a string'
 }
+
+discover_yaml() {
+  yaml 'discover:
+  hn_front: {min_points: 200}
+  show_hn: {min_points: 80}
+  hatena_it: {min_bookmarks: 100}
+  zenn_trend: {limit: 10}
+  qiita_popular: {limit: 10}
+  github_new: {min_stars: 300}
+  ollama_newest: {limit: 10}
+  hf_trending: {filters: ["text-generation"], limit: 10}'
+}
+
+@test "discover: 話題の技術の入口をすべて同じ形で出す" {
+  discover_yaml
+  run --separate-stderr "$GST" discover --since 2026-10-01T00:00:00Z "$Y"
+  [ "$status" -eq 0 ]
+  for s in hn_front show_hn hatena_it zenn_trend qiita_popular github_new ollama hf; do
+    printf '%s\n' "$output" | grep -qF "\"source\": \"$s\""
+  done
+  printf '%s\n' "$output" | grep -qF '"url": "https://zenn.dev/mazrean/articles/bd9b"'
+  printf '%s\n' "$output" | grep -qF '"url": "https://ollama.com/library/tev1"'
+  printf '%s\n' "$output" | grep -qF '"url": "https://huggingface.co/prism-ml/Ternary-Bonsai-2-27B-gguf"'
+}
+
+@test "discover: 人気の入口は日付で切らず、点数の下限で切る" {
+  discover_yaml
+  run --separate-stderr "$GST" discover --since 2026-10-01T00:00:00Z "$Y"
+  # 09-20 の記事でも今人気なら残る
+  printf '%s\n' "$output" | grep -qF 'AI時代の勉強法(2026)'
+  # ブックマーク 12 は下限 100 に届かない
+  n=$(printf '%s\n' "$output" | grep -c '"title": "少ない"') || n=0
+  [ "$n" -eq 0 ]
+}
+
+@test "discover: GitHub の新規は直近 14 日で固定、Ollama は期間で切る" {
+  discover_yaml
+  run --separate-stderr "$GST" discover --since 2026-10-01T00:00:00Z "$Y"
+  printf '%s\n' "$output" | grep -qF 'yetone/magpie'
+  n=$(printf '%s\n' "$output" | grep -c 'old/repo') || n=0
+  [ "$n" -eq 0 ]
+  printf '%s\n' "$output" | grep -qF '"title": "tev1'
+  n=$(printf '%s\n' "$output" | grep -c 'deepseek-v4.1-flash') || n=0
+  [ "$n" -eq 0 ]
+}
+
+@test "discover: Ollama のページからモデルを読めなければ失敗（形が変わった）" {
+  mkdir -p "$BATS_TEST_TMPDIR/fx"
+  cp "$GAIN_STREAM_FIXTURES"/* "$BATS_TEST_TMPDIR/fx/"
+  printf '<html><body>redesigned</body></html>' > "$BATS_TEST_TMPDIR/fx/ollama-newest"
+  discover_yaml
+  GAIN_STREAM_FIXTURES="$BATS_TEST_TMPDIR/fx" run --separate-stderr "$GST" discover --since 2026-10-01T00:00:00Z "$Y"
+  [ "$status" -eq 2 ]
+  printf '%s\n' "$stderr" | grep -qF 'no models parsed'
+}
+
+@test "discover の各項目は null か mapping、hf_trending.filters は文字列の list（違えば終了コード 1）" {
+  yaml 'discover: {hn_front: 5}'
+  run --separate-stderr "$GST" discover --since 2026-10-01T00:00:00Z "$Y"
+  [ "$status" -eq 1 ]
+  printf '%s\n' "$stderr" | grep -qF 'gain-stream: sources.yaml: discover.hn_front must be a mapping'
+  [ -z "$output" ]
+  yaml 'discover:
+  hf_trending: {filters: text-generation}'
+  run --separate-stderr "$GST" budget "$Y"
+  [ "$status" -eq 1 ]
+  printf '%s\n' "$stderr" | grep -qF 'gain-stream: sources.yaml: discover.hf_trending.filters must be a list of strings'
+  yaml 'discover:
+  hn_front:
+  some_future_key: {x: 1}'
+  run --separate-stderr "$GST" budget "$Y"
+  [ "$status" -eq 0 ]
+}

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns="http://purl.org/rss/1.0/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:hatena="http://www.hatena.ne.jp/info/xmlns#">
+<channel rdf:about="x"><title>t</title></channel>
+<item rdf:about="https://iwashi.example/study"><title>AI時代の勉強法(2026)</title><link>https://iwashi.example/study</link><dc:date>2026-09-20T23:26:31Z</dc:date><hatena:bookmarkcount>458</hatena:bookmarkcount></item>
+<item rdf:about="https://low.example/"><title>少ない</title><link>https://low.example/</link><dc:date>2026-10-01T00:00:00Z</dc:date><hatena:bookmarkcount>12</hatena:bookmarkcount></item>
+</rdf:RDF>

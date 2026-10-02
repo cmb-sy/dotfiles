@@ -342,8 +342,102 @@ def build_topic_jobs(cfg, since):
     return jobs
 
 
+AGO_RE = re.compile(r"(\d+)\s+(minute|hour|day|week|month|year)s?\s+ago")
+AGO_UNIT = {"minute": 60, "hour": 3600, "day": 86400, "week": 7 * 86400,
+            "month": 30 * 86400, "year": 365 * 86400}
+
+
+def ollama_rows(raw):
+    text = raw.decode("utf-8", errors="replace")
+    out = []
+    for part in text.split('<a href="/library/')[1:]:
+        name = part.split('"', 1)[0]
+        desc = re.search(r'<p class="max-w-lg[^"]*">(.*?)</p>', part, re.S)
+        ago = AGO_RE.search(part)
+        published = (now() - dt.timedelta(seconds=int(ago.group(1)) * AGO_UNIT[ago.group(2)])
+                     if ago else None)
+        title = name + (" — " + strip_html(desc.group(1)) if desc else "")
+        out.append(make("discover", None, None, "ollama", title,
+                        f"https://ollama.com/library/{name}", published))
+    if not out:
+        raise FetchError("no models parsed")
+    return out
+
+
 def build_discover_jobs(cfg, since):
-    return []
+    d = cfg.get("discover") or {}
+    jobs = []
+
+    def add(source, q, window, server, fn):
+        jobs.append({"source": source, "topic": None, "section": None, "query": q,
+                     "window": window, "server": server, "run": fn})
+
+    def hn(source, tags, min_points, q):
+        def run():
+            url = hn_query({"tags": tags, "hitsPerPage": 30,
+                            "numericFilters": f"created_at_i>{int(since.timestamp())},points>{min_points}"})
+            return hn_rows(fetch(source, q, url), "discover", None, None, source)
+        add(source, q, "since", True, run)
+
+    if "hn_front" in d:
+        hn("hn_front", "story", (d["hn_front"] or {}).get("min_points", 200), "front")
+    if "show_hn" in d:
+        hn("show_hn", "show_hn", (d["show_hn"] or {}).get("min_points", 80), "show")
+    if "hatena_it" in d:
+        floor = (d["hatena_it"] or {}).get("min_bookmarks", 100)
+        def run(floor=floor):
+            rows = feed_rows(fetch("hatena_it", "it", "https://b.hatena.ne.jp/hotentry/it.rss"),
+                             "discover", None, None, "hatena_it")
+            return [r for r in rows if (r["score"] or 0) >= floor]
+        add("hatena_it", "it", "none", False, run)
+    if "zenn_trend" in d:
+        limit = (d["zenn_trend"] or {}).get("limit", 10)
+        def run(limit=limit):
+            # unofficial API; order=liked_count is silently ignored, weekly works
+            url = f"https://zenn.dev/api/articles?order=weekly&count={int(limit)}"
+            return [make("discover", None, None, "zenn_trend", a.get("title"),
+                         "https://zenn.dev" + (a.get("path") or ""),
+                         parse_date(a.get("published_at")), a.get("liked_count"),
+                         (a.get("user") or {}).get("username"))
+                    for a in load_json(fetch("zenn_trend", "weekly", url)).get("articles", [])]
+        add("zenn_trend", "weekly", "none", False, run)
+    if "qiita_popular" in d:
+        limit = (d["qiita_popular"] or {}).get("limit", 10)
+        def run(limit=limit):
+            rows = feed_rows(fetch("qiita_popular", "popular", "https://qiita.com/popular-items/feed"),
+                             "discover", None, None, "qiita_popular")
+            return rows[:int(limit)]
+        add("qiita_popular", "popular", "none", False, run)
+    if "github_new" in d:
+        stars = (d["github_new"] or {}).get("min_stars", 300)
+        def run(stars=stars):
+            after = (now() - dt.timedelta(days=14)).date().isoformat()
+            raw = fetch("github_new", "new", gh=["api", "-X", "GET", "search/repositories",
+                                                 "-f", f"q=created:>{after} stars:>{stars}",
+                                                 "-f", "sort=stars", "-f", "per_page=20"])
+            return [make("discover", None, None, "github_new",
+                         f"{r.get('full_name')} — {r.get('description') or ''}".rstrip(" —"),
+                         r.get("html_url"), parse_date(r.get("created_at")),
+                         r.get("stargazers_count"), (r.get("owner") or {}).get("login"))
+                    for r in load_json(raw).get("items", [])]
+        add("github_new", "new", "fixed14", True, run)
+    if "ollama_newest" in d:
+        limit = (d["ollama_newest"] or {}).get("limit", 10)
+        def run(limit=limit):
+            return ollama_rows(fetch("ollama", "newest", "https://ollama.com/search?o=newest"))[:int(limit)]
+        add("ollama", "newest", "since", False, run)
+    if "hf_trending" in d:
+        hf = d["hf_trending"] or {}
+        for f in hf.get("filters") or ["text-generation"]:
+            def run(f=f, limit=hf.get("limit", 10)):
+                url = "https://huggingface.co/api/models?" + urllib.parse.urlencode(
+                    {"sort": "trendingScore", "limit": int(limit), "filter": f})
+                return [make("discover", None, None, "hf", m.get("id"),
+                             f"https://huggingface.co/{m.get('id')}",
+                             parse_date(m.get("createdAt")), m.get("trendingScore"))
+                        for m in load_json(fetch("hf", f, url))]
+            add("hf", f, "none", False, run)
+    return jobs
 
 
 def count_requests(cfg):
@@ -389,6 +483,14 @@ def cfg_error(cfg):
     discover = cfg.get("discover")
     if discover is not None and not isinstance(discover, dict):
         return "discover must be a mapping"
+    for k, v in (discover or {}).items():
+        # unknown keys are allowed (ignored), but each value has a fixed shape
+        if v is not None and not isinstance(v, dict):
+            return f"discover.{k} must be a mapping"
+    filters = ((discover or {}).get("hf_trending") or {}).get("filters")
+    if filters is not None and not (isinstance(filters, list)
+                                    and all(isinstance(f, str) for f in filters)):
+        return "discover.hf_trending.filters must be a list of strings"
     return None
 
 
