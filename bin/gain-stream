@@ -121,6 +121,8 @@ def fetch(source, query, url=None, gh=None):
         if r.returncode:
             raise FetchError(f"gh exit {r.returncode}: "
                              f"{r.stderr.decode(errors='replace').strip()[:120]}")
+        if len(r.stdout) > MAX_BYTES:
+            raise FetchError("response too large")
         return r.stdout
     req = urllib.request.Request(url, headers={"User-Agent": UA})
     try:
@@ -166,9 +168,12 @@ def run_jobs(jobs, since):
             if floor is not None:
                 rows = [r for r in rows if r["published"] and r["published"] >= floor]
             rows = [r for r in rows if r["title"] and r["url"]]
-        except FetchError as e:
+        except (FetchError, KeyError, TypeError, AttributeError, ValueError) as e:
+            # A response of an unexpected shape fails this fetch only, so the
+            # remaining jobs still run and the exit code stays meaningful.
+            err = str(e) if isinstance(e, FetchError) else f"bad shape: {type(e).__name__}"
             failed += 1
-            print(json.dumps({**status, "ok": False, "count": 0, "error": str(e)},
+            print(json.dumps({**status, "ok": False, "count": 0, "error": err},
                              ensure_ascii=False), file=sys.stderr)
             continue
         ok += 1
@@ -220,11 +225,41 @@ def count_requests(cfg):
     qiita = sum(len(t.get("qiita") or []) for t in cfg.get("topics") or [])
     gh_search = 1 if (cfg.get("discover") or {}).get("github_new") else 0
     total = sum(len(t.get(k) or []) for t in cfg.get("topics") or []
-                for k in ("hn", "hatena", "qiita", "zenn", "lobsters", "bluesky"))
+                for k in SOURCE_KEYS)
     total += sum(bool(p.get(k)) for p in cfg.get("people") or []
                  for k in ("blog", "bluesky", "mastodon"))
     total += len(cfg.get("discover") or {})
     return {"requests": total, "qiita": qiita, "github_search": gh_search}
+
+
+SOURCE_KEYS = ("hn", "hatena", "qiita", "zenn", "lobsters", "bluesky")
+
+
+def cfg_error(cfg):
+    """What is wrong with the shape of sources.yaml, or None."""
+    topics = cfg.get("topics")
+    if topics is not None and not isinstance(topics, list):
+        return "topics must be a list"
+    for i, t in enumerate(topics or []):
+        if not isinstance(t, dict):
+            return f"topics[{i}] must be a mapping"
+        if not isinstance(t.get("name"), str):
+            return f"topics[{i}].name must be a string"
+        for k in SOURCE_KEYS:
+            v = t.get(k)
+            if v is not None and not (isinstance(v, list)
+                                      and all(isinstance(q, str) for q in v)):
+                return f"topics[{i}].{k} must be a list of strings"
+    people = cfg.get("people")
+    if people is not None and not isinstance(people, list):
+        return "people must be a list"
+    for i, p in enumerate(people or []):
+        if not isinstance(p, dict) or not isinstance(p.get("name"), str):
+            return f"people[{i}] must be a mapping with a string name"
+    discover = cfg.get("discover")
+    if discover is not None and not isinstance(discover, dict):
+        return "discover must be a mapping"
+    return None
 
 
 def load_cfg(path):
@@ -239,6 +274,10 @@ def load_cfg(path):
         sys.exit(EXIT_ALL_FAILED)
     if not isinstance(cfg, dict):
         print("gain-stream: sources.yaml must be a mapping", file=sys.stderr)
+        sys.exit(EXIT_ALL_FAILED)
+    err = cfg_error(cfg)
+    if err:
+        print(f"gain-stream: sources.yaml: {err}", file=sys.stderr)
         sys.exit(EXIT_ALL_FAILED)
     return cfg
 

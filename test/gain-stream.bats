@@ -109,3 +109,44 @@ yaml() { printf '%s\n' "$1" > "$Y"; }
   run "$GST" budget "$Y"
   [ "$status" -eq 1 ]
 }
+
+@test "形の崩れた応答はその取得だけ失敗にし、ほかは続ける（終了コード 2）" {
+  yaml 'topics:
+  - name: AI
+    hn: ["bad shape", "claude code"]'
+  run --separate-stderr "$GST" topics --since 2026-10-01T00:00:00Z "$Y"
+  [ "$status" -eq 2 ]
+  printf '%s\n' "$stderr" | grep -qF 'bad shape: TypeError'
+  printf '%s\n' "$output" | grep -qF 'AGENTS.md'
+  n=$(printf '%s\n' "$stderr" | grep -c 'Traceback') || n=0
+  [ "$n" -eq 0 ]
+}
+
+@test "sources.yaml の形の誤りは終了コード 1（topics・budget とも）" {
+  yaml 'topics:
+  - name: AI
+    hn: "claude code"'
+  run --separate-stderr "$GST" topics --since 2026-10-01T00:00:00Z "$Y"
+  [ "$status" -eq 1 ]
+  printf '%s\n' "$stderr" | grep -qF 'gain-stream: sources.yaml:'
+  [ -z "$output" ]
+  run --separate-stderr "$GST" budget "$Y"
+  [ "$status" -eq 1 ]
+  printf '%s\n' "$stderr" | grep -qF 'gain-stream: sources.yaml:'
+  yaml 'topics: [AI]'
+  run --separate-stderr "$GST" topics --since 2026-10-01T00:00:00Z "$Y"
+  [ "$status" -eq 1 ]
+  printf '%s\n' "$stderr" | grep -qF 'gain-stream: sources.yaml:'
+  run --separate-stderr "$GST" budget "$Y"
+  [ "$status" -eq 1 ]
+  printf '%s\n' "$stderr" | grep -qF 'gain-stream: sources.yaml:'
+  yaml 'people:
+  - blog: https://example.com/feed'
+  run --separate-stderr "$GST" budget "$Y"
+  [ "$status" -eq 1 ]
+  printf '%s\n' "$stderr" | grep -qF 'gain-stream: sources.yaml:'
+  yaml 'discover: [x]'
+  run --separate-stderr "$GST" budget "$Y"
+  [ "$status" -eq 1 ]
+  printf '%s\n' "$stderr" | grep -qF 'gain-stream: sources.yaml:'
+}
