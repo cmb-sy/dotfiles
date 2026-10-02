@@ -25,14 +25,17 @@ allowed() { run_hook "$1"; [ "$status" -eq 0 ]; }
 @test "home を消す形はすべて止める" {
   for c in 'rm -rf ~' 'rm -rf ~/' 'rm -rf ~/*' 'rm -rf $HOME' 'rm -rf $HOME/' \
            'rm -rf "$HOME"' 'rm -rf "${HOME}/"' 'rm -rf /Users/tester' 'rm -rf /Users' \
-           'rm -rf "$HOME"/'; do
+           'rm -rf "$HOME"/' 'rm -rf ~/..' 'rm -rf /Users/tester/../tester' \
+           'rm -rf ~tester' 'rm -rf ~tester/' "$(printf 'rm -rf \\\n~')"; do
     blocked "$c" || { echo "not blocked: $c"; return 1; }
   done
 }
 
 @test "連結やコマンド置換の中の rm も止める" {
   for c in 'rm -rf ~ ; echo x' 'echo ok && rm -rf ~' 'true || rm -rf /' \
-           'ls | xargs rm -rf ~' 'echo $(rm -rf ~)' 'echo x;rm -rf ~'; do
+           'ls | xargs rm -rf ~' 'echo $(rm -rf ~)' 'echo x;rm -rf ~' \
+           "$(printf 'cat <<EOF\n$(rm -rf ~)\nEOF')" \
+           "$(printf 'cat <<EOF\n# `rm -rf /` runs here\nEOF')"; do
     blocked "$c" || { echo "not blocked: $c"; return 1; }
   done
 }
@@ -67,14 +70,17 @@ allowed() { run_hook "$1"; [ "$status" -eq 0 ]; }
 
 @test "コメントの中に書かれただけの rm は通す" {
   for c in '# `rm -rf /` belongs to the hook' 'echo ok # rm -rf ~' \
-           "$(printf 'cat <<EOF\n# `rm -rf /` is pinned\nEOF')"; do
+           "$(printf "cat <<'EOF'\n# \`rm -rf /\` is pinned\nEOF")" \
+           "$(printf "python3 - <<'EOF'\nprint(\"it's\")  # rm -rf ~\nEOF\necho done")"; do
     allowed "$c" || { echo "wrongly blocked: $c"; return 1; }
   done
 }
 
 @test "引用符の中の # はコメント扱いせず後ろの rm を止める" {
   for c in 'echo "a #b" $(rm -rf /)' "echo 'x #y' \`rm -rf ~\`" \
-           "echo \"it's #x\" \$(rm -rf /)"; do
+           "echo \"it's #x\" \$(rm -rf /)" 'echo "a;#" $(rm -rf ~)' \
+           'echo "a|#" `rm -rf ~`' 'echo "a\" #" $(rm -rf ~)' \
+           "$(printf 'echo "a\n#" $(rm -rf ~)')" 'echo `x #` ; rm -rf ~'; do
     blocked "$c" || { echo "not blocked: $c"; return 1; }
   done
 }
