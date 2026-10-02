@@ -63,34 +63,69 @@ services:
       the dates. Follow those links when collecting. The .md body would also diff cleanly
       between versions, but nothing here compares versions yet -- it is read as a changelog
 
-# Engineers to follow via blog (RSS) and SNS (best-effort)
-engineers:
+# Daily flow layer -- read by bin/gain-stream on every watch, not by
+# gain-state (it has no key for these, so they never enter the weekly
+# cooldown). Each list is a set of queries for that source.
+topics:
+  - name: ローカル LLM
+    note: Handy のローカル音声モードの後継モデル候補（小型・日本語・Mac で動く）
+    hn: ["ollama", "local llm", "gguf"]
+    hatena: ["ローカルLLM", "Ollama"]
+    qiita: ["ollama", "llm"]
+    zenn: ["ollama", "llm"]
+    bluesky: ["ollama"]
+  - name: Handy・音声入力
+    note: 音声入力のワークフロー。Handy の代わりや周辺ツール
+    hn: ["speech to text", "whisper", "dictation"]
+    hatena: ["音声入力"]
+    zenn: ["whisper"]
+  - name: Claude Code・AI コーディング
+    note: 毎日使う道具。競合（Cursor・Codex）も含む
+    hn: ["claude code", "coding agent", "codex"]
+    hatena: ["Claude Code"]
+    qiita: ["claudecode"]
+    zenn: ["claudecode"]
+    lobsters: ["ai"]
+    bluesky: ["claude code"]
+  - name: AI エージェントのハーネス
+    note: CLAUDE.md・skills・hooks の運用。harness-audit の基準になる
+    hn: ["agent harness", "agents.md"]
+    zenn: ["aiagent"]
+  - name: Databricks
+    note: 業務の中核。VIEW・Delta・Genie の挙動変更は直接効く
+    hn: ["databricks"]
+    hatena: ["Databricks"]
+    qiita: ["databricks"]
+    zenn: ["databricks"]
+  - name: キャリア
+    section: career
+    note: エンジニアがキャリアをどう歩んでいるか。職種の移り方・評価・学び方・AI 時代の働き方
+    hn: ["career"]
+    hatena: ["エンジニア キャリア", "エンジニアリングマネージャー"]
+    qiita: ["キャリア", "career"]
+    zenn: ["career"]
+
+# People whose own writing is worth reading every day. SNS only where a
+# free, dated feed exists: X has no free read path, so it is not here.
+people:
   - name: Simon Willison
     blog: https://simonwillison.net/atom/everything/
+    bluesky: simonwillison.net
+    mastodon: https://fedi.simonwillison.net/@simon.rss
     note: LLM tooling practice; highest signal in the space
   - name: mizchi
     blog: https://zenn.dev/mizchi/feed
-    note: Zenn is authoritative (mizchi.dev serves stale 2020 cache). blog only -- the code shows up in github/mizchi/vibe-lang, and the SNS slot returned nothing but a low-confidence label
+    note: Zenn is authoritative (mizchi.dev serves stale 2020 cache). His SNS is X only; the Bluesky account is dormant
 
-# Impact news — search queries
-news:
-  - query: "AI coding agent 新機能 比較"
-    note: Claude Code / Cursor / Codex competitive landscape
-  - query: "音声入力 コーディング dictation STT ツール"
-    note: alternatives/new tools around the Handy workflow
-  - query: "dotfiles 開発環境 ツール トレンド"
-    note: dev-environment new practices
-  - query: "開発者ツール 話題 トレンド"
-    note: catch-all for whatever is trending
-  - query: "ローカルLLM 小型モデル 日本語 Ollama 新モデル"
-    note: successor candidates for qwen3:4b in Handy local voice mode (small, ja-capable, runs on Mac)
-  - query: "small local LLM new model Ollama English instruct"
-    note: en-mode candidates for Handy local voice (voice-switch en)
-  - query: "AI coding agent harness ベストプラクティス CLAUDE.md 運用 構築"
-    note: harness construction practices; feeds harness-audit Level 4 anchors
-  - query: "agentic coding workflow harness best practices"
-    note: EN sources for the same; top-engineer harness patterns
-  - query: "Databricks Delta Lake VIEW スキーマ 変更 運用"
-    note: 業務の中核。VIEW のスキーマ固定で実際に障害を出しているため、運用上の落とし穴を拾う
-  - query: "Databricks AI/BI Genie MCP 活用"
-    note: Genie と MCP サーバーの両方を出口にしている。他社の使い方と機能追加を追う
+# Trending in any field. Popular-now sources are not cut by date (most of
+# what is popular this week was published before yesterday); the digest's
+# 7-day URL check drops what was already shown.
+discover:
+  hn_front: {min_points: 200}
+  show_hn: {min_points: 80}
+  hatena_it: {min_bookmarks: 100}
+  zenn_trend: {limit: 10}
+  qiita_popular: {limit: 10}
+  github_new: {min_stars: 300}
+  ollama_newest: {limit: 10}
+  hf_trending: {filters: ["text-generation", "automatic-speech-recognition"], limit: 10}
