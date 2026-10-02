@@ -74,15 +74,15 @@ alias hr='herdr'
 # (valid 1 year) bypasses Keychain and is injected per command only.
 # Daily: clp / clw switch account + launch; clpa / clwa add autonomous mode.
 # New terminals do not inherit CLAUDE_CONFIG_DIR; the ~/.claude symlink is the
-# persistent default. Per-account effort/model defaults: export overrides for
-# CLAUDE_PRIVATE_DEFAULT_* / CLAUDE_WORK_DEFAULT_* before sourcing this file.
+# persistent default. Per-account model defaults: export overrides for
+# CLAUDE_PRIVATE_DEFAULT_MODEL / CLAUDE_WORK_DEFAULT_MODEL before sourcing.
+# Effort is not set here: /effort saves it in the shared settings.json, and a
+# launch flag would override that saved choice on every start.
 # ----------------------------------------------------------
 : "${CLAUDE_ACCOUNT_PRIVATE_DIR:=${HOME}/.claude-private}"
 : "${CLAUDE_ACCOUNT_WORK_DIR:=${HOME}/.claude-work}"
 
-: "${CLAUDE_PRIVATE_DEFAULT_EFFORT:=medium}"
 : "${CLAUDE_PRIVATE_DEFAULT_MODEL:=}"
-: "${CLAUDE_WORK_DEFAULT_EFFORT:=xhigh}"
 : "${CLAUDE_WORK_DEFAULT_MODEL:=}"
 
 _claude_account_link() {
@@ -116,14 +116,13 @@ _claude_sync_shared() {
   CLAUDE_LINK_SHARED_QUIET=1 zsh "$d/claude/link-shared-config.zsh" >/dev/null 2>&1
 }
 
-# Build --effort/--model flags for an account's defaults into the global
-# _claude_default_flags array. Empty effort/model means "let Claude Code use
-# its own built-in default" — no flag is passed for that one.
+# Build the --model flag for an account's default into the global
+# _claude_default_flags array. An empty model means "let Claude Code use its
+# own default" — no flag is passed.
 _claude_default_flags=()
 _claude_build_default_flags() {
-  local effort="$1" model="$2"
+  local model="$1"
   _claude_default_flags=()
-  [ -n "$effort" ] && _claude_default_flags+=(--effort "$effort")
   [ -n "$model" ] && _claude_default_flags+=(--model "$model")
 }
 
@@ -195,7 +194,7 @@ claude-private() {
   _claude_require_cli || return $?
   _claude_sync_shared
   claude-use-private
-  _claude_build_default_flags "$CLAUDE_PRIVATE_DEFAULT_EFFORT" "$CLAUDE_PRIVATE_DEFAULT_MODEL"
+  _claude_build_default_flags "$CLAUDE_PRIVATE_DEFAULT_MODEL"
   _claude_run_for_account "${CLAUDE_ACCOUNT_PRIVATE_DIR}" "${_claude_default_flags[@]}" "$@"
 }
 
@@ -203,7 +202,7 @@ claude-work() {
   _claude_require_cli || return $?
   _claude_sync_shared
   claude-use-work
-  _claude_build_default_flags "$CLAUDE_WORK_DEFAULT_EFFORT" "$CLAUDE_WORK_DEFAULT_MODEL"
+  _claude_build_default_flags "$CLAUDE_WORK_DEFAULT_MODEL"
   _claude_run_for_account "${CLAUDE_ACCOUNT_WORK_DIR}" "${_claude_default_flags[@]}" "$@"
 }
 
@@ -224,7 +223,7 @@ clpa() {
   claude-use-private
   local q="$*"
   [ -z "$q" ] && q="$_claude_autonomous_default_prompt"
-  _claude_build_default_flags "$CLAUDE_PRIVATE_DEFAULT_EFFORT" "$CLAUDE_PRIVATE_DEFAULT_MODEL"
+  _claude_build_default_flags "$CLAUDE_PRIVATE_DEFAULT_MODEL"
   _claude_run_for_account "${CLAUDE_ACCOUNT_PRIVATE_DIR}" "${_claude_default_flags[@]}" --dangerously-skip-permissions "$q"
 }
 
@@ -234,7 +233,7 @@ clwa() {
   claude-use-work
   local q="$*"
   [ -z "$q" ] && q="$_claude_autonomous_default_prompt"
-  _claude_build_default_flags "$CLAUDE_WORK_DEFAULT_EFFORT" "$CLAUDE_WORK_DEFAULT_MODEL"
+  _claude_build_default_flags "$CLAUDE_WORK_DEFAULT_MODEL"
   _claude_run_for_account "${CLAUDE_ACCOUNT_WORK_DIR}" "${_claude_default_flags[@]}" --dangerously-skip-permissions "$q"
 }
 
@@ -247,7 +246,7 @@ clpc() {
   _claude_require_cli || return $?
   _claude_sync_shared
   claude-use-private
-  _claude_build_default_flags "$CLAUDE_PRIVATE_DEFAULT_EFFORT" "$CLAUDE_PRIVATE_DEFAULT_MODEL"
+  _claude_build_default_flags "$CLAUDE_PRIVATE_DEFAULT_MODEL"
   _claude_run_for_account "${CLAUDE_ACCOUNT_PRIVATE_DIR}" "${_claude_default_flags[@]}" --dangerously-skip-permissions --continue "$@"
 }
 
@@ -255,7 +254,7 @@ clwc() {
   _claude_require_cli || return $?
   _claude_sync_shared
   claude-use-work
-  _claude_build_default_flags "$CLAUDE_WORK_DEFAULT_EFFORT" "$CLAUDE_WORK_DEFAULT_MODEL"
+  _claude_build_default_flags "$CLAUDE_WORK_DEFAULT_MODEL"
   _claude_run_for_account "${CLAUDE_ACCOUNT_WORK_DIR}" "${_claude_default_flags[@]}" --dangerously-skip-permissions --continue "$@"
 }
 

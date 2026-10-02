@@ -53,8 +53,7 @@ user-invocable: true
 ### Step 2: アカウント別ローカル状態の収集(symlinkされない実体)
 
 `.aliases.sh` から `CLAUDE_ACCOUNT_PRIVATE_DIR` / `CLAUDE_ACCOUNT_WORK_DIR` の
-実際の値と、`CLAUDE_PRIVATE_DEFAULT_EFFORT` / `CLAUDE_PRIVATE_DEFAULT_MODEL` /
-`CLAUDE_WORK_DEFAULT_EFFORT` / `CLAUDE_WORK_DEFAULT_MODEL` の現在値
+実際の値と、`CLAUDE_PRIVATE_DEFAULT_MODEL` / `CLAUDE_WORK_DEFAULT_MODEL` の現在値
 (未設定なら `.aliases.sh` 内の `:=` デフォルト値)を読み取る。
 
 各アカウントディレクトリに対して:
@@ -112,7 +111,6 @@ DIFF: private vs work  (symlinkされないローカル状態のみ)
 ------------------------------------------------------------
                         private                  work
 CLAUDE_CONFIG_DIR       ~/.claude-private         ~/.claude-work
-起動デフォルト effort    medium (clp/clpa)         xhigh (clw/clwa)
 起動デフォルト model     (未設定)                   (未設定)
 settings.local.json     permissions.allow:        (なし)
                           Bash(nvim:*)
