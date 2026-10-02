@@ -81,15 +81,7 @@ issue 内容が未入力なら「どんな issue を作りますか（内容と�
 
 ### Step 2: プロジェクト（repo）の特定
 
-入力内容・プロジェクト名から repo を特定する。下記マッピングを優先し、判別できなければ `AskUserQuestion`（header: `プロジェクト`、`Other` で自由入力可）で確認する:
-
-| 選択肢ラベル | repo |
-|---|---|
-| Data Platform | `Resily/data-platform` |
-| 効果検証自動化 | `Resily/AI-TASKFORCE-auto-EQ-reports-generating` |
-| Claude Code 運用 | `Resily/arm-claude-code` |
-| DXP-AI解析 | `Resily/dxp` |
-| WellCom | `Resily/WellCom` |
+入力内容・プロジェクト名から repo を特定する。`~/.config/dotfiles-local/github-issues.md`（git 管理外のローカル設定）があれば読み、そこにあるプロジェクト名と repo の対応表を優先し、その選択肢ラベルを `AskUserQuestion` の選択肢に使う。ファイルが無ければ対応表なしで進め、`gh repo list Resily --limit 50 --json name` の結果から入力に近い repo を候補に挙げる。判別できなければ `AskUserQuestion`（header: `プロジェクト`、`Other` で自由入力可）で確認する。
 
 推測で repo を確定しない。確信が持てなければ必ず確認する。
 

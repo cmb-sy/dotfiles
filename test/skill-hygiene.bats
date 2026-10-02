@@ -141,3 +141,24 @@ print(','.join(NG) if NG else 'OK')
   n=$(printf '%s' "$found" | grep -c 'synced/probe-check/') || n=0
   [ "$n" -eq 0 ]
 }
+
+# --- 勤務先固有の一覧は公開 repo に置かない ---
+#
+# repo 名の一覧や業務内容は ~/.config/dotfiles-local/<skill>.md（git 管理外）に
+# 置き、スキルはそれがあれば読む。組織名だけ（`Resily` 単体や `Resily/{repo}` の
+# 書式）は対象外で、名指しされた repo（`Resily/<名前>`）だけを数える。
+@test "claude/ に勤務先の repo 名（org/名前）が出ない" {
+  found="$(git -C "$REPO_DIR" grep -n -E 'Resily/[A-Za-z]' -- claude || true)"
+  echo "$found"
+  hits=$(printf '%s' "$found" | grep -c .) || hits=0
+  [ "$hits" -eq 0 ]
+}
+
+@test "勤務先固有の一覧を外したスキルは、ローカル設定を読む宣言を持つ" {
+  missing=""
+  for skill in github-issues eod distill-gain-latest-info; do
+    n=$(grep -cF "~/.config/dotfiles-local/$skill.md" "$REPO_DIR/claude/skills/$skill/SKILL.md") || n=0
+    [ "$n" -gt 0 ] || missing="$missing $skill"
+  done
+  [ -z "$missing" ] || { echo "ローカル設定を読む宣言が無い:$missing"; return 1; }
+}

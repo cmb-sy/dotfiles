@@ -79,7 +79,7 @@ Step 0 は毎日の部分を組み立てるだけで、ファイルには書か�
 
 4. 既出照合: 直近 7 日分の `情報収集/*.md` に出た URL を除く。同じ話題が前の日にも出ていれば「続報」として 1 行にする
 5. 束ねて毎日の部分を組み立てる（`## ダイジェストの構造` の毎日の部分。書き出しは Step 4）。**流れは、2 つ以上の出どころに同時に出た話題だけ**。`section: career` の項目は `## キャリア`、`kind: discover` の項目は `## 話題の技術` の材料にする。`section: people` の項目は流れ・話題の技術・キャリアの根拠に使う
-6. **自分に効くもの** は、上で書いた項目のうち自分の環境に当たるものを、次の範囲を実際に grep して決める（LLM の推測で書かない）: `$HOME/dotfiles`、`$HOME/develop/distill-vault/プロジェクト/*/概要.md`、`$HOME/develop` 直下の各リポジトリの `CLAUDE.md`・`package.json`・`pyproject.toml`・`databricks.yml`・`Brewfile`
+6. **自分に効くもの** は、上で書いた項目のうち自分の環境に当たるものを、次の範囲を実際に grep して決める（LLM の推測で書かない）: `$HOME/dotfiles`、`$HOME/develop/distill-vault/プロジェクト/*/概要.md`、`$HOME/develop` 直下の各リポジトリの `CLAUDE.md`・`package.json`・`pyproject.toml`・`databricks.yml`・`Brewfile`、および `~/.config/dotfiles-local/distill-gain-latest-info.md`（あれば）
 
 流れの層の候補は `gain-score` に渡さない（採点は監視先の層の候補だけ）。
 
@@ -134,7 +134,7 @@ SNS 由来のエントリは必ず「信頼度低」ラベルを付す。取得�
 週が明けたら制限は外れる。同じ主題を継続して追うこと自体は妨げない。
 
 **深掘りを選ぶ:** 既出照合で残った自分に効く区分（`services`・`github`・`peers`）の候補から
-**1〜3 件**を深掘りに選ぶ。**選ぶのは Jev の点数を見る前。** `gain-score rate` はまだ呼ばない。
+**1〜3 件**を深掘りに選ぶ。`~/.config/dotfiles-local/distill-gain-latest-info.md`（git 管理外のローカル設定）があれば読み、監視先が仕事のどこに効くかの補足として選定と深掘りの記述に使う。無ければ `sources.yaml` の note だけで選ぶ。この補足は `gain-score rate` に渡す `note` に混ぜない（外部の API に送られるため）。**選ぶのは Jev の点数を見る前。** `gain-score rate` はまだ呼ばない。
 **採点は選び方を変えない。** 点数を見てから選ぶと、Claude の選び方と Jev の点数を比べる意味が無くなる。
 選ばれなかった候補は件名だけを 1 行で残す（見落としでないことを示すため）。
 

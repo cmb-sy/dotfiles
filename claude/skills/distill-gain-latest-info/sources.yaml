@@ -53,10 +53,10 @@ services:
     note: vault workflow foundation
   - name: Databricks
     url: https://docs.databricks.com/aws/en/release-notes/product/
-    note: 業務の中核。Databricks-Analysis / data-platform / 白書自動化がすべて依存する。Delta Lake・VIEW・Genie・SQL 関数の挙動変更は直接影響する。この一覧ページには日付が無い。日付は月別ページ（/release-notes/product/YYYY/{month}）にあるので、収集時はリンクを辿る
+    note: 仕事で中心的に使う。Delta Lake・VIEW・Genie・SQL 関数の挙動変更は直接影響する。この一覧ページには日付が無い。日付は月別ページ（/release-notes/product/YYYY/{month}）にあるので、収集時はリンクを辿る
   - name: Databricks SQL
     url: https://docs.databricks.com/aws/en/sql/release-notes/
-    note: VIEW のスキーマ固定や Delta の読み取り挙動はここに出る。2026-09-02 の 5 時間障害は VIEW のスキーマ変更が原因だった
+    note: VIEW のスキーマ固定や Delta の読み取り挙動はここに出る
   - name: Claude system prompt
     url: https://platform.claude.com/docs/en/release-notes/system-prompts/overview.md
     note: this overview has no dates -- it only links to per-model pages, which carry
