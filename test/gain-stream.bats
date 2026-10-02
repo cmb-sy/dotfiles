@@ -150,3 +150,47 @@ yaml() { printf '%s\n' "$1" > "$Y"; }
   [ "$status" -eq 1 ]
   printf '%s\n' "$stderr" | grep -qF 'gain-stream: sources.yaml:'
 }
+
+@test "topics: はてブ・Qiita・Zenn・lobste.rs・Bluesky を同じ形で出す" {
+  yaml 'topics:
+  - name: AI
+    hatena: ["claude code"]
+    lobsters: ["ai"]
+    bluesky: ["ollama"]
+  - name: キャリア
+    section: career
+    qiita: ["career"]
+    zenn: ["career"]'
+  run --separate-stderr "$GST" topics --since 2026-10-01T00:00:00Z "$Y"
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$output" | grep -qF '"source": "hatena", "title": "オレのClaude Code作業環境"'
+  printf '%s\n' "$output" | grep -qF '"score": 571'
+  printf '%s\n' "$output" | grep -qF '"url": "https://qiita.com/u/items/1"'
+  printf '%s\n' "$output" | grep -qF '"section": "career"'
+  printf '%s\n' "$output" | grep -qF '"author": "sakutaro"'
+  printf '%s\n' "$output" | grep -qF '"source": "lobsters"'
+  printf '%s\n' "$output" | grep -qF '"url": "https://bsky.app/profile/llama.bsky.social/post/3mtk"'
+  # 公開日が期間外の Zenn の記事は落とす（Zenn は取得後に切る）
+  n=$(printf '%s\n' "$output" | grep -c '古い記事') || n=0
+  [ "$n" -eq 0 ]
+}
+
+@test "はてブが期間外を返したら失敗（不正な絞り込みは黙って全期間になる）" {
+  yaml 'topics:
+  - name: AI
+    hatena: ["claude code"]'
+  run --separate-stderr "$GST" topics --since 2026-10-05T00:00:00Z "$Y"
+  [ "$status" -eq 1 ]
+  printf '%s\n' "$stderr" | grep -qF 'window not applied'
+}
+
+@test "壊れた XML は失敗にする" {
+  mkdir -p "$BATS_TEST_TMPDIR/fx"
+  printf '<rss><channel><item>' > "$BATS_TEST_TMPDIR/fx/lobsters-ai"
+  yaml 'topics:
+  - name: AI
+    lobsters: ["ai"]'
+  GAIN_STREAM_FIXTURES="$BATS_TEST_TMPDIR/fx" run --separate-stderr "$GST" topics --since 2026-10-01T00:00:00Z "$Y"
+  [ "$status" -eq 1 ]
+  printf '%s\n' "$stderr" | grep -qF 'bad xml'
+}

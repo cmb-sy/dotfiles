@@ -189,6 +189,46 @@ def run_jobs(jobs, since):
 
 # ---- sources ---------------------------------------------------------------
 
+def local(tag):
+    return tag.rsplit("}", 1)[-1]
+
+
+def xml_items(raw):
+    try:
+        root = ET.fromstring(raw)
+    except ET.ParseError as e:
+        raise FetchError(f"bad xml: {e}")
+    return [e for e in root.iter() if local(e.tag) in ("item", "entry")]
+
+
+def child_text(e, *names):
+    for c in e:
+        if local(c.tag) in names and (c.text or "").strip():
+            return c.text.strip()
+    return ""
+
+
+def link_of(e):
+    for c in e:
+        if local(c.tag) == "link":
+            if c.get("href") and c.get("rel") in (None, "alternate"):
+                return c.get("href")
+            if (c.text or "").strip():
+                return c.text.strip()
+    return ""
+
+
+def feed_rows(raw, kind, topic, section, source):
+    out = []
+    for e in xml_items(raw):
+        title = child_text(e, "title") or strip_html(child_text(e, "description"))[:80]
+        date = parse_date(child_text(e, "published", "pubDate", "date", "updated"))
+        count = child_text(e, "bookmarkcount")
+        author = child_text(e, "creator", "author") or None
+        out.append(make(kind, topic, section, source, title, link_of(e), date,
+                        int(count) if count.isdigit() else None, author))
+    return out
+
 def hn_query(params):
     return "https://hn.algolia.com/api/v1/search?" + urllib.parse.urlencode(params)
 
@@ -204,6 +244,13 @@ def hn_rows(raw, kind, topic, section, source):
 
 def build_topic_jobs(cfg, since):
     jobs = []
+    d0 = jst_day(since)
+    d1 = jst_day(now())
+
+    def add(source, name, section, q, window, server, fn):
+        jobs.append({"source": source, "topic": name, "section": section, "query": q,
+                     "window": window, "server": server, "run": fn})
+
     for t in cfg.get("topics") or []:
         name, section = t.get("name"), t.get("section", "flow")
         for q in t.get("hn") or []:
@@ -212,8 +259,54 @@ def build_topic_jobs(cfg, since):
                                 "numericFilters": f"created_at_i>{int(since.timestamp())},points>20",
                                 "restrictSearchableAttributes": "title", "hitsPerPage": 20})
                 return hn_rows(fetch("hn", q, url), "topics", name, section, "hn")
-            jobs.append({"source": "hn", "topic": name, "section": section, "query": q,
-                         "window": "since", "server": True, "run": run})
+            add("hn", name, section, q, "since", True, run)
+        for q in t.get("hatena") or []:
+            def run(q=q, name=name, section=section):
+                url = (f"https://b.hatena.ne.jp/q/{urllib.parse.quote(q)}?"
+                       + urllib.parse.urlencode({"mode": "rss", "sort": "popular",
+                                                 "date_begin": d0.isoformat(),
+                                                 "date_end": d1.isoformat()}))
+                return feed_rows(fetch("hatena", q, url), "topics", name, section, "hatena")
+            add("hatena", name, section, q, "since", True, run)
+        for q in t.get("qiita") or []:
+            def run(q=q, name=name, section=section):
+                after = (d0 - dt.timedelta(days=1)).isoformat()
+                url = "https://qiita.com/api/v2/items?" + urllib.parse.urlencode(
+                    {"per_page": 20, "query": f"tag:{q} created:>{after}"})
+                rows = load_json(fetch("qiita", q, url))
+                if not isinstance(rows, list):
+                    raise FetchError("unexpected qiita response")
+                return [make("topics", name, section, "qiita", r.get("title"), r.get("url"),
+                             parse_date(r.get("created_at")), r.get("stocks_count"),
+                             (r.get("user") or {}).get("id")) for r in rows]
+            add("qiita", name, section, q, "since", True, run)
+        for q in t.get("zenn") or []:
+            def run(q=q, name=name, section=section):
+                url = f"https://zenn.dev/topics/{urllib.parse.quote(q)}/feed"
+                return feed_rows(fetch("zenn", q, url), "topics", name, section, "zenn")
+            add("zenn", name, section, q, "since", False, run)
+        for q in t.get("lobsters") or []:
+            def run(q=q, name=name, section=section):
+                url = f"https://lobste.rs/t/{urllib.parse.quote(q)}.rss"
+                return feed_rows(fetch("lobsters", q, url), "topics", name, section, "lobsters")
+            add("lobsters", name, section, q, "since", False, run)
+        for q in t.get("bluesky") or []:
+            def run(q=q, name=name, section=section):
+                # api.bsky.app: public.api.bsky.app answers searchPosts with 403.
+                # First page only; later pages are reported to need auth.
+                url = "https://api.bsky.app/xrpc/app.bsky.feed.searchPosts?" + urllib.parse.urlencode(
+                    {"q": q, "sort": "top", "since": iso(since), "limit": 25})
+                out = []
+                for p in load_json(fetch("bluesky", q, url)).get("posts", []):
+                    handle = (p.get("author") or {}).get("handle", "")
+                    rkey = (p.get("uri") or "").rsplit("/", 1)[-1]
+                    rec = p.get("record") or {}
+                    out.append(make("topics", name, section, "bluesky",
+                                    (rec.get("text") or "")[:120],
+                                    f"https://bsky.app/profile/{handle}/post/{rkey}",
+                                    parse_date(rec.get("createdAt")), p.get("likeCount"), handle))
+                return out
+            add("bluesky", name, section, q, "since", True, run)
     return jobs
 
 
