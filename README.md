@@ -12,7 +12,7 @@ Configuration files for setting up a macOS development environment.
 .gitignore_global    # Global gitignore
 Brewfile             # Homebrew packages & casks
 git/                 # .gitconfig
-terminal/            # Ghostty, WezTerm, cmux configuration
+terminal/            # Ghostty, cmux, herdr configuration
 macos/               # macOS system preferences scripts
 karabiner/           # Karabiner-Elements config
 handy/               # Voice input (Handy + ollama) post-processing config

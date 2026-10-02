@@ -56,7 +56,7 @@ jobs:
       - name: Verify .config symlinks
         run: |
           set -e
-          for d in wezterm ghostty; do
+          for d in ghostty cmux; do
             if [[ ! -L "$HOME/.config/$d" ]]; then
               echo "FAIL: ~/.config/$d is not a symlink"
               exit 1

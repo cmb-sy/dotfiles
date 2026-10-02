@@ -33,7 +33,6 @@ tap 'manaflow-ai/cmux'
 # -----------------------------------------------------------
 cask 'google-chrome'
 cask 'ghostty'
-cask 'wezterm'
 cask 'cmux'
 cask 'cursor'
 # setup links .vscode/ settings into it and installs its extensions.

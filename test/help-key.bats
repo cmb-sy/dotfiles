@@ -64,3 +64,13 @@ for line in sys.stdin:
   [ "$status" -eq 0 ]
   printf '%s' "$output" | sed 's/\x1b\[[0-9;]*m//g' | grep -qF 'herdr (inside Ghostty)'
 }
+
+@test "help_key は撤去済みターミナルのセクションを出さない" {
+  gone="wez""term"
+  run "$HELP"
+  [ "$status" -eq 0 ]
+  hits=$(printf '%s' "$output" | grep -ciF "$gone") || hits=0
+  [ "$hits" -eq 0 ]
+  run "$HELP" "$gone"
+  [ "$status" -eq 1 ]
+}

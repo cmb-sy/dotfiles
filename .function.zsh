@@ -46,7 +46,7 @@ fzf_cd_global() {
 	_fzf_cd_global_impl "${LBUFFER}" && zle reset-prompt
 }
 zle -N fzf_cd_global
-# Ghostty / WezTerm: Cmd+Shift+F or Alt+Cmd+F sends ESC [24;3~ (alt+F12 chord).
+# Ghostty: Cmd+Shift+F or Alt+Cmd+F sends ESC [24;3~ (alt+F12 chord).
 # herdr forwards only F1..F12 chords to panes and drops F13+ (CSI 25~),
 # so the trigger stays in the F12 range. \e[25~ kept for real F13 keys.
 for _map in emacs viins vicmd; do

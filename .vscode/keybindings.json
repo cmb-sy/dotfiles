@@ -1,5 +1,4 @@
 [
-  // Keybindings aligned with WezTerm config
   // Note: JIS keyboard requires scan code or alternate key representations
 
   // Cmd+B: toggle sidebar only; disable bold formatting

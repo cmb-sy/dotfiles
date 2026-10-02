@@ -1,6 +1,6 @@
 #!/bin/bash
 # Display all custom keybindings across tools
-# Usage: help_key [wezterm|ghostty|herdr|cmux|claude|shell|voice|all]
+# Usage: help_key [ghostty|herdr|cmux|claude|shell|voice|all]
 
 BOLD='\033[1m'
 CYAN='\033[36m'
@@ -11,35 +11,6 @@ RESET='\033[0m'
 section() { echo -e "\n${BOLD}${CYAN}━━━ $1 ━━━${RESET}\n"; }
 group()   { echo -e "  ${YELLOW}$1${RESET}"; }
 kv()      { printf "    ${GREEN}%-24s${RESET} %s\n" "$1" "$2"; }
-
-show_wezterm() {
-  section "WezTerm"
-
-  group "Tabs"
-  kv "Cmd+T"              "New tab"
-  kv "Cmd+W"              "Close tab"
-  kv "Cmd+1-9"            "Switch to tab N"
-  kv "Cmd+Shift+[ / ]"    "Previous / Next tab"
-
-  group "Panes"
-  kv "Cmd+Shift+\\"       "Split vertical (down)"
-  kv "Cmd+Shift+-"        "Split horizontal (right)"
-  kv "Cmd+Alt+Arrow"      "Move between panes"
-  kv "Ctrl+Shift+Arrow"   "Resize pane"
-  kv "Cmd+Shift+Enter"    "Zoom pane (toggle)"
-
-  group "Font"
-  kv "Ctrl+Shift+- / ="   "Font size down / up"
-  kv "Cmd+0"              "Reset font size"
-
-  group "Tools"
-  kv "Cmd+Shift+P"        "Command palette"
-  kv "Cmd+F"              "Search scrollback"
-  kv "Cmd+Shift+F"        "Directory: fuzzy cd (whole scope)"
-  kv "Alt+Cmd+F"          "Directory: fuzzy cd (whole scope)"
-  kv "Ctrl+Shift+X"       "Copy mode"
-  kv "Ctrl+Shift+Space"   "Quick select (URLs, paths)"
-}
 
 show_ghostty() {
   section "Ghostty"
@@ -169,7 +140,6 @@ show_voice() {
 }
 
 case "${1:-all}" in
-  wezterm)  show_wezterm ;;
   ghostty)  show_ghostty ;;
   herdr)    show_herdr ;;
   cmux)     show_cmux ;;
@@ -177,7 +147,6 @@ case "${1:-all}" in
   shell|sh) show_shell ;;
   voice)    show_voice ;;
   all)
-    show_wezterm
     show_ghostty
     show_herdr
     show_cmux
@@ -187,7 +156,7 @@ case "${1:-all}" in
     echo ""
     ;;
   *)
-    echo "Usage: help_key [wezterm|ghostty|herdr|cmux|claude|shell|voice|all]"
+    echo "Usage: help_key [ghostty|herdr|cmux|claude|shell|voice|all]"
     exit 1
     ;;
 esac

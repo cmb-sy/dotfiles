@@ -1,14 +1,6 @@
 #!/bin/zsh
 
 # ----------------------------------------------------------
-# WezTerm
-# ----------------------------------------------------------
-if [[ "$TERM_PROGRAM" == "WezTerm" ]]; then
-  # Strip trailing "true" so it is not printed to the terminal
-  source <(sed '/^true$/d' "/Applications/WezTerm.app/Contents/Resources/wezterm.sh") 2>/dev/null
-fi
-
-# ----------------------------------------------------------
 # Ghostty
 # ----------------------------------------------------------
 if [[ -n "${GHOSTTY_RESOURCES_DIR}" ]] && [[ -f "${GHOSTTY_RESOURCES_DIR}/shell-integration/zsh/ghostty-integration" ]]; then
