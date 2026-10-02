@@ -1,0 +1,4 @@
+{"feed":[
+ {"post":{"uri":"at://did:plc:s/app.bsky.feed.post/aaa","author":{"handle":"simonwillison.net"},"record":{"createdAt":"2026-10-01T17:30:19Z","text":"Own post about Claude"},"likeCount":40}},
+ {"post":{"uri":"at://did:plc:o/app.bsky.feed.post/bbb","author":{"handle":"other.bsky.social"},"record":{"createdAt":"2026-10-01T18:00:00Z","text":"Someone else"},"likeCount":5},"reason":{"$type":"app.bsky.feed.defs#reasonRepost"}}
+]}

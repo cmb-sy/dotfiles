@@ -307,6 +307,38 @@ def build_topic_jobs(cfg, since):
                                     parse_date(rec.get("createdAt")), p.get("likeCount"), handle))
                 return out
             add("bluesky", name, section, q, "since", True, run)
+    for p in cfg.get("people") or []:
+        who = p.get("name")
+        if not who:
+            continue
+        if p.get("blog"):
+            def run(p=p, who=who):
+                rows = feed_rows(fetch("blog", who, p["blog"]), "topics", None, "people", "blog")
+                return [dict(r, author=who) for r in rows]
+            add("blog", None, "people", who, "since", False, run)
+        if p.get("bluesky"):
+            def run(p=p, who=who):
+                url = ("https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed?"
+                       + urllib.parse.urlencode({"actor": p["bluesky"], "limit": 30}))
+                out = []
+                for f in load_json(fetch("bluesky_author", who, url)).get("feed", []):
+                    if f.get("reason"):      # a repost, not their own words
+                        continue
+                    post = f.get("post") or {}
+                    rec = post.get("record") or {}
+                    rkey = (post.get("uri") or "").rsplit("/", 1)[-1]
+                    out.append(make("topics", None, "people", "bluesky_author",
+                                    (rec.get("text") or "")[:120],
+                                    f"https://bsky.app/profile/{p['bluesky']}/post/{rkey}",
+                                    parse_date(rec.get("createdAt")), post.get("likeCount"), who))
+                return out
+            add("bluesky_author", None, "people", who, "since", False, run)
+        if p.get("mastodon"):
+            def run(p=p, who=who):
+                rows = feed_rows(fetch("mastodon", who, p["mastodon"]), "topics", None,
+                                 "people", "mastodon")
+                return [dict(r, author=who) for r in rows]
+            add("mastodon", None, "people", who, "since", False, run)
     return jobs
 
 
@@ -320,12 +352,13 @@ def count_requests(cfg):
     total = sum(len(t.get(k) or []) for t in cfg.get("topics") or []
                 for k in SOURCE_KEYS)
     total += sum(bool(p.get(k)) for p in cfg.get("people") or []
-                 for k in ("blog", "bluesky", "mastodon"))
+                 for k in PEOPLE_KEYS)
     total += len(cfg.get("discover") or {})
     return {"requests": total, "qiita": qiita, "github_search": gh_search}
 
 
 SOURCE_KEYS = ("hn", "hatena", "qiita", "zenn", "lobsters", "bluesky")
+PEOPLE_KEYS = ("blog", "bluesky", "mastodon")
 
 
 def cfg_error(cfg):
@@ -349,6 +382,10 @@ def cfg_error(cfg):
     for i, p in enumerate(people or []):
         if not isinstance(p, dict) or not isinstance(p.get("name"), str):
             return f"people[{i}] must be a mapping with a string name"
+        for k in PEOPLE_KEYS:
+            v = p.get(k)
+            if v is not None and not isinstance(v, str):
+                return f"people[{i}].{k} must be a string"
     discover = cfg.get("discover")
     if discover is not None and not isinstance(discover, dict):
         return "discover must be a mapping"

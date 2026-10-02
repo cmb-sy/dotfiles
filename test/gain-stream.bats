@@ -194,3 +194,35 @@ yaml() { printf '%s\n' "$1" > "$Y"; }
   [ "$status" -eq 1 ]
   printf '%s\n' "$stderr" | grep -qF 'bad xml'
 }
+
+@test "people: ブログ・Bluesky・Mastodon を本人の発信として出す" {
+  yaml 'people:
+  - name: Simon Willison
+    blog: https://simonwillison.net/atom/everything/
+    bluesky: simonwillison.net
+    mastodon: https://fedi.simonwillison.net/@simon.rss'
+  run --separate-stderr "$GST" topics --since 2026-10-01T00:00:00Z "$Y"
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$output" | grep -qF '"title": "Quoting Matthew Green"'
+  printf '%s\n' "$output" | grep -qF '"title": "Own post about Claude"'
+  # Mastodon には題が無いので本文の先頭を題にする
+  printf '%s\n' "$output" | grep -qF '"title": "Big model release today"'
+  printf '%s\n' "$output" | grep -qF '"section": "people"'
+  printf '%s\n' "$output" | grep -qF '"author": "Simon Willison"'
+  # リポストは本人の発信ではない
+  n=$(printf '%s\n' "$output" | grep -c 'Someone else') || n=0
+  [ "$n" -eq 0 ]
+}
+
+@test "people の blog・bluesky・mastodon は文字列でなければ終了コード 1" {
+  yaml 'people:
+  - name: Simon Willison
+    bluesky: [x]'
+  run --separate-stderr "$GST" topics --since 2026-10-01T00:00:00Z "$Y"
+  [ "$status" -eq 1 ]
+  printf '%s\n' "$stderr" | grep -qF 'gain-stream: sources.yaml: people[0].bluesky must be a string'
+  [ -z "$output" ]
+  run --separate-stderr "$GST" budget "$Y"
+  [ "$status" -eq 1 ]
+  printf '%s\n' "$stderr" | grep -qF 'gain-stream: sources.yaml: people[0].bluesky must be a string'
+}
