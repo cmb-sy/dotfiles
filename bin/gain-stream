@@ -361,6 +361,10 @@ def ollama_rows(raw):
                         f"https://ollama.com/library/{name}", published))
     if not out:
         raise FetchError("no models parsed")
+    # Undated rows are all dropped by the "since" window; with none dated the
+    # fetch would report ok with 0 items when the "N hours ago" wording changes.
+    if not any(r["published"] for r in out):
+        raise FetchError("no dates parsed")
     return out
 
 

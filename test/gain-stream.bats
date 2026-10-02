@@ -299,3 +299,14 @@ discover_yaml() {
   run --separate-stderr "$GST" budget "$Y"
   [ "$status" -eq 0 ]
 }
+
+@test "discover: Ollama の公開日時を 1 件も読めなければ失敗（相対時刻の書き方が変わった）" {
+  mkdir -p "$BATS_TEST_TMPDIR/fx"
+  cp "$GAIN_STREAM_FIXTURES"/* "$BATS_TEST_TMPDIR/fx/"
+  sed -e 's/11 hours ago/Updated yesterday/' -e 's/3 weeks ago/Updated last month/' \
+    "$GAIN_STREAM_FIXTURES/ollama-newest" > "$BATS_TEST_TMPDIR/fx/ollama-newest"
+  discover_yaml
+  GAIN_STREAM_FIXTURES="$BATS_TEST_TMPDIR/fx" run --separate-stderr "$GST" discover --since 2026-10-01T00:00:00Z "$Y"
+  [ "$status" -eq 2 ]
+  printf '%s\n' "$stderr" | grep -qF 'no dates parsed'
+}
