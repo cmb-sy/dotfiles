@@ -52,8 +52,8 @@ user-invocable: true
 
 ### 2-1. simplify
 
-Agent tool で `code-simplifier` を起動する（skill ではなく agent。`subagent_type: "code-simplifier"`）。
-プロンプトにスコープを明示する:
+Agent tool で `code-simplifier` を起動する（skill ではなく agent。`subagent_type: "code-simplifier:code-simplifier"`）。
+プロンプトに「報告のみ。Edit/Write を使わない」を明記する（修正は Phase 4 で承認された指摘だけに行う）。あわせてスコープを明示する:
 - `--staged` の場合: staged された変更のみを対象にする
 - `--branch` の場合: ブランチの全変更を対象にする
 - commit range の場合: その range を対象にする
@@ -61,7 +61,7 @@ Agent tool で `code-simplifier` を起動する（skill ではなく agent。`s
 
 simplify は独自のフォーマットで結果を返す。テキストとして受け取り、Phase 3 で手動パースする。
 
-simplify は Skill invoke のため N-way 投票の対象外。`iterations` の値に関わらず 1 回のみ実行する。
+simplify は単一の agent 起動のため N-way 投票の対象外。`iterations` の値に関わらず 1 回のみ実行する。
 
 ### 2-2 ~ 2-7. code-review-quality / code-review-security / code-review-performance / code-review-test / code-review-ai-antipattern / code-review-impact
 

@@ -1,7 +1,5 @@
-# Claude Code: committed binary / npm artifacts kept out of git
+# Claude Code: stray binary kept out of git
 claude/slackcli
-claude/package.json
-claude/package-lock.json
 
 # Local-only learning notes. Docs that code points at are excepted below, so a
 # fresh clone does not have dangling references; everything else stays local.

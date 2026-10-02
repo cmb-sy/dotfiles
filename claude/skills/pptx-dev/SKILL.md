@@ -156,7 +156,9 @@ materials:
 
 `--codex` 指定時は Codex (companion.mjs adversarial-review) を 4 視点目として追加。
 
-統合レポート `storyline-review.md` を生成し、approved findings を `storyline.md` に反映してから Phase 4 へ進む。
+統合レポート `storyline-review.md` を生成し、approved findings を `storyline.md` に反映する。
+
+phase-auditor で `done-criteria/storyline.md` を基準に監査する。PASS してから Phase 4 へ進む。
 
 ---
 
@@ -211,7 +213,9 @@ slides:
 
 `--codex` 指定時は Codex を 4 視点目として追加。
 
-統合レポート `slide-plan-review.md` を生成し、approved findings を `slide-plan.yaml` に反映してから Phase 6 へ進む。
+統合レポート `slide-plan-review.md` を生成し、approved findings を `slide-plan.yaml` に反映する。
+
+phase-auditor で `done-criteria/slide-plan.md` を基準に監査する。PASS してから Phase 6 へ進む。
 
 ---
 

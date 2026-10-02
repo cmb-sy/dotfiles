@@ -80,11 +80,10 @@ eval "$(echo "$input" | jq -r '
   @sh "DIR=\(.workspace.current_dir // "")",
   @sh "USED=\(.context_window.used_percentage // "")",
   @sh "REM=\(.context_window.remaining_percentage // "")",
-  @sh "TOKENS_IN=\(.context_window.total_input_tokens // 0)",
+  @sh "CUR_TOKENS=\(.context_window.current_usage | if type == "object" then ((.input_tokens // 0) + (.cache_creation_input_tokens // 0) + (.cache_read_input_tokens // 0)) else "" end)",
   @sh "CTX_SIZE=\(.context_window.context_window_size // 200000)",
   @sh "MODE=\(.output_style.name // .agent.name // "")",
   @sh "EFFORT=\(.effort.level // "medium")",
-  @sh "WORKTREE=\(.worktree.name // "")",
   @sh "SESSION_ID=\(.session_id // "")",
   @sh "U5_PCT=\((.rate_limits.five_hour.used_percentage | floor?) // "")",
   @sh "R5_TS=\(.rate_limits.five_hour.resets_at // "")",
@@ -204,7 +203,16 @@ if has_val "$USED"; then
   u="${USED%%.*}" r="${REM%%.*}"
   : "${r:=$((100 - u))}"
   if is_int "$u" && is_int "$r"; then
-    left=$(fmt_tokens $(( CTX_SIZE - TOKENS_IN )))
+    # total_input_tokens is a session total and can exceed the window, so use
+    # the current usage, falling back to used_percentage when it is absent.
+    is_int "$CTX_SIZE" || CTX_SIZE=200000
+    if is_int "$CUR_TOKENS"; then
+      left=$(( CTX_SIZE - CUR_TOKENS ))
+    else
+      left=$(( CTX_SIZE * (100 - u) / 100 ))
+    fi
+    [ "$left" -lt 0 ] && left=0
+    left=$(fmt_tokens "$left")
     sec_ctx="${WHT}Ctx${RST} $(bar "$r" 12 "$C_CTX") ${C_CTX}${r}%${RST} ${C_CTX}(${left})${RST}"
   fi
 fi
@@ -251,8 +259,6 @@ fi
 # [5] Current directory + branch + uncommitted-change badge — rendered on its
 # own second line (below the clock) rather than joined into the main line.
 # Repo name is still not shown; the directory path already carries it.
-# $WORKTREE is unused: `branch --show-current` reports the worktree's own
-# branch, which is what matters when several worktrees are checked out.
 # ==============================================================================
 
 sec_dir=""

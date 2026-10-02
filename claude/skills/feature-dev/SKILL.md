@@ -251,7 +251,7 @@ Phase 8/9 でコード変更がある場合、Phase 8/9 の Audit Gate の前に
 - **成果物:** 更新済みドキュメント、修正済み depends-on、`artifacts/doc-audit/phase-6-script-output.json`
 - **失敗時:** Audit Gate FAIL → Fix Dispatch → 再監査（max_retries: 2）
 
-**Phase 6 完了 → Audit Gate**: `./done-criteria/phase-6-doc-audit.md` に基づき監査。activity_type: doc-maintenance。
+**Phase 6 完了 → Audit Gate**: `~/.claude/skills/doc-audit/done-criteria/phase-6-doc-audit.md` に基づき監査（Phase 6 だけは doc-audit 側の基準を使う）。activity_type: doc-maintenance。
 
 ### Phase 7: Smoke Test
 

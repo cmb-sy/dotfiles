@@ -30,18 +30,24 @@ fire() {  # $1 = repo dir, $2 = event, $3 = tool_name, $4 = label
     | CLAUDE_PROJECT_DIR="$1" bash "$HOOK" "${4:-}"
 }
 
+# The hook is not wired to PostToolUse, but the flush still folds such lines.
+# Write them into the spool directly.
+spool_tool() {  # $1 = tool name, $2 = pane
+  printf '%s\tPostToolUse\t%s\n' "${2:-wB:pD}" "$1" >> "$DISCORD_RELAY_SPOOL"
+}
+
 spool_lines() {
   grep -c . "$DISCORD_RELAY_SPOOL" 2>/dev/null || echo 0
 }
 
 @test "allowlist に載っている repo では 1 行追記される" {
-  fire "$ALLOWED" PostToolUse Bash
+  fire "$ALLOWED" Stop "" 'done'
   [ "$(spool_lines)" -eq 1 ]
-  printf '%s' "$(cat "$DISCORD_RELAY_SPOOL")" | grep -qF 'wB:pD	PostToolUse	Bash'
+  printf '%s' "$(cat "$DISCORD_RELAY_SPOOL")" | grep -qF 'wB:pD	Stop	done'
 }
 
 @test "allowlist 外の repo では 1 行も書かれない" {
-  fire "$DENIED" PostToolUse Bash
+  fire "$DENIED" Stop "" 'done'
   [ "$(spool_lines)" -eq 0 ]
 }
 
@@ -50,7 +56,7 @@ spool_lines() {
 # 外しても本テストは通る。挙動を守っているのは grep 側だと理解して読むこと。
 @test "allowlist ファイルが無ければ 1 行も書かれない" {
   rm -f "$DISCORD_RELAY_ALLOWLIST"
-  fire "$ALLOWED" PostToolUse Bash
+  fire "$ALLOWED" Stop "" 'done'
   [ "$(spool_lines)" -eq 0 ]
 }
 
@@ -58,7 +64,7 @@ spool_lines() {
   bare="$BATS_TEST_TMPDIR/no-remote"
   mkdir -p "$bare"
   git -C "$bare" init -q
-  fire "$bare" PostToolUse Bash
+  fire "$bare" Stop "" 'done'
   [ "$(spool_lines)" -eq 0 ]
 }
 
@@ -73,7 +79,7 @@ spool_lines() {
 }
 
 @test "フックは allowlist 外でも exit 0 を返す" {
-  run fire "$DENIED" PostToolUse Bash
+  run fire "$DENIED" Stop "" 'done'
   [ "$status" -eq 0 ]
 }
 
@@ -107,7 +113,7 @@ STUB
 posts() { grep -c . "$BATS_TEST_TMPDIR/posts.url" 2>/dev/null || echo 0; }
 
 @test "webhook URL 未登録ならスプールを消さず何も送らない" {
-  fire "$ALLOWED" PostToolUse Bash
+  spool_tool Bash
   stub_bins ""
   run bash "$FLUSH"
   [ "$status" -eq 0 ]
@@ -134,9 +140,9 @@ posts() { grep -c . "$BATS_TEST_TMPDIR/posts.url" 2>/dev/null || echo 0; }
 }
 
 @test "PostToolUse は 1 通に畳まれ、ツール名と件数が出る" {
-  fire "$ALLOWED" PostToolUse Bash
-  fire "$ALLOWED" PostToolUse Bash
-  fire "$ALLOWED" PostToolUse Edit
+  spool_tool Bash
+  spool_tool Bash
+  spool_tool Edit
   stub_bins "https://discord.example/api/webhooks/1/tok"
   run bash "$FLUSH"
   [ "$status" -eq 0 ]
@@ -149,7 +155,7 @@ posts() { grep -c . "$BATS_TEST_TMPDIR/posts.url" 2>/dev/null || echo 0; }
 
 @test "Notification は畳まれず本文に残る" {
   fire "$ALLOWED" Notification "" 'Waiting for approval'
-  fire "$ALLOWED" PostToolUse Bash
+  spool_tool Bash
   stub_bins "https://discord.example/api/webhooks/1/tok"
   run bash "$FLUSH"
   n=$(grep -cF 'Waiting for approval' "$BATS_TEST_TMPDIR/posts.body") || n=0
@@ -174,7 +180,7 @@ posts() { grep -c . "$BATS_TEST_TMPDIR/posts.url" 2>/dev/null || echo 0; }
 }
 
 @test "フラッシュ後にスプールは空になる" {
-  fire "$ALLOWED" PostToolUse Bash
+  spool_tool Bash
   stub_bins "https://discord.example/api/webhooks/1/tok"
   run bash "$FLUSH"
   [ "$(spool_lines)" -eq 0 ]
@@ -190,12 +196,12 @@ posts() { grep -c . "$BATS_TEST_TMPDIR/posts.url" 2>/dev/null || echo 0; }
 @test "初回はスレッドを作り、2 通目は thread_id を再利用する" {
   stub_bins "https://discord.example/api/webhooks/1/tok"
 
-  fire "$ALLOWED" PostToolUse Bash
+  spool_tool Bash
   run bash "$FLUSH"
   first=$(grep -cF 'wait=true' "$BATS_TEST_TMPDIR/posts.url") || first=0
   [ "$first" -eq 1 ]
 
-  fire "$ALLOWED" PostToolUse Edit
+  spool_tool Edit
   run bash "$FLUSH"
   reuse=$(grep -cF 'thread_id=9999' "$BATS_TEST_TMPDIR/posts.url") || reuse=0
   [ "$reuse" -eq 1 ]
@@ -207,8 +213,8 @@ posts() { grep -c . "$BATS_TEST_TMPDIR/posts.url" 2>/dev/null || echo 0; }
 
 @test "ペインが 2 つあれば 2 通に分かれる" {
   stub_bins "https://discord.example/api/webhooks/1/tok"
-  fire "$ALLOWED" PostToolUse Bash
-  HERDR_PANE_ID='wA:pA' fire "$ALLOWED" PostToolUse Read
+  spool_tool Bash
+  spool_tool Read 'wA:pA'
   run bash "$FLUSH"
   [ "$(posts)" -eq 2 ]
 }
@@ -224,8 +230,8 @@ posts() { grep -c . "$BATS_TEST_TMPDIR/posts.url" 2>/dev/null || echo 0; }
 # フラッシュでも約 6 分で 8 通に達し、肝心の承認待ち通知がツール実況に埋もれた。遠隔から
 # 必要なのは「止まったかどうか」であって逐次のツール実行ではない。
 #
-# 戻したくなったら matcher "*" のエントリを 1 つ足すだけでよい。フラッシュ側の集約
-# （Bash x2 に畳む処理）は残してあるので実装変更は要らない。
+# 戻すときは matcher "*" のエントリに加え、フックで tool_name を detail に入れる分岐が
+# 要る。フラッシュ側の集約（Bash x2 に畳む処理）は残してある。
 #
 # 副次的な利点として、毎ツール呼び出しごとのプロセス起動がゼロになる。
 @test "PostToolUse には配線しない" {

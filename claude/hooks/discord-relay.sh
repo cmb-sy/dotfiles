@@ -1,14 +1,13 @@
 #!/bin/bash
 # Append one line per Claude Code event to a local spool. bin/discord-relay-flush
-# posts them to Discord later.
+# posts them to Discord later. Wired to Notification and Stop only.
 #
-# This never touches the network. Discord's webhook allows 5 requests per 2
-# seconds and PostToolUse fires on every tool, so posting from here would both
-# blow the limit and put a network round trip in front of every tool call.
+# This never touches the network: Discord's webhook allows 5 requests per 2
+# seconds, so the flush batches lines instead.
 #
 # Deny by default: a repository missing from the allowlist produces no line at
 # all. A denylist would leak any repository created before someone remembered to
-# list it, and these lines carry paths, commands and tool arguments. The
+# list it, and these lines say what the session is doing. The
 # allowlist lives outside the repo so adding a work remote does not publish its
 # name in a public repo.
 #
@@ -24,9 +23,8 @@ SPOOL="${DISCORD_RELAY_SPOOL:-$HOME/.local/state/discord-relay/spool}"
 LABEL="${1:-}"
 
 # Early exit, not a guard: the grep below already refuses a missing allowlist.
-# This runs on every tool call, so it is here to avoid spawning git for users
-# who never configured the relay. Removing it changes no behaviour, which is
-# why no test pins it -- keep it for the cost, not the correctness.
+# It avoids spawning git for users who never configured the relay. Removing it
+# changes no behaviour, which is why no test pins it.
 [ -f "$ALLOWLIST" ] || exit 0
 
 remote="$(git -C "${CLAUDE_PROJECT_DIR:-$PWD}" remote get-url origin 2>/dev/null)"
@@ -36,12 +34,7 @@ grep -qxF "$remote" "$ALLOWLIST" 2>/dev/null || exit 0
 event="$(printf '%s' "$INPUT" | jq -r '.hook_event_name // empty' 2>/dev/null)"
 [ -n "$event" ] || exit 0
 
-if [ "$event" = "PostToolUse" ]; then
-  detail="$(printf '%s' "$INPUT" | jq -r '.tool_name // "?"' 2>/dev/null)"
-else
-  detail="${LABEL:-$event}"
-fi
-[ -n "$detail" ] || detail="$event"
+detail="${LABEL:-$event}"
 
 pane="${HERDR_PANE_ID:-no-pane}"
 [ -n "$pane" ] || pane="no-pane"

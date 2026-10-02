@@ -44,7 +44,7 @@ impact-analyzer:  git diff 逆依存 → depends-on 未宣言のドキュメン�
 スキルディレクトリからの相対パスで実行:
 
 スクリプトは JSON を標準出力に書くだけなので、**必ず成果物としてリダイレクトする**。
-done-criteria がこのファイルを読んで監査するため、残さないと証跡を辿れない。
+`done-criteria/phase-6-doc-audit.md` がこのファイルを読んで監査するため、残さないと証跡を辿れない。
 
 ````bash
 mkdir -p artifacts/doc-audit
@@ -82,7 +82,7 @@ Layer 1 の JSON 結果 + Layer 0 の探索結果をエージェントにフィ�
 ### Layer 3: Fix
 
 統合レポートは提示するだけでなく `artifacts/doc-audit/phase-6-report.json` に書き出す。
-done-criteria がこのファイルを読んで監査するので、**キー名は監査側に合わせる**:
+`done-criteria/phase-6-doc-audit.md` がこのファイルを読んで監査するので、**キー名は監査側に合わせる**:
 
 ```json
 {
