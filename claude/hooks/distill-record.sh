@@ -265,8 +265,10 @@ esac
 
 # --- 判定 2: git リポジトリの中か（記録を紐付ける先が要る）---
 # 巡回は cwd を知らないので、transcript に残る最後の cwd を使う。
+# 会話中にいたすべての場所は判定 2b でも使う。
+tx_cwds=$(grep -o '"cwd":"[^"]*"' "$tx" | sed 's/^"cwd":"//; s/"$//')
 if [ -z "$cwd" ]; then
-  cwd=$(grep -o '"cwd":"[^"]*"' "$tx" | tail -1 | sed 's/^"cwd":"//; s/"$//')
+  cwd=$(printf '%s\n' "$tx_cwds" | tail -1)
 fi
 # 分からないときに今の場所で代用すると、巡回を起こした別のセッションの
 # リポジトリに紐付いてしまう。
@@ -301,8 +303,18 @@ repo_denied() {
   done
   return 1
 }
+# 辿れない cwd（消した worktree、エスケープを含むパス）は owner を確かめられない
+# ので記録しない。一時領域だけは日常的に消えるので見送る。
 while IFS= read -r dir; do
   [ -n "$dir" ] || continue
+  if [ ! -d "$dir" ] || ! (cd "$dir" 2>/dev/null); then
+    case "$dir" in
+      /private/tmp/* | /tmp/* | /var/folders/* | /private/var/folders/*) continue ;;
+    esac
+    say "${sid}: 作業ディレクトリを辿れない。記録しない"
+    remember "$recorded"
+    exit 0
+  fi
   root=$(cd "$dir" 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null) || continue
   if [ -n "$root" ] && repo_denied "$root"; then
     say "${sid}: 記録しない組織の repo。記録しない"
@@ -311,7 +323,7 @@ while IFS= read -r dir; do
   fi
 done < <({
   printf '%s\n' "$repo_root"
-  grep -o '"cwd":"[^"]*"' "$tx" | sed 's/^"cwd":"//; s/"$//'
+  printf '%s\n' "$tx_cwds"
 } | sort -u)
 # 書き先のプロジェクト名。スキルと同じ規則で決める（名前を付け直したプロジェクトや
 # worktree を、元のプロジェクトに寄せる）。取れなければリポジトリの名前。

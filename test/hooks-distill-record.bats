@@ -775,3 +775,35 @@ load_project_owner() {
   denied=$(grep -cF "記録しない組織" "$TEST_TMPDIR/home/.distill/logs/record.log" || true)
   [ "$denied" -eq 0 ]
 }
+
+@test "distill-record: 辿れない作業ディレクトリがあるセッションは記録しない" {
+  # 消した worktree は owner を確かめられない。業務の repo だった恐れがあるので
+  # 記録しない側に倒す。
+  mkdir -p "$TEST_TMPDIR/home"
+  git -C "$GIT_REPO" remote add origin "https://github.com/cmb-sy/dotfiles.git"
+  local tx="$TEST_TMPDIR/gone.jsonl"
+  {
+    printf '%s\n' '{"type":"user","cwd":"/nonexistent-distill-test/work","message":{"content":"消えた場所"}}'
+    printf '{"type":"user","cwd":"%s","message":{"content":"別の依頼"}}\n' "$GIT_REPO"
+    tail -n +2 "$TX"
+  } > "$tx"
+  run_hook "o6" "$GIT_REPO" "$tx" >/dev/null
+  grep -qF "o6: 作業ディレクトリを辿れない" "$TEST_TMPDIR/home/.distill/logs/record.log"
+  local started
+  started=$(grep -cF "o6: 記録を開始" "$TEST_TMPDIR/home/.distill/logs/record.log" || true)
+  [ "$started" -eq 0 ]
+}
+
+@test "distill-record: 一時領域の消えた作業ディレクトリは判定に使わない" {
+  # 一時ディレクトリは日常的に消える。これで止めると記録がほぼ残らない。
+  mkdir -p "$TEST_TMPDIR/home"
+  git -C "$GIT_REPO" remote add origin "https://github.com/cmb-sy/dotfiles.git"
+  local tx="$TEST_TMPDIR/scratch.jsonl"
+  {
+    printf '{"type":"user","cwd":"%s","message":{"content":"一時の場所"}}\n' "$TEST_TMPDIR/scratch-gone"
+    printf '{"type":"user","cwd":"%s","message":{"content":"別の依頼"}}\n' "$GIT_REPO"
+    tail -n +2 "$TX"
+  } > "$tx"
+  run_hook "o7" "$GIT_REPO" "$tx" >/dev/null
+  grep -qF "o7: 記録を開始" "$TEST_TMPDIR/home/.distill/logs/record.log"
+}
