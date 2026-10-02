@@ -72,11 +72,11 @@ EOF
   printf '%s\n' "$output" | grep -qF 'sudo rm'
 }
 
-# `rm -rf /` belongs to the hook, not to deny: deny's prefix matching would take
-# every absolute path with it, and the hook anchors the slash at end of string.
+# Root and home deletion is judged by claude/hooks/block-destructive.sh, and
+# its behaviour is pinned in test/hooks-block-destructive.bats.
 @test "root-level deletion is blocked by the hook" {
   run jq -r '.hooks.PreToolUse[].hooks[].command' "$SETTINGS"
-  printf '%s\n' "$output" | grep -qF 'rm[[:space:]]+-rf'
+  printf '%s\n' "$output" | grep -qF 'block-destructive.sh'
 }
 
 @test "secret managers stay denied" {

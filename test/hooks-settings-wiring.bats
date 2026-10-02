@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# claude/settings.json のインラインフック配線テスト。
+# claude/settings.json のフック配線テスト。
 # stdin JSON を渡して post-commit トリガと破壊的コマンドブロックの実挙動を見る。
 
 load "helpers/common"
@@ -14,7 +14,7 @@ post_cmd() {
 
 block_cmd() {
   jq -r '.hooks.PreToolUse[] | select(.matcher=="Bash") | .hooks[].command
-         | select(contains("BLOCK"))' "$SETTINGS"
+         | select(contains("block-destructive.sh"))' "$SETTINGS"
 }
 
 setup() {
@@ -22,6 +22,7 @@ setup() {
   mkdir -p "$TEST_TMPDIR/.claude/hooks"
   printf '#!/bin/bash\necho CALLED\n' > "$TEST_TMPDIR/.claude/hooks/post-commit.sh"
   chmod +x "$TEST_TMPDIR/.claude/hooks/post-commit.sh"
+  ln -s "$REPO_DIR/claude/hooks/block-destructive.sh" "$TEST_TMPDIR/.claude/hooks/"
 }
 
 teardown() {
@@ -34,7 +35,7 @@ run_post() {  # $1=stdin payload
 }
 
 run_block() {  # $1=stdin payload -> echo exit code
-  printf '%s' "$1" | bash -c "$(block_cmd)" >/dev/null 2>&1
+  printf '%s' "$1" | HOME="$TEST_TMPDIR" bash -c "$(block_cmd)" >/dev/null 2>&1
   echo $?
 }
 
