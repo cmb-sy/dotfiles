@@ -167,7 +167,7 @@ jobs:
           echo "python3 -> $PY"
           if ! "$PY" -c 'import yaml' 2>/dev/null; then
             echo "FAIL: $PY cannot import yaml."
-            echo "setup installs them into the interpreter mise pins; check the mise install output above."
+            echo "setup installs it into the interpreter mise pins; check the mise install output above."
             mise ls python || true
             exit 1
           fi

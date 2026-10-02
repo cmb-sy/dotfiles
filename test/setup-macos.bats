@@ -19,6 +19,11 @@ code_of() { grep -v '^[[:space:]]*#' "$REPO_DIR/$1"; }
   code_of macos/macos.sh | grep -qF 'launchctl disable "gui/$(id -u)/com.apple.DictationIM"'
 }
 
+# The daemon re-enables the defaults above when it restarts unless disabled.
+@test "macos.sh は assistant.dictation デーモンを無効化する" {
+  code_of macos/macos.sh | grep -qF 'launchctl disable "gui/$(id -u)/com.apple.assistant.dictation"'
+}
+
 @test "Brewfile は setup が前提にする VS Code・Hack Nerd Font・shellcheck を持つ" {
   code_of Brewfile | grep -qF "cask 'visual-studio-code'"
   code_of Brewfile | grep -qF "cask 'font-hack-nerd-font'"

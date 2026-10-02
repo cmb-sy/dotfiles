@@ -54,6 +54,7 @@ defaults write com.apple.inputmethod.Kotoeri JIMPrefLiveConversionKey -bool fals
 defaults write com.apple.HIToolbox AppleDictationAutoEnable -bool false
 defaults write com.apple.assistant.support 'Dictation Enabled' -bool false
 launchctl disable "gui/$(id -u)/com.apple.DictationIM"
+launchctl disable "gui/$(id -u)/com.apple.assistant.dictation"
 
 # ----------------------------------------------------------
 # system dialog settings
