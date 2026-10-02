@@ -46,6 +46,10 @@ teardown() {
 @test "Handy prompt does not override the glossary's 一周 mapping" {
   count=$(grep -c '一周' "$REPO_DIR/handy/ja_light_tidy.prompt.txt" || true)
   [ "$count" -eq 0 ]
+  # 以上 is a common intended word (以上です); never teach rewriting it to 異常.
+  count=$(grep -c '異常' "$REPO_DIR/handy/ja_light_tidy.prompt.txt" || true)
+  [ "$count" -eq 0 ]
+  grep -qF '「発声」→「発生」' "$REPO_DIR/handy/ja_light_tidy.prompt.txt"
   grep -qF '一周→issue' "$REPO_DIR/handy/glossary.txt"
 }
 
@@ -56,8 +60,10 @@ teardown() {
 
 @test "tracked files carry no internal network details" {
   # Built by concatenation so this file does not match itself.
-  pat='advantage''group|forti''client|\b10\.[0-9]+\.[0-9]+\.[0-9]+\b'
-  count=$(git -C "$REPO_DIR" grep -c -i -E "$pat" | wc -l | tr -d ' ')
+  # macOS git grep -E has no \b, so bound the IP by hand. pii-guard.py holds
+  # example private IPs on purpose.
+  pat='advantage''group|forti''client|forti''gate|(^|[^0-9.])10\.[0-9]+\.[0-9]+\.[0-9]+'
+  count=$(git -C "$REPO_DIR" grep -c -i -E "$pat" -- ':!claude/hooks/pii-guard.py' | wc -l | tr -d ' ')
   [ "$count" -eq 0 ]
 }
 

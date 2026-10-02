@@ -2,7 +2,7 @@
 # stop-failure-handler.sh — auto-resume Claude Code after a proxy-caused
 # mid-stream disconnect.
 #
-# Why: our corporate FortiGate SSL-inspection proxy actively drops the TCP
+# Why: a corporate transparent SSL-inspection proxy actively drops the TCP
 # connection mid-stream, surfaced by Claude Code as "API Error: Connection
 # closed mid-response." Empirically confirmed (2026-07-14, 3/3 occurrences,
 # see stop-failure-debug.log history) that this always fires StopFailure
