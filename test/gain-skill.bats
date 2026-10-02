@@ -39,8 +39,11 @@ setup() {
 }
 
 @test "ダイジェストの件数と深さが指定されている" {
-  grep -qE '3〜5 ?件' "$SK"
+  grep -qE '1〜3 ?件' "$SK"
   grep -qF '自分の環境で何が変わるか' "$SK"
+  grep -qF '40 行まで' "$SK"
+  n=$(grep -cE '3〜5 ?件を深掘り' "$SK") || n=0
+  [ "$n" -eq 0 ]
 }
 
 @test "改善提案は提示までで、適用しないと明記されている" {
@@ -110,12 +113,10 @@ setup() {
 # --- 窓の整合 ---
 
 @test "既出照合の窓が収集窓と一致している" {
-  # 収集は 14 日固定。照合が 3 日だと、週次実行では前回分（約 7 日前）が
-  # 照合の外に落ち、4〜14 日前のエントリを再掲できてしまう。
-  grep -qF '直近 14 日分' "$SK"
-  # 照合窓だけ見ても、収集窓を縮める変更が素通りする。両方を固定する。
-  grep -qF 'lookback window は 14 日固定' "$SK"
-  n=$(grep -c '直近 3 日分' "$SK") || n=0
+  # purge がダイジェストを 7 日で消す。照合に 14 日分を求めても残っていない。
+  grep -qF '直近 7 日分' "$SK"
+  grep -qF 'lookback window は 7 日固定' "$SK"
+  n=$(grep -c '直近 14 日分' "$SK") || n=0
   [ "$n" -eq 0 ]
 }
 
@@ -246,7 +247,7 @@ setup() {
 @test "深掘りは Jev の点数を見る前に選ぶ" {
   # 点数を見てから選ぶと、Claude の選び方と Jev の点数の比較が成り立たない。
   grep -qF '点数を見る前' "$SK"
-  pick=$(grep -nF '**3〜5 件**を深掘りに選ぶ' "$SK" | head -1 | cut -d: -f1)
+  pick=$(grep -nF '**1〜3 件**を深掘りに選ぶ' "$SK" | head -1 | cut -d: -f1)
   rate=$(grep -nF '$HOME/dotfiles/bin/gain-score rate' "$SK" | head -1 | cut -d: -f1)
   logl=$(grep -nF '$HOME/dotfiles/bin/gain-score log' "$SK" | head -1 | cut -d: -f1)
   [ -n "$pick" ]
@@ -273,9 +274,31 @@ setup() {
   grep -qF '`gain-score` の失敗で watch を止める' "$SK"
 }
 
-@test "動向の節があり、news と engineers を採点しない" {
-  grep -qF '## 動向' "$SK"
-  grep -qF '`news`・`engineers` の候補を `gain-score` に渡す' "$SK"
+@test "流れの層の節があり、採点しない" {
+  for h in '## 今日の流れ' '## 話題の技術' '## キャリア' '## 定点' '## 自分に効くもの'; do
+    grep -qF "$h" "$SK"
+  done
+  grep -qF '流れの層の候補を `gain-score` に渡す' "$SK"
+  n=$(grep -c '## 動向' "$SK") || n=0
+  [ "$n" -eq 0 ]
+}
+
+@test "流れの層は gain-stream を絶対パスで呼び、budget を先に見る" {
+  grep -qF '$HOME/dotfiles/bin/gain-stream topics' "$SK"
+  grep -qF '$HOME/dotfiles/bin/gain-stream discover' "$SK"
+  b=$(grep -nF '$HOME/dotfiles/bin/gain-stream budget' "$SK" | head -1 | cut -d: -f1)
+  t=$(grep -nF '$HOME/dotfiles/bin/gain-stream topics' "$SK" | head -1 | cut -d: -f1)
+  [ -n "$b" ]
+  [ "$b" -lt "$t" ]
+}
+
+@test "流れは出どころ 2 つ以上の話題だけ" {
+  grep -qF '2 つ以上の出どころ' "$SK"
+}
+
+@test "news と engineers の scope が残っていない" {
+  n=$(grep -cE '`(news|engineers)`' "$SK") || n=0
+  [ "$n" -eq 0 ]
 }
 
 @test "深さ原則が自分に効く区分に限られている" {
