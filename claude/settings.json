@@ -258,7 +258,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if jq -r '.tool_input.command // empty' 2>/dev/null | grep -qE '(rm[[:space:]]+-rf[[:space:]]+((/|~|\\$HOME)[[:space:]]*$|(/usr|/etc|/var|/opt|/System)(/|[[:space:]]|$))|>[[:space:]]*/dev/sd|mkfs|dd[[:space:]]+if=)'; then echo 'BLOCK: Destructive system command detected' >&2; exit 2; fi"
+            "command": "bash \"${HOME}/.claude/hooks/block-destructive.sh\""
           }
         ]
       }

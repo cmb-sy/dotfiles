@@ -1,0 +1,263 @@
+#!/usr/bin/env python3
+"""Fetch dated items for the gain watch's daily flow layer.
+
+  gain-stream topics   --since <ISO8601> <sources.yaml>   topics + people
+  gain-stream discover --since <ISO8601> <sources.yaml>   trending, any field
+  gain-stream budget   <sources.yaml>                     requests one run spends
+
+stdout: one JSON item per line. stderr: one JSON status per fetch.
+Exit 0 when every fetch worked, 2 when some failed, 1 when all failed or the
+config is unreadable, 64 on bad usage.
+
+A source that filters by date on the server must not return anything older
+than --since (minus a day of slack): some APIs silently drop a bad filter and
+return everything, so an old item fails that fetch with "window not applied".
+Sources that cannot filter are cut here.
+
+GAIN_STREAM_FIXTURES=<dir> answers every request from <dir>/<source>-<slug>
+so tests never reach the network. GAIN_STREAM_NOW pins the clock.
+"""
+import datetime as dt
+import email.utils
+import hashlib
+import html
+import json
+import os
+import re
+import subprocess
+import sys
+import urllib.error
+import urllib.parse
+import urllib.request
+import xml.etree.ElementTree as ET
+
+try:
+    import yaml
+except ImportError:
+    # Homebrew's python3 is externally managed and has no PyYAML; setup puts
+    # it in mise's interpreter (same resolution as bin/gain-state).
+    alt = ""
+    try:
+        alt = subprocess.run(["mise", "which", "python3"], capture_output=True,
+                             text=True, timeout=10).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        pass
+    if alt and not os.environ.get("GAIN_STREAM_REEXEC") \
+            and os.path.realpath(alt) != os.path.realpath(sys.executable):
+        os.environ["GAIN_STREAM_REEXEC"] = "1"
+        os.execv(alt, [alt, os.path.abspath(__file__), *sys.argv[1:]])
+    print("gain-stream: PyYAML is not installed", file=sys.stderr)
+    sys.exit(1)
+
+EXIT_OK, EXIT_ALL_FAILED, EXIT_SOME_FAILED, EXIT_USAGE = 0, 1, 2, 64
+TIMEOUT = 20
+# Feeds are parsed with the stdlib ElementTree: it does not fetch external
+# entities, and the bundled expat (>= 2.4.1) caps entity expansion. The size
+# cap bounds what a hostile or broken server can make us hold.
+MAX_BYTES = 5 * 1024 * 1024
+UA = "gain-stream/1 (personal tech digest)"
+SLACK = dt.timedelta(days=1)
+QIITA_MAX = 50          # 60/h/IP unauthenticated; leave room for retries by hand
+GITHUB_SEARCH_MAX = 25  # 30/min
+
+
+class FetchError(Exception):
+    pass
+
+
+def usage():
+    print("usage: gain-stream topics|discover --since <ISO8601> <sources.yaml>"
+          " | budget <sources.yaml>", file=sys.stderr)
+    sys.exit(EXIT_USAGE)
+
+
+def now():
+    raw = os.environ.get("GAIN_STREAM_NOW")
+    return parse_date(raw) if raw else dt.datetime.now(dt.timezone.utc)
+
+
+def parse_date(s):
+    s = (s or "").strip()
+    if not s:
+        return None
+    try:
+        d = dt.datetime.fromisoformat(s.replace("Z", "+00:00"))
+    except ValueError:
+        try:
+            d = email.utils.parsedate_to_datetime(s)
+        except (TypeError, ValueError):
+            return None
+    if d.tzinfo is None:
+        d = d.replace(tzinfo=dt.timezone.utc)
+    return d.astimezone(dt.timezone.utc)
+
+
+def iso(d):
+    return d.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def jst_day(d):
+    return (d + dt.timedelta(hours=9)).date()
+
+
+def slug(text):
+    s = re.sub(r"[^a-z0-9]+", "_", text.lower()).strip("_")
+    return s or hashlib.sha1(text.encode()).hexdigest()[:8]
+
+
+def fetch(source, query, url=None, gh=None):
+    fx = os.environ.get("GAIN_STREAM_FIXTURES")
+    if fx:
+        path = os.path.join(fx, f"{source}-{slug(query)}")
+        if not os.path.isfile(path):
+            raise FetchError(f"no fixture {os.path.basename(path)}")
+        with open(path, "rb") as f:
+            return f.read()
+    if gh:
+        try:
+            r = subprocess.run(["gh", *gh], capture_output=True, timeout=TIMEOUT)
+        except (OSError, subprocess.SubprocessError) as e:
+            raise FetchError(f"gh: {e}")
+        if r.returncode:
+            raise FetchError(f"gh exit {r.returncode}: "
+                             f"{r.stderr.decode(errors='replace').strip()[:120]}")
+        return r.stdout
+    req = urllib.request.Request(url, headers={"User-Agent": UA})
+    try:
+        with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
+            body = r.read(MAX_BYTES + 1)
+    except urllib.error.HTTPError as e:
+        raise FetchError(f"HTTP {e.code}")
+    except (urllib.error.URLError, OSError) as e:
+        raise FetchError(str(getattr(e, "reason", e)))
+    if len(body) > MAX_BYTES:
+        raise FetchError("response too large")
+    return body
+
+
+def load_json(raw):
+    try:
+        return json.loads(raw)
+    except ValueError as e:
+        raise FetchError(f"bad json: {e}")
+
+
+def strip_html(s):
+    return " ".join(html.unescape(re.sub(r"<[^>]+>", " ", s or "")).split())
+
+
+def make(kind, topic, section, source, title, url, published, score=None, author=None):
+    return {"kind": kind, "topic": topic, "section": section, "source": source,
+            "title": " ".join((title or "").split()), "url": url or "",
+            "published": published, "score": score, "author": author}
+
+
+def run_jobs(jobs, since):
+    ok = failed = 0
+    for j in jobs:
+        status = {"source": j["source"], "topic": j["topic"], "query": j["query"]}
+        try:
+            rows = j["run"]()
+            floor = {"since": since, "fixed14": now() - dt.timedelta(days=14),
+                     "none": None}[j["window"]]
+            if floor is not None and j.get("server"):
+                if any(r["published"] and r["published"] < floor - SLACK for r in rows):
+                    raise FetchError("window not applied")
+            if floor is not None:
+                rows = [r for r in rows if r["published"] and r["published"] >= floor]
+            rows = [r for r in rows if r["title"] and r["url"]]
+        except FetchError as e:
+            failed += 1
+            print(json.dumps({**status, "ok": False, "count": 0, "error": str(e)},
+                             ensure_ascii=False), file=sys.stderr)
+            continue
+        ok += 1
+        for r in rows:
+            out = dict(r, published=iso(r["published"]) if r["published"] else None)
+            print(json.dumps(out, ensure_ascii=False))
+        print(json.dumps({**status, "ok": True, "count": len(rows), "error": None},
+                         ensure_ascii=False), file=sys.stderr)
+    if failed and not ok:
+        return EXIT_ALL_FAILED
+    return EXIT_SOME_FAILED if failed else EXIT_OK
+
+
+# ---- sources ---------------------------------------------------------------
+
+def hn_query(params):
+    return "https://hn.algolia.com/api/v1/search?" + urllib.parse.urlencode(params)
+
+
+def hn_rows(raw, kind, topic, section, source):
+    out = []
+    for h in load_json(raw).get("hits", []):
+        url = h.get("url") or f"https://news.ycombinator.com/item?id={h.get('objectID')}"
+        out.append(make(kind, topic, section, source, h.get("title"), url,
+                        parse_date(h.get("created_at")), h.get("points"), h.get("author")))
+    return out
+
+
+def build_topic_jobs(cfg, since):
+    jobs = []
+    for t in cfg.get("topics") or []:
+        name, section = t.get("name"), t.get("section", "flow")
+        for q in t.get("hn") or []:
+            def run(q=q, name=name, section=section):
+                url = hn_query({"query": q, "tags": "story",
+                                "numericFilters": f"created_at_i>{int(since.timestamp())},points>20",
+                                "restrictSearchableAttributes": "title", "hitsPerPage": 20})
+                return hn_rows(fetch("hn", q, url), "topics", name, section, "hn")
+            jobs.append({"source": "hn", "topic": name, "section": section, "query": q,
+                         "window": "since", "server": True, "run": run})
+    return jobs
+
+
+def build_discover_jobs(cfg, since):
+    return []
+
+
+def count_requests(cfg):
+    qiita = sum(len(t.get("qiita") or []) for t in cfg.get("topics") or [])
+    gh_search = 1 if (cfg.get("discover") or {}).get("github_new") else 0
+    total = sum(len(t.get(k) or []) for t in cfg.get("topics") or []
+                for k in ("hn", "hatena", "qiita", "zenn", "lobsters", "bluesky"))
+    total += sum(bool(p.get(k)) for p in cfg.get("people") or []
+                 for k in ("blog", "bluesky", "mastodon"))
+    total += len(cfg.get("discover") or {})
+    return {"requests": total, "qiita": qiita, "github_search": gh_search}
+
+
+def load_cfg(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            cfg = yaml.safe_load(f) or {}
+    except OSError:
+        print(f"gain-stream: no sources file at {path}", file=sys.stderr)
+        sys.exit(EXIT_ALL_FAILED)
+    except yaml.YAMLError as e:
+        print(f"gain-stream: sources.yaml is not valid YAML: {e}", file=sys.stderr)
+        sys.exit(EXIT_ALL_FAILED)
+    if not isinstance(cfg, dict):
+        print("gain-stream: sources.yaml must be a mapping", file=sys.stderr)
+        sys.exit(EXIT_ALL_FAILED)
+    return cfg
+
+
+def main(argv):
+    if len(argv) == 2 and argv[0] == "budget":
+        c = count_requests(load_cfg(argv[1]))
+        print(json.dumps(c))
+        over = c["qiita"] > QIITA_MAX or c["github_search"] > GITHUB_SEARCH_MAX
+        return EXIT_ALL_FAILED if over else EXIT_OK
+    if len(argv) != 4 or argv[0] not in ("topics", "discover") or argv[1] != "--since":
+        usage()
+    since = parse_date(argv[2])
+    if since is None or not re.match(r"\d{4}-\d{2}-\d{2}T", argv[2]):
+        usage()
+    cfg = load_cfg(argv[3])
+    build = build_topic_jobs if argv[0] == "topics" else build_discover_jobs
+    return run_jobs(build(cfg, since), since)
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
