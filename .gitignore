@@ -1,6 +1,3 @@
-# Claude Code: stray binary kept out of git
-claude/slackcli
-
 # Local-only learning notes. Docs that code points at are excepted below, so a
 # fresh clone does not have dangling references; everything else stays local.
 # `docs/*` not `docs/`: git cannot re-include a file whose parent directory is
