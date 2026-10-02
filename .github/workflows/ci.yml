@@ -212,7 +212,8 @@ jobs:
       # ----------------------------------------------------------
       # Step 9: shellcheck
       # Catches quoting and word-splitting bugs bats cannot see. Scope: the
-      # bash scripts in bin/ (by shebang) and the Claude Code hooks.
+      # bash scripts in bin/ (by shebang), the libraries they source, the
+      # statusline and the Claude Code hooks.
       # ----------------------------------------------------------
       - name: Run shellcheck
         run: |
@@ -225,4 +226,4 @@ jobs:
               files+=("$f")
             fi
           done
-          shellcheck -S warning "${files[@]}" claude/hooks/*.sh
+          shellcheck -S warning "${files[@]}" bin/lib/*.sh claude/statusline.sh claude/hooks/*.sh

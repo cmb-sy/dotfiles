@@ -1,3 +1,4 @@
+# shellcheck shell=sh
 # bin/lib/voice.sh — shared definitions for the voice scripts, in and out.
 #
 # Sourced, never executed. Callers are a mix of bash and zsh, so keep this
@@ -17,8 +18,10 @@
 # Handy writes its settings here; apply-settings.py rewrites this file.
 # An empty HOME would silently make this /Library/..., which reads back as
 # "Handy has not written settings yet", so refuse it instead.
+# shellcheck disable=SC2034  # used by the scripts that source this file
 HANDY_SETTINGS="${HOME:?voice.sh: HOME is not set}/Library/Application Support/com.pais.handy/settings_store.json"
 
+# shellcheck disable=SC2034  # used by the scripts that source this file
 HANDY_BIN="/Applications/Handy.app/Contents/MacOS/handy"
 
 # PATH for the scripts launchd and Karabiner start: those run with a minimal
@@ -105,6 +108,7 @@ sanitize_text() {
 # speak_voicevox <text> — synthesize through the VOICEVOX engine, play with
 # afplay. Returns non-zero on any failure (engine down, API error, empty wav)
 # so the caller can fall back to say.
+# shellcheck disable=SC3043  # local: every caller (bash, zsh) has it
 speak_voicevox() {
   local text="$1"
   local wav

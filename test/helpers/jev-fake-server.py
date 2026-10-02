@@ -53,8 +53,8 @@ class Server(http.server.ThreadingHTTPServer):
 
     def server_bind(self):
         # HTTPServer.server_bind resolves the host with socket.getfqdn, which
-        # takes 35 s under Homebrew's python on GitHub's macOS runners. The
-        # name is never used here, so bind without the lookup.
+        # some python builds and resolvers spend tens of seconds on. The name
+        # is never used here, so bind without the lookup.
         socketserver.TCPServer.server_bind(self)
         self.server_name, self.server_port = self.server_address[:2]
 

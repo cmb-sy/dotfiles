@@ -172,7 +172,7 @@ AskUserQuestion ツールを使用してユーザーの選択を取得する。�
 ### category 別の修正方法
 
 **simplify findings の場合:**
-Agent tool で `code-simplifier` を再度起動し、対象ファイルをプロンプトで明示する。
+Agent tool で `code-simplifier` を再度起動する（`subagent_type: "code-simplifier:code-simplifier"`）。プロンプトに対象ファイルと承認された simplify findings を明示し、「承認された findings 以外は変更しない」と書く。
 
 **その他の findings (quality, security, performance, test, ai-antipattern, impact, codex) の場合:**
 指摘内容と suggestion に基づき、オーケストレーター自身が直接修正を実装する。修正手順:
