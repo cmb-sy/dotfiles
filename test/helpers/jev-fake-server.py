@@ -11,6 +11,7 @@ The chosen port is written to port-file once the server is listening.
 """
 import http.server
 import json
+import socketserver
 import sys
 import threading
 import time
@@ -49,6 +50,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
 class Server(http.server.ThreadingHTTPServer):
     daemon_threads = True
+
+    def server_bind(self):
+        # HTTPServer.server_bind resolves the host with socket.getfqdn, which
+        # takes 35 s under Homebrew's python on GitHub's macOS runners. The
+        # name is never used here, so bind without the lookup.
+        socketserver.TCPServer.server_bind(self)
+        self.server_name, self.server_port = self.server_address[:2]
 
     def handle_error(self, request, client_address):
         # A client that gave up (timeout) leaves a broken pipe; that is expected.
