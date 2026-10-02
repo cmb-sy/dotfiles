@@ -6,8 +6,13 @@
   gain-stream budget   <sources.yaml>                     requests one run spends
 
 stdout: one JSON item per line. stderr: one JSON status per fetch.
-Exit 0 when every fetch worked, 2 when some failed, 1 when all failed or the
-config is unreadable, 64 on bad usage.
+Exit codes:
+  0   every fetch worked (budget: within the limits)
+  1   every fetch failed, or sources.yaml is missing or malformed
+  2   some fetches failed
+  3   budget only: a rate limit would be exceeded; stderr has one
+      "gain-stream: budget over: <which> <n> > <max>" line per limit
+  64  bad usage (--since must be ISO8601 with Z or ±HH:MM, not after now)
 
 A source that filters by date on the server must not return anything older
 than --since (minus a day of slack): some APIs silently drop a bad filter and
@@ -49,7 +54,7 @@ except ImportError:
     print("gain-stream: PyYAML is not installed", file=sys.stderr)
     sys.exit(1)
 
-EXIT_OK, EXIT_ALL_FAILED, EXIT_SOME_FAILED, EXIT_USAGE = 0, 1, 2, 64
+EXIT_OK, EXIT_ALL_FAILED, EXIT_SOME_FAILED, EXIT_OVER_BUDGET, EXIT_USAGE = 0, 1, 2, 3, 64
 TIMEOUT = 20
 # Feeds are parsed with the stdlib ElementTree: it does not fetch external
 # entities, and the bundled expat (>= 2.4.1) caps entity expansion. The size
@@ -105,7 +110,16 @@ def slug(text):
     return s or hashlib.sha1(text.encode()).hexdigest()[:8]
 
 
+def check_url(url):
+    # Before the fixtures branch, so tests see the same refusal: a file:// (or
+    # any other scheme) from sources.yaml must never be opened by urllib.
+    if urllib.parse.urlsplit(url).scheme.lower() not in ("http", "https"):
+        raise FetchError("unsupported url scheme")
+
+
 def fetch(source, query, url=None, gh=None):
+    if url is not None:
+        check_url(url)
     fx = os.environ.get("GAIN_STREAM_FIXTURES")
     if fx:
         path = os.path.join(fx, f"{source}-{slug(query)}")
@@ -202,9 +216,14 @@ def xml_items(raw):
 
 
 def child_text(e, *names):
-    for c in e:
-        if local(c.tag) in names and (c.text or "").strip():
-            return c.text.strip()
+    """Text of the first child named names[0], else names[1], ...
+
+    Priority follows the order of names, not document order: an Atom entry
+    may put <updated> before <published>."""
+    for name in names:
+        for c in e:
+            if local(c.tag) == name and (c.text or "").strip():
+                return c.text.strip()
     return ""
 
 
@@ -457,6 +476,15 @@ def count_requests(cfg):
 
 SOURCE_KEYS = ("hn", "hatena", "qiita", "zenn", "lobsters", "bluesky")
 PEOPLE_KEYS = ("blog", "bluesky", "mastodon")
+TOPIC_ALLOWED = ("name", "note", "section", *SOURCE_KEYS)
+PEOPLE_ALLOWED = ("name", "note", *PEOPLE_KEYS)
+DISCOVER_KEYS = ("hn_front", "show_hn", "hatena_it", "zenn_trend", "qiita_popular",
+                 "github_new", "ollama_newest", "hf_trending")
+
+
+def unknown_key(d, allowed):
+    """First key of d outside allowed, or None. A typo would fetch nothing."""
+    return next((str(k) for k in d if k not in allowed), None)
 
 
 def cfg_error(cfg):
@@ -469,6 +497,11 @@ def cfg_error(cfg):
             return f"topics[{i}] must be a mapping"
         if not isinstance(t.get("name"), str):
             return f"topics[{i}].name must be a string"
+        k = unknown_key(t, TOPIC_ALLOWED)
+        if k:
+            return f"topics[{i}] has unknown key {k}"
+        if "section" in t and not isinstance(t["section"], str):
+            return f"topics[{i}].section must be a string"
         for k in SOURCE_KEYS:
             v = t.get(k)
             if v is not None and not (isinstance(v, list)
@@ -480,6 +513,9 @@ def cfg_error(cfg):
     for i, p in enumerate(people or []):
         if not isinstance(p, dict) or not isinstance(p.get("name"), str):
             return f"people[{i}] must be a mapping with a string name"
+        k = unknown_key(p, PEOPLE_ALLOWED)
+        if k:
+            return f"people[{i}] has unknown key {k}"
         for k in PEOPLE_KEYS:
             v = p.get(k)
             if v is not None and not isinstance(v, str):
@@ -487,8 +523,10 @@ def cfg_error(cfg):
     discover = cfg.get("discover")
     if discover is not None and not isinstance(discover, dict):
         return "discover must be a mapping"
+    k = unknown_key(discover or {}, DISCOVER_KEYS)
+    if k:
+        return f"discover has unknown key {k}"
     for k, v in (discover or {}).items():
-        # unknown keys are allowed (ignored), but each value has a fixed shape
         if v is not None and not isinstance(v, dict):
             return f"discover.{k} must be a mapping"
     filters = ((discover or {}).get("hf_trending") or {}).get("filters")
@@ -518,16 +556,27 @@ def load_cfg(path):
     return cfg
 
 
+SINCE_RE = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$")
+
+
 def main(argv):
     if len(argv) == 2 and argv[0] == "budget":
         c = count_requests(load_cfg(argv[1]))
         print(json.dumps(c))
-        over = c["qiita"] > QIITA_MAX or c["github_search"] > GITHUB_SEARCH_MAX
-        return EXIT_ALL_FAILED if over else EXIT_OK
+        over = [(k, c[k], m) for k, m in (("qiita", QIITA_MAX),
+                                          ("github_search", GITHUB_SEARCH_MAX))
+                if c[k] > m]
+        for k, n, m in over:
+            print(f"gain-stream: budget over: {k} {n} > {m}", file=sys.stderr)
+        return EXIT_OVER_BUDGET if over else EXIT_OK
     if len(argv) != 4 or argv[0] not in ("topics", "discover") or argv[1] != "--since":
         usage()
+    # parse_date assumes UTC for a naive value; --since must say its zone so a
+    # JST time is not silently read as UTC, and must not lie in the future.
+    if not SINCE_RE.match(argv[2]):
+        usage()
     since = parse_date(argv[2])
-    if since is None or not re.match(r"\d{4}-\d{2}-\d{2}T", argv[2]):
+    if since is None or since > now():
         usage()
     cfg = load_cfg(argv[3])
     build = build_topic_jobs if argv[0] == "topics" else build_discover_jobs

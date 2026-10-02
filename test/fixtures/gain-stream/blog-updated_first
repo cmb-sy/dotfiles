@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom"><title>t</title>
+<entry><title>Old post edited later</title><link href="https://example.com/2025/old/" rel="alternate"/><updated>2026-10-01T12:00:00Z</updated><published>2025-01-01T00:00:00Z</published><id>1</id></entry>
+</feed>

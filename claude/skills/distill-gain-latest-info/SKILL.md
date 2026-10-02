@@ -64,13 +64,13 @@ AskUserQuestion は 1 問最大 4 択のため 2 段構成にする。人が直�
 Step 0 は毎日の部分を組み立てるだけで、ファイルには書かない。ファイルは Step 4 で 1 回だけ書く。
 
 1. 期間の開始を決める。`$HOME/develop/distill-vault/情報収集/` の最新の `YYYY-MM-DD.md` の日付の 0 時（JST）を ISO8601 の UTC に直す。ファイルが無い、または 3 日より前なら、3 日前の 0 時（JST）に切り詰め、ダイジェストの front matter の `window:` に切り詰めた後の実際の期間を書き、`（3 日に切り詰め）` と添える
-2. `$HOME/dotfiles/bin/gain-stream budget $HOME/dotfiles/claude/skills/distill-gain-latest-info/sources.yaml` を実行する。非 0 なら流れの層を始めず、完了報告に「topics が多すぎる（budget 超過）」と書いて Step 1 へ進む
+2. `$HOME/dotfiles/bin/gain-stream budget $HOME/dotfiles/claude/skills/distill-gain-latest-info/sources.yaml` を実行する。exit 0 なら次へ進む。exit 3 は問い合わせ回数の上限超過で、完了報告に「topics が多すぎる（budget 超過）」と標準エラーの `gain-stream: budget over: …` の行を書く。exit 1 は sources.yaml の誤り（無い・YAML として壊れている・形が違う）で、完了報告に標準エラーの 1 行目を sources.yaml の問題として書く。exit 0 以外はどれも流れの層を始めずに Step 1 へ進む
 3. `$HOME/dotfiles/bin/gain-stream topics --since <開始> <sources.yaml>` と `$HOME/dotfiles/bin/gain-stream discover --since <開始> <sources.yaml>` を実行する。標準出力は 1 行 1 件の JSON、標準エラーは出どころごとの成否。**終了ステータスは `topics` と `discover` で別々に判定する**
 
 | exit | 意味 | そのコマンドの扱い |
 |---|---|---|
 | 0 | 全部取れた | そのまま使う |
-| 2 | 一部が失敗 | 取れた分を使う。失敗した出どころ（標準エラーの `"ok": false` の行）を末尾の「取得できなかった」に `<source>（<error>）` で書く |
+| 2 | 一部が失敗 | 取れた分を使う。失敗した出どころ（標準エラーの `"ok": false` の行）を末尾の「取得できなかった」に `<source> <query>（<error>）` で書く（同じ出どころの複数の query のうち、どれが落ちたかを分けるため） |
 | 1 | 全部が失敗、または sources.yaml を読めない | 使わない。末尾の「取得できなかった」に `gain-stream <サブコマンド>（exit 1）` と書く |
 | 64 | 使い方の誤り（呼び出し側がコマンドを組み違えた） | exit 1 と同じに扱い、完了報告に「`gain-stream <サブコマンド>` の呼び出しが誤り（exit 64）」と書く |
 
@@ -301,7 +301,7 @@ window: <開始 ISO> 〜 <実行 ISO>
 
 ## 改善提案
 
-取得できなかった: <source>（<error>）
+取得できなかった: <source> <query>（<error>）
 ```
 
 - **今日の流れ** は 2〜3 本。2 つ以上の出どころに同時に出た話題だけ。足りない日は「今日の流れ: 目立った動きなし」と 1 行で書き、弱い話題を格上げしない
@@ -355,7 +355,8 @@ Jev との一致: Claude が選んだ <N> 件のうち、Jev の点数でも上�
 | `gain-state prune` が失敗 | 1 行報告して `due` へ進む。掃除は実績の見栄えの問題で、収集は止めない |
 | deep-research 未利用可（research モード） | Web を内蔵 WebSearch で縮退実行し明示 |
 | `gain-score rate` が exit 0 以外 | 点数なしで続行し、週 1 回の部分の先頭（`## 深掘り 1` の前）に Step 3 の表の文言で 1 行書く。`gain-score log` は呼ばない |
-| `gain-stream budget` が非 0 | 流れの層を始めず、完了報告に「topics が多すぎる（budget 超過）」と書く |
+| `gain-stream budget` が exit 3 | 流れの層を始めず、完了報告に「topics が多すぎる（budget 超過）」と標準エラーの `budget over` の行を書いて Step 1 へ進む |
+| `gain-stream budget` が exit 1 | 流れの層を始めず、完了報告に標準エラーの 1 行目を sources.yaml の問題として書いて Step 1 へ進む |
 | `gain-stream` が exit 2 | 取れた分で書き、失敗した出どころを末尾の「取得できなかった」に書く |
 | `gain-stream` が exit 1 か 64 | そのコマンドの結果は使わない。`topics`・`discover` の両方が使えないときだけ流れの層を書かず、監視先の層だけ進める。64 は完了報告に呼び出しの誤りとして書く |
 

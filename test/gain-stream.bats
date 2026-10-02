@@ -46,7 +46,7 @@ yaml() { printf '%s\n' "$1" > "$Y"; }
   - name: AI
     hn: ["claude code"]'
   # 余裕（1 日）を超えて古い記事が混ざる = 絞り込みが効いていない
-  run --separate-stderr "$GST" topics --since 2026-10-03T00:00:00Z "$Y"
+  GAIN_STREAM_NOW="2026-10-06T00:00:00Z" run --separate-stderr "$GST" topics --since 2026-10-03T00:00:00Z "$Y"
   [ "$status" -eq 1 ]
   printf '%s\n' "$stderr" | grep -qF 'window not applied'
 }
@@ -77,6 +77,22 @@ yaml() { printf '%s\n' "$1" > "$Y"; }
   [ "$status" -eq 64 ]
 }
 
+@test "--since はタイムゾーン（Z か ±HH:MM）が無ければ 64" {
+  yaml 'topics: []'
+  run "$GST" topics --since 2026-10-01T00:00:00 "$Y"
+  [ "$status" -eq 64 ]
+  run "$GST" topics --since 2026-10-01T09:00:00+09:00 "$Y"
+  [ "$status" -eq 0 ]
+}
+
+@test "--since が今より後なら 64（GAIN_STREAM_NOW に従う）" {
+  yaml 'topics: []'
+  run "$GST" topics --since 2026-10-02T06:00:01Z "$Y"
+  [ "$status" -eq 64 ]
+  run "$GST" discover --since 2026-10-02T06:00:00Z "$Y"
+  [ "$status" -eq 0 ]
+}
+
 @test "fixture の名前は query から決まる（日本語は sha1 の先頭 8 桁）" {
   run python3 -c "import hashlib;print(hashlib.sha1('音声入力'.encode()).hexdigest()[:8])"
   h="$output"
@@ -94,7 +110,7 @@ yaml() { printf '%s\n' "$1" > "$Y"; }
   [ -z "$output" ]
 }
 
-@test "budget: 問い合わせ回数を数え、Qiita の上限を超える設定は非 0" {
+@test "budget: 問い合わせ回数を数え、Qiita の上限を超える設定は終了コード 3" {
   yaml 'topics:
   - name: AI
     hn: ["a", "b"]
@@ -106,8 +122,18 @@ yaml() { printf '%s\n' "$1" > "$Y"; }
   yaml "topics:
   - name: AI
     qiita: [$qs]"
-  run "$GST" budget "$Y"
+  run --separate-stderr "$GST" budget "$Y"
+  [ "$status" -eq 3 ]
+  printf '%s\n' "$stderr" | grep -qF 'gain-stream: budget over: qiita 51 > 50'
+}
+
+@test "budget: sources.yaml を読めないときは超過（3）と分けて終了コード 1" {
+  printf 'topics: [\n' > "$Y"
+  run --separate-stderr "$GST" budget "$Y"
   [ "$status" -eq 1 ]
+  printf '%s\n' "$stderr" | grep -qF 'gain-stream: sources.yaml is not valid YAML'
+  n=$(printf '%s\n' "$stderr" | grep -c 'budget over') || n=0
+  [ "$n" -eq 0 ]
 }
 
 @test "形の崩れた応答はその取得だけ失敗にし、ほかは続ける（終了コード 2）" {
@@ -179,7 +205,7 @@ yaml() { printf '%s\n' "$1" > "$Y"; }
   yaml 'topics:
   - name: AI
     hatena: ["claude code"]'
-  run --separate-stderr "$GST" topics --since 2026-10-05T00:00:00Z "$Y"
+  GAIN_STREAM_NOW="2026-10-06T00:00:00Z" run --separate-stderr "$GST" topics --since 2026-10-05T00:00:00Z "$Y"
   [ "$status" -eq 1 ]
   printf '%s\n' "$stderr" | grep -qF 'window not applied'
 }
@@ -295,9 +321,72 @@ discover_yaml() {
   printf '%s\n' "$stderr" | grep -qF 'gain-stream: sources.yaml: discover.hf_trending.filters must be a list of strings'
   yaml 'discover:
   hn_front:
-  some_future_key: {x: 1}'
+  hf_trending:'
   run --separate-stderr "$GST" budget "$Y"
   [ "$status" -eq 0 ]
+}
+
+@test "知らないキーは黙って無視せず終了コード 1（typo で何も取れないのを防ぐ）" {
+  yaml 'topics:
+  - name: AI
+    hatana: ["claude code"]'
+  run --separate-stderr "$GST" topics --since 2026-10-01T00:00:00Z "$Y"
+  [ "$status" -eq 1 ]
+  printf '%s\n' "$stderr" | grep -qF 'gain-stream: sources.yaml:'
+  printf '%s\n' "$stderr" | grep -qF 'hatana'
+  [ -z "$output" ]
+  yaml 'people:
+  - name: Simon Willison
+    blgo: https://simonwillison.net/atom/everything/'
+  run --separate-stderr "$GST" budget "$Y"
+  [ "$status" -eq 1 ]
+  printf '%s\n' "$stderr" | grep -qF 'blgo'
+  yaml 'discover:
+  hn_frnot: {min_points: 200}'
+  run --separate-stderr "$GST" discover --since 2026-10-01T00:00:00Z "$Y"
+  [ "$status" -eq 1 ]
+  printf '%s\n' "$stderr" | grep -qF 'gain-stream: sources.yaml:'
+  printf '%s\n' "$stderr" | grep -qF 'hn_frnot'
+  # 他の道具が持つ最上位のキーは見ない
+  yaml 'peers: [x]
+other_tool: {a: 1}
+topics:
+  - name: AI
+    note: memo
+    section: flow
+    hn: ["claude code"]'
+  run --separate-stderr "$GST" budget "$Y"
+  [ "$status" -eq 0 ]
+}
+
+@test "topics の section は文字列でなければ終了コード 1" {
+  yaml 'topics:
+  - name: AI
+    section: [career]'
+  run --separate-stderr "$GST" budget "$Y"
+  [ "$status" -eq 1 ]
+  printf '%s\n' "$stderr" | grep -qF 'gain-stream: sources.yaml: topics[0].section must be a string'
+}
+
+@test "Atom の entry は updated が先にあっても published の日付で切る" {
+  yaml 'people:
+  - name: Updated First
+    blog: https://example.com/atom.xml'
+  run --separate-stderr "$GST" topics --since 2026-10-01T00:00:00Z "$Y"
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$stderr" | grep -qF '"ok": true'
+  n=$(printf '%s\n' "$output" | grep -c 'Old post edited later') || n=0
+  [ "$n" -eq 0 ]
+}
+
+@test "http・https 以外の URL は取得しない（fixture があっても）" {
+  yaml 'people:
+  - name: Simon Willison
+    blog: file:///etc/hosts'
+  run --separate-stderr "$GST" topics --since 2026-10-01T00:00:00Z "$Y"
+  [ "$status" -eq 1 ]
+  printf '%s\n' "$stderr" | grep -qF 'unsupported url scheme'
+  [ -z "$output" ]
 }
 
 @test "discover: Ollama の公開日時を 1 件も読めなければ失敗（相対時刻の書き方が変わった）" {

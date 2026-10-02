@@ -292,6 +292,20 @@ setup() {
   [ "$b" -lt "$t" ]
 }
 
+@test "budget は超過（exit 3）と sources.yaml の誤り（exit 1）を分けて扱う" {
+  grep -F 'gain-stream budget' "$SK" | grep -qF 'exit 3'
+  grep -F 'gain-stream budget' "$SK" | grep -qF 'exit 1'
+  n=$(grep -cF '`gain-stream budget` が非 0' "$SK") || n=0
+  [ "$n" -eq 0 ]
+}
+
+@test "取得できなかったものは出どころと query で書く" {
+  grep -qF '`<source> <query>（<error>）`' "$SK"
+  grep -qF '取得できなかった: <source> <query>（<error>）' "$SK"
+  n=$(grep -cF '<source>（<error>）' "$SK") || n=0
+  [ "$n" -eq 0 ]
+}
+
 @test "流れは出どころ 2 つ以上の話題だけ" {
   grep -qF '2 つ以上の出どころ' "$SK"
 }
