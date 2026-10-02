@@ -29,13 +29,22 @@ start_fake() {
   : > "$REQ_LOG"
   rm -f "$BATS_TEST_TMPDIR/port"
   python3 "$REPO_DIR/test/helpers/jev-fake-server.py" \
-    "$BATS_TEST_TMPDIR/responses.json" "$REQ_LOG" "$BATS_TEST_TMPDIR/port" &
+    "$BATS_TEST_TMPDIR/responses.json" "$REQ_LOG" "$BATS_TEST_TMPDIR/port" \
+    2> "$BATS_TEST_TMPDIR/fake.err" &
   FAKE_PID=$!
   for _ in $(seq 50); do
     [ -s "$BATS_TEST_TMPDIR/port" ] && break
+    kill -0 "$FAKE_PID" 2>/dev/null || break
     sleep 0.1
   done
-  [ -s "$BATS_TEST_TMPDIR/port" ] || { echo "fake server did not start" >&2; return 1; }
+  if [ ! -s "$BATS_TEST_TMPDIR/port" ]; then
+    # Show why, or a CI-only failure leaves nothing to go on.
+    {
+      echo "fake server did not start ($(command -v python3): $(python3 --version 2>&1))"
+      cat "$BATS_TEST_TMPDIR/fake.err"
+    } >&2
+    return 1
+  fi
   export JEV_ENDPOINT="http://127.0.0.1:$(cat "$BATS_TEST_TMPDIR/port")/v1/systemone"
 }
 

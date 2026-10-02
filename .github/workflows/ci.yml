@@ -14,7 +14,7 @@ jobs:
     runs-on: macOS-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install dotfiles
         run: CI=true ./setup/setup.zsh
@@ -26,7 +26,8 @@ jobs:
       - name: Verify shell config symlinks
         run: |
           set -e
-          for f in .zshrc .zshenv .aliases.sh .function.zsh .gitignore_global; do
+          # .aliases.sh and .function.zsh are sourced from the repo, not linked.
+          for f in .zshrc .zshenv .gitignore_global; do
             if [[ ! -L "$HOME/$f" ]]; then
               echo "FAIL: ~/$f is not a symlink"
               exit 1
@@ -184,8 +185,11 @@ jobs:
       #
       # C, not UTF-8, and do not "fix" this back: the runner drives bats with
       # bash 3.2, where a multibyte name encodes down to its first byte, so 日
-      # and 本 collide and one test silently replaces the other. C encodes
-      # byte-wise, which cannot collide. UTF-8 here cost 135 of 267 tests.
+      # and 本 collide, and bats stops with a duplicate test name error. C
+      # encodes byte-wise, which cannot collide.
+      #
+      # python3 must be the interpreter Step 7 checked (mise's), or the tests
+      # run against whatever python3 the runner image ships.
       # ----------------------------------------------------------
       - name: Run bats tests
         env:
@@ -193,6 +197,10 @@ jobs:
           LANG: C
         run: |
           export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+          PY="$(mise which python3)"
+          PATH="$(dirname "$PY"):$PATH"
+          export PATH
+          echo "python3 -> $(command -v python3) ($(python3 --version))"
           # .zshrc looks for the repo at $DOTFILES, falling back to ~/dotfiles,
           # which does not exist here -- without this an interactive zsh sources
           # no aliases and the tests for them see an empty shell.
@@ -200,3 +208,21 @@ jobs:
           bash --version | head -1
           command -v bats && bats --version
           bats test/
+
+      # ----------------------------------------------------------
+      # Step 9: shellcheck
+      # Catches quoting and word-splitting bugs bats cannot see. Scope: the
+      # bash scripts in bin/ (by shebang) and the Claude Code hooks.
+      # ----------------------------------------------------------
+      - name: Run shellcheck
+        run: |
+          set -e
+          export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+          shellcheck --version | head -2
+          files=()
+          for f in bin/*; do
+            if [[ -f "$f" ]] && head -1 "$f" | grep -q '^#!.*bash'; then
+              files+=("$f")
+            fi
+          done
+          shellcheck -S warning "${files[@]}" claude/hooks/*.sh

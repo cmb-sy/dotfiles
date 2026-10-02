@@ -3,6 +3,15 @@
 
 load "helpers/common"
 
+# claude/skills is live (hot-reloaded as ~/.claude/skills), so probe skills a
+# test writes there must go even when the test fails midway.
+teardown() {
+  if [ "${#PROBE_DIRS[@]}" -gt 0 ]; then
+    rm -rf "${PROBE_DIRS[@]}"
+  fi
+  return 0
+}
+
 # Prints one finding per line as "<kind> <file>:<line>: <match>".
 #
 # What stays allowed is the wording that an instruction needs:
@@ -132,11 +141,11 @@ print(','.join(NG) if NG else 'OK')
   # 外し方が緩すぎると自作スキルまで検査されなくなるので、両方を確かめる。
   synced="$REPO_DIR/claude/skills/synced/probe-check/SKILL.md"
   own="$REPO_DIR/claude/skills/probe-check-own/SKILL.md"
-  mkdir -p "${synced%/*}" "${own%/*}"
+  PROBE_DIRS=("${synced%/*}" "${own%/*}")
+  mkdir -p "${PROBE_DIRS[@]}"
   printf -- '- 2026-07-10 に計測した。\n' > "$synced"
   printf -- '- 2026-07-10 に計測した。\n' > "$own"
   found="$(skill_findings_of_kind dated)"
-  rm -rf "${synced%/*}" "${own%/*}"
   printf '%s' "$found" | grep -qF 'probe-check-own'
   n=$(printf '%s' "$found" | grep -c 'synced/probe-check/') || n=0
   [ "$n" -eq 0 ]
