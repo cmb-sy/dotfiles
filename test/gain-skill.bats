@@ -375,3 +375,75 @@ setup() {
   grep -qF 'そもそも:' "$SK"
   grep -qF '学ぶ入口:' "$SK"
 }
+
+# --- AI セキュリティの監視と、月次の監視先 ---
+#
+# 月次でしか動かない監視先（OWASP・MITRE ATLAS・規制など）は週 1 回の巡回で
+# 空振りが続く。週次の基準で外すと遅い動きを追う監視先から消えていくので、
+# cadence: monthly の印と、それを尊重する sources モードの規則をセットで守る。
+
+yaml_py() {  # yaml_py <python expression over d> — prints the result
+  local py
+  py="$(mise which python3 2>/dev/null || command -v python3)"
+  "$py" -c "import sys, yaml; d = yaml.safe_load(open(sys.argv[1], encoding='utf-8')); print($1)" \
+    "$REPO_DIR/claude/skills/distill-gain-latest-info/sources.yaml"
+}
+
+@test "sources.yaml に AI セキュリティの topic がある" {
+  yaml_py "[t['name'] for t in d.get('topics') or []]" | grep -qF 'AI セキュリティ'
+}
+
+@test "AI セキュリティの topic は動向レベルで要約すると説明に書いてある" {
+  yaml_py "[t.get('note','') for t in d.get('topics') or [] if t['name'] == 'AI セキュリティ']" \
+    | grep -qF '動向レベル'
+}
+
+@test "cadence の値は monthly だけ" {
+  n=$(yaml_py "sorted({it['cadence'] for s in ('github','services') for it in (d.get(s) or []) if isinstance(it, dict) and 'cadence' in it} - {'monthly'})" \
+    | grep -c -v '^\[\]$') || n=0
+  [ "$n" -eq 0 ]
+}
+
+@test "cadence は週次の監視先（github・services）にだけ付く" {
+  n=$(yaml_py "[s for s, v in d.items() if s not in ('github','services') and isinstance(v, list) and any(isinstance(i, dict) and 'cadence' in i for i in v)]" \
+    | grep -c -v '^\[\]$') || n=0
+  [ "$n" -eq 0 ]
+}
+
+@test "月次の監視先が少なくとも 1 つある" {
+  yaml_py "sum(1 for s in ('github','services') for it in (d.get(s) or []) if isinstance(it, dict) and it.get('cadence') == 'monthly')" \
+    | grep -qE '^[1-9][0-9]*$'
+}
+
+@test "sources モードは月次の監視先を早く外さない" {
+  grep -qF '`cadence: monthly` の行' "$SK"
+  grep -qF '巡回 13 回（約 3 か月）未満で収穫 0 でも外す候補にしない' "$SK"
+}
+
+@test "gain-state list は cadence 付きの監視先も並べる" {
+  y="$BATS_TEST_TMPDIR/s.yaml"
+  printf 'services:\n  - name: Slow Feed\n    url: https://example.com/news\n    cadence: monthly\n' > "$y"
+  run env GAIN_STATE="$BATS_TEST_TMPDIR/state.tsv" "$REPO_DIR/bin/gain-state" list "$y"
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$output" | grep -qF 'Slow Feed'
+}
+
+@test "research モードに AI セキュリティの深掘り先がある" {
+  grep -qF 'arXiv の cs.CR' "$SK"
+  grep -qF 'Gray Swan Arena' "$SK"
+}
+
+@test "改善提案も月次の監視先を早く除外候補に挙げない" {
+  grep -qF '`cadence: monthly` の監視先は巡回 13 回未満なら挙げない' "$SK"
+}
+
+@test "sources モードは cadence を sources.yaml から読む" {
+  grep -qF '`cadence` は `list` の出力に無いので `sources.yaml` から読む' "$SK"
+}
+
+@test "OpenAI は取得できる RSS を見る（安全性の一覧ページはボット対策で 403）" {
+  yaml_py "[s['url'] for s in d.get('services') or [] if s['name'].startswith('OpenAI')]" \
+    | grep -qF 'openai.com/news/rss.xml'
+  n=$(yaml_py "[s['url'] for s in d.get('services') or []]" | grep -cF 'safety-alignment') || n=0
+  [ "$n" -eq 0 ]
+}

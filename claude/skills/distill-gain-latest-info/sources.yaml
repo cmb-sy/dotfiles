@@ -35,6 +35,12 @@ github:
     note: releases only — new versions of the free local runtime behind Handy voice post-processing
   - repo: jdx/mise
     note: releases only — runtime/tool manager behind the Brewfile and .zshrc here; its dotfiles features (mise dot) move weekly, and peer yutkat applies dotfiles with it
+  - repo: modelcontextprotocol/modelcontextprotocol
+    note: releases only — dated MCP spec versions. The spec changelog page has no per-entry dates, so this is the dated signal
+    cadence: monthly
+  - repo: mitre-atlas/atlas-data
+    note: releases only — monthly MITRE ATLAS data drops (vYYYY.MM); new attack techniques on AI systems and case studies. atlas.mitre.org itself is undated
+    cadence: monthly
 
 # Service changelog / release pages
 # Every entry here has to be a page that dates its own entries: collection
@@ -62,6 +68,46 @@ services:
     note: this overview has no dates -- it only links to per-model pages, which carry
       the dates. Follow those links when collecting. The .md body would also diff cleanly
       between versions, but nothing here compares versions yet -- it is read as a changelog
+  # AI security. Entries marked cadence: monthly change a few times a month at
+  # most: they are still visited weekly, but sources mode keeps them through
+  # empty weeks instead of offering them for removal.
+  - name: Anthropic News
+    url: https://www.anthropic.com/news
+    note: model launches, system cards, policy and safety announcements; dated per entry
+  - name: Claude apps
+    url: https://support.claude.com/en/articles/12138966-release-notes
+    note: claude.ai / Desktop / Enterprise / Team release notes; admin and connector (MCP) changes land here. Dated per entry
+  - name: Anthropic Research
+    url: https://www.anthropic.com/research
+    note: interpretability / alignment / safety papers; dated per entry
+    cadence: monthly
+  - name: Anthropic Frontier Red Team
+    url: https://www.anthropic.com/research/team/frontier-red-team
+    note: capability and misuse evaluations of frontier models
+    cadence: monthly
+  - name: OpenAI News
+    url: https://openai.com/news/rss.xml
+    note: all OpenAI news; take only model launches, system cards and safety posts. The safety-alignment list page answers 403 to non-browser clients, so read the feed
+  - name: Google DeepMind
+    url: https://deepmind.google/blog/rss.xml
+    note: the HTML blog list only shows month-level dates; the RSS carries full dates, so read the feed
+    cadence: monthly
+  - name: OWASP GenAI Security Project
+    url: https://genai.owasp.org/feed/
+    note: LLM Top 10 / Agentic AI Top 10 releases and updates. The /blog/ HTML mixes in a placeholder date, so read the feed
+    cadence: monthly
+  - name: Japan AISI
+    url: https://aisi.go.jp/activity/activity_news/
+    note: AI セーフティ・インスティテュートの活動報告。日付つき一覧（成果物は /output/output_information/ に別掲）
+    cadence: monthly
+  - name: NIST CAISI
+    url: https://www.nist.gov/caissi
+    note: US center for AI standards; dated news on frontier-model assessments
+    cadence: monthly
+  - name: EU AI Act
+    url: https://artificialintelligenceact.eu/feed/
+    note: unofficial but widely used tracker; dated posts on enforcement, guidance and the implementation timeline
+    cadence: monthly
 
 # Daily flow layer -- read by bin/gain-stream on every watch, not by
 # gain-state (it has no key for these, so they never enter the weekly
@@ -97,6 +143,12 @@ topics:
     hatena: ["Databricks"]
     qiita: ["databricks"]
     zenn: ["databricks"]
+  - name: AI セキュリティ
+    note: プロンプトインジェクション・脱獄・モデル公開と安全性報告・MCP や Claude の変更・ガバナンス。動向レベルで要約し、実装の細部は書かない。実装トレンドは攻撃面の観点だけ
+    hn: ["ai security", "llm security", "ai safety"]
+    hatena: ["AIセキュリティ", "LLM セキュリティ", "MCP セキュリティ"]
+    qiita: ["プロンプトインジェクション", "AIセキュリティ"]
+    zenn: ["promptinjection", "aisafety"]
   - name: キャリア
     section: career
     note: エンジニアがキャリアをどう歩んでいるか。職種の移り方・評価・学び方・AI 時代の働き方
