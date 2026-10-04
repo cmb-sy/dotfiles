@@ -104,3 +104,31 @@ setup() {
   n=$(grep -c '/Users/' "$SK") || n=0
   [ "$n" -eq 0 ]
 }
+
+# --- テーマを選択肢で選ばせ、Web の情報で問題と解説を補強する ---
+
+@test "最初にテーマを選択肢で聞く（学習メモ全体・分類・プロジェクト）" {
+  grep -qF 'Q1「どこから出しますか？」' "$SK"
+  grep -qF '学習メモ全体' "$SK"
+  grep -qF '学習メモの分類から選ぶ' "$SK"
+  grep -qF 'プロジェクトから選ぶ' "$SK"
+}
+
+@test "学習メモ全体を選んだときの材料が決まっている" {
+  grep -qF '| 学習メモ全体 | `学習メモ/**/*.md` |' "$SK"
+}
+
+@test "出題に使う概念を Web で調べ、読んで確かめたものだけを使う" {
+  grep -qF '## Step 3.5: Web で補強する' "$SK"
+  grep -qF 'WebSearch' "$SK"
+  grep -qF 'WebFetch' "$SK"
+  grep -qF '確かめられなかった情報は使わない' "$SK"
+}
+
+@test "問題の芯は distill の材料に置き、Web の情報は補強に使う" {
+  grep -qF '問題の芯は distill の材料に置き' "$SK"
+}
+
+@test "解説と記録に Web の出典の URL を残す" {
+  grep -qF '## 参照した Web の情報' "$SK"
+}
