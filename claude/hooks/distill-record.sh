@@ -13,8 +13,6 @@
 #
 # 判定を通らないセッションでは走らせない。1 往復の質問にまで記録を作ると、
 # 一覧が薄い記録で埋まり、探せなくなる。
-# 記録は外部サイトへ配信されるので、業務の組織（DISTILL_RECORD_DENY_OWNERS）の
-# repo のセッションも、origin の owner で見て記録しない。
 #
 # どこまで記録したかは transcript のバイト位置で持つ（STATE_DIR/<session>）。
 # 1 行に「記録した位置 判定した時点の会話の終わり」。2 回目以降はその位置より
@@ -46,18 +44,6 @@ command -v gtimeout >/dev/null && TIMEOUT_BIN="gtimeout -k 30 1800"
 
 mkdir -p "$LOG_DIR" "$TMP_DIR" "$STATE_DIR"
 say() { printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" >>"$LOG"; }
-
-# The organization part of a repository's remote (origin by default), for the
-# deny check. Organizations rather than repository names, so new repositories
-# are covered.
-project_owner() {
-  local url
-  url=$(git -C "$1" remote get-url "${2:-origin}" 2>/dev/null) || return 0
-  [ -n "$url" ] || return 0
-  url="${url%/}"; url="${url%.git}"
-  url="${url%/*}"
-  printf '%s\n' "${url##*[/:]}"
-}
 
 # そのセッションの記録ファイルを出す。どのプロジェクトの下にあってもよい。
 # 2 つ目以降の引数は find の条件（-newer など）。
@@ -265,10 +251,8 @@ esac
 
 # --- 判定 2: git リポジトリの中か（記録を紐付ける先が要る）---
 # 巡回は cwd を知らないので、transcript に残る最後の cwd を使う。
-# 会話中にいたすべての場所は判定 2b でも使う。
-tx_cwds=$(grep -o '"cwd":"[^"]*"' "$tx" | sed 's/^"cwd":"//; s/"$//')
 if [ -z "$cwd" ]; then
-  cwd=$(printf '%s\n' "$tx_cwds" | tail -1)
+  cwd=$(grep -o '"cwd":"[^"]*"' "$tx" | tail -1 | sed 's/^"cwd":"//; s/"$//')
 fi
 # 分からないときに今の場所で代用すると、巡回を起こした別のセッションの
 # リポジトリに紐付いてしまう。
@@ -283,48 +267,6 @@ if [ -z "$repo_root" ]; then
   remember "$recorded"
   exit 0
 fi
-
-# --- 判定 2b: 記録してよい組織の repo か ---
-# 記録は vault に入り、vault は外部サイトへ配信される。業務の自由文は
-# 伏せ字化で落ちないので、組織単位で入口を閉じる。owner の表記は clone の
-# 仕方で揺れるので、大文字小文字を無視して比べる。fork は upstream も見る。
-# 最後の repo だけでなく、会話中にいたすべての repo を見る。途中で業務の
-# repo にいた会話も本文に残る。見るのは cwd の欄だけで、本文は読まない。
-# 指定は read -a で分ける。for で展開すると * がファイル名に化ける。
-read -ra deny_list <<<"$(printf '%s' "${DISTILL_RECORD_DENY_OWNERS:-Resily}" | tr '[:upper:]' '[:lower:]')"
-repo_denied() {
-  local remote o d
-  for remote in origin upstream; do
-    o=$(project_owner "$1" "$remote" | tr '[:upper:]' '[:lower:]')
-    [ -n "$o" ] || continue
-    for d in ${deny_list[@]+"${deny_list[@]}"}; do
-      [ "$o" = "$d" ] && return 0
-    done
-  done
-  return 1
-}
-# 辿れない cwd（消した worktree、エスケープを含むパス）は owner を確かめられない
-# ので記録しない。一時領域だけは日常的に消えるので見送る。
-while IFS= read -r dir; do
-  [ -n "$dir" ] || continue
-  if [ ! -d "$dir" ] || ! (cd "$dir" 2>/dev/null); then
-    case "$dir" in
-      /private/tmp/* | /tmp/* | /var/folders/* | /private/var/folders/*) continue ;;
-    esac
-    say "${sid}: 作業ディレクトリを辿れない。記録しない"
-    remember "$recorded"
-    exit 0
-  fi
-  root=$(cd "$dir" 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null) || continue
-  if [ -n "$root" ] && repo_denied "$root"; then
-    say "${sid}: 記録しない組織の repo。記録しない"
-    remember "$recorded"
-    exit 0
-  fi
-done < <({
-  printf '%s\n' "$repo_root"
-  printf '%s\n' "$tx_cwds"
-} | sort -u)
 # 書き先のプロジェクト名。スキルと同じ規則で決める（名前を付け直したプロジェクトや
 # worktree を、元のプロジェクトに寄せる）。取れなければリポジトリの名前。
 repo=$(/bin/bash "$HOOK_DIR/../../bin/distill-repo-name" "$repo_root" 2>/dev/null)
