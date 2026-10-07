@@ -180,7 +180,7 @@ Phase 3 の分析結果を **`github-issues` skill の create フロー**に引�
 1. `github-issues` skill を invoke し、create 操作として以下を入力に渡す:
    - issue 内容: Phase 3 の構造化結果（タイトル・分類・優先度提案・要約・原因仮説・影響範囲・関連リソース・推奨アクション）
    - プロジェクト手がかり: Phase 1/2 で判明したリポジトリ・プロダクト名
-2. 以降のプレビュー・repo 特定・重複チェック・担当者/期日/ラベル/タイプ/優先度の選択・AITF ボード登録は github-issues の create フロー（Step 1〜8）に従う
+2. 以降のプレビュー・repo 特定・重複チェック・期日/ラベル/タイプ/優先度の選択・AITF ボード登録は github-issues の create フロー（Step 1〜8）に従う
    - triage の優先度提案（Urgent/High/Medium/Low）は github-issues の Priority(P0/P1/P2) 選択時の推奨材料として添える
 3. 元 URL・関連リソースは issue 本文の「関連」節に含める（github-issues の PII ルールに従いマスキング）
 
