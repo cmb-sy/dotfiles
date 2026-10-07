@@ -2,7 +2,7 @@
 name: github-issues
 description: >-
   GitHub Issue を一覧・作成・更新・クローズ・コメントしたいとき、および PR 作成+Projects 登録を
-  一気通貫で行いたいときに使う `gh` CLI ベースのスキル。対象組織は Resily。issue に assignee は付けない。
+  一気通貫で行いたいときに使う `gh` CLI ベースのスキル。対象組織は Resily。issue・PR に assignee は付けない。
   ファイル I/O・Obsidian 連携は持たない。
 argument-hint: "list | create | close <number> | comment <number> | update <number> | pr [--content <text>] [--project <number>] [--draft] [--skip-project] [自然言語の指示]"
 user-invocable: true
@@ -10,7 +10,7 @@ user-invocable: true
 
 `gh` CLI を使って GitHub Issue を操作する。ファイル I/O・Obsidian 連携は一切持たない（純粋な issue 操作のみ）。
 
-**対象組織:** `Resily`。リポジトリは引数または文脈から特定する。**issue に assignee は付けない**（作成・更新とも。ユーザーが login を名指しして付けるよう指示したときだけ付ける）。
+**対象組織:** `Resily`。リポジトリは引数または文脈から特定する。**issue・PR に assignee は付けない**（作成・更新とも。ユーザーが login を名指しして付けるよう指示したときだけ付ける）。
 
 ---
 
@@ -333,7 +333,7 @@ gh issue comment {number} --repo Resily/{repo} --body "{本文}"
 - **Title**: 70文字以内。project-state.json があれば Pipeline 名+主要タスク要約、`--content` ならその1行要約、フォールバックは最新コミット1行目
 - **Body**: `## Summary`(1-3行) / `## Changes`(diff --stat) / `## Context`(decisions・session_notes または --content またはコミット body) / `## Test Plan`(test_results なければ `- [ ] Manual verification required`)
 - **プレビュー承認必須**: Title/Base/Head/Draft/Body 先頭200字を提示し AskUserQuestion で承認を取ってから実行。修正は Other で受ける
-- 新規: `git push -u origin {branch}`(未 push 時) → `gh pr create --title ... --body ... --base {base} --assignee "@me" [--draft]`。更新: `git push` → `gh pr edit {number} --title ... --body ...`
+- 新規: `git push -u origin {branch}`(未 push 時) → `gh pr create --title ... --body ... --base {base} [--draft]`（assignee は付けない）。更新: `git push` → `gh pr edit {number} --title ... --body ...`
 - push 失敗時は AskUserQuestion:「`--force-with-lease` 再 push(main/master は拒否) / `git pull --rebase` → 再 push / キャンセル」
 
 ### pr Phase 4: Project Registration
@@ -366,7 +366,7 @@ issue 系と共通（未認証・リポジトリ外・リモート未設定は�
 
 1. **ファイル I/O を行わない** — ローカルファイルの読み書き・Obsidian 連携は一切しない
 2. **破壊的/外部可視の操作は実行前に確認** — create / close / comment / update。list は確認不要
-3. **issue に assignee は付けない**（create・update とも）。付けるのはユーザーが login を名指しして指示したときだけ。組織は `Resily`
+3. **issue・PR に assignee は付けない**（create・update とも）。付けるのはユーザーが login を名指しして指示したときだけ。組織は `Resily`
 4. **PII を body/comment に転記しない** — Slack 本文や同僚名等はマスキング、または含めない
 5. **リポジトリが特定できない場合は推測せず確認する**
 6. **実行後は issue 番号と URL を報告する**
