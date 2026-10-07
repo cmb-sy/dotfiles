@@ -2,7 +2,7 @@
 name: github-issues
 description: >-
   GitHub Issue を一覧・作成・更新・クローズ・コメントしたいとき、および PR 作成+Projects 登録を
-  一気通貫で行いたいときに使う `gh` CLI ベースのスキル。対象組織は Resily、デフォルト assignee は cmb-sy。
+  一気通貫で行いたいときに使う `gh` CLI ベースのスキル。対象組織は Resily。issue に assignee は付けない。
   ファイル I/O・Obsidian 連携は持たない。
 argument-hint: "list | create | close <number> | comment <number> | update <number> | pr [--content <text>] [--project <number>] [--draft] [--skip-project] [自然言語の指示]"
 user-invocable: true
@@ -10,7 +10,7 @@ user-invocable: true
 
 `gh` CLI を使って GitHub Issue を操作する。ファイル I/O・Obsidian 連携は一切持たない（純粋な issue 操作のみ）。
 
-**対象組織:** `Resily`（デフォルト assignee は `cmb-sy`）。リポジトリは引数または文脈から特定する。
+**対象組織:** `Resily`。リポジトリは引数または文脈から特定する。**issue に assignee は付けない**（作成・更新とも。ユーザーが login を名指しして付けるよう指示したときだけ付ける）。
 
 ---
 
@@ -68,7 +68,7 @@ gh api graphql -f query='
 
 ## create — 作成
 
-「何を」「どのプロジェクトで」を最初にユーザーから受け取り、**そのプロジェクトの既存 issue・実装状態を確認したうえで**下書きを洗練し、担当者・期日を選択肢で確定して作成、最後に **issue の URL を返す**。対話型フロー。
+「何を」「どのプロジェクトで」を最初にユーザーから受け取り、**そのプロジェクトの既存 issue・実装状態を確認したうえで**下書きを洗練し、期日を選択肢で確定して作成、最後に **issue の URL を返す**。対話型フロー。
 
 ### Step 1: 内容とプロジェクトのヒアリング
 
@@ -122,7 +122,7 @@ Step 1 の入力を、Step 3 で得た文脈を踏まえて GitHub issue 形に�
 入力（特に口語・連絡文・メモ）を issue 化すると、解釈の **ズレ・ノイズ**が入りやすい。ドラフト提示時に、解釈が割れうる箇所を**自分から具体的に指摘**し、ユーザーの確認・修正を受けて作り直す。承認が出るまで Step 5 へ進まない。
 
 典型的に確認すべきズレ:
-- **宛先・目的**: 相手への「依頼」か、自分用の「todo/トラッキング」か。assignee が自分なのに本文が「〜してください」依頼調だと不整合。書き分ける
+- **宛先・目的**: 相手への「依頼」か、自分用の「todo/トラッキング」か。本文の書き方（依頼調か、作業メモか）を目的に合わせて書き分ける
 - **依頼 vs 状況共有**: 「〜までに連絡します」等は依頼ではなく予告・状況メモ。チェック項目にせず注記にする
 - **項目の性質の混同**: 識別子（ID）と指標、手段と目的などを安易にひとくくりにしない
 - **1 issue か分割か**: 性質や担当者が異なる複数の論点が混在していたら、分割を提案する
@@ -130,13 +130,11 @@ Step 1 の入力を、Step 3 で得た文脈を踏まえて GitHub issue 形に�
 
 指摘は「私の解釈ではこうだが、合っているか」と提示し、ユーザーの回答で本文を更新する。複数回やり取りしてよい。**ユーザーが内容に合意してから** Step 5 に進む。
 
-### Step 5: 担当者・期日の候補取得
+### Step 5: 期日の候補取得
 
-確定した repo に対して担当者候補と milestone を取得する。**担当者候補は `collaborators`（その repo の登録メンバー）だけを使う。** `assignees` エンドポイントや org メンバーは広く出すぎるため使わない。推測で login を足さない。
+確定した repo に対して milestone を取得する。担当者の候補は取らない（assignee は付けない）。
 
 ```bash
-# repo の collaborators（登録メンバー）= 担当者候補。bot は除外
-gh api "repos/Resily/{repo}/collaborators" --jq '.[] | "\(.login)\t(\(.role_name))"'
 # 期日付き milestone 一覧（open）
 gh api "repos/Resily/{repo}/milestones?state=open" --jq '.[] | "\(.title)\t\(.due_on // "期日なし")"'
 ```
@@ -166,13 +164,10 @@ gh api graphql -f query='
 
 他のボードに追加する場合（project 26 以外）は、都度 `gh api graphql` で当該 project の `fields` を問い合わせて field-id・option-id を取得し直す（ハードコードしない）。
 
-### Step 6: 担当者・期日の選択
+### Step 6: 期日の選択
 
-`AskUserQuestion` で **2 問まとめて**聞く:
+担当者は聞かない。`AskUserQuestion` で期日を聞く:
 
-- **担当者**（header: `担当者`）: 候補は **Step 5 で取得した repo の collaborators（登録メンバー）だけ**に限定する。推測で人名を足さない。bot（`Resilybot` 等）は除外する。`multiSelect: true`（複数アサイン可）
-  - collaborators が AskUserQuestion の選択肢上限（4）以下なら全員を選択肢に出す
-  - 5 名以上いる場合は、**全 collaborators を role 付きでテキスト一覧提示**し、ユーザーに login を指定してもらう（選択肢には `自分(cmb-sy)` + 数名を出し、残りは `Other` で login 指定）。`Other` で渡される login も collaborators であることを前提とする
 - **期日**（header: `期日`）: 選択肢を以下で出す。milestone が存在すれば milestone も候補に加える:
   - `今週中`（今週金曜）/ `今月末` / `期日なし` / 既存 milestone 名（あれば）
   - `Other` で `YYYY-MM-DD` 直接指定も受ける
@@ -213,13 +208,12 @@ gh api graphql -f query='
 
 ### Step 7: 最終確認と作成
 
-確定した repo / title / body / assignee / 期日 / ラベル / タイプ / 優先度 / サイズ をまとめて提示し、最終確認を取る。承認後に実行:
+確定した repo / title / body / 期日 / ラベル / タイプ / 優先度 / サイズ をまとめて提示し、最終確認を取る。承認後に実行（`--assignee` は付けない）:
 
 ```bash
 gh issue create --repo Resily/{repo} \
   --title "{タイトル}" \
   --body "{洗練した本文}" \
-  --assignee {login1} [--assignee {login2}] \
   [--label "{label1}"] [--label "{label2}"] \
   [--milestone "{title}"]
 ```
@@ -286,7 +280,7 @@ gh project item-edit --id "$ITEM_ID" --project-id PVT_kwDOArEsis4BIUQA \
 既存 issue を編集する。number は必須。
 
 ```bash
-gh issue edit {number} --repo Resily/{repo} [--title "..."] [--body "..."] [--add-label "..."] [--remove-label "..."] [--add-assignee "..."] [--milestone "..."]
+gh issue edit {number} --repo Resily/{repo} [--title "..."] [--body "..."] [--add-label "..."] [--remove-label "..."] [--milestone "..."]
 ```
 
 - 変更点のみフラグを付ける（無指定の項目は変更しない）
@@ -372,7 +366,7 @@ issue 系と共通（未認証・リポジトリ外・リモート未設定は�
 
 1. **ファイル I/O を行わない** — ローカルファイルの読み書き・Obsidian 連携は一切しない
 2. **破壊的/外部可視の操作は実行前に確認** — create / close / comment / update。list は確認不要
-3. **デフォルト assignee は `cmb-sy`**、組織は `Resily`
+3. **issue に assignee は付けない**（create・update とも）。付けるのはユーザーが login を名指しして指示したときだけ。組織は `Resily`
 4. **PII を body/comment に転記しない** — Slack 本文や同僚名等はマスキング、または含めない
 5. **リポジトリが特定できない場合は推測せず確認する**
 6. **実行後は issue 番号と URL を報告する**
