@@ -321,7 +321,7 @@ git でコミットし、リモートへ push する。**最後に実行する**
 
 - 更新した日報ファイルパス
 - 更新したプロジェクト概要（ファイル・節・根拠。無ければ「変更なし」）
-- github-issues: open issue 件数（cmb-sy assigned）
+- github-issues: open issue 件数（assignee または author が cmb-sy）
 - distill-gain-latest-info watch: 観測したスコープとダイジェストの保存先（スキップ時は「スキップ」）
 - github-sync: 新規作成 / 更新 / done へ変更 の件数（スキップ時は「スキップ」）
 - TaskNotes の削除: 件数（うち手書きメモあり n 件 / 完了日なしで見送り n 件。承認されなければ「見送り」）
