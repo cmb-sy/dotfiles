@@ -29,6 +29,7 @@ user-invocable: true
 **Q1**「スキップ対象を確認させてください。どのステップを飛ばしますか?」（header: `Skip対象`）— 順序固定:
   1. `Step 4: CloudLog 自動入力` — Playwright での CloudLog 入力をスキップ(稼働時間も尋ねない)
   2. `github-sync` — GitHub Issue → TaskNotes 同期をスキップ(Step 2.5 も併せてスキップ)
+  3. `情報収集` — distill-gain-latest-info watch をスキップ(Step 1.5 も併せてスキップ)。今日のダイジェスト `情報収集/YYYY-MM-DD.md` が既にあれば、説明にその旨を添える
 
 **作業記録の収集（Step 1 の Slack / GitHub / セッションログ）はスキップできない。** 選択肢に出さず、`Other` で申し出があっても受けない。日報の `## 今日の成果` はこの 3 つが揃って初めて成立し、1 つ欠けるとその日の記録が恒久的に穴になる。収集は読み取りのみで副作用が無く、失敗しても後続を止めないため、飛ばす利得が無い。取得に失敗した場合は「取得失敗」として続行する（スキップとは区別する）。
 
@@ -42,7 +43,7 @@ Step 3(daily-log 自体のスキップ) などその他のスキップは `Other
 
 ### Step 1: 情報収集（並列）
 
-以降のステップで使い回すため、最初に一括取得する。**4 ジョブを 1 メッセージ内で同時に発射する**(Bash 呼び出しは同一メッセージ内の並列 tool call、distill-gain-latest-info のみサブエージェント)。Slack 収集・GitHub 活動収集は**常に発射する**（Step 0 でスキップ対象にできない）。github-sync 計画生成のみ、Step 0 でスキップ選択されていれば発射しない。
+以降のステップで使い回すため、最初に一括取得する。**4 ジョブを 1 メッセージ内で同時に発射する**(Bash 呼び出しは同一メッセージ内の並列 tool call、distill-gain-latest-info のみサブエージェント)。Slack 収集・GitHub 活動収集は**常に発射する**（Step 0 でスキップ対象にできない）。github-sync 計画生成と distill-gain-latest-info watch は、Step 0 でスキップ選択されていれば発射しない。
 
 | ジョブ | 実行方法 | 結果の使い先 |
 |--------|----------|--------------|
@@ -68,6 +69,8 @@ Step 3(daily-log 自体のスキップ) などその他のスキップは `Other
 Slack + GitHub の結果を Step 2・3 で再利用する（二重取得しない）。
 
 ### Step 1.5: 情報収集の改善提案
+
+Step 0 で「情報収集」がスキップ選択されている場合は本ステップをスキップし、完了報告に「情報収集: スキップ」と記録する。
 
 Step 1 の `distill-gain-latest-info` が書いたダイジェスト
 (`$HOME/develop/distill-vault/情報収集/YYYY-MM-DD.md`) の `## 改善提案` 節を読む。
