@@ -33,12 +33,15 @@ user-invocable: true
 
 ## list — 一覧
 
-`cmb-sy` にアサインされた open issue を組織横断で取得し、sub-issue も含めて表示する。
+`cmb-sy` が抱えている open issue を組織横断で取得し、sub-issue も含めて表示する。「抱えている」は **assignee が `cmb-sy`、または author が `cmb-sy`** のどちらか。このスキルは assignee を付けないので、自分で作った issue は author でしか拾えない。
+
+`assignee:` と `author:` を 1 本の検索で「または」にはしない。2 本を投げ、`url` で重複を除いて合わせる:
 
 ```bash
-gh api graphql -f query='
+for q in "assignee:cmb-sy" "author:cmb-sy"; do
+gh api graphql -f query="
 {
-  search(query: "org:Resily assignee:cmb-sy is:open is:issue", type: ISSUE, first: 100) {
+  search(query: \"org:Resily $q is:open is:issue\", type: ISSUE, first: 100) {
     nodes {
       ... on Issue {
         number title url
@@ -47,6 +50,7 @@ gh api graphql -f query='
         subIssues(first: 50) {
           nodes {
             number title url state
+            author { login }
             assignees(first: 5) { nodes { login } }
             repository { nameWithOwner }
             milestone { dueOn }
@@ -55,12 +59,14 @@ gh api graphql -f query='
       }
     }
   }
-}'
+}"
+done
 ```
 
-- sub-issue は `state: OPEN` かつ `assignee: cmb-sy` のもののみ表示
+- sub-issue は `state: OPEN` かつ（assignee に `cmb-sy` を含む、または author が `cmb-sy`）のもののみ表示
+- 親と sub-issue の両方に出る issue は、親の下に 1 回だけ出す
 - リポジトリ単位でグルーピングし、`#{number} {タイトル}（期日: {milestone.dueOn or 未定}）` 形式で出す
-- 特定リポジトリに絞る場合: `gh issue list --repo Resily/{repo} --assignee cmb-sy --state open`
+- 特定リポジトリに絞る場合: `gh issue list --repo Resily/{repo} --assignee cmb-sy --state open` と `gh issue list --repo Resily/{repo} --author cmb-sy --state open` を合わせる
 
 引数で検索条件が渡された場合（例: ラベル・キーワード）は GraphQL の `search` クエリに反映する。
 

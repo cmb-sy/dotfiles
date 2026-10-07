@@ -82,7 +82,7 @@ Step 1 の `distill-gain-latest-info` が書いたダイジェスト
 
 ### Step 2: github-issues（open issue 確認）
 
-`/github-issues` スキルの `list` に従い、`cmb-sy` にアサインされた open issue を組織横断で取得して表示する（read-only）。
+`/github-issues` スキルの `list` に従い、`cmb-sy` が抱えている open issue（assignee または author が `cmb-sy`）を組織横断で取得して表示する（read-only）。
 
 - ファイル連携・task.md 同期は行わない（純粋な issue 一覧）
 - 当日の作業の文脈把握が目的。クローズ・作成等の操作が必要なら、ユーザーが明示的に `/github-issues` を別途実行する
@@ -268,7 +268,7 @@ Step 5 の翌日デイリー（既に存在していた場合も対象）の `##
 
 対象は**翌日デイリーにある issue リンクを持たないタスク行**（引き継いだもの・本人が手で書いたもののどちらも）。リンクが既にある行は触らない。0 件ならこの節をまるごと飛ばす。
 
-1. 対象を Step 2 の open issue 一覧（cmb-sy assigned。無ければここで `/github-issues` list）とタイトル・内容で意味的に照合する
+1. 対象を Step 2 の open issue 一覧（assignee または author が cmb-sy。無ければここで `/github-issues` list）とタイトル・内容で意味的に照合する
    - 一致する issue がある → タスク行に issue リンクを差し込む
    - 候補が複数ある・確信が持てない → `AskUserQuestion`（header: `issue紐付け`）で候補 issue（`#{number} {タイトル}`）を選択肢として提示して確定する。推測で紐付けを確定しない
 2. 一致する issue がないタスクは、`AskUserQuestion`（header: `新規issue`、multiSelect: `true`）で「どのタスクを新規 issue として作成しますか?」と尋ねる。選択肢は該当タスク名（4 件超は複数回に分割）
