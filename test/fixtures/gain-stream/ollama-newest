@@ -1,2 +1,51 @@
-<ul role="list"><li class="flex items-baseline"><a href="/library/tev1" class="group w-full"><div title="tev1"><h2><span>tev1</span></h2><p class="max-w-lg break-words text-neutral-800 text-md">A 4B decision model from Together AI for fast classification.</p></div><p><span>11 hours ago</span></p></a></li>
-<li class="flex items-baseline"><a href="/library/deepseek-v4.1-flash" class="group w-full"><div><p class="max-w-lg break-words text-neutral-800 text-md">DeepSeek-V4.1-Flash.</p></div><p><span>3 weeks ago</span></p></a></li></ul>
+<ul role="list" class="flex flex-col">
+    <li  class="flex items-baseline border-b border-neutral-200 py-6">
+      <a href="/library/mistral-large-4" class="group w-full space-y-5">
+        <div  title="mistral-large-4" class="flex flex-col">
+          <h2 class="truncate text-xl font-medium underline-offset-2 md:text-2xl"><div class="flex space-x-2 items-center"><span class="group-hover:underline truncate">mistral-large-4</span></div></h2>
+          <p class="max-w-lg break-words text-neutral-800 text-md">Mistral Large 4 is Mistral&#39;s open-weight, general-purpose multimodal model.</p>
+        </div>
+        <div class="flex flex-col space-y-2">
+          <p class="my-4 flex space-x-5 text-[13px] font-medium text-neutral-500">
+              <span class="flex items-center"><span >1,946</span><span class="hidden sm:flex">&nbsp;Pulls</span></span>
+              <span class="flex items-center" title="Oct 1, 2026 1:00 PM UTC">
+                <span class="hidden sm:flex">Updated&nbsp;</span>
+                <span >yesterday</span>
+              </span>
+          </p>
+        </div>
+      </a>
+    </li>
+    <li  class="flex items-baseline border-b border-neutral-200 py-6">
+      <a href="/library/tev1" class="group w-full space-y-5">
+        <div  title="tev1" class="flex flex-col">
+          <h2 class="truncate text-xl font-medium underline-offset-2 md:text-2xl"><div class="flex space-x-2 items-center"><span class="group-hover:underline truncate">tev1</span></div></h2>
+          <p class="max-w-lg break-words text-neutral-800 text-md">A 4B decision model from Together AI for fast classification.</p>
+        </div>
+        <div class="flex flex-col space-y-2">
+          <p class="my-4 flex space-x-5 text-[13px] font-medium text-neutral-500">
+              <span class="flex items-center" title="Oct 1, 2026 7:00 PM UTC">
+                <span class="hidden sm:flex">Updated&nbsp;</span>
+                <span >11 hours ago</span>
+              </span>
+          </p>
+        </div>
+      </a>
+    </li>
+    <li  class="flex items-baseline border-b border-neutral-200 py-6">
+      <a href="/library/deepseek-v4.1-flash" class="group w-full space-y-5">
+        <div  title="deepseek-v4.1-flash" class="flex flex-col">
+          <h2 class="truncate text-xl font-medium underline-offset-2 md:text-2xl"><div class="flex space-x-2 items-center"><span class="group-hover:underline truncate">deepseek-v4.1-flash</span></div></h2>
+          <p class="max-w-lg break-words text-neutral-800 text-md">DeepSeek-V4.1-Flash.</p>
+        </div>
+        <div class="flex flex-col space-y-2">
+          <p class="my-4 flex space-x-5 text-[13px] font-medium text-neutral-500">
+              <span class="flex items-center" title="Sep 11, 2026 6:00 AM UTC">
+                <span class="hidden sm:flex">Updated&nbsp;</span>
+                <span >3 weeks ago</span>
+              </span>
+          </p>
+        </div>
+      </a>
+    </li>
+</ul>

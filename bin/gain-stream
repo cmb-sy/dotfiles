@@ -366,22 +366,38 @@ AGO_UNIT = {"minute": 60, "hour": 3600, "day": 86400, "week": 7 * 86400,
             "month": 30 * 86400, "year": 365 * 86400}
 
 
+# The "Updated" span carries the exact time as a tooltip, e.g.
+# title="Oct 6, 2026 1:00 PM UTC"; its visible text can be "yesterday".
+OLLAMA_AT_RE = re.compile(r'title="([A-Z][a-z]{2} \d{1,2}, \d{4} \d{1,2}:\d{2} [AP]M) UTC"')
+
+
+def ollama_published(part):
+    at = OLLAMA_AT_RE.search(part)
+    if at:
+        try:
+            return dt.datetime.strptime(at.group(1), "%b %d, %Y %I:%M %p").replace(
+                tzinfo=dt.timezone.utc)
+        except ValueError:
+            pass
+    ago = AGO_RE.search(part)
+    return (now() - dt.timedelta(seconds=int(ago.group(1)) * AGO_UNIT[ago.group(2)])
+            if ago else None)
+
+
 def ollama_rows(raw):
     text = raw.decode("utf-8", errors="replace")
     out = []
     for part in text.split('<a href="/library/')[1:]:
         name = part.split('"', 1)[0]
         desc = re.search(r'<p class="max-w-lg[^"]*">(.*?)</p>', part, re.S)
-        ago = AGO_RE.search(part)
-        published = (now() - dt.timedelta(seconds=int(ago.group(1)) * AGO_UNIT[ago.group(2)])
-                     if ago else None)
+        published = ollama_published(part)
         title = name + (" — " + strip_html(desc.group(1)) if desc else "")
         out.append(make("discover", None, None, "ollama", title,
                         f"https://ollama.com/library/{name}", published))
     if not out:
         raise FetchError("no models parsed")
     # Undated rows are all dropped by the "since" window; with none dated the
-    # fetch would report ok with 0 items when the "N hours ago" wording changes.
+    # fetch would report ok with 0 items when the date markup changes.
     if not any(r["published"] for r in out):
         raise FetchError("no dates parsed")
     return out
@@ -447,7 +463,9 @@ def build_discover_jobs(cfg, since):
     if "ollama_newest" in d:
         limit = (d["ollama_newest"] or {}).get("limit", 10)
         def run(limit=limit):
-            return ollama_rows(fetch("ollama", "newest", "https://ollama.com/search?o=newest"))[:int(limit)]
+            # /search no longer shows dates; /library lists the same models with them.
+            return ollama_rows(fetch("ollama", "newest",
+                                     "https://ollama.com/library?sort=newest"))[:int(limit)]
         add("ollama", "newest", "since", False, run)
     if "hf_trending" in d:
         hf = d["hf_trending"] or {}
