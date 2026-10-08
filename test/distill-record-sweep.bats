@@ -169,9 +169,13 @@ mkdir -p "$dest"
 printf -- '---\nsession: %s\n---\n' "$sid" >"$dest/2026-01-01-0000.md"
 SH
   chmod +x "$TEST_TMPDIR/bin/claude"
+  # 対象.md の判定は distill 本体に任せる。ここでは「載っている」と答える偽物。
+  printf '#!/bin/sh\ncat >/dev/null\nexit 0\n' >"$TEST_TMPDIR/bin/allow-py"
+  chmod +x "$TEST_TMPDIR/bin/allow-py"
   local i
   for i in 1 2 3; do
     run env HOME="$FAKE_HOME" CALLS="$CALLS" PATH="$TEST_TMPDIR/bin:$PATH" \
+      DISTILL_RECORD_PY="$TEST_TMPDIR/bin/allow-py" \
       DISTILL_SWEEP_HOOK="$HOOK" DISTILL_SWEEP_ACCOUNTS="$ACCT_A" "$SWEEP"
     [ "$status" -eq 0 ]
     # 2 回目の前に管理用の行を足す。会話が伸びていないので書かせ直さない。

@@ -304,25 +304,31 @@ if [ "${edits:-0}" -lt "$MIN_EDITS" ]; then
   exit 0
 fi
 
-# --- 判定 5: 除外.md に載っていないか ---
-# 書いても表示されず、purge で消える。判定は distill 本体に任せる（自前で
-# 読むと解釈が食い違う）。distill を読めないときは記録を続ける。
-if [ -x "$DISTILL_PY" ]; then
-  "$DISTILL_PY" - "$VAULT" "$repo" >/dev/null 2>&1 <<'PY'
+# --- 判定 5: 対象.md に載っているか ---
+# 載っていないリポジトリは記録しない。判定は distill 本体に任せる（自前で
+# 読むと解釈が食い違う）。判定できないときも記録しない（迷ったら通さない）。
+# 判定できなかったセッションは remember しないので、直れば次の巡回で拾う。
+if [ ! -x "$DISTILL_PY" ]; then
+  say "${sid}: distill を読めないので記録しない（${repo}）"
+  exit 0
+fi
+"$DISTILL_PY" - "$VAULT" "$repo" >/dev/null 2>&1 <<'PY'
 import sys
-from distill.vault.exclude import load
+from distill.vault.allowlist import load
 sys.exit(0 if load(sys.argv[1]).has_project(sys.argv[2]) else 3)
 PY
-  case $? in
-    0)
-      say "${sid}: 除外.md に載っている。記録しない（${repo}）"
-      remember "$recorded"
-      exit 0
-      ;;
-    3) ;;
-    *) say "${sid}: 除外.md を判定できなかった。記録は続ける" ;;
-  esac
-fi
+case $? in
+  0) ;;
+  3)
+    say "${sid}: 対象.md に載っていない。記録しない（${repo}）"
+    remember "$recorded"
+    exit 0
+    ;;
+  *)
+    say "${sid}: 対象.md を判定できなかった。記録しない（${repo}）"
+    exit 0
+    ;;
+esac
 
 # --- 会話の抽出 ---
 # 名前に位置を入れる。先に渡した書き込みがまだ digest を読んでいても潰さない。

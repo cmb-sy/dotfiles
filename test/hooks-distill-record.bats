@@ -12,6 +12,11 @@ EXTRACT="${BATS_TEST_DIRNAME}/../claude/hooks/distill-transcript.py"
 
 setup() {
   make_tmpdir
+  # 対象.md の判定は distill 本体に任せる。既定は「載っている」と答える偽物。
+  mkdir -p "$TEST_TMPDIR/bin"
+  printf '#!/bin/sh\ncat >/dev/null\nexit 0\n' >"$TEST_TMPDIR/bin/allow-py"
+  chmod +x "$TEST_TMPDIR/bin/allow-py"
+  export DISTILL_RECORD_PY="$TEST_TMPDIR/bin/allow-py"
   GIT_REPO="$(make_tmp_git_repo)"
   TX="$TEST_TMPDIR/transcript.jsonl"
   # 編集 3 件ぶんのツール使用と、会話 1 往復を持つ transcript を作る。
@@ -342,26 +347,32 @@ append_turn() {
   [ "$(calls)" -eq 1 ]
 }
 
-@test "distill-record: 除外.md に載ったリポジトリは LLM を起こさない" {
-  # 判定は distill 本体に任せる。ここでは「除外」と答える偽物で、答えに
-  # 従うことだけを見る。
+@test "distill-record: 対象.md に載っていないリポジトリは LLM を起こさない" {
   mkdir -p "$TEST_TMPDIR/home"
   make_fake_claude
-  printf '#!/bin/sh\ncat >/dev/null\nexit 0\n' >"$TEST_TMPDIR/bin/distill-py"
+  printf '#!/bin/sh\ncat >/dev/null\nexit 3\n' >"$TEST_TMPDIR/bin/distill-py"
   chmod +x "$TEST_TMPDIR/bin/distill-py"
   DISTILL_RECORD_PY="$TEST_TMPDIR/bin/distill-py" run_hook_fg "c7" "$GIT_REPO" "$TX" || true
-  grep -qF "除外.md に載っている" "$TEST_TMPDIR/home/.distill/logs/record.log"
+  grep -qF "対象.md に載っていない" "$TEST_TMPDIR/home/.distill/logs/record.log"
   [ "$(calls)" -eq 0 ]
 }
 
-@test "distill-record: 除外を判定できなければ記録を続ける" {
+@test "distill-record: 対象.md を判定できなければ記録しない" {
   mkdir -p "$TEST_TMPDIR/home"
   make_fake_claude
   printf '#!/bin/sh\ncat >/dev/null\nexit 1\n' >"$TEST_TMPDIR/bin/distill-py"
   chmod +x "$TEST_TMPDIR/bin/distill-py"
   DISTILL_RECORD_PY="$TEST_TMPDIR/bin/distill-py" run_hook_fg "c8" "$GIT_REPO" "$TX" || true
   grep -qF "判定できなかった" "$TEST_TMPDIR/home/.distill/logs/record.log"
-  [ "$(calls)" -eq 1 ]
+  [ "$(calls)" -eq 0 ]
+}
+
+@test "distill-record: distill を読めなければ記録しない" {
+  mkdir -p "$TEST_TMPDIR/home"
+  make_fake_claude
+  DISTILL_RECORD_PY="$TEST_TMPDIR/bin/no-such-python" run_hook_fg "c18" "$GIT_REPO" "$TX" || true
+  grep -qF "distill を読めない" "$TEST_TMPDIR/home/.distill/logs/record.log"
+  [ "$(calls)" -eq 0 ]
 }
 
 @test "distill-record: cwd の無い入力は transcript の最後の cwd を使う" {
@@ -683,7 +694,7 @@ blocklist_must_block() {
 }
 
 @test "distill-record: worktree のセッションは元のリポジトリの名前で記録する" {
-  # 名前がスキルと食い違うと、除外の判定も記録の置き場所もずれる。
+  # 名前がスキルと食い違うと、対象.md の判定も記録の置き場所もずれる。
   mkdir -p "$TEST_TMPDIR/home"
   local wt="$TEST_TMPDIR/wt-123"
   git -C "$GIT_REPO" worktree add -q -b feature "$wt"
