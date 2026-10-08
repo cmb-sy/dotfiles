@@ -489,13 +489,13 @@ BRANCH=$(git branch --show-current | tr '/' '-')
 VAULT="$HOME/develop/distill-vault"
 ```
 
-**除外されているリポジトリでは記録しない。** `$VAULT/除外.md` の
-`## プロジェクト` 節に `$REPO` が挙がっていたら、そこで終了する。
+**対象.md に載っていないリポジトリでは記録しない。** `$VAULT/対象.md` の
+`## プロジェクト` 節に `$REPO` が無ければ、そこで終了する。
 
-**判定は distill 本体に任せ、`除外.md` を自前で読まない。** 見出しの表記ゆれ・
-`[[名前|表示]]`・末尾の `/` や `.md` を distill と別の解釈で読むと、食い違った
-ぶんだけ「書いた直後に purge で消える記録」ができる。distill を読めないときは
-記録を続ける（除外が効かないだけで、記録が失われることはない）。
+**判定は distill 本体に任せ、`対象.md` を自前で読まない。** 見出しの表記ゆれ・
+`[[名前|表示]]`・末尾の `/` や `.md` を distill と別の解釈で読むと、サイトに
+出ないものを書いたり、出すべきものを書き漏らしたりする。**distill を読めない
+ときも記録しない**（迷ったら通さない）。
 
 手順 1 の変数定義と**同じ Bash 呼び出しで**実行する。変数が空のまま流すと、
 判定が黙って素通りする。
@@ -505,19 +505,21 @@ DISTILL_PY="$HOME/develop/other/distill-of-ai-process/.venv/bin/python"
 "$DISTILL_PY" - "${VAULT:?手順 1 の変数を同じ呼び出しで定義する}" \
   "${REPO:?手順 1 の変数を同じ呼び出しで定義する}" <<'PY'
 import sys
-from distill.vault.exclude import load
-sys.exit(0 if load(sys.argv[1]).has_project(sys.argv[2]) else 3)
+from distill.vault.allowlist import load
+allow = load(sys.argv[1])
+if allow.broken:
+    sys.exit(4)
+sys.exit(0 if allow.has_project(sys.argv[2]) else 3)
 PY
 case $? in
-  0) echo "除外.md に載っているので記録しない: $REPO" >&2; exit 0 ;;
-  3) ;;
-  *) echo "除外.md を判定できなかった（distill を読めない）。記録は続ける" >&2 ;;
+  0) ;;
+  3) echo "対象.md に載っていないので記録しない: $REPO" >&2; exit 0 ;;
+  *) echo "対象.md を判定できなかったので記録しない: $REPO" >&2; exit 0 ;;
 esac
 ```
 
-書いたものが除外で消えるだけなら、書く手間も置き場所も無駄になる。
-**使い捨ての検証ディレクトリや手元の道具のリポジトリは、最初から書かない。**
-除外を外せば次のセッションから普通に記録される。
+新しいリポジトリを記録したくなったら、`対象.md` にディレクトリ名を足す。
+足した次のセッションから記録される。
 
 ```bash
 SID="$CLAUDE_CODE_SESSION_ID"

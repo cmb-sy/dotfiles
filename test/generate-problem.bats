@@ -36,17 +36,11 @@ setup() {
   grep -qF '材料を**すべて**読' "$SK"
 }
 
-@test "除外されたプロジェクトに紐付く学習メモを材料から外す" {
-  grep -qF '$HOME/develop/distill-vault/除外.md' "$SK"
-  grep -qF '`## プロジェクト` 見出しの下の箇条書き' "$SK"
-  grep -qF '末尾の `<!-- ... -->` は注釈なので取り除き' "$SK"
-  grep -qF '`[[ ]]`、末尾の `.md` と `/` も外して読む' "$SK"
-  grep -qF '除外されたプロジェクトに frontmatter の `project:` で紐付く学習メモは材料から外す' "$SK"
-}
-
-@test "除外.md の 記録 に書かれた記録を材料から外す" {
-  grep -qF '`## 記録` 見出しの下の箇条書き' "$SK"
-  grep -qF '`## 記録` に書かれた記録のファイルは材料から外す' "$SK"
+@test "対象.md に無いプロジェクトとそれに紐付く学習メモを材料にしない" {
+  grep -qF '$HOME/develop/distill-vault/対象.md' "$SK"
+  grep -qF '`対象.md` に載っていないプロジェクトに frontmatter の `project:` で紐付く学習メモは材料から外す' "$SK"
+  run grep -cF '除外.md' "$SK"
+  [ "$output" = "0" ]
 }
 
 @test "問題数は 1〜20 で、範囲外なら聞き直す" {
