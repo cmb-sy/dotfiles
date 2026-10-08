@@ -367,6 +367,32 @@ append_turn() {
   [ "$(calls)" -eq 0 ]
 }
 
+@test "distill-record: 対象.md が壊れていれば remember せず、直れば記録する" {
+  mkdir -p "$TEST_TMPDIR/home"
+  make_fake_claude
+  printf '#!/bin/sh\ncat >/dev/null\nexit 4\n' >"$TEST_TMPDIR/bin/distill-py"
+  chmod +x "$TEST_TMPDIR/bin/distill-py"
+  DISTILL_RECORD_PY="$TEST_TMPDIR/bin/distill-py" run_hook_fg "c19" "$GIT_REPO" "$TX" || true
+  grep -qF "c19: 対象.md を判定できなかった" "$TEST_TMPDIR/home/.distill/logs/record.log"
+  [ "$(calls)" -eq 0 ]
+  [ ! -e "$TEST_TMPDIR/home/.distill/state/record/c19" ]
+  # 直れば同じ区間を拾う。
+  run_hook_fg "c19" "$GIT_REPO" "$TX" || true
+  [ "$(calls)" -eq 1 ]
+}
+
+@test "distill-record: 本物の distill で対象.md が無ければ remember しない" {
+  # 判定の Python が「壊れている」と「載っていない」を分けることを見る。
+  local py="$HOME_BAK/develop/other/distill-of-ai-process/.venv/bin/python"
+  [ -x "$py" ] || skip "distill の venv が無い"
+  mkdir -p "$TEST_TMPDIR/home/develop/distill-vault"
+  make_fake_claude
+  DISTILL_RECORD_PY="$py" run_hook_fg "c20" "$GIT_REPO" "$TX" || true
+  grep -qF "c20: 対象.md を判定できなかった" "$TEST_TMPDIR/home/.distill/logs/record.log"
+  [ "$(calls)" -eq 0 ]
+  [ ! -e "$TEST_TMPDIR/home/.distill/state/record/c20" ]
+}
+
 @test "distill-record: distill を読めなければ記録しない" {
   mkdir -p "$TEST_TMPDIR/home"
   make_fake_claude

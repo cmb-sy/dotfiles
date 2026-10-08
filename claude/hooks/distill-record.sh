@@ -307,6 +307,8 @@ fi
 # --- 判定 5: 対象.md に載っているか ---
 # 載っていないリポジトリは記録しない。判定は distill 本体に任せる（自前で
 # 読むと解釈が食い違う）。判定できないときも記録しない（迷ったら通さない）。
+# 対象.md が無い・読めない・空のときも判定できない扱いにする（載っていない
+# 扱いにすると remember され、直した後もその区間を拾えない）。
 # 判定できなかったセッションは remember しないので、直れば次の巡回で拾う。
 if [ ! -x "$DISTILL_PY" ]; then
   say "${sid}: distill を読めないので記録しない（${repo}）"
@@ -315,7 +317,10 @@ fi
 "$DISTILL_PY" - "$VAULT" "$repo" >/dev/null 2>&1 <<'PY'
 import sys
 from distill.vault.allowlist import load
-sys.exit(0 if load(sys.argv[1]).has_project(sys.argv[2]) else 3)
+allow = load(sys.argv[1])
+if allow.broken:
+    sys.exit(4)
+sys.exit(0 if allow.has_project(sys.argv[2]) else 3)
 PY
 case $? in
   0) ;;
