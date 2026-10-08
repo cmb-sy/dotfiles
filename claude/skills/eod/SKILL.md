@@ -28,7 +28,7 @@ user-invocable: true
 
 **Q1**「スキップ対象を確認させてください。どのステップを飛ばしますか?」（header: `Skip対象`）— 順序固定:
   1. `Step 4: CloudLog 自動入力` — Playwright での CloudLog 入力をスキップ(稼働時間も尋ねない)
-  2. `github-sync` — GitHub Issue → TaskNotes 同期（Step 6.5）をスキップ
+  2. `github-sync` — GitHub Issue → TaskNotes 同期（Step 6.5）をスキップ。完了ノートなどの TaskNotes の削除も同期の中で行うため、次に同期するまで持ち越す
   3. `情報収集` — distill-gain-latest-info watch をスキップ(Step 1.5 も併せてスキップ)。今日のダイジェスト `情報収集/YYYY-MM-DD.md` が既にあれば、説明にその旨を添える
 
 **作業記録の収集（Step 1 の Slack / GitHub / セッションログ）はスキップできない。** 選択肢に出さず、`Other` で申し出があっても受けない。日報の `## 今日の成果` はこの 3 つが揃って初めて成立し、1 つ欠けるとその日の記録が恒久的に穴になる。収集は読み取りのみで副作用が無く、失敗しても後続を止めないため、飛ばす利得が無い。取得に失敗した場合は「取得失敗」として続行する（スキップとは区別する）。
@@ -297,7 +297,7 @@ git でコミットし、リモートへ push する。**最後に実行する**
 - github-issues: open issue 件数（assignee または author が cmb-sy）
 - distill-gain-latest-info watch: 観測したスコープとダイジェストの保存先（スキップ時は「スキップ」）
 - github-sync: 新規作成 / 更新 / done へ変更 の件数（スキップ時は「スキップ」）
-- github-sync の削除: Status 対象外 n 件 / 担当外れ n 件 / 完了から 14 日 n 件（※手書きあり n 件）
+- github-sync の削除: Status 対象外 n 件 / 担当外れ n 件 / PR 重複 n 件 / 完了から 14 日 n 件（※手書きあり n 件）（スキップ時は「スキップ」）
 - distill purge: 削除 n 件（記録 n / 情報収集 n）、参照ありで保護 n 件
 - CloudLog 入力件数・合計時間
 - 走査したセッション数・除外プロジェクト
