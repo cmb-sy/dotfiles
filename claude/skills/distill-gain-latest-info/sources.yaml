@@ -114,11 +114,11 @@ services:
 # cooldown). Each list is a set of queries for that source.
 topics:
   - name: ローカル LLM
-    note: Handy のローカル音声モードの後継モデル候補（小型・日本語・Mac で動く）
-    hn: ["ollama", "local llm", "gguf"]
+    note: ローカル LLM の新しいモデルと動向、クラウドの LLM（Claude・GPT など）と何が違うか（性能・用途・コスト・プライバシー）。Handy のローカル音声モードの後継候補（小型・日本語・Mac で動く）も含む
+    hn: ["ollama", "local llm", "gguf", "open weights", "llama.cpp"]
     hatena: ["ローカルLLM", "Ollama"]
-    qiita: ["ollama", "llm"]
-    zenn: ["ollama", "llm"]
+    qiita: ["ollama", "llm", "ローカルLLM"]
+    zenn: ["ollama", "llm", "localllm"]
     bluesky: ["ollama"]
   - name: Handy・音声入力
     note: 音声入力のワークフロー。Handy の代わりや周辺ツール
@@ -145,7 +145,7 @@ topics:
     zenn: ["databricks"]
   - name: AI セキュリティ
     note: プロンプトインジェクション・脱獄・モデル公開と安全性報告・MCP や Claude の変更・ガバナンス。動向レベルで要約し、実装の細部は書かない。実装トレンドは攻撃面の観点だけ
-    hn: ["ai security", "llm security", "ai safety"]
+    hn: ["ai security", "llm security", "ai safety", "rogue agent", "misalignment"]
     hatena: ["AIセキュリティ", "LLM セキュリティ", "MCP セキュリティ"]
     qiita: ["プロンプトインジェクション", "AIセキュリティ"]
     zenn: ["promptinjection", "aisafety"]
