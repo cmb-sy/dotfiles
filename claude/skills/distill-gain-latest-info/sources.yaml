@@ -115,7 +115,7 @@ services:
 topics:
   - name: ローカル LLM
     note: ローカル LLM の新しいモデルと動向、クラウドの LLM（Claude・GPT など）と何が違うか（性能・用途・コスト・プライバシー）。Handy のローカル音声モードの後継候補（小型・日本語・Mac で動く）も含む
-    hn: ["ollama", "local llm", "gguf", "open weights", "llama.cpp"]
+    hn: ["ollama", "local llm", "gguf", "open weights", "llama.cpp", "ollama cve"]
     hatena: ["ローカルLLM", "Ollama"]
     qiita: ["ollama", "llm", "ローカルLLM"]
     zenn: ["ollama", "llm", "localllm"]
