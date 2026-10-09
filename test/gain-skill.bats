@@ -326,6 +326,20 @@ setup() {
   [ "$output" = "0" ]
 }
 
+@test "毎日の話題と深掘りの分量が決まっている" {
+  grep -qF '2〜3 本、1 本 30〜50 行' "$SK"
+  grep -qF '1 件あたり 30〜50 行' "$SK"
+  run grep -cF '10〜20 行' "$SK"
+  [ "$output" = "0" ]
+}
+
+@test "前の日に出た話題は今日の流れの 1 本として書き、学習メモの材料は行頭の ### で集める" {
+  grep -qF '新しい事実が無ければ書かない' "$SK"
+  grep -qF '行頭の `### `（`^### `）' "$SK"
+  run grep -cF '「続報」として 1 行' "$SK"
+  [ "$output" = "0" ]
+}
+
 @test "業務の照らし合わせは対象.md の 5 プロジェクトと手元の環境を根拠にする" {
   grep -qF '$HOME/develop/distill-vault/対象.md' "$SK"
   grep -qF 'プロジェクト/<名前>/概要.md' "$SK"
