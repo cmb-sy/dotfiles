@@ -40,8 +40,7 @@ setup() {
 
 @test "ダイジェストの件数と深さが指定されている" {
   grep -qE '1〜3 ?件' "$SK"
-  grep -qF '自分の環境で何が変わるか' "$SK"
-  grep -qF '40 行まで' "$SK"
+  grep -qF '業務のどこに効くか' "$SK"
   n=$(grep -cE '3〜5 ?件を深掘り' "$SK") || n=0
   [ "$n" -eq 0 ]
 }
@@ -275,7 +274,7 @@ setup() {
 }
 
 @test "流れの層の節があり、採点しない" {
-  for h in '## 今日の流れ' '## 話題の技術' '## キャリア' '## 定点' '## 自分に効くもの'; do
+  for h in '## 今日の流れ' '## 話題の技術' '## キャリア' '## 定点'; do
     grep -qF "$h" "$SK"
   done
   grep -qF '流れの層の候補を `gain-score` に渡す' "$SK"
@@ -313,6 +312,37 @@ setup() {
 @test "news と engineers の scope が残っていない" {
   n=$(grep -cE '`(news|engineers)`' "$SK") || n=0
   [ "$n" -eq 0 ]
+}
+
+@test "毎日の部分は話題を絞り、前提から考察まで書く" {
+  for h in '## 今日の要点' '#### 前提' '#### 何が起きたか' '#### なぜ今か' '#### 業務のどこに効くか' '#### 考察'; do
+    grep -qF "$h" "$SK"
+  done
+  grep -qF '> [!abstract] 3 分で読む' "$SK"
+  grep -qF '| 仕事・環境 | 何に効くか | 根拠 |' "$SK"
+  grep -qF '【一次】' "$SK"
+  grep -qF '【推論】' "$SK"
+  run grep -cF '40 行' "$SK"
+  [ "$output" = "0" ]
+}
+
+@test "業務の照らし合わせは対象.md の 5 プロジェクトと手元の環境を根拠にする" {
+  grep -qF '$HOME/develop/distill-vault/対象.md' "$SK"
+  grep -qF 'プロジェクト/<名前>/概要.md' "$SK"
+}
+
+@test "選ばなかった候補は書かず、見出しには主題だけを書く" {
+  run grep -cE '選ばれなかった候補|選ばなかった候補' "$SK"
+  [ "$output" = "0" ]
+  grep -qF '見出しには主題だけを書く' "$SK"
+  grep -qF '## 深掘り' "$SK"
+  run grep -cF '## 深掘り 1' "$SK"
+  [ "$output" = "0" ]
+}
+
+@test "同じ週の深掘りの照合は新旧両方の見出しを読む" {
+  grep -qF '`## 深掘り` の下の `###`' "$SK"
+  grep -qF '`## 深掘り N: <主題>`' "$SK"
 }
 
 @test "深さ原則が自分に効く区分に限られている" {
