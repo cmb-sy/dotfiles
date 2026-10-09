@@ -261,6 +261,7 @@ discover_yaml() {
   zenn_trend: {limit: 10}
   qiita_popular: {limit: 10}
   github_new: {min_stars: 300}
+  github_surging: {min_stars: 2000}
   ollama_newest: {limit: 10}
   hf_trending: {filters: ["text-generation"], limit: 10}'
 }
@@ -269,7 +270,7 @@ discover_yaml() {
   discover_yaml
   run --separate-stderr "$GST" discover --since 2026-10-01T00:00:00Z "$Y"
   [ "$status" -eq 0 ]
-  for s in hn_front show_hn hatena_it zenn_trend qiita_popular github_new ollama hf; do
+  for s in hn_front show_hn hatena_it zenn_trend qiita_popular github_new github_surging ollama hf; do
     printf '%s\n' "$output" | grep -qF "\"source\": \"$s\""
   done
   printf '%s\n' "$output" | grep -qF '"url": "https://zenn.dev/mazrean/articles/bd9b"'
@@ -296,6 +297,16 @@ discover_yaml() {
   printf '%s\n' "$output" | grep -qF '"title": "tev1'
   n=$(printf '%s\n' "$output" | grep -c 'deepseek-v4.1-flash') || n=0
   [ "$n" -eq 0 ]
+}
+
+@test "discover: github_surging は作成日が古くても活発で星が多ければ拾う" {
+  discover_yaml
+  run --separate-stderr "$GST" discover --since 2026-10-01T00:00:00Z "$Y"
+  [ "$status" -eq 0 ]
+  # 2025 年作成でも拾う（created で切らない。星の下限は GitHub への検索条件で効く）
+  printf '%s\n' "$output" | grep -qF 'usestrix/strix'
+  printf '%s\n' "$output" | grep -qF '"source": "github_surging"'
+  printf '%s\n' "$output" | grep -qF '"published": "2025-08-05T21:28:30Z"'
 }
 
 @test "discover: Ollama は一覧の title にある絶対日時を読む（「yesterday」のように相対時刻が読めない行も落とさない）" {

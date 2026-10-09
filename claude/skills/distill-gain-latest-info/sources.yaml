@@ -144,10 +144,10 @@ topics:
     qiita: ["databricks"]
     zenn: ["databricks"]
   - name: AI セキュリティ
-    note: プロンプトインジェクション・脱獄・モデル公開と安全性報告・MCP や Claude の変更・ガバナンス。動向レベルで要約し、実装の細部は書かない。実装トレンドは攻撃面の観点だけ
-    hn: ["ai security", "llm security", "ai safety", "rogue agent", "misalignment"]
-    hatena: ["AIセキュリティ", "LLM セキュリティ", "MCP セキュリティ"]
-    qiita: ["プロンプトインジェクション", "AIセキュリティ"]
+    note: プロンプトインジェクション・脱獄・モデル公開と安全性報告・MCP や Claude の変更・ガバナンス。守る側と攻める側の両方の道具（AI 侵入テスト・レッドチームの自動化を含む）も対象にする。攻撃の手順そのものは書かず、何ができる道具か・業務のどこに効くか・安全面に絞る
+    hn: ["ai security", "llm security", "ai safety", "rogue agent", "misalignment", "ai pentest", "offensive security", "red team"]
+    hatena: ["AIセキュリティ", "LLM セキュリティ", "MCP セキュリティ", "ペネトレーションテスト", "AI ペンテスト"]
+    qiita: ["プロンプトインジェクション", "AIセキュリティ", "ペネトレーションテスト"]
     zenn: ["promptinjection", "aisafety"]
   - name: キャリア
     section: career
@@ -179,5 +179,6 @@ discover:
   zenn_trend: {limit: 10}
   qiita_popular: {limit: 10}
   github_new: {min_stars: 300}
+  github_surging: {min_stars: 2000}
   ollama_newest: {limit: 10}
   hf_trending: {filters: ["text-generation", "automatic-speech-recognition"], limit: 10}

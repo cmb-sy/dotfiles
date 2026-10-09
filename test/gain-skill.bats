@@ -444,9 +444,11 @@ yaml_py() {  # yaml_py <python expression over d> — prints the result
   yaml_py "[t['name'] for t in d.get('topics') or []]" | grep -qF 'AI セキュリティ'
 }
 
-@test "AI セキュリティの topic は動向レベルで要約すると説明に書いてある" {
+@test "AI セキュリティの topic は攻める側の道具も対象にし、攻撃の手順は書かないと説明に書いてある" {
   yaml_py "[t.get('note','') for t in d.get('topics') or [] if t['name'] == 'AI セキュリティ']" \
-    | grep -qF '動向レベル'
+    | grep -qF '攻める側'
+  yaml_py "[t.get('note','') for t in d.get('topics') or [] if t['name'] == 'AI セキュリティ']" \
+    | grep -qF '攻撃の手順そのものは書かず'
 }
 
 @test "cadence の値は monthly だけ" {

@@ -460,6 +460,22 @@ def build_discover_jobs(cfg, since):
                          r.get("stargazers_count"), (r.get("owner") or {}).get("login"))
                     for r in load_json(raw).get("items", [])]
         add("github_new", "new", "fixed14", True, run)
+    if "github_surging" in d:
+        # 作られてから時間が経っていても、今 活発で星が多いリポジトリを拾う。
+        # github_new は created で切るので「前からあって今使われ始めた道具」を
+        # 取りこぼす。こちらは pushed（最近の更新）と星の下限で切り、作成日は見ない。
+        stars = (d["github_surging"] or {}).get("min_stars", 2000)
+        def run(stars=stars):
+            after = (now() - dt.timedelta(days=14)).date().isoformat()
+            raw = fetch("github_surging", "surging", gh=["api", "-X", "GET", "search/repositories",
+                                                         "-f", f"q=pushed:>{after} stars:>{stars}",
+                                                         "-f", "sort=stars", "-f", "per_page=20"])
+            return [make("discover", None, None, "github_surging",
+                         f"{r.get('full_name')} — {r.get('description') or ''}".rstrip(" —"),
+                         r.get("html_url"), parse_date(r.get("created_at")),
+                         r.get("stargazers_count"), (r.get("owner") or {}).get("login"))
+                    for r in load_json(raw).get("items", [])]
+        add("github_surging", "surging", "none", False, run)
     if "ollama_newest" in d:
         limit = (d["ollama_newest"] or {}).get("limit", 10)
         def run(limit=limit):
@@ -483,7 +499,8 @@ def build_discover_jobs(cfg, since):
 
 def count_requests(cfg):
     qiita = sum(len(t.get("qiita") or []) for t in cfg.get("topics") or [])
-    gh_search = 1 if (cfg.get("discover") or {}).get("github_new") else 0
+    disc = cfg.get("discover") or {}
+    gh_search = sum(1 for k in ("github_new", "github_surging") if disc.get(k))
     total = sum(len(t.get(k) or []) for t in cfg.get("topics") or []
                 for k in SOURCE_KEYS)
     total += sum(bool(p.get(k)) for p in cfg.get("people") or []
@@ -497,7 +514,7 @@ PEOPLE_KEYS = ("blog", "bluesky", "mastodon")
 TOPIC_ALLOWED = ("name", "note", "section", *SOURCE_KEYS)
 PEOPLE_ALLOWED = ("name", "note", *PEOPLE_KEYS)
 DISCOVER_KEYS = ("hn_front", "show_hn", "hatena_it", "zenn_trend", "qiita_popular",
-                 "github_new", "ollama_newest", "hf_trending")
+                 "github_new", "github_surging", "ollama_newest", "hf_trending")
 
 
 def unknown_key(d, allowed):
