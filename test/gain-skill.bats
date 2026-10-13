@@ -509,6 +509,8 @@ yaml_py() {  # yaml_py <python expression over d> — prints the result
   grep -qF '出どころが 1 つでも' "$SK"
   grep -qF '説明文を読んで' "$SK"
   grep -qF '検索語の一致では決めない' "$SK"
+  grep -qF '人名・キャリアの項目は分野に含めない' "$SK"
+  grep -qF '2 つ以上の出どころに出た話題を優先する' "$SK"
 }
 
 @test "eod は今日のダイジェストが既にあれば情報収集を出さない" {
