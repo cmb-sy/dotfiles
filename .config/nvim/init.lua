@@ -593,6 +593,29 @@ require("lazy").setup({
     },
   },
   {
+    -- gitsigns shows one buffer's hunks; this shows every changed file side by
+    -- side, which is the view for reading what Claude Code did across a repo.
+    "sindrets/diffview.nvim",
+    dependencies = { "nvim-lua/plenary.nvim" },
+    cmd = { "DiffviewOpen", "DiffviewClose", "DiffviewFileHistory" },
+    keys = {
+      { "<leader>hD", "<Cmd>DiffviewOpen<CR>", desc = "Diff every changed file" },
+      { "<leader>hh", "<Cmd>DiffviewFileHistory %<CR>", desc = "History of this file" },
+      { "<leader>hH", "<Cmd>DiffviewFileHistory<CR>", desc = "History of this branch" },
+      { "<leader>hq", "<Cmd>DiffviewClose<CR>", desc = "Close the diff view" },
+    },
+  },
+  {
+    -- Git from inside the editor: status to stage by hunk, and blame to see
+    -- who last touched a line without leaving the file.
+    "tpope/vim-fugitive",
+    cmd = { "Git", "G", "Gdiffsplit", "Gread", "Gwrite" },
+    keys = {
+      { "<leader>hs", "<Cmd>Git<CR>", desc = "Git status" },
+      { "<leader>hb", "<Cmd>Git blame<CR>", desc = "Blame this file" },
+    },
+  },
+  {
     -- Draws markdown as headings, tables and rules instead of leaving ## and **
     -- as literal characters. Most of what gets read here is markdown -- SKILL.md,
     -- CLAUDE.md, docs -- so this lands on the common case.
@@ -655,6 +678,7 @@ require("lazy").setup({
         -- or not which-key gets around to processing this spec; only the group
         -- label comes from here.
         { "<leader>v", group = "vim コマンド" },
+        { "<leader>h", group = "git" },
 
         -- Built-in keys, described rather than remapped.
         { "i", desc = "入力を始める", mode = "n" },

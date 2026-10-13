@@ -118,3 +118,34 @@ INIT="$REPO_DIR/.config/nvim/init.lua"
     [ "$lwidth" -gt 30 ]
     [ "$spacing" -gt 3 ]
 }
+
+@test "git の群（<leader>h）に差分一覧・履歴・status・blame のキーがある" {
+    # Reading what Claude Code changed across files needs a view wider than one
+    # buffer's hunks. These sit beside gitsigns' hp/hd under the same prefix.
+    run bash -c "nvim --headless -c 'redir! > $BATS_TEST_TMPDIR/h.txt' \
+        -c 'silent nmap <Space>hD' -c 'silent nmap <Space>hh' -c 'silent nmap <Space>hH' \
+        -c 'silent nmap <Space>hq' -c 'silent nmap <Space>hs' -c 'silent nmap <Space>hb' \
+        -c 'redir END' -c 'qa' 2>&1"
+    [ "$status" -eq 0 ]
+    for k in hD hh hH hq hs hb; do
+        grep -qF "<Space>$k" "$BATS_TEST_TMPDIR/h.txt"
+    done
+}
+
+@test "diffview と fugitive のコマンドが読み込める" {
+    run bash -c "nvim --headless -c 'Lazy! load diffview.nvim vim-fugitive' \
+        -c 'lua vim.fn.writefile({ vim.fn.exists(\":DiffviewOpen\") .. \" \" .. vim.fn.exists(\":Git\") }, \"$BATS_TEST_TMPDIR/c.txt\")' \
+        -c 'qa' 2>&1"
+    [ "$status" -eq 0 ]
+    read -r dv fg < "$BATS_TEST_TMPDIR/c.txt"
+    [ "$dv" -eq 2 ]
+    [ "$fg" -eq 2 ]
+}
+
+@test "which-key が <leader>h を git の群として見せる" {
+    grep -qF '{ "<leader>h", group = "git" }' "$INIT"
+}
+
+@test "<leader>g は全文検索のまま" {
+    grep -qF '{ "<leader>g", "<Cmd>Telescope live_grep<CR>"' "$INIT"
+}
