@@ -708,10 +708,12 @@ GIT_DIFF_MAX_BYTES = 2_000_000
 # returns, so the stop can come after the deadline. Leave a full second of
 # margin for that.
 GIT_SCAN_DEADLINE_SEC = 4.0
-# A long added line is cut into pieces scanned as separate lines. Regex
-# backtracking never crosses a newline, so each regex call stays short and the
-# deadline interrupt lands in time. Pieces overlap so PII that straddles a cut
-# is still caught; every scanned pattern is shorter than the overlap.
+# A long added line is cut into pieces scanned as separate lines. Bounding
+# the run of characters one regex match reads over keeps each regex call
+# short, so the deadline interrupt is handled with little delay. Pieces
+# overlap, so for any pattern whose prefix and minimum length fit in the
+# overlap, a match that straddles a cut is still wholly inside some piece.
+# Patterns that can cross a newline still read on into the next piece.
 LONG_LINE_CHUNK = 4096
 LONG_LINE_OVERLAP = 128
 SCAN_TOO_SLOW = "差分の検査が時間内に終わらない。commit を分けてください"
@@ -749,8 +751,9 @@ def mode_git_commit_scan() -> int:
     if remaining <= 0:
         return block_unscanned_commit(SCAN_TOO_SLOW)
     previous = signal.signal(signal.SIGALRM, _raise_deadline)
-    signal.setitimer(signal.ITIMER_REAL, remaining)
     try:
+        # Armed inside try, so an alarm that fires right away is caught here.
+        signal.setitimer(signal.ITIMER_REAL, remaining)
         return scan_staged_diff()
     except ScanDeadline:
         return block_unscanned_commit(SCAN_TOO_SLOW)
@@ -759,6 +762,8 @@ def mode_git_commit_scan() -> int:
             f"差分を読めない（{type(e).__name__}）。個人情報を検査できないので止める"
         )
     finally:
+        # Ignore the alarm first, so it cannot fire between here and disarm.
+        signal.signal(signal.SIGALRM, signal.SIG_IGN)
         signal.setitimer(signal.ITIMER_REAL, 0)
         signal.signal(signal.SIGALRM, previous)
 
@@ -842,7 +847,12 @@ def scan_staged_diff() -> int:
 
 
 def main() -> int:
-    return mode_pre_tool_use(read_hook_input())
+    try:
+        return mode_pre_tool_use(read_hook_input())
+    except ScanDeadline:
+        # Last net: the alarm fired inside an except clause of the scan, so
+        # it escaped. Exiting 1 would let the commit through unscanned.
+        return block_unscanned_commit(SCAN_TOO_SLOW)
 
 
 if __name__ == "__main__":

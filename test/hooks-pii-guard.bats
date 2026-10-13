@@ -344,3 +344,26 @@ sys.exit(pg.mode_git_commit_scan())' "$GUARD"
   [ "$status" -eq 2 ]
   printf '%s\n' "$output" | grep -qF 'PII Guard'
 }
+
+@test "git commit: except 節の中で締め切りが来ても止める" {
+  # 想定外の例外を止める処理の最中に SIGALRM が届くと、ScanDeadline が外へ
+  # 抜けて exit 1 になる。PreToolUse では exit 1 は通すなので、検査されずに通る。
+  make_fake_git
+  run env PATH="$TEST_TMPDIR/bin:$PATH" FAKE_GIT_MODE=small PII_GUARD_LOG="$LOG" python3 -c '
+import importlib.util, io, sys
+spec = importlib.util.spec_from_file_location("pg", sys.argv[1])
+pg = importlib.util.module_from_spec(spec); spec.loader.exec_module(pg)
+def boom(*a, **k): raise ValueError("x")
+pg.scan_and_report = boom
+original = pg.block_unscanned_commit
+calls = []
+def late(reason):
+    calls.append(reason)
+    if len(calls) == 1:
+        raise pg.ScanDeadline
+    return original(reason)
+pg.block_unscanned_commit = late
+sys.stdin = io.StringIO(sys.argv[2])
+sys.exit(pg.main())' "$GUARD" "$payload_commit"
+  [ "$status" -eq 2 ]
+}
