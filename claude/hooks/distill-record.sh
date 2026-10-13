@@ -61,7 +61,9 @@ write_record() {
   : >"$mark"
   if [ "$continued" = 1 ]; then
     note="このセッションには既に記録があります。digest には前回の記録より後の\
-会話だけが入っています。既存の記録を土台にして、この続きを書き足してください。"
+会話だけが入っています。既存の記録の日付が今日なら、その記録を土台にして、この\
+続きを書き足してください。前の日の記録しか無ければ、今日の日付で新しい記録を作り、\
+この続きだけを書いてください（前の記録の名前は本文に文字で残し、[[ ]] にしない）。"
   fi
   local prompt="/distill-project 保存先=このプロジェクト。無人実行です。\
 この実行には会話がありません。会話の代わりに '${digest}' を読み、それを情報源として\
@@ -273,7 +275,11 @@ repo=$(/bin/bash "$HOOK_DIR/../../bin/distill-repo-name" "$repo_root" 2>/dev/nul
 [ -n "$repo" ] || repo=$(basename "$repo_root")
 
 # --- 判定 3: 前回の記録より後に会話があるか ---
-existing=$(records_of "$sid" | head -1)
+# 日をまたいだ続きは別のファイルになるので、1 セッションに記録が複数ありうる。
+# find は並び順を保証しないので、更新時刻が一番新しいものを選ぶ。
+existing=$(records_of "$sid" | while IFS= read -r f; do
+  printf '%s\t%s\n' "$(stat -f %m "$f")" "$f"
+done | sort -n | tail -1 | cut -f2-)
 if [ -z "$recorded" ]; then
   recorded=0
   if [ -n "$existing" ]; then

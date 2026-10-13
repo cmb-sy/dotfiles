@@ -231,8 +231,9 @@ append_turn() {
   local old
   old=$(grep -cF "直してください" "$TEST_TMPDIR/calls.digest.2" || true)
   [ "$old" -eq 0 ]
-  # 既存の記録へ書き足させる。新しい記録として書かせると 1 セッションが割れる。
+  # 同じ日なら既存の記録へ書き足させ、日をまたいだら今日の日付で新しく作らせる。
   grep -qF "続きを書き足して" "$TEST_TMPDIR/calls.prompt.2"
+  grep -qF "今日の日付で新しい記録を作り" "$TEST_TMPDIR/calls.prompt.2"
   local first
   first=$(grep -cF "続きを書き足して" "$TEST_TMPDIR/calls.prompt.1" || true)
   [ "$first" -eq 0 ]
@@ -319,6 +320,35 @@ append_turn() {
   old=$(grep -cF "書く前の依頼" "$TEST_TMPDIR/calls.digest.1" || true)
   [ "$old" -eq 0 ]
   grep -qF "続きを書き足して" "$TEST_TMPDIR/calls.prompt.1"
+}
+
+@test "distill-record: 同じセッションの記録が複数あれば、一番新しい記録の後の会話だけを見る" {
+  # 日をまたいだ続きは別のファイルになるので、1 セッションに記録が複数ありうる。
+  # 古い記録の更新時刻で区切ると、新しい記録に書き済みの会話をまた書かせる。
+  mkdir -p "$TEST_TMPDIR/home"
+  make_fake_claude
+  local repo rec tx="$TEST_TMPDIR/two.jsonl"
+  repo="$(basename "$GIT_REPO")"
+  rec="$TEST_TMPDIR/home/develop/distill-vault/プロジェクト/$repo/記録"
+  mkdir -p "$rec"
+  printf -- '---\nsession: c21\n---\n# 古い\n' >"$rec/2000-01-01-0000.md"
+  touch -t 200001010000 "$rec/2000-01-01-0000.md"
+  printf -- '---\nsession: c21\n---\n# 新しい\n' >"$rec/2020-01-01-0000.md"
+  touch -t 202001010000 "$rec/2020-01-01-0000.md"
+  {
+    printf '%s\n' '{"type":"user","timestamp":"2010-01-01T00:00:00.000Z","message":{"content":"二本の間の依頼"}}'
+    printf '%s\n' '{"type":"assistant","timestamp":"2010-01-01T00:00:01.000Z","message":{"content":[{"type":"tool_use","name":"Edit"}]}}'
+    printf '%s\n' '{"type":"user","timestamp":"2099-01-01T00:00:00.000Z","message":{"content":"新しい記録の後の依頼"}}'
+    printf '%s\n' '{"type":"assistant","timestamp":"2099-01-01T00:00:01.000Z","message":{"content":[{"type":"tool_use","name":"Edit"}]}}'
+    printf '%s\n' '{"type":"assistant","timestamp":"2099-01-01T00:00:02.000Z","message":{"content":[{"type":"tool_use","name":"Edit"}]}}'
+    printf '%s\n' '{"type":"assistant","timestamp":"2099-01-01T00:00:03.000Z","message":{"content":[{"type":"tool_use","name":"Write"}]}}'
+  } >"$tx"
+  run_hook_fg "c21" "$GIT_REPO" "$tx" || true
+  [ "$(calls)" -eq 1 ]
+  grep -qF "新しい記録の後の依頼" "$TEST_TMPDIR/calls.digest.1"
+  local mid
+  mid=$(grep -cF "二本の間の依頼" "$TEST_TMPDIR/calls.digest.1" || true)
+  [ "$mid" -eq 0 ]
 }
 
 @test "distill-record: SDK からの無人実行は記録しない" {
