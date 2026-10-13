@@ -149,3 +149,49 @@ INIT="$REPO_DIR/.config/nvim/init.lua"
 @test "<leader>g は全文検索のまま" {
     grep -qF '{ "<leader>g", "<Cmd>Telescope live_grep<CR>"' "$INIT"
 }
+
+@test "左の列で file tree の下に Changes（git_status）が並ぶ" {
+    # Both neo-tree views must land in the same left column, files on top and
+    # changes below, so what moved is visible beside the tree without switching.
+    cd "$REPO_DIR"
+    run bash -c "nvim --headless -c 'lua require(\"lazy\").load({ plugins = { \"edgy.nvim\" } }); require(\"edgy\").open(\"left\")' \
+        -c 'lua vim.defer_fn(function()
+              local out = {}
+              for _, w in ipairs(vim.api.nvim_list_wins()) do
+                local b = vim.api.nvim_win_get_buf(w)
+                local src = vim.b[b].neo_tree_source
+                if src then
+                  local p = vim.api.nvim_win_get_position(w)
+                  table.insert(out, src .. \" \" .. p[1] .. \" \" .. p[2])
+                end
+              end
+              vim.fn.writefile(out, \"$BATS_TEST_TMPDIR/e.txt\")
+              vim.cmd(\"qa!\")
+            end, 2000)' 2>&1"
+    [ "$status" -eq 0 ]
+    read -r _ frow fcol < <(grep '^filesystem ' "$BATS_TEST_TMPDIR/e.txt")
+    read -r _ grow gcol < <(grep '^git_status ' "$BATS_TEST_TMPDIR/e.txt")
+    [ -n "$frow" ] && [ -n "$grow" ]
+    [ "$fcol" -eq "$gcol" ]
+    [ "$frow" -lt "$grow" ]
+}
+
+@test "<leader>e は左の列（file tree と Changes）をまとめて開閉する" {
+    grep -qF '{ "<leader>e", function() require("edgy").toggle("left") end' "$INIT"
+}
+
+@test "nvim . で起動しても Changes が file tree の下に出る" {
+    cd "$REPO_DIR"
+    run bash -c "nvim --headless . -c 'lua vim.defer_fn(function()
+              local out = {}
+              for _, w in ipairs(vim.api.nvim_list_wins()) do
+                local src = vim.b[vim.api.nvim_win_get_buf(w)].neo_tree_source
+                if src then table.insert(out, src) end
+              end
+              vim.fn.writefile(out, \"$BATS_TEST_TMPDIR/d.txt\")
+              vim.cmd(\"qa!\")
+            end, 2500)' 2>&1"
+    [ "$status" -eq 0 ]
+    grep -qx 'filesystem' "$BATS_TEST_TMPDIR/d.txt"
+    grep -qx 'git_status' "$BATS_TEST_TMPDIR/d.txt"
+}

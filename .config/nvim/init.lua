@@ -490,27 +490,32 @@ require("lazy").setup({
       "nvim-tree/nvim-web-devicons",
     },
     cmd = "Neotree",
-    keys = {
-      { "<leader>e", "<Cmd>Neotree toggle<CR>", desc = "Toggle file tree" },
-    },
-    -- Lazy-loading on the command and the key alone means neo-tree is not
-    -- loaded yet when nvim starts, so it cannot take netrw's place and
-    -- `nvim .` falls through to the old directory listing. Load it eagerly
-    -- for that one case: the argument is a directory.
-    --
-    -- Then lay the window out by hand rather than letting the tree take over
-    -- the only window. Preview draws into a neighbouring window and will not
-    -- conjure one, so a lone tree has nowhere to show the file under the
-    -- cursor. Putting an empty buffer on the right first gives it a target.
+    -- <leader>e lives on edgy.nvim below, which opens this tree together with
+    -- its git_status view as one left column.
+    -- `nvim .`: swap the directory buffer for an empty one and open the left
+    -- column (file tree over changes) through edgy.nvim. Letting neo-tree
+    -- hijack the directory window instead fights edgy, which rebuilds that
+    -- window and leaves neo-tree's follow-up pointing at a closed one. The
+    -- empty buffer also gives preview the neighbouring window it draws into.
     init = function()
       if vim.fn.argc(-1) ~= 1 then
         return
       end
-      local stat = (vim.uv or vim.loop).fs_stat(vim.fn.argv(0))
+      local dir = vim.fn.argv(0)
+      local stat = (vim.uv or vim.loop).fs_stat(dir)
       if not (stat and stat.type == "directory") then
         return
       end
-      require("lazy").load({ plugins = { "neo-tree.nvim" } })
+      vim.api.nvim_create_autocmd("VimEnter", {
+        once = true,
+        callback = function()
+          vim.cmd.cd(vim.fn.fnameescape(dir))
+          local dir_buf = vim.api.nvim_get_current_buf()
+          vim.cmd("enew")
+          pcall(vim.api.nvim_buf_delete, dir_buf, { force = true })
+          require("edgy").open("left")
+        end,
+      })
     end,
     opts = {
       -- Replaces netrw, so `nvim .` opens the tree instead of the old
@@ -590,6 +595,40 @@ require("lazy").setup({
         map("<leader>hp", gs.preview_hunk, "Preview this hunk")
         map("<leader>hd", gs.diffthis, "Diff this file against HEAD")
       end,
+    },
+  },
+  {
+    -- Stacks two neo-tree views in one left column: the file tree on top and
+    -- the changed files (git_status) below, so what moved stays in view while
+    -- browsing, the way diffview's file panel shows its Changes list.
+    "folke/edgy.nvim",
+    event = "VeryLazy",
+    keys = {
+      { "<leader>e", function() require("edgy").toggle("left") end, desc = "Toggle file tree and changes" },
+    },
+    init = function()
+      -- Opening the column would otherwise push the main split sideways.
+      vim.opt.splitkeep = "screen"
+    end,
+    opts = {
+      options = { left = { size = 38 } },
+      left = {
+        {
+          title = "Files",
+          ft = "neo-tree",
+          filter = function(buf) return vim.b[buf].neo_tree_source == "filesystem" end,
+          pinned = true,
+          open = "Neotree position=left filesystem",
+          size = { height = 0.6 },
+        },
+        {
+          title = "Changes",
+          ft = "neo-tree",
+          filter = function(buf) return vim.b[buf].neo_tree_source == "git_status" end,
+          pinned = true,
+          open = "Neotree position=right git_status",
+        },
+      },
     },
   },
   {
