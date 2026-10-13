@@ -32,3 +32,20 @@ setup() {
   grep -qF '80 字を超える文' "$DP"
   grep -qF '2 節以上に重なる判断' "$DP"
 }
+
+@test "情報収集のダイジェストは共通の規則を参照し、です・ます で書く" {
+  GL="$REPO_DIR/claude/skills/distill-gain-latest-info/SKILL.md"
+  grep -qF '_shared/references/distill-writing.md' "$GL"
+  grep -qF 'です・ます' "$GL"
+}
+
+@test "情報収集の Jev の採点の有無は本文ではなく改善提案に書く" {
+  GL="$REPO_DIR/claude/skills/distill-gain-latest-info/SKILL.md"
+  ! grep -qF '`## 深掘り` の見出しの直後に「Jev 未設定（採点なし）」' "$GL"
+  grep -qF '`## 改善提案` に「Jev 未設定（採点なし）」' "$GL"
+}
+
+@test "情報収集の今日の要点は鍵の用語に一言注釈を付ける" {
+  GL="$REPO_DIR/claude/skills/distill-gain-latest-info/SKILL.md"
+  grep -qF '今日の要点** の各行は、鍵の用語に一言注釈を付ける' "$GL"
+}
