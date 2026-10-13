@@ -528,3 +528,11 @@ yaml_py() {  # yaml_py <python expression over d> — prints the result
   grep -qF 'front matter に `type: gain-digest`' "$f"
   grep -qF '`## Research:` だけのファイル' "$f"
 }
+
+@test "攻撃にも使える道具の話題は、素材にある悪用の報告を danger で書き、手順は書かない" {
+  # 素材に悪用の報告があっても書かれないと、「探していない」と「無かった」の区別がつかない
+  grep -qF '> [!danger] 悪用の報告' "$SK"
+  grep -qF '【未確認】' "$SK"
+  grep -qF '悪用の報告: 素材には無い' "$SK"
+  grep -qF '手順・コマンド・回避の方法は書かない' "$SK"
+}
