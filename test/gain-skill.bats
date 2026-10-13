@@ -505,7 +505,7 @@ yaml_py() {  # yaml_py <python expression over d> — prints the result
   # 2 つ以上の出どころという条件だけでは、GitHub の新着にしか出ない
   # 関心の分野のリポジトリが毎回落ちる。分野に当たるかは検索語ではなく
   # 説明文で決める（中国語などの説明でも読む）。
-  grep -qF '`github_new`・`github_surging`' "$SK"
+  grep -qF '`github_new`・`github_trending`' "$SK"
   grep -qF '出どころが 1 つでも' "$SK"
   grep -qF '説明文を読んで' "$SK"
   grep -qF '検索語の一致では決めない' "$SK"

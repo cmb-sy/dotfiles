@@ -1,0 +1,31 @@
+<html><body>
+<article class="Box-row">
+  <h2 class="h3 lh-condensed">
+    <a data-hydro-click="{&quot;x&quot;:1}" href="/example/rev-tool" data-view-component="true" class="Link"><svg/>
+      <span data-view-component="true" class="text-normal">
+        example /
+</span>
+      rev-tool</a>  </h2>
+    <p class="col-9 color-fg-muted my-1 tmp-pr-4">
+      Reverse engineer anything with agents &amp; MCP.
+    </p>
+  <div class="f6 color-fg-muted mt-2">
+      <a href="/example/rev-tool/stargazers" class="Link">
+        171,282</a>
+      <span data-view-component="true" class="d-inline-block float-sm-right">
+        <svg/>
+        45,327 stars today
+      </span>
+  </div>
+</article>
+<article class="Box-row">
+  <h2 class="h3 lh-condensed">
+    <a href="/other/no-desc" class="Link"><svg/>
+      <span class="text-normal">other /</span> no-desc</a>  </h2>
+  <div class="f6 color-fg-muted mt-2">
+      <span class="d-inline-block float-sm-right">
+        1 star today
+      </span>
+  </div>
+</article>
+</body></html>

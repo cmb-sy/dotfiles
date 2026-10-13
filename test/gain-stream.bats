@@ -261,7 +261,7 @@ discover_yaml() {
   zenn_trend: {limit: 10}
   qiita_popular: {limit: 10}
   github_new: {min_stars: 300}
-  github_surging: {min_stars: 2000}
+  github_trending: {}
   ollama_newest: {limit: 10}
   hf_trending: {filters: ["text-generation"], limit: 10}'
 }
@@ -270,7 +270,7 @@ discover_yaml() {
   discover_yaml
   run --separate-stderr "$GST" discover --since 2026-10-01T00:00:00Z "$Y"
   [ "$status" -eq 0 ]
-  for s in hn_front show_hn hatena_it zenn_trend qiita_popular github_new github_surging ollama hf; do
+  for s in hn_front show_hn hatena_it zenn_trend qiita_popular github_new github_trending ollama hf; do
     printf '%s\n' "$output" | grep -qF "\"source\": \"$s\""
   done
   printf '%s\n' "$output" | grep -qF '"url": "https://zenn.dev/mazrean/articles/bd9b"'
@@ -299,14 +299,67 @@ discover_yaml() {
   [ "$n" -eq 0 ]
 }
 
-@test "discover: github_surging は作成日が古くても活発で星が多ければ拾う" {
+@test "discover: github_trending は今日増えたスター数を点数にして拾う" {
   discover_yaml
   run --separate-stderr "$GST" discover --since 2026-10-01T00:00:00Z "$Y"
   [ "$status" -eq 0 ]
-  # 2025 年作成でも拾う（created で切らない。星の下限は GitHub への検索条件で効く）
-  printf '%s\n' "$output" | grep -qF 'usestrix/strix'
-  printf '%s\n' "$output" | grep -qF '"source": "github_surging"'
-  printf '%s\n' "$output" | grep -qF '"published": "2025-08-05T21:28:30Z"'
+  printf '%s\n' "$output" | grep -qF '"source": "github_trending", "title": "example/rev-tool — Reverse engineer anything with agents & MCP.", "url": "https://github.com/example/rev-tool", "published": null, "score": 45327, "author": "example"}'
+  # 説明の無いリポジトリ・「1 star today」の単数形も落とさない
+  printf '%s\n' "$output" | grep -qF '"title": "other/no-desc", "url": "https://github.com/other/no-desc", "published": null, "score": 1'
+}
+
+@test "discover: github_trending の画面の形が変わって読めなければ、0 件で成功にせず失敗にする" {
+  fx="$BATS_TEST_TMPDIR/fx"
+  mkdir -p "$fx"
+  export GAIN_STREAM_FIXTURES="$fx"
+  yaml 'discover:
+  github_trending: {}'
+
+  printf '%s\n' '<html><body><div class="new-layout">x</div></body></html>' > "$fx/github_trending-daily"
+  run --separate-stderr "$GST" discover --since 2026-10-01T00:00:00Z "$Y"
+  [ "$status" -eq 1 ]
+  printf '%s\n' "$stderr" | grep -qF '"error": "no repos parsed"'
+
+  printf '%s\n' '<article class="Box-row"><h2><a href="/a/b">a / b</a></h2></article>' > "$fx/github_trending-daily"
+  run --separate-stderr "$GST" discover --since 2026-10-01T00:00:00Z "$Y"
+  [ "$status" -eq 1 ]
+  printf '%s\n' "$stderr" | grep -qF '"error": "no stars today parsed"'
+}
+
+@test "discover: github_trending の点数は説明文に書かれた数ではなく、星の欄の数を取る" {
+  fx="$BATS_TEST_TMPDIR/fx"
+  mkdir -p "$fx"
+  export GAIN_STREAM_FIXTURES="$fx"
+  yaml 'discover:
+  github_trending: {}'
+  cat > "$fx/github_trending-daily" <<'HTML'
+<article id="x" class="Box-row extra">
+  <h2 class="h3"><a href="/x/y">x / y</a></h2>
+  <p class="col-9 color-fg-muted">Gets 999 stars today</p>
+  <div class="f6"><span class="float-sm-right">3 stars today</span></div>
+</article>
+<article class="Box-row">
+  <h2 class="h3"><a href="/../etc">.. / etc</a></h2>
+  <div class="f6"><span>5 stars today</span></div>
+</article>
+HTML
+  run --separate-stderr "$GST" discover --since 2026-10-01T00:00:00Z "$Y"
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$output" | grep -qF '"url": "https://github.com/x/y", "published": null, "score": 3,'
+  n=$(printf '%s\n' "$output" | grep -c 'etc') || n=0
+  [ "$n" -eq 0 ]
+}
+
+@test "discover: github_trending は閉じの無い h2 が大量にあっても固まらない" {
+  fx="$BATS_TEST_TMPDIR/fx"
+  mkdir -p "$fx"
+  export GAIN_STREAM_FIXTURES="$fx"
+  yaml 'discover:
+  github_trending: {}'
+  { printf '<article class="Box-row">'; python3 -c 'print("<h2 " * 250000)'; } > "$fx/github_trending-daily"
+  run --separate-stderr timeout 10 "$GST" discover --since 2026-10-01T00:00:00Z "$Y"
+  [ "$status" -eq 1 ]
+  printf '%s\n' "$stderr" | grep -qF '"error": "no repos parsed"'
 }
 
 @test "discover: Ollama は一覧の title にある絶対日時を読む（「yesterday」のように相対時刻が読めない行も落とさない）" {

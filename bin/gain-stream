@@ -403,6 +403,42 @@ def ollama_rows(raw):
     return out
 
 
+def trending_rows(raw):
+    # API ではなく HTML なので、画面が変わると読めなくなる。0 件で成功にせず、
+    # 形が変わったことを失敗として返す。
+    text = raw.decode("utf-8", errors="replace")
+    out = []
+    # class に値が足されても切り出せるよう、属性の並びに依らず Box-row を探す。
+    for block in re.split(r'<article\b[^>]*\bclass="[^"]*\bBox-row\b[^"]*"', text)[1:]:
+        block = block.split("</article>", 1)[0]
+        # 正規表現の .*? で h2 を探すと、閉じの無い <h2 が多いページで手間が
+        # 件数の 2 乗になり固まる。文字列の検索で 1 回だけ切り出す。
+        start = block.find("<h2")
+        end = block.find("</h2>", start) if start >= 0 else -1
+        if end < 0:
+            continue
+        name = re.search(r'href="/([\w-][\w.-]*/[\w-][\w.-]*)"', block[start:end])
+        if not name:
+            continue
+        repo = name.group(1)
+        rest = block[end:]
+        m = re.search(r'<p class="col-9[^"]*">(.*?)</p>', rest, re.S)
+        desc = html.unescape(re.sub(r"<[^>]+>", "", m.group(1))) if m else ""
+        # 説明文は作者が書けるので、そこに書かれた「N stars today」を点数にしない。
+        # 星の欄は説明より後ろにある。
+        tail = rest[m.end():] if m else rest
+        today = re.search(r"([\d,]+) stars? today", tail)
+        out.append(make("discover", None, None, "github_trending",
+                        f"{repo} — {desc}".rstrip(" —"), f"https://github.com/{repo}", None,
+                        int(today.group(1).replace(",", "")) if today else None,
+                        repo.split("/", 1)[0]))
+    if not out:
+        raise FetchError("no repos parsed")
+    if not any(r["score"] is not None for r in out):
+        raise FetchError("no stars today parsed")
+    return out
+
+
 def build_discover_jobs(cfg, since):
     d = cfg.get("discover") or {}
     jobs = []
@@ -460,22 +496,14 @@ def build_discover_jobs(cfg, since):
                          r.get("stargazers_count"), (r.get("owner") or {}).get("login"))
                     for r in load_json(raw).get("items", [])]
         add("github_new", "new", "fixed14", True, run)
-    if "github_surging" in d:
-        # 作られてから時間が経っていても、今 活発で星が多いリポジトリを拾う。
-        # github_new は created で切るので「前からあって今使われ始めた道具」を
-        # 取りこぼす。こちらは pushed（最近の更新）と星の下限で切り、作成日は見ない。
-        stars = (d["github_surging"] or {}).get("min_stars", 2000)
-        def run(stars=stars):
-            after = (now() - dt.timedelta(days=14)).date().isoformat()
-            raw = fetch("github_surging", "surging", gh=["api", "-X", "GET", "search/repositories",
-                                                         "-f", f"q=pushed:>{after} stars:>{stars}",
-                                                         "-f", "sort=stars", "-f", "per_page=20"])
-            return [make("discover", None, None, "github_surging",
-                         f"{r.get('full_name')} — {r.get('description') or ''}".rstrip(" —"),
-                         r.get("html_url"), parse_date(r.get("created_at")),
-                         r.get("stargazers_count"), (r.get("owner") or {}).get("login"))
-                    for r in load_json(raw).get("items", [])]
-        add("github_surging", "surging", "none", False, run)
+    if "github_trending" in d:
+        # 伸び始めた道具を拾う。GitHub の検索 API には伸びで並べる手段が無く、
+        # 星の多い順では累計の大きい常連で埋まる。Trending のページは「今日
+        # 増えた星の数」で並ぶので、それを点数にする。
+        def run():
+            return trending_rows(fetch("github_trending", "daily",
+                                       "https://github.com/trending?since=daily"))
+        add("github_trending", "daily", "none", False, run)
     if "ollama_newest" in d:
         limit = (d["ollama_newest"] or {}).get("limit", 10)
         def run(limit=limit):
@@ -500,7 +528,7 @@ def build_discover_jobs(cfg, since):
 def count_requests(cfg):
     qiita = sum(len(t.get("qiita") or []) for t in cfg.get("topics") or [])
     disc = cfg.get("discover") or {}
-    gh_search = sum(1 for k in ("github_new", "github_surging") if disc.get(k))
+    gh_search = 1 if disc.get("github_new") else 0
     total = sum(len(t.get(k) or []) for t in cfg.get("topics") or []
                 for k in SOURCE_KEYS)
     total += sum(bool(p.get(k)) for p in cfg.get("people") or []
@@ -514,7 +542,7 @@ PEOPLE_KEYS = ("blog", "bluesky", "mastodon")
 TOPIC_ALLOWED = ("name", "note", "section", *SOURCE_KEYS)
 PEOPLE_ALLOWED = ("name", "note", *PEOPLE_KEYS)
 DISCOVER_KEYS = ("hn_front", "show_hn", "hatena_it", "zenn_trend", "qiita_popular",
-                 "github_new", "github_surging", "ollama_newest", "hf_trending")
+                 "github_new", "github_trending", "ollama_newest", "hf_trending")
 
 
 def unknown_key(d, allowed):

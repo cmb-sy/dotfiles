@@ -179,6 +179,6 @@ discover:
   zenn_trend: {limit: 10}
   qiita_popular: {limit: 10}
   github_new: {min_stars: 300}
-  github_surging: {min_stars: 2000}
+  github_trending: {}
   ollama_newest: {limit: 10}
   hf_trending: {filters: ["text-generation", "automatic-speech-recognition"], limit: 10}
