@@ -218,8 +218,6 @@ case "$FAKE_GIT_MODE" in
   small) printf 'diff --git a/n.txt b/n.txt\n+++ b/n.txt\n+hello plain words only\n' ;;
   binary) printf 'diff --git a/n.txt b/n.txt\n+++ b/n.txt\n+abc\377\376def\n' ;;
   file)  cat "$FAKE_GIT_DIFF" ;;
-  longline) printf 'diff --git a/n.txt b/n.txt\n+++ b/n.txt\n+'
-            head -c 200000 /dev/zero | tr '\0' '1'; printf '\n' ;;
 esac
 SH
   chmod +x "$TEST_TMPDIR/bin/git"
@@ -300,15 +298,49 @@ sys.exit(pg.mode_git_commit_scan())' "$GUARD"
 }
 
 @test "git commit: 1 回の検査が長引いても締め切りで割り込んで止める" {
-  # 長い数字列の 1 行で検査の正規表現が二乗に近く伸びる。ファイルごとの
-  # 確認だけでは 1 回の検査に割り込めず、フック全体の上限で kill されて通る。
+  # ファイルごとの確認だけでは 1 回の検査に割り込めず、フック全体の上限で
+  # kill されて通る。終わらない検査を差し込み、SIGALRM で割り込めるかを見る。
   make_fake_git
   ms() { python3 -c 'import time; print(int(time.time()*1000))'; }
   start=$(ms)
-  run run_commit_guard longline
+  run env PATH="$TEST_TMPDIR/bin:$PATH" FAKE_GIT_MODE=small PII_GUARD_LOG="$LOG" timeout 5 python3 -c '
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("pg", sys.argv[1])
+pg = importlib.util.module_from_spec(spec); spec.loader.exec_module(pg)
+def forever(*a, **k):
+    while True:
+        pass
+pg.scan_and_report = forever
+sys.exit(pg.mode_git_commit_scan())' "$GUARD"
   elapsed=$(( $(ms) - start ))
   # timeout 5 の中なので status 2 自体が 5 秒未満の証拠。経過もミリ秒で見る。
   [ "$status" -eq 2 ]
   [ "$elapsed" -lt 5000 ]
   printf '%s\n' "$output" | grep -qF '時間内に終わらない'
+}
+
+@test "git commit: 1,900,000 文字の英字 1 行でも 5 秒より前に止める" {
+  # 長い英字の連なりは正規表現の C 実装の中で後戻りが続き、SIGALRM が届いても
+  # その呼び出しが終わるまで割り込めない。行を断片に切っていれば間に合う。
+  make_fake_git
+  export FAKE_GIT_DIFF="$TEST_TMPDIR/alpha.diff"
+  python3 -c 'import sys; sys.stdout.write("diff --git a/n.txt b/n.txt\n+++ b/n.txt\n+" + "a" * 1900000 + "\n")' > "$FAKE_GIT_DIFF"
+  ms() { python3 -c 'import time; print(int(time.time()*1000))'; }
+  start=$(ms)
+  run run_commit_guard file
+  elapsed=$(( $(ms) - start ))
+  echo "elapsed_ms=$elapsed" >&3
+  [ "$status" -eq 2 ]
+  [ "$elapsed" -lt 5000 ]
+}
+
+@test "git commit: 長い 1 行で断片の境界をまたぐ個人情報も止める" {
+  # 断片は 4096 文字。重なりが無いと @ の直後で切れ、前後どちらの断片にも
+  # メールアドレスの形が残らない位置に置く。
+  make_fake_git
+  export FAKE_GIT_DIFF="$TEST_TMPDIR/boundary.diff"
+  ADDR="$addr" python3 -c 'import os,sys; a=os.environ["ADDR"]; p="z "*2042; assert len(p)+a.index("@")+1==4096; sys.stdout.write("diff --git a/n.txt b/n.txt\n+++ b/n.txt\n+" + p + a + " " + "z "*3000 + "\n")' > "$FAKE_GIT_DIFF"
+  run run_commit_guard file
+  [ "$status" -eq 2 ]
+  printf '%s\n' "$output" | grep -qF 'PII Guard'
 }

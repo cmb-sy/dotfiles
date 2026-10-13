@@ -703,10 +703,17 @@ def mode_pre_tool_use(payload: dict) -> int:
 GIT_DIFF_TIMEOUT_SEC = 3
 GIT_DIFF_MAX_BYTES = 2_000_000
 # The scan of the diff must also end before the 5 s limit, counted from
-# process start. Python's own startup happens before that point and is not
-# counted; under load it can push the hook past 5 s, where it is killed and
-# the commit goes through unscanned. So leave a full second of margin.
+# process start. Python's own startup is small (about 0.02 s). The main source
+# of lateness is that SIGALRM is only handled once the running regex call
+# returns, so the stop can come after the deadline. Leave a full second of
+# margin for that.
 GIT_SCAN_DEADLINE_SEC = 4.0
+# A long added line is cut into pieces scanned as separate lines. Regex
+# backtracking never crosses a newline, so each regex call stays short and the
+# deadline interrupt lands in time. Pieces overlap so PII that straddles a cut
+# is still caught; every scanned pattern is shorter than the overlap.
+LONG_LINE_CHUNK = 4096
+LONG_LINE_OVERLAP = 128
 SCAN_TOO_SLOW = "差分の検査が時間内に終わらない。commit を分けてください"
 
 
@@ -760,6 +767,20 @@ def past_deadline() -> bool:
     return time.monotonic() - PROCESS_STARTED >= GIT_SCAN_DEADLINE_SEC
 
 
+def split_long_line(line: str) -> list[str]:
+    """Cut a line into overlapping pieces of at most LONG_LINE_CHUNK chars."""
+    if len(line) <= LONG_LINE_CHUNK:
+        return [line]
+    step = LONG_LINE_CHUNK - LONG_LINE_OVERLAP
+    pieces = []
+    start = 0
+    while True:
+        pieces.append(line[start:start + LONG_LINE_CHUNK])
+        if start + LONG_LINE_CHUNK >= len(line):
+            return pieces
+        start += step
+
+
 def scan_staged_diff() -> int:
     import subprocess
 
@@ -800,7 +821,7 @@ def scan_staged_diff() -> int:
         if line.startswith("+++") or line.startswith("---"):
             continue
         if line.startswith("+"):
-            per_file.setdefault(current, []).append(line[1:])  # strip leading +
+            per_file.setdefault(current, []).extend(split_long_line(line[1:]))
 
     worst = 0
     for path, lines in per_file.items():
