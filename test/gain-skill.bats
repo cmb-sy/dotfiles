@@ -500,3 +500,21 @@ yaml_py() {  # yaml_py <python expression over d> — prints the result
   n=$(yaml_py "[s['url'] for s in d.get('services') or []]" | grep -cF 'safety-alignment') || n=0
   [ "$n" -eq 0 ]
 }
+
+@test "関心の分野の GitHub の新着は出どころが 1 つでも話題の技術に入れてよい" {
+  # 2 つ以上の出どころという条件だけでは、GitHub の新着にしか出ない
+  # 関心の分野のリポジトリが毎回落ちる。分野に当たるかは検索語ではなく
+  # 説明文で決める（中国語などの説明でも読む）。
+  grep -qF '`github_new`・`github_surging`' "$SK"
+  grep -qF '出どころが 1 つでも' "$SK"
+  grep -qF '説明文を読んで' "$SK"
+  grep -qF '検索語の一致では決めない' "$SK"
+}
+
+@test "eod は今日のダイジェストが既にあれば情報収集を出さない" {
+  # 情報収集は毎朝自動で動く。夜にもう一度走らせると同じ日のダイジェストを
+  # 二重に作るので、既にあれば選択肢に出さず、完了報告にそう書く。
+  f="$REPO_DIR/claude/skills/eod/SKILL.md"
+  grep -qF '朝に作成済み' "$f"
+  grep -qF '選択肢を出さない' "$f"
+}
