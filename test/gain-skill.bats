@@ -520,3 +520,11 @@ yaml_py() {  # yaml_py <python expression over d> — prints the result
   grep -qF '朝に作成済み' "$f"
   grep -qF '選択肢を出さない' "$f"
 }
+
+@test "eod は front matter の type: gain-digest で作成済みを判定する" {
+  # research モードは同じファイルに ## Research: だけを書くことがある。
+  # ファイルがあるだけで済みとみなすと、その日の情報収集が出なくなる。
+  f="$REPO_DIR/claude/skills/eod/SKILL.md"
+  grep -qF 'front matter に `type: gain-digest`' "$f"
+  grep -qF '`## Research:` だけのファイル' "$f"
+}
