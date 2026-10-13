@@ -531,11 +531,13 @@ require("lazy").setup({
         },
       },
       window = {
-        width = 38,
-        -- Grows when a name would be cut off. The deepest paths here are
-        -- claude/agents/implementation-review-*.md, which a fixed width
-        -- truncated to the point of being unreadable.
-        auto_expand_width = true,
+        -- Fixed, and wide enough for the deep names here
+        -- (claude/agents/implementation-review-*.md) and a git_status header.
+        -- Growing to fit (auto_expand_width) fights edgy.nvim, which holds the
+        -- column at its own size: every redraw grew it and edgy shrank it back,
+        -- and the separator kept shaking. Widen by hand with Ctrl-W > instead.
+        width = 44,
+        auto_expand_width = false,
         mappings = {
           -- Preview into the window on the right rather than a floating box,
           -- so it reads as "the file next to the tree" rather than a popup.
@@ -611,7 +613,8 @@ require("lazy").setup({
       vim.opt.splitkeep = "screen"
     end,
     opts = {
-      options = { left = { size = 38 } },
+      -- Must match neo-tree's window.width, or the two set different widths.
+      options = { left = { size = 44 } },
       left = {
         {
           title = "Files",

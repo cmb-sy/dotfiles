@@ -195,3 +195,27 @@ INIT="$REPO_DIR/.config/nvim/init.lua"
     grep -qx 'filesystem' "$BATS_TEST_TMPDIR/d.txt"
     grep -qx 'git_status' "$BATS_TEST_TMPDIR/d.txt"
 }
+
+@test "左の列の幅が揺れない（neo-tree の自動拡幅と edgy の固定幅が引っ張り合わない）" {
+    # neo-tree's auto_expand_width grows the column to fit a long name and edgy
+    # snaps it back to its fixed size; every redraw repeated the tug, so the
+    # separator kept shaking. Sample the width and require it to hold still,
+    # in a repo whose git_status header is longer than the column.
+    d="$BATS_TEST_TMPDIR/a-rather-long-directory-name-for-the-header"
+    mkdir -p "$d" && git -C "$d" init -q && touch "$d/x"
+    cd "$d"
+    run bash -c "nvim --headless . -c 'lua local o, n = {}, 0
+          local t = vim.uv.new_timer()
+          t:start(1500, 100, vim.schedule_wrap(function()
+            n = n + 1
+            for _, w in ipairs(vim.api.nvim_list_wins()) do
+              if vim.b[vim.api.nvim_win_get_buf(w)].neo_tree_source == \"filesystem\" then
+                table.insert(o, tostring(vim.api.nvim_win_get_width(w)))
+              end
+            end
+            if n >= 10 then t:stop(); vim.fn.writefile(o, \"$BATS_TEST_TMPDIR/w.txt\"); vim.cmd(\"qa!\") end
+          end))' 2>&1"
+    [ "$status" -eq 0 ]
+    [ "$(sort -u "$BATS_TEST_TMPDIR/w.txt" | wc -l | tr -d ' ')" -eq 1 ]
+    [ "$(wc -l < "$BATS_TEST_TMPDIR/w.txt" | tr -d ' ')" -eq 10 ]
+}
