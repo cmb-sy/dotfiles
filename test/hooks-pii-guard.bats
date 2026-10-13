@@ -200,3 +200,55 @@ run_guard_logged() {  # $1=stdin payload -> echo exit code, log to $LOG
   run run_guard "$payload_csv_header"
   [ "$output" = "2" ]
 }
+
+# --- git commit の差分検査 ---
+#
+# フック全体の上限（settings.json の 5 秒）で打ち切られると、検査されないまま
+# commit が通る。差分の取得が遅いとき・差分が大きすぎるときは、上限より先に
+# フック自身が止める。PATH の先頭に偽の git を置いて差分の出方を決める。
+
+make_fake_git() {  # $1=mode (slow|huge|small)
+  mkdir -p "$TEST_TMPDIR/bin"
+  cat > "$TEST_TMPDIR/bin/git" <<'SH'
+#!/bin/sh
+case "$FAKE_GIT_MODE" in
+  slow)  exec sleep 5 ;;
+  huge)  printf 'diff --git a/n.txt b/n.txt\n+++ b/n.txt\n+'
+         head -c 2000001 /dev/zero | tr '\0' 'a' ;;
+  small) printf 'diff --git a/n.txt b/n.txt\n+++ b/n.txt\n+hello plain words only\n' ;;
+esac
+SH
+  chmod +x "$TEST_TMPDIR/bin/git"
+}
+
+payload_commit='{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"git commit -m wip"}}'
+
+run_commit_guard() {  # $1=mode
+  printf '%s' "$payload_commit" \
+    | PATH="$TEST_TMPDIR/bin:$PATH" FAKE_GIT_MODE="$1" PII_GUARD_LOG="$LOG" \
+      timeout 5 python3 "$GUARD" 2>&1
+}
+
+@test "git commit: 差分の取得が時間切れなら 5 秒より前に止める" {
+  make_fake_git
+  start=$(date +%s)
+  run run_commit_guard slow
+  elapsed=$(( $(date +%s) - start ))
+  [ "$status" -eq 2 ]
+  [ "$elapsed" -lt 5 ]
+  printf '%s\n' "$output" | grep -qF 'PII Guard'
+  printf '%s\n' "$output" | grep -qF 'commit を分けて'
+}
+
+@test "git commit: 差分が 2,000,000 バイトを超えるなら止める" {
+  make_fake_git
+  run run_commit_guard huge
+  [ "$status" -eq 2 ]
+  printf '%s\n' "$output" | grep -qF 'commit を分けて'
+}
+
+@test "git commit: 小さな差分で個人情報が無ければ通す" {
+  make_fake_git
+  run run_commit_guard small
+  [ "$status" -eq 0 ]
+}

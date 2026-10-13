@@ -693,22 +693,48 @@ def mode_pre_tool_use(payload: dict) -> int:
 # ---------------------------------------------------------------------------
 
 
+# The whole hook is killed at 5 s (settings.json), and a killed PreToolUse
+# hook lets the tool run: the commit would go through unscanned. So the hook
+# decides before that limit itself, and blocks when it cannot finish the scan.
+GIT_DIFF_TIMEOUT_SEC = 3
+GIT_DIFF_MAX_BYTES = 2_000_000
+
+
+def block_unscanned_commit(reason: str) -> int:
+    """Block a commit whose staged diff cannot be scanned in time."""
+    log_event("block", [reason], "git-commit", "")
+    print(
+        f"\u26a0\ufe0f PII Guard [git-commit]: {reason}"
+        " \u2014 差分が大きすぎて個人情報の検査が間に合わない。commit を分けてください",
+        file=sys.stderr,
+    )
+    return 2
+
+
 def mode_git_commit_scan() -> int:
     import subprocess
 
     try:
         result = subprocess.run(
             ["git", "diff", "--cached", "--no-color"],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True, text=True, timeout=GIT_DIFF_TIMEOUT_SEC,
         )
         if result.returncode != 0:
             return 0
         diff_text = result.stdout
-    except (subprocess.TimeoutExpired, FileNotFoundError):
+    except subprocess.TimeoutExpired:
+        return block_unscanned_commit(
+            f"staged diff timed out after {GIT_DIFF_TIMEOUT_SEC}s"
+        )
+    except FileNotFoundError:
         return 0
 
     if not diff_text:
         return 0
+    if len(diff_text.encode()) > GIT_DIFF_MAX_BYTES:
+        return block_unscanned_commit(
+            f"staged diff exceeds {GIT_DIFF_MAX_BYTES} bytes"
+        )
 
     # Group added lines per file so the per-path exemptions apply here too.
     # Scanning the whole diff as one blob made SKIP_PATHS silently inert at
