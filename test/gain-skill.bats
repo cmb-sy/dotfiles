@@ -6,6 +6,7 @@
 # 検査はコメントを除いた本文に当てる。
 
 load "helpers/common"
+bats_require_minimum_version 1.5.0   # run ! grep
 
 setup() {
   SK="$REPO_DIR/claude/skills/distill-gain-latest-info/SKILL.md"
@@ -77,6 +78,15 @@ setup() {
   grep -qF '### Step 1.5' "$f"
   grep -qF '## 改善提案' "$f"
   grep -qF 'AskUserQuestion' "$f"
+}
+
+@test "eod は改善提案の状態の行の採否を問わない" {
+  # Jev の採点の有無などは適用しようが無い。問うと、提案の無い日にも問いが出る。
+  f="$REPO_DIR/claude/skills/eod/SKILL.md"
+  grep -qF '状態の行' "$f"
+  grep -qF '問わずに完了報告へそのまま写す' "$f"
+  grep -qF '**提案**が 0 件なら' "$f"
+  run ! grep -qF '項目が 0 件なら本ステップをスキップ' "$f"
 }
 
 @test "eod が gain をサブエージェントに投げる記述は残っている" {

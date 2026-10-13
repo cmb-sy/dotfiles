@@ -74,9 +74,17 @@ Slack + GitHub の結果を Step 2・3 で再利用する（二重取得しな�
 
 Step 1 の `distill-gain-latest-info`（または朝の自動実行）が書いたダイジェスト
 (`$HOME/develop/distill-vault/情報収集/YYYY-MM-DD.md`) の `## 改善提案` 節を読む。
-節が無い、または項目が 0 件なら本ステップをスキップし、完了報告に「改善提案: なし」と記録する。
+節の行を、**提案**と**状態の行**に分ける。
 
-項目があれば `AskUserQuestion`(`multiSelect: true`, header: `監視先`) で採否を問い、
+| 種類 | 何か | 扱い |
+|---|---|---|
+| 提案 | `sources.yaml` を変えるもの（監視先の追加・除外、URL や説明の変更） | 採否を問う |
+| 状態の行 | Jev の採点の有無（「Jev 未設定（採点なし）」など）・取得できなかった出どころ・`gain-state prune` で掃除した監視先 | 問わずに完了報告へそのまま写す |
+
+状態の行は適用しようが無いので、採否を問わない。
+節が無い、または**提案**が 0 件なら採否を問わずに本ステップを終え、完了報告に「改善提案: なし」と記録する（状態の行があればそれも写す）。
+
+提案があれば `AskUserQuestion`(`multiSelect: true`, header: `監視先`) で提案だけの採否を問い、
 **承認されたものだけ**を `$HOME/dotfiles/claude/skills/distill-gain-latest-info/sources.yaml` に反映する。
 
 - 承認なしに `sources.yaml` を書き換えない
