@@ -698,43 +698,61 @@ def mode_pre_tool_use(payload: dict) -> int:
 # decides before that limit itself, and blocks when it cannot finish the scan.
 GIT_DIFF_TIMEOUT_SEC = 3
 GIT_DIFF_MAX_BYTES = 2_000_000
+# The scan of the diff must also end before the 5 s limit.
+GIT_SCAN_DEADLINE_SEC = 4.5
 
 
 def block_unscanned_commit(reason: str) -> int:
-    """Block a commit whose staged diff cannot be scanned in time."""
+    """Block a commit whose staged diff could not be scanned."""
     log_event("block", [reason], "git-commit", "")
-    print(
-        f"\u26a0\ufe0f PII Guard [git-commit]: {reason}"
-        " \u2014 差分が大きすぎて個人情報の検査が間に合わない。commit を分けてください",
-        file=sys.stderr,
-    )
+    print(f"\u26a0\ufe0f PII Guard [git-commit]: {reason}", file=sys.stderr)
     return 2
 
 
+def decode_diff(raw: bytes) -> str:
+    # git prints non-UTF-8 text files (e.g. a Shift_JIS CSV) as raw bytes.
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return raw.decode("cp932", errors="replace")
+
+
 def mode_git_commit_scan() -> int:
+    # A crash exits 1, which PreToolUse treats as "allow": an unscanned
+    # commit would go through. Anything unexpected here blocks instead.
+    try:
+        return scan_staged_diff(time.monotonic())
+    except Exception as e:  # fail closed on purpose
+        return block_unscanned_commit(
+            f"差分を読めない（{type(e).__name__}）。個人情報を検査できないので止める"
+        )
+
+
+def scan_staged_diff(started: float) -> int:
     import subprocess
 
     try:
         result = subprocess.run(
             ["git", "diff", "--cached", "--no-color"],
-            capture_output=True, text=True, timeout=GIT_DIFF_TIMEOUT_SEC,
+            capture_output=True, timeout=GIT_DIFF_TIMEOUT_SEC,
         )
-        if result.returncode != 0:
-            return 0
-        diff_text = result.stdout
     except subprocess.TimeoutExpired:
         return block_unscanned_commit(
-            f"staged diff timed out after {GIT_DIFF_TIMEOUT_SEC}s"
+            f"差分の取得が {GIT_DIFF_TIMEOUT_SEC} 秒で間に合わない。commit を分けてください"
         )
     except FileNotFoundError:
+        return 0  # no git: the commit itself cannot run either
+    if result.returncode != 0:
         return 0
-
-    if not diff_text:
+    raw = result.stdout
+    if not raw:
         return 0
-    if len(diff_text.encode()) > GIT_DIFF_MAX_BYTES:
+    if len(raw) > GIT_DIFF_MAX_BYTES:
         return block_unscanned_commit(
-            f"staged diff exceeds {GIT_DIFF_MAX_BYTES} bytes"
+            f"差分が大きすぎて（{GIT_DIFF_MAX_BYTES} バイト超）個人情報の検査が"
+            "間に合わない。commit を分けてください"
         )
+    diff_text = decode_diff(raw)
 
     # Group added lines per file so the per-path exemptions apply here too.
     # Scanning the whole diff as one blob made SKIP_PATHS silently inert at
@@ -754,6 +772,10 @@ def mode_git_commit_scan() -> int:
 
     worst = 0
     for path, lines in per_file.items():
+        if time.monotonic() - started >= GIT_SCAN_DEADLINE_SEC:
+            return block_unscanned_commit(
+                "差分の検査が締め切りに間に合わない。commit を分けてください"
+            )
         if should_skip_path(path):
             continue
         rc = scan_and_report("\n".join(lines), "git-commit", path)

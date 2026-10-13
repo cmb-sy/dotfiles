@@ -216,6 +216,8 @@ case "$FAKE_GIT_MODE" in
   huge)  printf 'diff --git a/n.txt b/n.txt\n+++ b/n.txt\n+'
          head -c 2000001 /dev/zero | tr '\0' 'a' ;;
   small) printf 'diff --git a/n.txt b/n.txt\n+++ b/n.txt\n+hello plain words only\n' ;;
+  binary) printf 'diff --git a/n.txt b/n.txt\n+++ b/n.txt\n+abc\377\376def\n' ;;
+  file)  cat "$FAKE_GIT_DIFF" ;;
 esac
 SH
   chmod +x "$TEST_TMPDIR/bin/git"
@@ -251,4 +253,46 @@ run_commit_guard() {  # $1=mode
   make_fake_git
   run run_commit_guard small
   [ "$status" -eq 0 ]
+}
+
+@test "git commit: cp932 の差分の個人情報も止める" {
+  # Shift_JIS の CSV は git が生のバイトで差分に出す。UTF-8 として読めずに
+  # 例外で落ちると exit 1 になり、PreToolUse は止めない。
+  make_fake_git
+  mob="090-""0000-""0000"
+  export FAKE_GIT_DIFF="$TEST_TMPDIR/sjis.diff"
+  MOB="$mob" python3 -c 'import os,sys; sys.stdout.buffer.write(("diff --git a/l.csv b/l.csv\n+++ b/l.csv\n+名前,電話\n+テスト,"+os.environ["MOB"]+"\n").encode("cp932"))' > "$FAKE_GIT_DIFF"
+  run run_commit_guard file
+  [ "$status" -eq 2 ]
+}
+
+@test "git commit: UTF-8 でない差分でも個人情報が無ければ通す" {
+  make_fake_git
+  run run_commit_guard binary
+  [ "$status" -eq 0 ]
+}
+
+@test "git commit: 検査の締め切りを過ぎたら止める" {
+  make_fake_git
+  run env PATH="$TEST_TMPDIR/bin:$PATH" FAKE_GIT_MODE=small PII_GUARD_LOG="$LOG" python3 -c '
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("pg", sys.argv[1])
+pg = importlib.util.module_from_spec(spec); spec.loader.exec_module(pg)
+pg.GIT_SCAN_DEADLINE_SEC = 0
+sys.exit(pg.mode_git_commit_scan())' "$GUARD"
+  [ "$status" -eq 2 ]
+  printf '%s\n' "$output" | grep -qF '間に合わない'
+}
+
+@test "git commit: 想定外の例外は止める側に倒す" {
+  make_fake_git
+  run env PATH="$TEST_TMPDIR/bin:$PATH" FAKE_GIT_MODE=small PII_GUARD_LOG="$LOG" python3 -c '
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("pg", sys.argv[1])
+pg = importlib.util.module_from_spec(spec); spec.loader.exec_module(pg)
+def boom(*a, **k): raise ValueError("x")
+pg.scan_and_report = boom
+sys.exit(pg.mode_git_commit_scan())' "$GUARD"
+  [ "$status" -eq 2 ]
+  printf '%s\n' "$output" | grep -qF '差分を読めない'
 }
