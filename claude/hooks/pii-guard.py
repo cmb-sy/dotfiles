@@ -703,8 +703,10 @@ def mode_pre_tool_use(payload: dict) -> int:
 GIT_DIFF_TIMEOUT_SEC = 3
 GIT_DIFF_MAX_BYTES = 2_000_000
 # The scan of the diff must also end before the 5 s limit, counted from
-# process start.
-GIT_SCAN_DEADLINE_SEC = 4.5
+# process start. Python's own startup happens before that point and is not
+# counted; under load it can push the hook past 5 s, where it is killed and
+# the commit goes through unscanned. So leave a full second of margin.
+GIT_SCAN_DEADLINE_SEC = 4.0
 SCAN_TOO_SLOW = "差分の検査が時間内に終わらない。commit を分けてください"
 
 
