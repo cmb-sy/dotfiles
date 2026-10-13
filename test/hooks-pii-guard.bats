@@ -218,6 +218,8 @@ case "$FAKE_GIT_MODE" in
   small) printf 'diff --git a/n.txt b/n.txt\n+++ b/n.txt\n+hello plain words only\n' ;;
   binary) printf 'diff --git a/n.txt b/n.txt\n+++ b/n.txt\n+abc\377\376def\n' ;;
   file)  cat "$FAKE_GIT_DIFF" ;;
+  longline) printf 'diff --git a/n.txt b/n.txt\n+++ b/n.txt\n+'
+            head -c 200000 /dev/zero | tr '\0' '1'; printf '\n' ;;
 esac
 SH
   chmod +x "$TEST_TMPDIR/bin/git"
@@ -281,7 +283,7 @@ pg = importlib.util.module_from_spec(spec); spec.loader.exec_module(pg)
 pg.GIT_SCAN_DEADLINE_SEC = 0
 sys.exit(pg.mode_git_commit_scan())' "$GUARD"
   [ "$status" -eq 2 ]
-  printf '%s\n' "$output" | grep -qF '間に合わない'
+  printf '%s\n' "$output" | grep -qF '時間内に終わらない'
 }
 
 @test "git commit: 想定外の例外は止める側に倒す" {
@@ -295,4 +297,18 @@ pg.scan_and_report = boom
 sys.exit(pg.mode_git_commit_scan())' "$GUARD"
   [ "$status" -eq 2 ]
   printf '%s\n' "$output" | grep -qF '差分を読めない'
+}
+
+@test "git commit: 1 回の検査が長引いても締め切りで割り込んで止める" {
+  # 長い数字列の 1 行で検査の正規表現が二乗に近く伸びる。ファイルごとの
+  # 確認だけでは 1 回の検査に割り込めず、フック全体の上限で kill されて通る。
+  make_fake_git
+  ms() { python3 -c 'import time; print(int(time.time()*1000))'; }
+  start=$(ms)
+  run run_commit_guard longline
+  elapsed=$(( $(ms) - start ))
+  # timeout 5 の中なので status 2 自体が 5 秒未満の証拠。経過もミリ秒で見る。
+  [ "$status" -eq 2 ]
+  [ "$elapsed" -lt 5000 ]
+  printf '%s\n' "$output" | grep -qF '時間内に終わらない'
 }

@@ -20,8 +20,12 @@ Exit codes:
 import json
 import os
 import re
+import signal
 import sys
 import time
+
+# Start of the 5 s hook budget: Python startup and reading stdin count too.
+PROCESS_STARTED = time.monotonic()
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -698,8 +702,18 @@ def mode_pre_tool_use(payload: dict) -> int:
 # decides before that limit itself, and blocks when it cannot finish the scan.
 GIT_DIFF_TIMEOUT_SEC = 3
 GIT_DIFF_MAX_BYTES = 2_000_000
-# The scan of the diff must also end before the 5 s limit.
+# The scan of the diff must also end before the 5 s limit, counted from
+# process start.
 GIT_SCAN_DEADLINE_SEC = 4.5
+SCAN_TOO_SLOW = "差分の検査が時間内に終わらない。commit を分けてください"
+
+
+class ScanDeadline(BaseException):
+    """Raised by SIGALRM. BaseException so no `except Exception` swallows it."""
+
+
+def _raise_deadline(signum, frame):
+    raise ScanDeadline
 
 
 def block_unscanned_commit(reason: str) -> int:
@@ -720,15 +734,31 @@ def decode_diff(raw: bytes) -> str:
 def mode_git_commit_scan() -> int:
     # A crash exits 1, which PreToolUse treats as "allow": an unscanned
     # commit would go through. Anything unexpected here blocks instead.
+    # A single regex scan of one long line can run for minutes, so a check
+    # between files cannot interrupt it. SIGALRM can. Only this path arms it.
+    remaining = GIT_SCAN_DEADLINE_SEC - (time.monotonic() - PROCESS_STARTED)
+    if remaining <= 0:
+        return block_unscanned_commit(SCAN_TOO_SLOW)
+    previous = signal.signal(signal.SIGALRM, _raise_deadline)
+    signal.setitimer(signal.ITIMER_REAL, remaining)
     try:
-        return scan_staged_diff(time.monotonic())
+        return scan_staged_diff()
+    except ScanDeadline:
+        return block_unscanned_commit(SCAN_TOO_SLOW)
     except Exception as e:  # fail closed on purpose
         return block_unscanned_commit(
             f"差分を読めない（{type(e).__name__}）。個人情報を検査できないので止める"
         )
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, previous)
 
 
-def scan_staged_diff(started: float) -> int:
+def past_deadline() -> bool:
+    return time.monotonic() - PROCESS_STARTED >= GIT_SCAN_DEADLINE_SEC
+
+
+def scan_staged_diff() -> int:
     import subprocess
 
     try:
@@ -772,14 +802,14 @@ def scan_staged_diff(started: float) -> int:
 
     worst = 0
     for path, lines in per_file.items():
-        if time.monotonic() - started >= GIT_SCAN_DEADLINE_SEC:
-            return block_unscanned_commit(
-                "差分の検査が締め切りに間に合わない。commit を分けてください"
-            )
+        if past_deadline():
+            return block_unscanned_commit(SCAN_TOO_SLOW)
         if should_skip_path(path):
             continue
         rc = scan_and_report("\n".join(lines), "git-commit", path)
         worst = max(worst, rc)
+    if past_deadline():
+        return block_unscanned_commit(SCAN_TOO_SLOW)
     return worst
 
 
