@@ -1,6 +1,7 @@
 #!/usr/bin/env bats
 # distill の記事の共通の書き方の規則と、それを参照する書き手。
 load "helpers/common"
+bats_require_minimum_version 1.5.0   # run ! grep
 
 setup() {
   W="$REPO_DIR/claude/skills/_shared/references/distill-writing.md"
@@ -22,8 +23,8 @@ setup() {
 
 @test "distill-project は共通の規則を参照し、食い違う規則を残さない" {
   grep -qF '_shared/references/distill-writing.md' "$DP"
-  ! grep -qF '本文に定義文を置かない' "$DP"
-  ! grep -qF 'プログラミング経験の浅い初学者' "$DP"
+  run ! grep -qF '本文に定義文を置かない' "$DP"
+  run ! grep -qF 'プログラミング経験の浅い初学者' "$DP"
   grep -qF '結論 → なぜ → 何を → どうやって' "$DP"
 }
 
@@ -41,7 +42,7 @@ setup() {
 
 @test "情報収集の Jev の採点の有無は本文ではなく改善提案に書く" {
   GL="$REPO_DIR/claude/skills/distill-gain-latest-info/SKILL.md"
-  ! grep -qF '`## 深掘り` の見出しの直後に「Jev 未設定（採点なし）」' "$GL"
+  run ! grep -qF '`## 深掘り` の見出しの直後に「Jev 未設定（採点なし）」' "$GL"
   grep -qF '`## 改善提案` に「Jev 未設定（採点なし）」' "$GL"
 }
 
