@@ -3,8 +3,9 @@ name: eod
 description: >-
   1 日の作業を締めたいとき（終業時・日報作成時）に使うオーケストレータ。
   Slack+GitHub+distill-gain-latest-info の並列収集 → open issue 確認 → 日報生成 → CloudLog 入力 → 翌日デイリー作成 → 翌日タスクの GitHub issue 紐付け → GitHub Issue の TaskNotes 同期（翌日デイリーへの反映） → Obsidian vault commit/push を実行する。
+  その日の締めが止まって成果が空のまま日をまたいだときは、前の平日の成果だけを後追いで作れる（--catch-up）。
   除外プロジェクト指定は本文の Options を参照。
-argument-hint: "[--exclude <キーワード>...]"
+argument-hint: "[--catch-up [YYYY-MM-DD]] [--exclude <キーワード>...]"
 user-invocable: true
 ---
 
@@ -15,10 +16,52 @@ user-invocable: true
 | Option | 効果 |
 |--------|------|
 | `--exclude <キーワード>...` | 日報生成の対象から除外するプロジェクトを追加する。下記デフォルトに **合算** される（デフォルトを置き換えない） |
+| `--catch-up [YYYY-MM-DD]` | 対象日の `## 今日の成果` だけを後追いで作る。日付を省くと前の平日。下記「後追いモード」に従い、それ以外のステップは実施しない |
 
 デフォルトで `--exclude siori --exclude generate-video --exclude shindanshi --exclude microsoft-agent-hackathon --exclude kunstSite --exclude dotfiles --exclude body-management --exclude household-accounts` を適用する。
 
 ---
+
+## 後追いモード（`--catch-up`）
+
+その日の /eod が使用上限やエラーで止まり、成果が空のまま日をまたいだときに使う。
+**「昨日の分」「成果だけ」と頼まれたときも、このモードで動く。**
+
+**対象日**: 引数の日付。無ければ前の平日を使う。月曜に実行すると金曜になる。
+
+```bash
+python3 $HOME/develop/obsidian/03_system/skills/workday/workday.py prev --iso
+```
+
+| ステップ | 後追いモードでの扱い |
+|---|---|
+| Step 0（実施対象の質問） | **問わない** |
+| Step 1 の Slack・GitHub・セッション収集 | **実施する**（対象日の分） |
+| Step 1 の情報収集、Step 1.5・2・2.7 | 実施しない |
+| Step 3 daily-log | **成果だけを書く。** 追記の問いかけ（daily-log Step 4）、概要の更新（同 Step 6）、CloudLog は実施しない |
+| Step 4〜6.5 | 実施しない |
+| Step 7 | **対象日のデイリー 1 ファイルだけ**を add してコミットし push する |
+
+Step 7 で `add -A` を使わないのは、別のセッションや当日のデイリーの編集中の変更を巻き込まないため。
+
+### 手順
+
+1. **対象日のデイリーを確かめる。** 無ければ git の履歴を見る。対象日のノートが翌日のノートへリネームされて消えていることがある（その日の締めが止まった夜に起きやすい）
+
+   ```bash
+   git -C $HOME/develop/obsidian log --oneline -1 --diff-filter=D -- '<対象日のパス>'
+   git -C $HOME/develop/obsidian show '<見つかったコミット>^:<対象日のパス>' > '<対象日のパス>'
+   ```
+
+   消える直前の版から復元する。翌日のノートは書き換えない。履歴にも無ければ止めて報告する
+
+2. **Slack と GitHub を集める。** Slack は `from:<@U07KEPWQAQN> on:<対象日>`。GitHub は `gh search` に加え、作業リポジトリで `git log --all --since=<対象日> --until=<翌日>` も見る。ブランチ上のコミットは `gh search commits` に出ないため
+
+3. **セッションはメッセージの timestamp で対象日に絞る。ファイルの更新日時では絞らない。** 後追いでは、対象日に動いたセッションが翌日にも更新されていることが多く、更新日時で絞ると取りこぼす。各 `*.jsonl` の行のうち、`timestamp` が対象日 00:00〜24:00（JST）に入る `type: "user"` の指示と、最後の `type: "assistant"` の本文を抜き出す。`--exclude` は通常どおり効かせる
+
+4. **daily-log の 3-A の書式で成果を書き、`accomplishments` マーカーの中に入れる。** 材料が足りない行は `（詳細は未記録）` とし、推測で埋めない
+
+5. **完了報告**: 対象日、復元したかどうか（したならどのコミットから）、走査したセッション数、成果の `###` 見出しの数、コミットのハッシュ
 
 ## 実行フロー
 
@@ -40,7 +83,7 @@ user-invocable: true
 Step 3(daily-log) を外したいなどのその他の申し出は `Other` (自由記述) で受け付ける。選択結果は実行フロー全体で参照する。
 
 **重要**:
-- `--skip-*` 系のフラグ引数は受け付けない。引数で渡されてもこの質問は省略しない
+- `--skip-*` 系のフラグ引数は受け付けない。引数で渡されてもこの質問は省略しない（例外は `--catch-up` だけで、このモードでは Step 0 自体を実施しない）
 - 質問は1回だけ。Step 1 以降に進んでから選び直したくなっても再質問せず、ユーザーが /eod を再実行する想定
 - Step 3 を実施しない場合は Step 4(CloudLog 入力) も実施しない(エントリ未生成のため)
 - Step 1 の Slack/GitHub 収集が**失敗**した場合（認証切れ・レート制限等）、daily-log は取得できた情報だけで成果セクションを生成し、完了報告に「取得失敗: {ジョブ名} / {理由}」と明記する。実施しなかった扱いにはしない
