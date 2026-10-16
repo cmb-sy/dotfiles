@@ -134,7 +134,7 @@ topics:
     lobsters: ["ai"]
     bluesky: ["claude code"]
   - name: AI エージェントのハーネス
-    note: CLAUDE.md・skills・hooks の運用。harness-audit の基準になる
+    note: CLAUDE.md・skills・hooks の運用
     hn: ["agent harness", "agents.md"]
     zenn: ["aiagent"]
   - name: Databricks
