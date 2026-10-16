@@ -176,7 +176,7 @@
       "Bash(aws lambda update-function-configuration:*)",
       "Bash(gh workflow run:*)"
     ],
-    "defaultMode": "bypassPermissions"
+    "defaultMode": "auto"
   },
   "hooks": {
     "Notification": [
@@ -377,11 +377,7 @@
   "skipDangerousModePermissionPrompt": true,
   "theme": "dark",
   "preferredNotifChannel": "terminal_bell",
+  "switchModelsOnFlag": true,
   "inputNeededNotifEnabled": true,
-  "agentPushNotifEnabled": true,
-  "modelSettings": {
-    "claude-opus-5-5": {
-      "effortLevel": "medium"
-    }
-  }
+  "agentPushNotifEnabled": true
 }

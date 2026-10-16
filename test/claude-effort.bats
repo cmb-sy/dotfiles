@@ -1,11 +1,8 @@
 #!/usr/bin/env bats
-# Claude Code の effort は /effort で手動で決め、決める場所はそこ 1 つにする。
+# 起動時だけ effort を low にし、セッション中は /effort で切り替えられるようにする。
 #
-# /effort は選んだ値を settings.json の modelSettings に保存し、全アカウントが
-# symlink で同じファイルを読むので、1 回選べば全部に効いて次の起動にも残る。
-# 環境変数 CLAUDE_CODE_EFFORT_LEVEL はその保存値より強く /effort を無効にし、
-# 起動時の --effort は起動のたびに保存値を上書きする。どちらかが入ると
-# 「手動で変えたのに効かない／戻る」になるので、無いことを検査する。
+# --effort はその起動プロセスにだけ効く。CLAUDE_CODE_EFFORT_LEVEL は /effort より
+# 強いので、settings.json やシェルには置かない。
 
 load "helpers/common"
 
@@ -52,13 +49,13 @@ launch_args() {
   done
 }
 
-@test "launchers start claude without --effort" {
+@test "launchers start claude at low effort" {
   for fn in clp clw clpa clwa clpc clwc; do
     args="$(launch_args "$fn")"
     # The stub must have run, or a missing file would pass the check below.
     printf '%s\n' "$args" | head -n 1 | grep -qx 'stub-ran'
-    n=$(printf '%s\n' "$args" | grep -cE -e '^--effort(=|$)') || n=0
-    [ "$n" -eq 0 ]
+    n=$(printf '%s\n' "$args" | awk 'prev == "--effort" && $0 == "low" { c++ } { prev = $0 } END { print c + 0 }')
+    [ "$n" -eq 1 ]
   done
 }
 

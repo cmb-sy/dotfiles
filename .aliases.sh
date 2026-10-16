@@ -76,8 +76,9 @@ alias hr='herdr'
 # New terminals do not inherit CLAUDE_CONFIG_DIR; the ~/.claude symlink is the
 # persistent default. Per-account model defaults: export overrides for
 # CLAUDE_PRIVATE_DEFAULT_MODEL / CLAUDE_WORK_DEFAULT_MODEL before sourcing.
-# Effort is not set here: /effort saves it in the shared settings.json, and a
-# launch flag would override that saved choice on every start.
+# Every launcher starts at low effort. --effort applies only to that process,
+# so /effort can change the running session. It is intentionally not saved as
+# an environment variable, which would override /effort.
 # ----------------------------------------------------------
 : "${CLAUDE_ACCOUNT_PRIVATE_DIR:=${HOME}/.claude-private}"
 : "${CLAUDE_ACCOUNT_WORK_DIR:=${HOME}/.claude-work}"
@@ -116,13 +117,12 @@ _claude_sync_shared() {
   CLAUDE_LINK_SHARED_QUIET=1 zsh "$d/claude/link-shared-config.zsh" >/dev/null 2>&1
 }
 
-# Build the --model flag for an account's default into the global
-# _claude_default_flags array. An empty model means "let Claude Code use its
-# own default" — no flag is passed.
+# Build the launch flags. Effort always starts at low; an empty model means
+# "let Claude Code use its own default" and adds no --model flag.
 _claude_default_flags=()
 _claude_build_default_flags() {
   local model="$1"
-  _claude_default_flags=()
+  _claude_default_flags=(--effort low)
   [ -n "$model" ] && _claude_default_flags+=(--model "$model")
 }
 
@@ -172,7 +172,7 @@ _claude_save_token_for() {
   read -rs "token?Paste the ${which}-account token, then press Enter: "
   echo
   [ -z "$token" ] && { echo "No token entered; aborting." >&2; return 1; }
-  read -r "label?Account label for this token (e.g. you@gmail.com): "
+  read -r "label?Account label for this token (e.g. personal): "
   printf '%s' "$token" > "${dir}/oauth-token"
   chmod 600 "${dir}/oauth-token"
   if [ -n "$label" ]; then
