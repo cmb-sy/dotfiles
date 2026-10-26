@@ -2,14 +2,14 @@
 name: eod
 description: >-
   1 日の作業を締めたいとき（終業時・日報作成時）に使うオーケストレータ。
-  Slack+GitHub+distill-gain-latest-info の並列収集 → open issue 確認 → 日報生成 → CloudLog 入力 → 翌日デイリー作成 → 翌日タスクの GitHub issue 紐付け → GitHub Issue の TaskNotes 同期（翌日デイリーへの反映） → Obsidian vault commit/push を実行する。
+  Slack+GitHub+distill-gain-latest-info の並列収集 → open issue 確認 → 日報生成 → 翌日デイリー作成 → 翌日タスクの GitHub issue 紐付け → GitHub Issue の TaskNotes 同期（翌日デイリーへの反映） → Obsidian vault commit/push を実行する。
   その日の締めが止まって成果が空のまま日をまたいだときは、前の平日の成果だけを後追いで作れる（--catch-up）。
   除外プロジェクト指定は本文の Options を参照。
 argument-hint: "[--catch-up [YYYY-MM-DD]] [--exclude <キーワード>...]"
 user-invocable: true
 ---
 
-その日の作業を1コマンドで締める。**並列収集（Slack+GitHub+distill-gain-latest-info watch）→ github-issues（open issue 確認）→ daily-log → CloudLog入力 → 今日の未完了行の整理 → 翌日デイリー作成 → 翌日タスク整理（`[/] …↩️` と `[ ] …📤` のタスクの引き継ぎ＋GitHub issue 紐付け）→ github-sync（翌日デイリーへの反映）→ Obsidian vault commit/push** を順次実行する。
+その日の作業を1コマンドで締める。**並列収集（Slack+GitHub+distill-gain-latest-info watch）→ github-issues（open issue 確認）→ daily-log → 今日の未完了行の整理 → 翌日デイリー作成 → 翌日タスク整理（`[/] …↩️` と `[ ] …📤` のタスクの引き継ぎ＋GitHub issue 紐付け）→ github-sync（翌日デイリーへの反映）→ Obsidian vault commit/push** を順次実行する。
 
 ## Options
 
@@ -70,13 +70,14 @@ Step 7 で `add -A` を使わないのは、別のセッションや当日のデ
 **起動直後・他のステップに着手する前に必ず実施する**。`AskUserQuestion` を **1 回だけ**呼び、下記 1 問を提示して実施するステップを選ばせる（選択肢は最大 4 件、`multiSelect: true`）。
 
 **Q1**「今回実施するステップを選んでください」（header: `実施対象`）— 順序固定:
-  1. `Step 4: CloudLog 自動入力` — Playwright で CloudLog に入力する（選ぶと稼働時間を尋ねる）
-  2. `github-sync` — GitHub Issue → TaskNotes 同期（Step 6.5）。完了ノートなどの TaskNotes の削除も同期の中で行う。選ばなければ次に同期するまで持ち越す
-  3. `情報収集` — distill-gain-latest-info watch（Step 1.5 も併せて実施）
+  1. `github-sync` — GitHub Issue → TaskNotes 同期（Step 6.5）。完了ノートなどの TaskNotes の削除も同期の中で行う。選ばなければ次に同期するまで持ち越す
+  2. `情報収集` — distill-gain-latest-info watch（Step 1.5 も併せて実施）
 
 質問の前に、今日のダイジェスト `$HOME/develop/distill-vault/情報収集/YYYY-MM-DD.md` が作成済みかを確かめる。作成済みとみなすのは、そのファイルの front matter に `type: gain-digest` の行があるときだけ（`## Research:` だけのファイルや front matter の無いファイルは作成済みではない。research モードが同じファイルに書くことがある）。作成済みなら `情報収集` の選択肢を出さない（毎朝の自動実行で作られている。もう一度走らせると同じ日のダイジェストを作り直すことになる）。このときも Step 1.5 はそのダイジェストの `## 改善提案` を読んで実施し、完了報告に「情報収集: 朝に作成済み」と書く。
 
-**選ばれたものだけを実施し、選ばれなかったものは実施しない。** 何も選ばれなければ、上の 3 つはどれも実施しない。
+選択肢が `github-sync` だけになるときは、`multiSelect: false` で「github-sync を実施する / 実施しない」の 2 択にする（`AskUserQuestion` は選択肢を 2 件以上要する）。
+
+**選ばれたものだけを実施し、選ばれなかったものは実施しない。** 何も選ばれなければ、上の 2 つはどれも実施しない。
 
 **作業記録の収集（Step 1 の Slack / GitHub / セッションログ）は選択肢に出さず、常に実施する。** `Other` で外す申し出があっても受けない。日報の `## 今日の成果` はこの 3 つが揃って初めて成立し、1 つ欠けるとその日の記録が恒久的に穴になる。収集は読み取りのみで副作用が無く、失敗しても後続を止めないため、外す利得が無い。取得に失敗した場合は「取得失敗」として続行する（実施しないこととは区別する）。
 
@@ -85,7 +86,6 @@ Step 3(daily-log) を外したいなどのその他の申し出は `Other` (自�
 **重要**:
 - `--skip-*` 系のフラグ引数は受け付けない。引数で渡されてもこの質問は省略しない（例外は `--catch-up` だけで、このモードでは Step 0 自体を実施しない）
 - 質問は1回だけ。Step 1 以降に進んでから選び直したくなっても再質問せず、ユーザーが /eod を再実行する想定
-- Step 3 を実施しない場合は Step 4(CloudLog 入力) も実施しない(エントリ未生成のため)
 - Step 1 の Slack/GitHub 収集が**失敗**した場合（認証切れ・レート制限等）、daily-log は取得できた情報だけで成果セクションを生成し、完了報告に「取得失敗: {ジョブ名} / {理由}」と明記する。実施しなかった扱いにはしない
 
 ### Step 1: 情報収集（並列）
@@ -174,12 +174,12 @@ distill の正本（`$HOME/develop/distill-vault`）から、14 日より前の
 TaskNotes の削除（github-sync が行う）とは対象も置き場所も別。あちらは Obsidian の
 かんばん、こちらは distill の正本。
 
-### Step 3: daily-log（セッション + CloudLog）
+### Step 3: daily-log（セッション）
 
 以下と等価な処理を実行する:
 
 ```
-/daily-log --session --cloudlog --exclude siori --exclude generate-video --exclude shindanshi --exclude microsoft-agent-hackathon --exclude kunstSite --exclude dotfiles --exclude body-management --exclude household-accounts [追加 --exclude ...]
+/daily-log --session --exclude siori --exclude generate-video --exclude shindanshi --exclude microsoft-agent-hackathon --exclude kunstSite --exclude dotfiles --exclude body-management --exclude household-accounts [追加 --exclude ...]
 ```
 
 - Step 1 で取得済みの Slack + GitHub 情報をそのまま使う（再取得しない）
@@ -187,15 +187,10 @@ TaskNotes の削除（github-sync が行う）とは対象も置き場所も別�
 - **収集した情報のうちプロジェクトの中身が変わったものは `$HOME/develop/distill-vault/プロジェクト/{PJ}/概要.md` に反映する。**
   それ以外はすべて「今日の成果」へ。振られたタスクはどちらにも書かない（かんばんの領分）。
   判定と歯止めは daily-log の Step 6 に従う
-- 対応表に従い CloudLog エントリを生成
 
 ### Step 4: CloudLog 入力
 
-Step 0 で「Step 4」が選ばれていない場合は本ステップ全体を実施せず、完了報告に「CloudLog 入力: 実施せず」と記録する。
-
-実施する場合は Playwright でブラウザを開き、Step 3 で生成したエントリを自動入力する。
-
-→ 詳細は daily-log の「Step CL: CloudLog 入力実行」を参照。
+**常に実施しない。** Step 0 の選択肢にも出さず、daily-log に `--cloudlog` を渡さない。`Other` で実施を申し出られても受けない。完了報告には「CloudLog 入力: 実施せず」と書く。
 
 ### Step 4.4: 今日のデイリーの未完了行をそろえる
 
@@ -402,7 +397,7 @@ git でコミットし、リモートへ push する。**最後に実行する**
 - github-sync: 新規作成 / 更新 / done へ変更 の件数（実施しなかったときは「実施せず」）
 - github-sync の削除: Status 対象外 n 件 / 担当外れ n 件 / PR 重複 n 件 / 完了から 14 日 n 件（※手書きあり n 件）（実施しなかったときは「実施せず」）
 - distill purge: 削除 n 件（記録 n / 情報収集 n）、参照ありで保護 n 件
-- CloudLog 入力件数・合計時間
+- CloudLog 入力: 実施せず
 - 今日の未完了行の整理: 未達にした n 件 / 持ち越しにした n 件 / 返事待ちのまま n 件（失敗時は理由）
 - 走査したセッション数・除外プロジェクト
 - 翌日デイリー作成（作成したパス or「既に存在のためスキップ」）
