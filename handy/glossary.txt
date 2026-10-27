@@ -12,3 +12,5 @@
 スキル図→skills
 はてな→？
 一周→issue
+遺書→issue
+イシュー→issue
