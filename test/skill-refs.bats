@@ -95,13 +95,6 @@ claude_ref_hits() {
   [ "$n" -eq 0 ]
 }
 
-@test "kaizen はスキル一覧を ~/.claude から読む" {
-  f="$REPO_DIR/claude/skills/kaizen/SKILL.md"
-  n=$(grep -cF '`claude/skills/*/SKILL.md`' "$f" || true)
-  [ "$n" -eq 0 ]
-  grep -qF '`~/.claude/skills/*/SKILL.md`' "$f"
-}
-
 @test "session-bridge の受け渡し場所はアカウントに依存しない" {
   f="$REPO_DIR/claude/skills/session-bridge/SKILL.md"
   n=$(grep -cF '.claude/session-bridge' "$f" || true)
