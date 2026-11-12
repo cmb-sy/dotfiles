@@ -394,7 +394,8 @@ git でコミットし、リモートへ push する。**最後に実行する**
 - github-issues: open issue 件数（assignee または author が cmb-sy）
 - distill-gain-latest-info watch: 観測したスコープとダイジェストの保存先（朝に作成済みのときは「情報収集: 朝に作成済み」とその保存先、失敗したときは「取得失敗」と理由）
 - github-sync: 新規作成 / 更新 / done へ変更 の件数（失敗したときは理由）
-- github-sync の削除: Status 対象外 n 件 / 担当外れ n 件 / PR 重複 n 件 / 完了から 14 日 n 件（※手書きあり n 件）
+- github-sync の担当外で役目が終わり done: n 件
+- github-sync の削除: Status 対象外 n 件 / PR 重複 n 件 / 完了から 14 日 n 件（※手書きあり n 件）
 - distill purge: 削除 n 件（記録 n / 情報収集 n）、参照ありで保護 n 件
 - 音声解説の材料: 作成したときは出力先、作らなかったときは「作らず」
 - 今日の未完了行の整理: 未達にした n 件 / 持ち越しにした n 件 / 返事待ちのまま n 件（失敗時は理由）
