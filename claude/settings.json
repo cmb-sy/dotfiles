@@ -374,6 +374,7 @@
     }
   },
   "tui": "fullscreen",
+  "autoScrollEnabled": false,
   "skipDangerousModePermissionPrompt": true,
   "theme": "dark",
   "preferredNotifChannel": "terminal_bell",
