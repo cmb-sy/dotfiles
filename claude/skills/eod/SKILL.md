@@ -85,16 +85,13 @@ Step 7 で `add -A` を使わないのは、別のセッションや当日のデ
 
 | ジョブ | 実行方法 | 結果の使い先 |
 |--------|----------|--------------|
-| Slack 収集 | MCP / CLI（下記） | Step 3 の成果セクション |
+| Slack 収集 | MCP（下記） | Step 3 の成果セクション |
 | GitHub 活動収集 | `gh` | Step 3 の成果セクション |
 | distill-gain-latest-info watch | サブエージェント（下記） | Obsidian のダイジェスト（Step 7 で commit） |
 
-- **Slack**: 本日の自分の発言・関与したスレッドを取得する。**取得経路は以下の優先順で必ずチェックする**:
-  1. **`claude.ai Slack` MCP（最優先）** — `mcp__claude_ai_Slack__slack_search_public_and_private` を使う。`query="from:<@U07KEPWQAQN> after:{YYYY-MM-DD前日} before:{YYYY-MM-DD翌日}"`（user_id は固定）。スレッド文脈が必要な場合は `slack_read_thread`、チャンネル履歴は `slack_read_channel`
-  2. **`slackcli` CLI（フォールバック）** — MCP が ToolSearch にも `claude mcp list` にも出ない場合のみ
-  - **重要**: MCP ツールはセッション開始時の ToolSearch で必ず存在確認する。ToolSearch クエリ `slack search messages` で `mcp__claude_ai_Slack__*` がヒットすれば MCP は使用可能（CLI 認証が失効していても MCP 経路は別ルートで生きている）
-  - `claude mcp list` で `claude.ai Slack: ✓ Connected` を確認できれば MCP は最優先で使う
-  - `slackcli` が `invalid_auth` を返しても、それは CLI の Slack トークン失効であり、MCP の認証状態とは無関係
+- **Slack**: 本日の自分の発言・関与したスレッドを `claude.ai Slack` MCP で取得する。`mcp__claude_ai_Slack__slack_search_public_and_private` を使う。`query="from:<@U07KEPWQAQN> after:{YYYY-MM-DD前日} before:{YYYY-MM-DD翌日}"`（user_id は固定）。スレッド文脈が必要な場合は `slack_read_thread`、チャンネル履歴は `slack_read_channel`
+  - MCP ツールはセッション開始時の ToolSearch で必ず存在確認する。ToolSearch クエリ `slack search messages` で `mcp__claude_ai_Slack__*` がヒットすれば使用可能
+  - 出ない場合は `claude mcp list` で `claude.ai Slack` の接続状態を確認し、未接続なら Slack 収集を「取得不可」として Step 3 に書く
 - **GitHub**: 本日のコミット・PR・レビュー・Issue コメント/更新を `gh` で取得
 - **distill-gain-latest-info watch**: サブエージェントに `distill-gain-latest-info` スキルを `watch` で実行させる
   - サブエージェントへの指示に「確認が要る事項は `## 改善提案` 節に書いて返す。サブエージェント内で適用しない」ことを明記する
