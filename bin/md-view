@@ -1,0 +1,47 @@
+#!/bin/bash
+# Render a markdown file to HTML beside it and print the file:// URL.
+#
+#   md-view <path.md>
+#
+# Exit: 0 ok, 1 missing file or pandoc, 2 usage.
+
+set -euo pipefail
+
+PANDOC="${PANDOC_BIN:-pandoc}"
+
+usage() { echo "使い方: md-view <path.md>" >&2; exit 2; }
+
+[ $# -eq 1 ] || usage
+src="$1"
+case "$src" in
+  *.md) ;;
+  *) usage ;;
+esac
+[ -f "$src" ] || { echo "md-view: ファイルがありません: $src" >&2; exit 1; }
+command -v "$PANDOC" >/dev/null 2>&1 || { echo "md-view: pandoc が見つかりません" >&2; exit 1; }
+
+out="${src%.md}.html"
+name="$(basename "$src")"
+
+css="$(mktemp)"
+trap 'rm -f "$css"' EXIT
+cat > "$css" <<'CSS'
+<style>
+body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; line-height: 1.7;
+  font-family: -apple-system, "Hiragino Sans", sans-serif; color: #222; background: #fff; }
+table { border-collapse: collapse; }
+th, td { border: 1px solid #bbb; padding: .3rem .6rem; }
+code, pre { background: #f2f2f2; border-radius: 4px; }
+pre { padding: .8rem; overflow-x: auto; }
+@media (prefers-color-scheme: dark) {
+  body { color: #ddd; background: #1e1e1e; }
+  th, td { border-color: #555; }
+  code, pre { background: #2d2d2d; }
+}
+</style>
+CSS
+
+"$PANDOC" --standalone --metadata title="$name" --include-in-header="$css" \
+  -o "$out" "$src"
+
+python3 -c 'import sys,pathlib;print(pathlib.Path(sys.argv[1]).resolve().as_uri())' "$out"
