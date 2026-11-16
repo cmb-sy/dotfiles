@@ -24,6 +24,7 @@ teardown() { rm -rf "$TEST_TMPDIR"; }
   cp "$TEST_TMPDIR/plan.md" "$TEST_TMPDIR/計画 1.md"
   run "$CMD" "$TEST_TMPDIR/計画 1.md"
   [ "$status" -eq 0 ]
+  [ "${#lines[@]}" -eq 1 ]
   echo "$output" | grep -qF '%20'
   [ "$(echo "$output" | grep -c ' ')" -eq 0 ]
   [ -f "$TEST_TMPDIR/計画 1.html" ]

@@ -86,7 +86,7 @@ jobs:
         run: |
           set -e
           export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
-          for cmd in gh jq fd fzf sheldon starship uv yarn git mise tmux bats; do
+          for cmd in gh jq fd fzf sheldon starship uv yarn git mise tmux bats pandoc; do
             if ! command -v "$cmd" >/dev/null 2>&1; then
               echo "FAIL: $cmd not on PATH"
               exit 1
