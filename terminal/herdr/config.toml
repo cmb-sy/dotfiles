@@ -18,12 +18,10 @@ type = "pane"
 command = "lazygit"
 
 [ui]
-# spaces, not priority: priority orders rows by agent state alone and ignores
-# the manual order entirely (verified — moving a workspace to index 0 did not
-# move its row), so bin/herdr-sort could never float marked sessions to the top.
-# Rows group by workspace here, so a marked tab brings its unmarked siblings
-# with it; that is the cost of having the order follow the markers at all.
-agent_panel_sort = "spaces"
+# priority orders rows by agent state (sessions that need you come first) and
+# ignores the manual workspace order, so bin/herdr-sort no longer changes the
+# row order here. Markers from bin/herdr-mark still show in the row labels.
+agent_panel_sort = "priority"
 
 # Background notifications. Change these with bin/herdr-notify, which edits the
 # values below and reloads the server.
