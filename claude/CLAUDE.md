@@ -96,6 +96,7 @@ skill の新規作成・編集時に適用する。`writing-skills` 等のスキ
   - 3択を提示する直前に、変更を確認するコマンド `lazygit -p '<作業ディレクトリ>'` をコードブロックで提示すること。自分で開かない。見るべきファイル (新規/変更の別と件数) を 1〜2 行添える。worktree では `-p` に worktree のパスを渡す (リポジトリ本体を開くと差分が見えない)
   - 選択肢3が選ばれたら、今回分の commit, push を実行したうえで、本節に「自動 commit/push: 有効」の1行を追記すること
   - 本節に「自動 commit/push: 有効」の記載がある場合: 3択を提示せず、ひとまとまりの編集が完了し次第 commit, push を自動実行すること
+- autopilot（任せきり）の実行中は、その作業の commit を 3 択なしで行う。push は上の規則どおりにする
 - 自動 commit/push: 有効（dotfiles・data-platform・stock-management リポジトリだけ。ほかのリポジトリでは上の3択を提示する）
 
 # 外向き操作の承認ゲート
@@ -141,7 +142,7 @@ skill の新規作成・編集時に適用する。`writing-skills` 等のスキ
 | `/feature-dev` | 仕事リポジトリで Verification Contract 発動規模（3ファイル以上・backend/API 変更・infrastructure 変更） |
 | `/pptx-dev` | プレゼン資料 |
 | superpowers 標準フロー | それ以外（dotfiles・1〜2ファイルの変更・実験・使い捨て） |
-| 任せきり | 計画を 1 回承認したら最後まで止まらずに進める（autopilot skill）。報告 md と研鑽が付く |
+| 任せきり | 計画を挟みたいが、途中で止まってほしくない作業。設計を 1 回承認したら最後まで進め、報告 md と研鑽が付く（autopilot skill） |
 | **いきなり実装** | 計画を飛ばして着手する。**常に最後の選択肢として置く**（どの作業にも該当しうる） |
 
 **問わずに進める場合**:

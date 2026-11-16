@@ -69,3 +69,22 @@ setup() {
   grep -qF '報告 md の研鑽' "$CM"
   grep -qF '全文は link' "$CM"
 }
+
+@test "生成した html も git 管理外にする" {
+  grep -qF 'docs/superpowers/**/*.html' "$SK"
+}
+
+@test "CLAUDE.md の Git Workflow に任せきり中の commit がある" {
+  grep -qF '3 択なし' "$CM"
+}
+
+@test "任せきりの行はいきなり実装の行より前" {
+  a=$(grep -n '^| 任せきり' "$CM" | cut -d: -f1)
+  b=$(grep -n '^| \*\*いきなり実装' "$CM" | cut -d: -f1)
+  [ -n "$a" ]
+  [ "$a" -lt "$b" ]
+}
+
+@test "任せきりの行は設計の承認で始まる" {
+  grep '^| 任せきり' "$CM" | grep -qF '設計を 1 回承認'
+}

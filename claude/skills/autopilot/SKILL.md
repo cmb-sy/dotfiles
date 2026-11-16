@@ -44,6 +44,8 @@ brainstorming で書く設計 md に、承認を求める前に次の表を足�
 2. 戻せない操作（本番データ、force push、追跡外ファイルの削除）
 3. 計画の前提が崩れた（設計に無い判断が要る、前提の API・ファイルが無い、同じ理由のテスト失敗が 3 回続く）
 
+「任せきり」を選んだことを、その実行中の commit の許可とみなす（どのリポジトリでも 3 択を出さない）。push は CLAUDE.md のとおりにする。自動 commit/push が有効なリポジトリでは自動で push し、それ以外では push を外向き操作として最後に 1 回だけ確かめる（commit ごとには問わない）。
+
 それ以外の予定外の判断は推奨で決めて進む。決めたら報告用の記録に 1 行足す（判断・選んだ答え・理由）。
 
 ## 置き場所と git 管理外
@@ -54,11 +56,12 @@ brainstorming で書く設計 md に、承認を求める前に次の表を足�
 | 計画 | `docs/superpowers/plans/YYYY-MM-DD-<topic>.md` |
 | 報告 | `docs/superpowers/reports/YYYY-MM-DD-<topic>-report.md` |
 
-計画と報告は git 管理外にする。最初の書き込みの前に確かめる。
+計画と報告、md-view が生成する html は git 管理外にする。最初の書き込みと最初の md-view（設計の link を出す前）の前に確かめる。
 
 ```bash
 git check-ignore -q docs/superpowers/plans/x.md || echo 'docs/superpowers/plans/' >> "$(git rev-parse --git-path info/exclude)"
 git check-ignore -q docs/superpowers/reports/x.md || echo 'docs/superpowers/reports/' >> "$(git rev-parse --git-path info/exclude)"
+git check-ignore -q docs/superpowers/x/x.html || echo 'docs/superpowers/**/*.html' >> "$(git rev-parse --git-path info/exclude)"
 ```
 
 - 足す先は `.git/info/exclude`（worktree でも `git rev-parse --git-path` で本体のものを指す）。リポジトリの .gitignore とグローバル gitignore は触らない
