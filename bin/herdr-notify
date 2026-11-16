@@ -1,0 +1,68 @@
+#!/bin/bash
+# Switch how herdr tells you an agent finished in a background workspace.
+#
+#   herdr-notify                     show the current settings
+#   herdr-notify sound on|off        completion sound
+#   herdr-notify popup off|herdr|system
+#                                    herdr  = in-app popup at the top right
+#                                    system = macOS banner (top right, like Slack)
+#
+# Edits terminal/herdr/config.toml in place (the file ~/.config/herdr/config.toml
+# links to) and reloads the running server so the change applies at once.
+
+set -euo pipefail
+
+CONFIG="${HERDR_NOTIFY_CONFIG:-$HOME/.config/herdr/config.toml}"
+HERDR="${HERDR_BIN:-herdr}"
+
+usage() { sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2; }
+
+# get <section> <key>
+get() {
+  awk -v sec="[$1]" -v key="$2" '
+    /^\[/ { in_sec = ($0 == sec); next }
+    in_sec && $1 == key { sub(/^[^=]*=[ \t]*/, ""); gsub(/"/, ""); print; exit }
+  ' "$CONFIG"
+}
+
+# set_value <section> <key> <toml value>. The key must already sit in the
+# section; adding sections is out of scope, so a missing key is an error.
+set_value() {
+  local out
+  out="$(awk -v sec="[$1]" -v key="$2" -v val="$3" '
+    /^\[/ { in_sec = ($0 == sec) }
+    in_sec && $1 == key && !done { print key " = " val; done = 1; next }
+    { print }
+    END { if (!done) exit 3 }
+  ' "$CONFIG")" || { echo "herdr-notify: [$1] $2 not found in $CONFIG" >&2; exit 1; }
+  # Write through the symlink instead of replacing it.
+  printf '%s\n' "$out" > "$CONFIG"
+}
+
+reload() { "$HERDR" server reload-config >/dev/null 2>&1 || echo "herdr-notify: server not running; applies on next start" >&2; }
+
+[ -f "$CONFIG" ] || { echo "herdr-notify: $CONFIG not found" >&2; exit 1; }
+
+case "${1:-}" in
+  "")
+    printf 'sound: %s\npopup: %s\n' \
+      "$([ "$(get ui.sound enabled)" = true ] && echo on || echo off)" \
+      "$(get ui.toast delivery)"
+    ;;
+  sound)
+    case "${2:-}" in
+      on) set_value ui.sound enabled true ;;
+      off) set_value ui.sound enabled false ;;
+      *) usage ;;
+    esac
+    reload
+    ;;
+  popup)
+    case "${2:-}" in
+      off|herdr|system) set_value ui.toast delivery "\"$2\"" ;;
+      *) usage ;;
+    esac
+    reload
+    ;;
+  *) usage ;;
+esac

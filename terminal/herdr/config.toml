@@ -25,6 +25,18 @@ command = "lazygit"
 # with it; that is the cost of having the order follow the markers at all.
 agent_panel_sort = "spaces"
 
+# Background notifications. Change these with bin/herdr-notify, which edits the
+# values below and reloads the server.
+[ui.sound]
+enabled = false
+
+[ui.toast]
+# off | herdr (in-app popup) | system (macOS banner, top right like Slack)
+delivery = "system"
+
+[ui.toast.herdr]
+position = "top-right"
+
 [theme]
 name = "catppuccin"
 auto_switch = true
