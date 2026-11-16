@@ -353,6 +353,23 @@ python3 $HOME/develop/obsidian/03_system/skills/github-sync/sync.py --apply --eo
 - 「補足が未記入で本文が薄いノート」が出たら、github-sync スキルの手順に従って補足を書く
 - commit / push は Step 7 が一括で行う
 
+### Step 6.6: 翌日の会議から「議事録からのissue化」を足す
+
+Microsoft 365 MCP の `outlook_calendar_search` で、Step 5 で決めた次の平日の予定を取る（`query: "*"`、`afterDateTime` / `beforeDateTime` にその日の 00:00 と翌日 00:00、`order: "oldest"`、`limit: 25`）。時刻は返る `timeZone`（UTC のことがある）から JST に直して読む。
+
+- 除く: `isCancelled: true`、件名が「キャンセル済み:」で始まるもの、`isAllDay: true`、出席者のいない自分だけの予定（休憩など）
+- 残った会議を `AskUserQuestion`（header: `議事録`、`multiSelect: true`）で尋ねる。`label` は件名、`description` は JST の開始〜終了。4 件を超えるときは 4 件ずつに分けて尋ねる
+- 選ばれた会議を、翌日デイリーの `### ネクストサクセス` に次の形で足す。親の行が既にあれば子の行だけを足し、同じ件名の子の行は重ねない
+
+  ```
+  - [ ] 議事録からのissue化
+  	- [ ] {会議の件名}
+  ```
+
+- 1 件も選ばれなければ何も足さない。予定が 0 件なら尋ねない
+- ツールが引けない・取得に失敗したときは止めずに Step 7 へ進み、完了報告に理由を書く
+- 会議の件名は会話の選択肢と翌日デイリーにだけ出す。出席者・本文は使わない
+
 ### Step 7: Obsidian vault を commit & push
 
 eod で生じた vault の全変更（日報・翌日デイリー等）を
@@ -399,4 +416,5 @@ git でコミットし、リモートへ push する。**最後に実行する**
 - 走査したセッション数・除外プロジェクト
 - 翌日デイリー作成（作成したパス or「既に存在のためスキップ」）
 - 翌日タスク整理: `[/] …↩️` と `[ ] …📤` で引き継いだ n 件、その内訳（issue 紐付け n 件 / 新規 issue 作成 n 件 / リンクなし n 件。引き継ぎ 0 件なら「なし」）
+- 議事録からのissue化: 足した会議 n 件（尋ねなかった・失敗したときは理由）
 - Obsidian vault: commit ハッシュ（短縮）+ push 結果（変更なしならその旨 / push 失敗なら理由）
