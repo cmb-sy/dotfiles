@@ -2,13 +2,14 @@
 name: github-issues
 description: >-
   GitHub Issue を一覧・作成・更新・クローズ・コメントしたいとき、および PR 作成+Projects 登録を
-  一気通貫で行いたいときに使う `gh` CLI ベースのスキル。対象組織は Resily。issue・PR に assignee は付けない。
-  ファイル I/O・Obsidian 連携は持たない。
-argument-hint: "list | create | close <number> | comment <number> | update <number> | pr [--content <text>] [--project <number>] [--draft] [--skip-project] [自然言語の指示]"
+  一気通貫で行いたいときに使う `gh` CLI ベースのスキル。issue は会話から、または議事録（Teams 文字起こし txt・
+  Copilot 要約）から自分のやることを選んで作れ、似た issue があれば作成せず更新する。ステータスは選択式。
+  対象組織は Resily。issue・PR に assignee は付けない。ファイル I/O は渡された議事録の読み取りのみ、Obsidian 連携は持たない。
+argument-hint: "list | create [--from-minutes <txt パス>] | close <number> | comment <number> | update <number> | pr [--content <text>] [--project <number>] [--draft] [--skip-project] [自然言語の指示]"
 user-invocable: true
 ---
 
-`gh` CLI を使って GitHub Issue を操作する。ファイル I/O・Obsidian 連携は一切持たない（純粋な issue 操作のみ）。
+`gh` CLI を使って GitHub Issue を操作する。ファイル I/O はユーザーが渡した議事録ファイルの読み取りのみで、Obsidian 連携は持たない。
 
 **対象組織:** `Resily`。リポジトリは引数または文脈から特定する。**issue・PR に assignee は付けない**（作成・更新とも。ユーザーが login を名指しして付けるよう指示したときだけ付ける）。
 
@@ -74,7 +75,31 @@ done
 
 ## create — 作成
 
-「何を」「どのプロジェクトで」を最初にユーザーから受け取り、**そのプロジェクトの既存 issue・実装状態を確認したうえで**下書きを洗練し、期日を選択肢で確定して作成、最後に **issue の URL を返す**。対話型フロー。
+「何を」「どのプロジェクトで」を最初にユーザーから受け取り、**そのプロジェクトの既存 issue・実装状態を確認したうえで**下書きを洗練し、期日を選択肢で確定して作成、最後に **issue の URL を返す**。対話型フロー。起点は「会話から」と「議事録から」の 2 つで、どちらも Step 1 以降の同じ手順で詰める。
+
+### Step 0: 起点の選択
+
+`AskUserQuestion`（header: `起点`）で `会話から` / `議事録から` を選ばせる。次のいずれかに当たれば質問を省略して `議事録から` へ進む:
+
+- 引数に `--from-minutes <txt パス>` がある
+- txt ファイルのパスが渡されている
+- 議事録らしいテキスト（発言者つきの文字起こし・Copilot の会議要約）が貼り付けられている
+
+`会話から` は Step 1 へ進む。`議事録から` は Step 0b へ進む。
+
+### Step 0b: 議事録から候補を抽出
+
+1. **議事録を受け取る**: txt パスが渡されていれば Read で読む。パスが無ければ、文字起こしまたは Copilot 要約の貼り付けを求める。パスが存在しない・中身が空のときは、推測で進めず貼り付けを求め直す
+2. **候補化**: 自分（中島）宛てと読める項目（自分が引き受けた作業・自分への依頼・自分が持ち帰った確認）を候補にする。担当が曖昧な項目は末尾に `（担当未確定）` を付けて残す
+3. **選ばせる**: `AskUserQuestion`（header: `候補`、`multiSelect: true`）で issue にする項目を選ばせる
+4. **候補 0 件**: 「自分宛ての候補なし」を伝え、`AskUserQuestion`（header: `続行`）で `会話から作成する` / `終了する` を選ばせる
+5. **1 件ずつ回す**: 選んだ項目ごとに Step 1〜8 を 1 件ずつ順に実行する。各項目の冒頭で `AskUserQuestion`（header: `項目`）で `この項目を進める` / `スキップ` を選ばせ、スキップならその項目を飛ばして次の項目へ進む。Step 1 の issue 内容には選んだ項目を使い、プロジェクトだけを尋ねる
+
+議事録由来の issue 本文には、議事録の本文・他者の氏名を転記しない。本文末尾に出典を 1 行だけ付ける:
+
+```
+出典: {会議名} ({YYYY-MM-DD})
+```
 
 ### Step 1: 内容とプロジェクトのヒアリング
 
@@ -104,7 +129,10 @@ gh pr list --repo Resily/{repo} --state all --limit 10 --json number,title,state
 ```
 
 確認結果から:
-- **重複候補**があれば、新規作成せず既存 issue を提示して「更新/コメントで対応するか、別物として新規作成するか」をユーザーに確認する
+- **重複候補**があれば既存 issue を提示し、`AskUserQuestion`（header: `重複`）で `既存を更新（推奨）` / `別物として新規作成` / `コメントで追記` を選ばせる
+  - `既存を更新`: 既存 issue の現本文を `gh issue view {number} --repo Resily/{repo} --json title,body` で取り、追記・修正の差分案を提示する。承認後に `gh issue edit {number} --repo Resily/{repo} [--title "..."] [--body "..."]` で更新し、Step 8 へ進む。Step 4〜7d（ボード追加・Status 設定・ラベル・タイプ・優先度/サイズ・milestone）は行わず、既存の item を変えない
+  - `コメントで追記`: 追記内容を提示し、承認後に `gh issue comment` で投稿して Step 8 へ進む。Step 4〜7d は行わない
+  - `別物として新規作成`: Step 4 へ進む
 - 関連する既存 issue があれば、本文に `関連: #{number}` として参照を入れる
 - 直近のコミット/PR から読み取れる実装状況を踏まえ、本文の前提・スコープを調整する
 
@@ -212,9 +240,22 @@ gh api graphql -f query='
 
 `AskUserQuestion` で **2 問まとめて**聞く（header: `優先度` / `サイズ`）。選択肢は Step 5b の Priority(P0/P1/P2) / Size(XS/S/M/L/XL)。**「未設定」も選択肢に含める**（すべての issue に無理に優先度・サイズを付けない。判断材料が無ければ未設定を推奨として出す）。
 
+### Step 6d: ステータスの選択
+
+`AskUserQuestion`（header: `ステータス`）で AITF ボードの Status を選ばせる。選択肢と option-id（Step 7b で使う）:
+
+| 選択肢 | option-id |
+|---|---|
+| `Backlog（推奨）` | `f75ad846` |
+| `Ready` | `61e4505c` |
+| `In progress` | `47fc9ee4` |
+| `In review` | `df73e18b` |
+
+`Done` は選択肢に出さない。
+
 ### Step 7: 最終確認と作成
 
-確定した repo / title / body / 期日 / ラベル / タイプ / 優先度 / サイズ をまとめて提示し、最終確認を取る。承認後に実行（`--assignee` は付けない）:
+確定した repo / title / body / 期日 / ラベル / タイプ / 優先度 / サイズ / ステータス をまとめて提示し、最終確認を取る。承認後に実行（`--assignee` は付けない）:
 
 ```bash
 gh issue create --repo Resily/{repo} \
@@ -226,22 +267,22 @@ gh issue create --repo Resily/{repo} \
 
 ### Step 7b: プロジェクトボードへの追加（必須）
 
-`gh issue create` で作成した issue はプロジェクトボードに自動では載らない。さらに、追加直後の Status は **`Done`** になりボードのデフォルトビューから隠れてしまうため、**追加 + Status を `Backlog` に設定するまでをセットで実行する**。
+`gh issue create` で作成した issue はプロジェクトボードに自動では載らない。さらに、追加直後の Status は **`Done`** になりボードのデフォルトビューから隠れてしまうため、**追加 + Status を Step 6d で選んだ値に設定するまでをセットで実行する**。
 
 ```bash
 # 1) AITF ボード（project 26）に追加し、item id を取得
 ITEM_ID=$(gh project item-add 26 --owner Resily --url {作成された issue の URL} --format json --jq '.id')
 
-# 2) Status を Backlog に設定（追加直後は Done で隠れるため必須）
+# 2) Status を Step 6d で選んだ値に設定（追加直後は Done で隠れるため必須）
 gh project item-edit \
   --id "$ITEM_ID" \
   --project-id PVT_kwDOArEsis4BIUQA \
   --field-id PVTSSF_lADOArEsis4BIUQAzg4z98s \
-  --single-select-option-id f75ad846
+  --single-select-option-id "{Step 6d で選んだ Status の option-id}"
 ```
 
-- project 26 = AITF ボード。`projectId=PVT_kwDOArEsis4BIUQA`、Status フィールド `PVTSSF_lADOArEsis4BIUQAzg4z98s`、`Backlog` オプション `f75ad846`
-- Status オプション: Backlog `f75ad846` / Ready `61e4505c` / In progress `47fc9ee4` / In review `df73e18b` / Done `98236657`
+- project 26 = AITF ボード。`projectId=PVT_kwDOArEsis4BIUQA`、Status フィールド `PVTSSF_lADOArEsis4BIUQAzg4z98s`
+- Status オプション（Step 6d の選択肢）: Backlog `f75ad846` / Ready `61e4505c` / In progress `47fc9ee4` / In review `df73e18b`。Done `98236657` は設定しない
 - これは org の共有ボードを変更する操作だが、運用上 create とセットで常に実行する（ユーザーの恒久指示）
 - 失敗した場合（権限・project scope 不足など）はエラーを報告し、手動追加を案内する
 
@@ -276,8 +317,8 @@ gh project item-edit --id "$ITEM_ID" --project-id PVT_kwDOArEsis4BIUQA \
 
 ### Step 8: リンク返却
 
-作成された issue の **URL を必ず報告する**（`gh issue create` の標準出力に URL が返る）。
-`#{number} {タイトル} → {URL}` 形式で出し、**AITF ボードへ追加した旨、設定したラベル・タイプ・優先度・サイズ・milestone（新規作成した場合はその旨）も添える**。
+作成または更新した issue の **URL を必ず報告する**（`gh issue create` の標準出力に URL が返る）。
+`#{number} {タイトル} → {URL}` 形式で出し、**AITF ボードへ追加した旨、設定した Status・ラベル・タイプ・優先度・サイズ・milestone（新規作成した場合はその旨）も添える**。Step 3 で既存を更新・コメントした場合は、更新またはコメントした旨と URL だけを出す。議事録から複数件を回した場合は、全項目の結果（作成・更新・スキップ）を最後にまとめて出す。
 
 ---
 
@@ -370,13 +411,13 @@ issue 系と共通（未認証・リポジトリ外・リモート未設定は�
 
 ## ルール
 
-1. **ファイル I/O を行わない** — ローカルファイルの読み書き・Obsidian 連携は一切しない
+1. **ファイル I/O を行わない** — ローカルファイルの読み書き・Obsidian 連携はしない。例外は、ユーザーが渡した議事録ファイルの読み取りのみ
 2. **破壊的/外部可視の操作は実行前に確認** — create / close / comment / update。list は確認不要
 3. **issue・PR に assignee は付けない**（create・update とも）。付けるのはユーザーが login を名指しして指示したときだけ。組織は `Resily`
 4. **PII を body/comment に転記しない** — Slack 本文や同僚名等はマスキング、または含めない
 5. **リポジトリが特定できない場合は推測せず確認する**
 6. **実行後は issue 番号と URL を報告する**
-7. **create した issue は必ず AITF ボード（project 26）に追加し、Status を `Backlog` に設定する** — 手順・フィールド ID は Step 7b を参照（追加直後の Status は `Done` になり隠れるため Backlog 設定まで必須）
+7. **create した issue は必ず AITF ボード（project 26）に追加し、Status は Step 6d で選んだ値（既定 `Backlog`）に設定する** — 手順・フィールド ID は Step 7b を参照（追加直後の Status は `Done` になり隠れるため Status 設定まで必須）。Step 3 で既存を更新した場合はボード追加・Status 設定を行わない
 8. **create した issue には必ずラベル・タイプ・優先度/サイズを設定する** — 該当する既存の値が無ければ、確認せずその場で新規作成する（ラベル: `gh label create`、タイプ: `createIssueType` GraphQL mutation。タイプ新規作成が権限不足で失敗した場合のみ、既存タイプへのフォールバックを確認する）。優先度・サイズは「未設定」も正当な選択肢とする
 9. **ユーザーが具体的な期限を明言した場合、その期限に対応する milestone を使う** — 既存 milestone に一致する `due_on` が無ければ、確認せずその場で新規作成し issue に付与する。期限の明言が無い相対表現（今週中/今月末）のみの場合は、従来どおり本文への期日追記に留め milestone は作成しない
 10. **一度確立したこれらの標準動作（ラベル・タイプ・フィールド・milestone の自動補完）は、以後のすべての create 操作に適用する** — 個別の issue ごとに毎回確認を求めない
