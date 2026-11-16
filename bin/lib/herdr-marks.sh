@@ -1,6 +1,6 @@
 # shellcheck shell=bash
-# herdr-marks.sh — the set of session markers, shared by herdr-mark and
-# herdr-sort. Sourced, not executed.
+# herdr-marks.sh — the set of session markers used by herdr-mark.
+# Sourced, not executed.
 #
 # The set is data, not code: the picker can add to it, so it lives in a state
 # file rather than in either script. Seeded from the defaults below the first

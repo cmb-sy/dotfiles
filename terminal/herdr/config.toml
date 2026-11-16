@@ -19,8 +19,8 @@ command = "lazygit"
 
 [ui]
 # priority orders rows by agent state (sessions that need you come first) and
-# ignores the manual workspace order, so bin/herdr-sort no longer changes the
-# row order here. Markers from bin/herdr-mark still show in the row labels.
+# ignores the manual workspace order. Markers from bin/herdr-mark still show
+# in the row labels.
 agent_panel_sort = "priority"
 
 # Background notifications. Change these with bin/herdr-notify, which edits the

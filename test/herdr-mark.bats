@@ -30,10 +30,6 @@ setup() {
   export HERDR_MARKS_RETIRED="$TEST_TMPDIR/marks-retired.tsv"
   AGENT_JSON="$TEST_TMPDIR/agents.json"
   export AGENT_JSON
-  # 並べ替えは socket API を使うので、ここでは呼ばれたことだけ記録する。
-  export HERDR_SORT_BIN="$TEST_TMPDIR/herdr-sort"
-  printf '#!/bin/bash\nprintf "sort\\n" >>"$CALLS"\n' >"$HERDR_SORT_BIN"
-  chmod +x "$HERDR_SORT_BIN"
   PATH="$STUB:$PATH"
 
   cat >"$STUB/herdr" <<'STUB'
@@ -259,14 +255,6 @@ call_count() {
   [ "$status" -ne 0 ]
   printf '%s' "$output" | grep -qF 'picker returned an unknown marker'
   [ "$(call_count)" -eq 0 ]
-}
-
-@test "印を変えたら並べ替えも走る" {
-  workspace 'proj' 3 true
-  tab 'general' true
-  run bash "$REPO_DIR/bin/herdr-mark" set '🤖'
-  [ "$status" -eq 0 ]
-  cat "$CALLS" | grep -qxF 'sort'
 }
 
 @test "一覧に無い文字を打ち込むと印として追加され、そのまま適用される" {
