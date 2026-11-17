@@ -335,7 +335,7 @@ python3 $HOME/develop/obsidian/03_system/skills/github-sync/sync.py --apply --eo
 
 - `--eod` は今日のデイリーにタスクを足さず、状態アイコンも付け外ししない（チェックの読み取りと完了チェック・番号の保守だけ）。
   夜に In Progress になったタスクを今日のフルに足すと、予定していなかった未達の行になるため。アイコンを固定するのは、
-  Step 4.4 で締めた時点の状態がその日の記録だから。明日のデイリーには in-progress（Todo も）をフルへ、review をウェイティングへ足す
+  Step 4.4 で締めた時点の状態がその日の記録だから。明日のデイリーには in-progress をフルへ、Todo の in-progress をネクストサクセスへ、review をウェイティングへ足す
 - Issue のタイトルは会話に出さない
 - 出力に「done だが GitHub で open」が出たら、github-sync スキルの手順に従って 1 件ずつ尋ね、`--keep-done` / `--reopen` で答えを書く
 - 「補足が未記入で本文が薄いノート」が出たら、github-sync スキルの手順に従って補足を書く
