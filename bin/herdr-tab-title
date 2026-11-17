@@ -3,7 +3,8 @@
 #
 #   herdr-tab-title <name...>
 #
-# Outside herdr this is a no-op. Names are cut to 20 characters (not bytes).
+# Outside herdr this is a no-op. Names are cut to 20 characters (not bytes);
+# a trailing state mark on the current label is kept.
 
 set -euo pipefail
 
@@ -19,7 +20,24 @@ herdr="${HERDR_BIN:-herdr}"
 [ -n "${HERDR_TAB_ID:-}" ] || exit 0
 command -v "$herdr" >/dev/null 2>&1 || exit 0
 
-name="$(python3 -c 'import sys; print(sys.argv[1][:20])' "$name")"
+# The current label's trailing state mark (📤 🪵 🔥 ✅, set by github-sync / next-task)
+# survives the rename, so the tab keeps showing the issue's state.
+current="$("$herdr" tab list 2>/dev/null || true)"
+name="$(python3 - "$name" "$HERDR_TAB_ID" "$current" <<'PY'
+import json, re, sys
+name, tab_id, raw = sys.argv[1][:20], sys.argv[2], sys.argv[3]
+mark_re = re.compile(r"\s*(📤|🪵|🔥|✅)\ufe0f?$")
+try:
+    tabs = json.loads(raw)["result"]["tabs"]
+    label = next(t.get("label") or "" for t in tabs if t.get("tab_id") == tab_id)
+except (ValueError, KeyError, TypeError, StopIteration):
+    label = ""
+m = mark_re.search(label)
+if m and not mark_re.search(name):
+    name = f"{name} {m.group(1)}"
+print(name)
+PY
+)"
 
 "$herdr" tab rename "$HERDR_TAB_ID" "$name" >/dev/null 2>&1 \
   || echo "herdr-tab-title: rename failed" >&2

@@ -6,7 +6,12 @@ bats_require_minimum_version 1.5.0
 
 setup() {
   make_tmpdir
-  printf '#!/bin/bash\nprintf "%%s\\n" "$@" >> "%s/calls"\nexit "${FAKE_EXIT:-0}"\n' "$TEST_TMPDIR" > "$TEST_TMPDIR/herdr"
+  cat > "$TEST_TMPDIR/herdr" <<EOF
+#!/bin/bash
+if [ "\$1 \$2" = "tab list" ]; then printf '%s' "\${FAKE_TABS:-}"; exit 0; fi
+printf "%s\\n" "\$@" >> "$TEST_TMPDIR/calls"
+exit "\${FAKE_EXIT:-0}"
+EOF
   chmod +x "$TEST_TMPDIR/herdr"
   export HERDR_BIN="$TEST_TMPDIR/herdr"
   export HERDR_TAB_ID="tab-1"
@@ -44,4 +49,18 @@ teardown() { rm -rf "$TEST_TMPDIR"; }
   run "$CMD" "   "
   [ "$status" -eq 2 ]
   [ ! -e "$TEST_TMPDIR/calls" ]
+}
+
+@test "今のタブ名の末尾の状態の印は、新しい名前に引き継ぐ" {
+  FAKE_TABS='{"result":{"tabs":[{"tab_id":"tab-0","label":"9 📤"},{"tab_id":"tab-1","label":"2488 🔥"}]}}' \
+    run "$CMD" 2488 etlデプロイ
+  [ "$status" -eq 0 ]
+  [ "$(tail -n1 "$TEST_TMPDIR/calls")" = "2488 etlデプロイ 🔥" ]
+}
+
+@test "印の無いタブ名や読めない一覧では、印を足さない" {
+  FAKE_TABS='{"result":{"tabs":[{"tab_id":"tab-1","label":"general"}]}}' run "$CMD" 名前
+  [ "$(tail -n1 "$TEST_TMPDIR/calls")" = "名前" ]
+  FAKE_TABS='not json' run "$CMD" 名前2
+  [ "$(tail -n1 "$TEST_TMPDIR/calls")" = "名前2" ]
 }
