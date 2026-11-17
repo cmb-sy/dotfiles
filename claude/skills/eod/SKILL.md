@@ -347,7 +347,7 @@ python3 $HOME/develop/obsidian/03_system/skills/github-sync/sync.py --apply --eo
 
 - `--eod` は今日のデイリーにタスクを足さず、状態アイコンも付け外ししない（チェックの読み取りと完了チェック・番号の保守だけ）。
   夜に In Progress になったタスクを今日のフルに足すと、予定していなかった未達の行になるため。アイコンを固定するのは、
-  Step 4.4 で締めた時点の状態がその日の記録だから。明日のデイリーには in-progress と review をフルへ、Todo の in-progress をネクストサクセスへ足す
+  Step 4.4 で締めた時点の状態がその日の記録だから。明日のデイリーには in-progress（Todo も）をフルへ、review をウェイティングへ足す
 - Issue のタイトルは会話に出さない
 - 出力に「done だが GitHub で open」が出たら、github-sync スキルの手順に従って 1 件ずつ尋ね、`--keep-done` / `--reopen` で答えを書く
 - 「補足が未記入で本文が薄いノート」が出たら、github-sync スキルの手順に従って補足を書く
@@ -359,7 +359,7 @@ Microsoft 365 MCP の `outlook_calendar_search` で、Step 5 で決めた次の�
 
 - 除く: `isCancelled: true`、件名が「キャンセル済み:」で始まるもの、`isAllDay: true`、出席者のいない自分だけの予定（休憩など）
 - 残った会議を `AskUserQuestion`（header: `議事録`、`multiSelect: true`）で尋ねる。`label` は件名、`description` は JST の開始〜終了。4 件を超えるときは 4 件ずつに分けて尋ねる
-- 選ばれた会議を、翌日デイリーの `### ネクストサクセス` に次の形で足す。親の行が既にあれば子の行だけを足し、同じ件名の子の行は重ねない
+- 選ばれた会議を、翌日デイリーの `### フルサクセス` の末尾に次の形で足す。親の行が既にあれば子の行だけを足し、同じ件名の子の行は重ねない
 
   ```
   - [ ] 議事録からのissue化
