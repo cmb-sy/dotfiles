@@ -1,0 +1,26 @@
+#!/bin/bash
+# Rename the current herdr tab to a short task name.
+#
+#   herdr-tab-title <name...>
+#
+# Outside herdr this is a no-op. Names are cut to 20 characters (not bytes).
+
+set -euo pipefail
+
+name="$*"
+name="${name#"${name%%[![:space:]]*}"}"
+name="${name%"${name##*[![:space:]]}"}"
+if [ -z "$name" ]; then
+  echo "usage: herdr-tab-title <name>" >&2
+  exit 2
+fi
+
+herdr="${HERDR_BIN:-herdr}"
+[ -n "${HERDR_TAB_ID:-}" ] || exit 0
+command -v "$herdr" >/dev/null 2>&1 || exit 0
+
+name="$(python3 -c 'import sys; print(sys.argv[1][:20])' "$name")"
+
+"$herdr" tab rename "$HERDR_TAB_ID" "$name" >/dev/null 2>&1 \
+  || echo "herdr-tab-title: rename failed" >&2
+exit 0
