@@ -40,51 +40,48 @@ sleep 8; herdr pane read <ペイン id> --lines 15
 
 Claude の入力欄か作業中の表示が出ていれば起動済み。シェルのエラーなら、その出力を見せて止まる。
 
-## 4. issue にしてデイリーに入れるか尋ねる
+## 4. issue に書き込み、デイリーに入れるか尋ねる
 
-起動を確かめたら `AskUserQuestion` を 1 回呼ぶ（header: `デイリー`）。質問は「このタスク（<タスク名>）を issue にして、今日のデイリーのフルサクセスに入れますか？」。選択肢:
+起動を確かめたら `AskUserQuestion` を 1 回呼ぶ（header: `デイリー`）。質問は「このタスク（<タスク名>）を issue に書き込み、今日のデイリーのフルサクセスに入れますか？」。選択肢:
 
-1. issue にしてデイリーに入れる
+1. issue に書き込んでデイリーに入れる
 2. デイリーにだけ入れる
 3. どちらもしない
 
-### 4a. issue を作る（1 のとき）
+### 4a. issue に書き込む（1 のとき）
 
-1. 親の目標 issue を選ぶ。AITF の木は「テーマ（`【FY26下期】…`、親なし）→ エピック（`【データ基盤】…` など）→ 目標 issue」で決まっていて、新しい issue は**目標 issue の下にタスクとして**入れる。エピックやテーマの直下には付けない。
-   目標 issue は Obsidian の `02_quant/目標設定/FY26下期.md` のプロセス目標（期限つきの区切り）と 1 対 1 に対応する。テーマから 2 段下を読み、目標設定の文と照らして候補にする:
+AITF の木は「テーマ（`【FY26下期】…`、親なし）→ エピック（`【データ基盤】…` など）→ 目標 issue」の **3 段まで**。4 段目は作らない。引き継いだ作業は、当てはまる目標 issue の本文に**タスクとして書き込む**。新しい issue は作らない。
+
+1. 書き込む目標 issue を選ぶ。目標 issue は Obsidian の `02_quant/目標設定/FY26下期.md` のプロセス目標と 1 対 1 に対応する。テーマから 2 段下を読み、目標設定の文と照らして候補にする:
 
    ```bash
    gh api graphql -f query='{repository(owner:"Resily",name:"<テーマの repo>"){issue(number:<テーマ>){subIssues(first:20){nodes{number title subIssues(first:30){nodes{number title state repository{name}}}}}}}}' \
      --jq '.data.repository.issue.subIssues.nodes[]|.number as $e|.title as $et|.subIssues.nodes[]|select(.state=="OPEN")|"\(.repository.name)#\(.number)\t\($et)\t\(.title)"'
    ```
 
-   テーマは AITF ボードで親なし・`【FY26下期】` の issue（データ基盤なら data-platform#275）。作業に一番近い目標 issue を推奨にし、次点 1〜2 件と並べて `AskUserQuestion`（header: `親`）で選んでもらう。合う目標 issue が無ければ、そう書いてエピックを候補に出す。issue のリポジトリは親と同じにする
-2. 草案を出して止まる。題・本文（依頼・期限・待ちの入力・引き継ぎ文書の要約）・リポジトリ・親・Status（In progress）を見せる。**作成は合図を受けてから**（外向き操作）。本文に人名を書かず役割で書く
-3. 作る。`--assignee` は付けない
+   テーマは AITF ボードで親なし・`【FY26下期】` の issue（データ基盤なら data-platform#275）。一番近い目標 issue を推奨にし、次点 1〜2 件と並べて `AskUserQuestion`（header: `issue`）で選んでもらう
+2. 本文を読み（`gh issue view <番号> --repo Resily/<repo> --json body --jq .body`）、追記の草案を作る。既存の文は変えず、末尾に節を足す:
 
-   ```bash
-   gh issue create --repo Resily/<repo> --title "<題>" --body-file <本文の md>
-   ITEM=$(gh project item-add 26 --owner Resily --url <URL> --format json --jq .id)
-   gh project item-edit --id "$ITEM" --project-id PVT_kwDOArEsis4BIUQA \
-     --field-id PVTSSF_lADOArEsis4BIUQAzg4z98s --single-select-option-id 47fc9ee4   # In progress
-   gh api graphql -f query='mutation($p:ID!,$c:ID!){addSubIssue(input:{issueId:$p,subIssueId:$c}){issue{number}}}' \
-     -f p="$(gh issue view <親> --repo Resily/<repo> --json id --jq .id)" \
-     -f c="$(gh issue view <URL> --json id --jq .id)"
+   ```markdown
+   ## タスク
+   - [ ] <やること>（期限 M/D）
    ```
 
-4. 親が data-platform#275 の木の中なら、#275 の「現在の状況」は作り直しが要ると報告に書く（作り直しは頼まれてから）
-5. 引き継ぎ文書と新しいタブに issue 番号を伝える（`herdr pane send-text` は使わず、報告に書いてユーザーに任せる）
+   `## タスク` の節がすでにあれば、その末尾に行を足す。同じ内容の行は重ねない。1 行 1 タスクで、結果が分かる言い方にする。背景や仕様の表は書かず、引き継ぎ文書に残す。人名は書かず役割で書く
+3. 草案（足す行だけ）を見せて止まる。**書き込みは合図を受けてから**（外向き操作）
+4. 書き込む。本文全体を一時ファイルに書いて `gh issue edit <番号> --repo Resily/<repo> --body-file <ファイル>`。書いた後に本文を読み直し、元の文が残っていることを確かめる
+5. 合う目標 issue が無いときだけ、エピックの下に新しい目標 issue を作るかをユーザーに尋ねる（作るなら `gh issue create` → AITF ボード project 26 に追加 → `addSubIssue` でエピックに付ける。草案を見せて合図を待つ）
 
 ### 4b. デイリーに入れる（1・2 のとき）
 
 今日のデイリーの `### フルサクセス` の末尾（次の `### ` 見出しの直前）に 1 行足す。
 
 - ファイル: `$HOME/develop/obsidian/01_daily/{YYYY}年/{M}月/{D}日({曜}).md`（月・日はゼロ埋めなし。`date` で今日の日付と曜日を取る）
-- 行: `- [ ] <タスク名>`。タスク名はタブ名から番号を除いた題を基本に、何をする行か分かる言い方にする（例: `効果検証白書の集計要素の実現可能性を確認`）。4a で issue を作ったら `- [ ] 【AITF】<issue の題> #<番号>` にする（課題の行の形。夜の同期がタスクノートのリンクに付け替える）
+- 行: `- [ ] <タスク名>`。タスク名はタブ名から番号を除いた題を基本に、何をする行か分かる言い方にする（例: `効果検証白書の集計要素の実現可能性を確認`）。4a で issue に書き込んだら、末尾に ` #<番号>` を付ける
 - 同じ文言の行がすでにあれば足さない
 - ファイルか見出しが無ければ足さずに、その旨を報告に書く
 - vault の commit はしない（eod が締めでまとめて commit する）
 
 ## 5. 報告
 
-タブ名・ペイン id・引き継ぎ文書の絶対パスと、デイリーに足したかどうかを書く。
+タブ名・ペイン id・引き継ぎ文書の絶対パス、書き込んだ issue の URL、デイリーに足したかどうかを書く。
