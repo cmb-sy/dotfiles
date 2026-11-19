@@ -50,14 +50,15 @@ Claude の入力欄か作業中の表示が出ていれば起動済み。シェ�
 
 ### 4a. issue を作る（1 のとき）
 
-1. 親の issue を AITF ボード（Resily の project 26）から選ぶ。親は「テーマ（`【FY26下期】…`、親なし）→ その直下のエピック」で決まっているので、エピックを親にする（タスクの下には付けない。3 段を崩さない）。候補の取り方:
+1. 親の目標 issue を選ぶ。AITF の木は「テーマ（`【FY26下期】…`、親なし）→ エピック（`【データ基盤】…` など）→ 目標 issue」で決まっていて、新しい issue は**目標 issue の下にタスクとして**入れる。エピックやテーマの直下には付けない。
+   目標 issue は Obsidian の `02_quant/目標設定/FY26下期.md` のプロセス目標（期限つきの区切り）と 1 対 1 に対応する。テーマから 2 段下を読み、目標設定の文と照らして候補にする:
 
    ```bash
-   gh api graphql --paginate -f query='query($endCursor:String){organization(login:"Resily"){projectV2(number:26){items(first:100,after:$endCursor){pageInfo{hasNextPage endCursor} nodes{content{... on Issue{number title state repository{name} subIssuesSummary{total} parent{number repository{name}}}}}}}}}' \
-     --jq '.data.organization.projectV2.items.nodes[].content|select(.state=="OPEN" and .subIssuesSummary.total>0)|"\(.repository.name)#\(.number)\t親:\(if .parent then "\(.parent.repository.name)#\(.parent.number)" else "-" end)\t\(.title)"'
+   gh api graphql -f query='{repository(owner:"Resily",name:"<テーマの repo>"){issue(number:<テーマ>){subIssues(first:20){nodes{number title subIssues(first:30){nodes{number title state repository{name}}}}}}}}' \
+     --jq '.data.repository.issue.subIssues.nodes[]|.number as $e|.title as $et|.subIssues.nodes[]|select(.state=="OPEN")|"\(.repository.name)#\(.number)\t\($et)\t\(.title)"'
    ```
 
-   作業に一番近いエピックを推奨にし、次点 1〜2 件と並べて `AskUserQuestion`（header: `親`）で選んでもらう。issue のリポジトリは親と同じにする
+   テーマは AITF ボードで親なし・`【FY26下期】` の issue（データ基盤なら data-platform#275）。作業に一番近い目標 issue を推奨にし、次点 1〜2 件と並べて `AskUserQuestion`（header: `親`）で選んでもらう。合う目標 issue が無ければ、そう書いてエピックを候補に出す。issue のリポジトリは親と同じにする
 2. 草案を出して止まる。題・本文（依頼・期限・待ちの入力・引き継ぎ文書の要約）・リポジトリ・親・Status（In progress）を見せる。**作成は合図を受けてから**（外向き操作）。本文に人名を書かず役割で書く
 3. 作る。`--assignee` は付けない
 
