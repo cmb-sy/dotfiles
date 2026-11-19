@@ -1,0 +1,28 @@
+#!/bin/bash
+# Open a new tab in the current herdr workspace and start a work-account
+# Claude session (clwa) that reads a handoff file.
+#
+#   herdr-spawn-session <handoff.md> <tab label> [cwd]
+#
+# Prints the new pane id. Fails outside herdr.
+
+set -euo pipefail
+
+handoff="${1:?usage: herdr-spawn-session <handoff.md> <label> [cwd]}"
+label="${2:?usage: herdr-spawn-session <handoff.md> <label> [cwd]}"
+cwd="${3:-$PWD}"
+herdr="${HERDR_BIN:-herdr}"
+
+[ -n "${HERDR_WORKSPACE_ID:-}" ] || { echo "herdr-spawn-session: not inside herdr" >&2; exit 1; }
+[ -f "$handoff" ] || { echo "herdr-spawn-session: no such file: $handoff" >&2; exit 1; }
+[ -d "$cwd" ] || { echo "herdr-spawn-session: no such dir: $cwd" >&2; exit 1; }
+case "$handoff" in /*) ;; *) handoff="$PWD/$handoff" ;; esac
+
+out="$("$herdr" tab create --workspace "$HERDR_WORKSPACE_ID" --cwd "$cwd" --label "${label:0:20}" --focus)"
+pane="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["result"]["root_pane"]["pane_id"])' <<<"$out")"
+
+prompt="次の引き継ぎ文書を読み、書かれた依頼を始めて: $handoff"
+# printf %q in bash 3.2 turns UTF-8 into byte escapes; shlex keeps it as text.
+quoted="$(python3 -c 'import shlex,sys; print(shlex.quote(sys.argv[1]))' "$prompt")"
+"$herdr" pane run "$pane" "clwa $quoted"
+echo "$pane"
