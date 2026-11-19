@@ -19,10 +19,10 @@ herdr="${HERDR_BIN:-herdr}"
 case "$handoff" in /*) ;; *) handoff="$PWD/$handoff" ;; esac
 
 out="$("$herdr" tab create --workspace "$HERDR_WORKSPACE_ID" --cwd "$cwd" --label "${label:0:20}" --focus)"
-pane="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["result"]["root_pane"]["pane_id"])' <<<"$out")"
+pane="$(python3 -I -c 'import json,sys; print(json.load(sys.stdin)["result"]["root_pane"]["pane_id"])' <<<"$out")"
 
 prompt="次の引き継ぎ文書を読み、書かれた依頼を始めて: $handoff"
 # printf %q in bash 3.2 turns UTF-8 into byte escapes; shlex keeps it as text.
-quoted="$(python3 -c 'import shlex,sys; print(shlex.quote(sys.argv[1]))' "$prompt")"
+quoted="$(python3 -I -c 'import shlex,sys; print(shlex.quote(sys.argv[1]))' "$prompt")"
 "$herdr" pane run "$pane" "clwa $quoted"
 echo "$pane"
