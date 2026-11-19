@@ -50,7 +50,14 @@ Claude の入力欄か作業中の表示が出ていれば起動済み。シェ�
 
 ### 4a. issue を作る（1 のとき）
 
-1. 親の issue を決める。会話と引き継ぎ文書に出た issue から、エピック（`gh api graphql` で `subIssues` を読む）の子のうち作業が一番近いものを選ぶ。リポジトリは親と同じにする
+1. 親の issue を AITF ボード（Resily の project 26）から選ぶ。親は「テーマ（`【FY26下期】…`、親なし）→ その直下のエピック」で決まっているので、エピックを親にする（タスクの下には付けない。3 段を崩さない）。候補の取り方:
+
+   ```bash
+   gh api graphql --paginate -f query='query($endCursor:String){organization(login:"Resily"){projectV2(number:26){items(first:100,after:$endCursor){pageInfo{hasNextPage endCursor} nodes{content{... on Issue{number title state repository{name} subIssuesSummary{total} parent{number repository{name}}}}}}}}}' \
+     --jq '.data.organization.projectV2.items.nodes[].content|select(.state=="OPEN" and .subIssuesSummary.total>0)|"\(.repository.name)#\(.number)\t親:\(if .parent then "\(.parent.repository.name)#\(.parent.number)" else "-" end)\t\(.title)"'
+   ```
+
+   作業に一番近いエピックを推奨にし、次点 1〜2 件と並べて `AskUserQuestion`（header: `親`）で選んでもらう。issue のリポジトリは親と同じにする
 2. 草案を出して止まる。題・本文（依頼・期限・待ちの入力・引き継ぎ文書の要約）・リポジトリ・親・Status（In progress）を見せる。**作成は合図を受けてから**（外向き操作）。本文に人名を書かず役割で書く
 3. 作る。`--assignee` は付けない
 
