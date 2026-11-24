@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# 会話ログが N 日更新されていないワークスペースを閉じる。herdr のスタブと、mtime を合わせた偽の会話ログで検査する。
+# 会話ログの最後の timestamp が N 日より前のワークスペースを閉じる。herdr のスタブと、timestamp を入れた偽の会話ログで検査する。
 
 load "helpers/common"
 bats_require_minimum_version 1.5.0
@@ -51,12 +51,23 @@ state() {
   export FAKE_AGENTS="{\"result\":{\"agents\":[$2]}}"
 }
 
-# log_at <account_dir> <session_id> <age_seconds>
+# Epoch seconds as touch -t wants them, and as a transcript "timestamp".
+stamp() { date -r "$1" +%Y%m%d%H%M.%S; }
+iso() { date -u -r "$1" +%Y-%m-%dT%H:%M:%S.000Z; }
+
+# tx <account_dir> <session_id>: that transcript's path.
+tx() { printf '%s' "$TEST_TMPDIR/$1/projects/p/$2.jsonl"; }
+
+# log_at <account_dir> <session_id> <age_seconds>: a transcript whose last
+# timestamped line is that old. The first line is older still, so only the
+# last one may decide. mtime matches the last line.
 log_at() {
-  local f="$TEST_TMPDIR/$1/projects/p/$2.jsonl"
+  local f at=$((NOW - $3))
+  f="$(tx "$1" "$2")"
   mkdir -p "$(dirname "$f")"
-  : > "$f"
-  touch -t "$(date -r $((NOW - $3)) +%Y%m%d%H%M.%S)" "$f"
+  printf '{"type":"user","timestamp":"%s"}\n{"type":"assistant","timestamp":"%s"}\n' \
+    "$(iso $((at - 100 * DAY)))" "$(iso "$at")" > "$f"
+  touch -t "$(stamp "$at")" "$f"
 }
 
 @test "古いワークスペースだけを閉じる" {
@@ -129,6 +140,54 @@ log_at() {
 @test "会話ログが見つからなければ閉じない" {
   state "$(ws wOld 🤖old false 2)" "$(ag wOld idle s-old),$(ag wOld idle s-gone)"
   log_at acct1 s-old $((30 * DAY))
+  run "$CMD"
+  [ "$status" -eq 0 ]
+  [ ! -e "$TEST_TMPDIR/calls" ]
+  [ "$output" = "closed 0" ]
+}
+
+@test "復元で mtime だけ新しくなった会話ログは古いとみなす" {
+  state "$(ws wOld 🤖old false 1)" "$(ag wOld idle s-old)"
+  log_at acct1 s-old $((30 * DAY))
+  # A restore appends lines without a timestamp and bumps mtime.
+  printf '{"type":"cost-state"}\n{"type":"session-owner"}\n' >> "$(tx acct1 s-old)"
+  touch -t "$(stamp $((NOW - 3600)))" "$(tx acct1 s-old)"
+  run "$CMD"
+  [ "$status" -eq 0 ]
+  [ "$(cat "$TEST_TMPDIR/calls")" = "workspace close wOld" ]
+  [ "$output" = "$(printf 'closed 🤖old 2026-01-30\nclosed 1')" ]
+}
+
+@test "timestamp の行が無い会話ログなら閉じない" {
+  state "$(ws wOld 🤖old false 1)" "$(ag wOld idle s-old)"
+  mkdir -p "$(dirname "$(tx acct1 s-old)")"
+  printf '{"type":"cost-state"}\n{"type":"session-owner"}\n' > "$(tx acct1 s-old)"
+  touch -t "$(stamp $((NOW - 30 * DAY)))" "$(tx acct1 s-old)"
+  run "$CMD"
+  [ "$status" -eq 0 ]
+  [ ! -e "$TEST_TMPDIR/calls" ]
+  [ "$output" = "closed 0" ]
+}
+
+@test "最後の timestamp が読めなければ閉じない" {
+  state "$(ws wOld 🤖old false 1)" "$(ag wOld idle s-old)"
+  log_at acct1 s-old $((30 * DAY))
+  printf '{"type":"user","timestamp":"yesterday"}\n' >> "$(tx acct1 s-old)"
+  touch -t "$(stamp $((NOW - 30 * DAY)))" "$(tx acct1 s-old)"
+  run "$CMD"
+  [ "$status" -eq 0 ]
+  [ ! -e "$TEST_TMPDIR/calls" ]
+  [ "$output" = "closed 0" ]
+}
+
+@test "最後の行が長くても、その行の timestamp で判断する" {
+  state "$(ws wNew 🤖new false 1)" "$(ag wNew idle s-new)"
+  log_at acct1 s-new $((30 * DAY))
+  # Longer than one read from the end, with the timestamp after the content as
+  # Claude Code writes it. The old mtime leaves this line as the only sign.
+  printf '{"type":"user","message":{"content":"%s"},"timestamp":"%s"}\n' \
+    "$(head -c 200000 /dev/zero | tr '\0' x)" "$(iso $((NOW - DAY)))" >> "$(tx acct1 s-new)"
+  touch -t "$(stamp $((NOW - 30 * DAY)))" "$(tx acct1 s-new)"
   run "$CMD"
   [ "$status" -eq 0 ]
   [ ! -e "$TEST_TMPDIR/calls" ]

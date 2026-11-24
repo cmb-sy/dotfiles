@@ -3,11 +3,13 @@
 #
 #   herdr-close-stale [--dry-run] [--days N]
 #
-# herdr keeps no timestamps, so a workspace's age is the newest mtime of its
-# agents' transcripts, <root>/projects/*/<session>.jsonl; exactly N days is
-# not stale. Kept: the focused workspace, any with an agent that is not idle,
-# with a pane that has no Claude session (a shell), or with a session whose
-# transcript is missing. A closed session comes back with `claude --resume`.
+# herdr keeps no timestamps, so a workspace's age is its agents' latest
+# activity: in each transcript, <root>/projects/*/<session>.jsonl, the last
+# line that carries a "timestamp". Not mtime: restoring a session appends
+# lines without one. Exactly N days is not stale. Kept: the focused workspace,
+# any with an agent that is not idle, with a pane that has no Claude session
+# (a shell), or with a session whose transcript is missing or has no readable
+# timestamp. A closed session comes back with `claude --resume`.
 #
 # Overrides: HERDR_BIN, HERDR_CLOSE_STALE_ROOTS (colon-separated dirs holding
 # projects/), HERDR_CLOSE_STALE_NOW (epoch seconds).
@@ -56,10 +58,11 @@ fi
 roots="${HERDR_CLOSE_STALE_ROOTS:-$HOME/.claude-private:$HOME/.claude-work}"
 now="${HERDR_CLOSE_STALE_NOW:-$(date +%s)}"
 
-# One line per stale workspace: id<TAB>label<TAB>date of its newest transcript.
+# One line per stale workspace: id<TAB>label<TAB>date of its latest activity.
 # Python exits non-zero, saying why, when herdr's output cannot be read.
 if ! stale="$(python3 -I - "$workspaces" "$agents" "$roots" "$days" "$now" <<'PY'
 import json, os, sys, time
+from datetime import datetime, timezone
 
 ws_raw, ag_raw, roots, days, now = sys.argv[1:]
 
@@ -84,10 +87,44 @@ def session(agent):
     return v if isinstance(v, str) and v else None
 
 
-# Newest transcript mtime per session. Ids are compared with file names, never
-# joined into a path, so an id holding "/" or ".." matches nothing.
+def epoch(ts):
+    if not isinstance(ts, str):
+        return None
+    try:
+        d = datetime.fromisoformat(ts[:-1] + "+00:00" if ts.endswith("Z") else ts)
+    except ValueError:
+        return None
+    return (d if d.tzinfo else d.replace(tzinfo=timezone.utc)).timestamp()
+
+
+def last_activity(path):
+    # The last line carrying a "timestamp", read from the end of the file.
+    # None when no line has one, or when that last one cannot be read.
+    with open(path, "rb") as f:
+        pos = f.seek(0, os.SEEK_END)
+        carry = b""
+        while pos > 0:
+            step = min(65536, pos)
+            pos -= step
+            f.seek(pos)
+            lines = (f.read(step) + carry).split(b"\n")
+            # Unless this read reached the start, its first line is partial.
+            carry = lines.pop(0) if pos > 0 else b""
+            for line in reversed(lines):
+                if b'"timestamp"' not in line:
+                    continue
+                try:
+                    ts = json.loads(line)["timestamp"]
+                except (ValueError, KeyError, TypeError):
+                    continue
+                return epoch(ts)
+    return None
+
+
+# Latest activity per session. Ids are compared with file names, never joined
+# into a path, so an id holding "/" or ".." matches nothing.
 wanted = {session(a) for a in agents} - {None}
-mtimes = {}
+active = {}
 for root in filter(None, roots.split(":")):
     try:
         projects = [d.path for d in os.scandir(os.path.join(root, "projects")) if d.is_dir()]
@@ -103,10 +140,11 @@ for root in filter(None, roots.split(":")):
             if ext != ".jsonl" or sid not in wanted:
                 continue
             try:
-                m = f.stat().st_mtime
+                t = last_activity(f.path)
             except OSError:
                 continue
-            mtimes[sid] = max(m, mtimes.get(sid, m))
+            if t is not None:
+                active[sid] = max(t, active.get(sid, t))
 
 
 def control(c):
@@ -128,9 +166,9 @@ for w in workspaces:
     panes = w.get("pane_count")
     if not sids or None in sids or not isinstance(panes, int) or panes > len(sids):
         continue
-    if any(s not in mtimes for s in sids):
+    if any(s not in active for s in sids):
         continue
-    latest = max(mtimes[s] for s in sids)
+    latest = max(active[s] for s in sids)
     if latest >= cutoff:
         continue
     label = "".join(" " if control(c) else c for c in str(w.get("label") or wid))
