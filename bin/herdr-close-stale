@@ -114,8 +114,13 @@ def last_activity(path):
                 if b'"timestamp"' not in line:
                     continue
                 try:
-                    ts = json.loads(line)["timestamp"]
-                except (ValueError, KeyError, TypeError):
+                    record = json.loads(line)
+                except ValueError:
+                    # A truncated last line: older lines would understate activity.
+                    return None
+                try:
+                    ts = record["timestamp"]
+                except (KeyError, TypeError):
                     continue
                 return epoch(ts)
     return None

@@ -180,6 +180,16 @@ log_at() {
   [ "$output" = "closed 0" ]
 }
 
+@test "最後の timestamp 行の JSON が壊れていれば閉じない" {
+  state "$(ws wOld 🤖old false 1)" "$(ag wOld idle s-old)"
+  log_at acct1 s-old $((30 * DAY))
+  printf '{"type":"user","timestamp":"2026-01-01T00:00:00Z","message":{"te\n' >> "$(tx acct1 s-old)"
+  run "$CMD"
+  [ "$status" -eq 0 ]
+  [ ! -e "$TEST_TMPDIR/calls" ]
+  [ "$output" = "closed 0" ]
+}
+
 @test "最後の行が長くても、その行の timestamp で判断する" {
   state "$(ws wNew 🤖new false 1)" "$(ag wNew idle s-new)"
   log_at acct1 s-new $((30 * DAY))
