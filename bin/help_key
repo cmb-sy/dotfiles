@@ -33,6 +33,7 @@ show_ghostty() {
   kv "Cmd+Ctrl+F"         "Toggle fullscreen"
   kv "Cmd+/"              "Toggle comment in nvim"
   kv "Cmd+Ctrl+G"         "lazygit in a herdr pane"
+  kv "Cmd+Ctrl+H"         "This cheat sheet in a herdr pane (q to close)"
   kv "Shift+Enter"        "Newline (Claude Code, etc.)"
 }
 
@@ -53,6 +54,7 @@ show_herdr() {
 
   group "Tools"
   kv "Cmd+Ctrl+G"         "lazygit in a throwaway pane (closes on exit)"
+  kv "Cmd+Ctrl+H"         "This cheat sheet (q to close)"
 }
 
 show_cmux() {

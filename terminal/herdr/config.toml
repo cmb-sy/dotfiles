@@ -17,6 +17,13 @@ key = "alt+f11"                 # Cmd+Ctrl+G
 type = "pane"
 command = "lazygit"
 
+# Shortcut cheat sheet in a throwaway pane: Cmd+Ctrl+H, q closes it.
+# sh -c for the same reason as herdr-mark below ($HOME, no bin on PATH).
+[[keys.command]]
+key = "shift+f9"                # Cmd+Ctrl+H
+type = "pane"
+command = 'sh -c "$HOME/dotfiles/bin/help_key | less -R"'
+
 [ui]
 # priority orders rows by agent state (sessions that need you come first) and
 # ignores the manual workspace order. Markers from bin/herdr-mark still show
