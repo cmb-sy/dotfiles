@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Closes herdr workspaces whose Claude sessions have been quiet for 14 days,
+  once a day at 08:00 (a run missed while asleep happens on wake). See
+  bin/herdr-close-stale for what is kept.
+
+  No RunAtLoad: loading the agent closes nothing; check the candidates with
+  `bin/herdr-close-stale --dry-run` first.
+
+  The program path below is a placeholder; setup/install.zsh substitutes the
+  repo path into it at install time, so the repo can live anywhere.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>local.herdr-close-stale</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>__DOTFILES__/bin/herdr-close-stale</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>8</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>/tmp/herdr-close-stale.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/herdr-close-stale.log</string>
+</dict>
+</plist>
