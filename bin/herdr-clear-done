@@ -1,0 +1,52 @@
+#!/bin/bash
+# Mark every "done" agent in herdr as seen, then return focus.
+#
+#   herdr-clear-done
+#
+# After a restart herdr reports many agents as done (finished, unseen).
+# The priority sort puts done above working, so running agents sink.
+# Focusing a pane marks it seen; this visits each done pane in turn.
+
+set -euo pipefail
+
+if [ $# -gt 0 ]; then
+  echo "usage: herdr-clear-done" >&2
+  exit 2
+fi
+
+herdr="${HERDR_BIN:-herdr}"
+delay="${HERDR_CLEAR_DELAY:-0.3}"
+command -v "$herdr" >/dev/null 2>&1 || exit 0
+
+list="$("$herdr" agent list 2>/dev/null)" || exit 0
+
+# Line 1: focused pane (may be empty). Remaining lines: done panes.
+panes="$(python3 - "$list" <<'PY'
+import json, sys
+try:
+    agents = json.loads(sys.argv[1])["result"]["agents"]
+except (ValueError, KeyError, TypeError):
+    sys.exit(0)
+print(next((a["pane_id"] for a in agents if a.get("focused")), ""))
+for a in agents:
+    if a.get("agent_status") == "done" and not a.get("focused"):
+        print(a["pane_id"])
+PY
+)"
+
+[ -n "$panes" ] || exit 0
+current="$(printf '%s\n' "$panes" | head -n1)"
+targets="$(printf '%s\n' "$panes" | tail -n +2)"
+
+count=0
+while IFS= read -r pane; do
+  [ -n "$pane" ] || continue
+  "$herdr" agent focus "$pane" >/dev/null
+  sleep "$delay"
+  count=$((count + 1))
+done <<< "$targets"
+
+if [ "$count" -gt 0 ] && [ -n "$current" ]; then
+  "$herdr" agent focus "$current" >/dev/null
+fi
+echo "cleared $count"
