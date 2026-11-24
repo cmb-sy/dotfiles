@@ -98,7 +98,7 @@ skill の新規作成・編集時に適用する。`writing-skills` 等のスキ
   - 選択肢3が選ばれたら、今回分の commit, push を実行したうえで、本節に「自動 commit/push: 有効」の1行を追記すること
   - 本節に「自動 commit/push: 有効」の記載がある場合: 3択を提示せず、ひとまとまりの編集が完了し次第 commit, push を自動実行すること
 - autopilot（任せきり）の実行中は、その作業の commit を 3 択なしで行う。push は上の規則どおりにする
-- 自動 commit/push: 有効（dotfiles・data-platform・stock-management リポジトリだけ。ほかのリポジトリでは上の3択を提示する）
+- 自動 commit/push: 有効（dotfiles・data-platform・stock-management・AITF リポジトリだけ。ほかのリポジトリでは上の3択を提示する）
 
 # 外向き操作の承認ゲート
 
