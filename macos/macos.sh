@@ -39,6 +39,8 @@ defaults write -g 'NSRecentDocumentsLimit' -int 0 # do not record recently used 
 # Dock settings
 # ----------------------------------------------------------
 defaults write com.apple.dock show-recents -bool false # hide recently used apps in menu
+defaults write com.apple.dock mru-spaces -bool false   # keep Spaces in a fixed order
+defaults write -g AppleSpacesSwitchOnActivate -bool false # do not jump Spaces when an app is activated
 
 # ----------------------------------------------------------
 # scroll settings
