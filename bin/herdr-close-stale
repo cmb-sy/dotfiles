@@ -1,0 +1,161 @@
+#!/bin/bash
+# Close herdr workspaces whose Claude sessions have been quiet for N days.
+#
+#   herdr-close-stale [--dry-run] [--days N]
+#
+# herdr keeps no timestamps, so a workspace's age is the newest mtime of its
+# agents' transcripts, <root>/projects/*/<session>.jsonl; exactly N days is
+# not stale. Kept: the focused workspace, any with an agent that is not idle,
+# with a pane that has no Claude session (a shell), or with a session whose
+# transcript is missing. A closed session comes back with `claude --resume`.
+#
+# Overrides: HERDR_BIN, HERDR_CLOSE_STALE_ROOTS (colon-separated dirs holding
+# projects/), HERDR_CLOSE_STALE_NOW (epoch seconds).
+# Run daily by launchd via macos/local.herdr-close-stale.plist.
+
+set -euo pipefail
+
+usage() {
+  echo "usage: herdr-close-stale [--dry-run] [--days N]" >&2
+  exit 2
+}
+
+dry_run=0
+days=14
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --dry-run) dry_run=1 ;;
+    --days)
+      [ $# -ge 2 ] || usage
+      days="$2"
+      shift
+      ;;
+    *) usage ;;
+  esac
+  shift
+done
+# A positive integer; a leading zero is refused rather than read as octal.
+case "$days" in
+  '' | 0* | *[!0-9]*) usage ;;
+esac
+
+# launchd starts agents with a PATH that lacks Homebrew, where herdr lives.
+export PATH="$PATH:/opt/homebrew/bin:/usr/local/bin"
+
+herdr="${HERDR_BIN:-herdr}"
+if ! command -v "$herdr" >/dev/null 2>&1; then
+  echo "herdr-close-stale: herdr not found" >&2
+  exit 0
+fi
+if ! workspaces="$("$herdr" workspace list 2>/dev/null)" ||
+  ! agents="$("$herdr" agent list 2>/dev/null)"; then
+  echo "herdr-close-stale: cannot read herdr state" >&2
+  exit 0
+fi
+
+roots="${HERDR_CLOSE_STALE_ROOTS:-$HOME/.claude-private:$HOME/.claude-work}"
+now="${HERDR_CLOSE_STALE_NOW:-$(date +%s)}"
+
+# One line per stale workspace: id<TAB>label<TAB>date of its newest transcript.
+# Python exits non-zero, saying why, when herdr's output cannot be read.
+if ! stale="$(python3 -I - "$workspaces" "$agents" "$roots" "$days" "$now" <<'PY'
+import json, os, sys, time
+
+ws_raw, ag_raw, roots, days, now = sys.argv[1:]
+
+
+def entries(raw, key):
+    items = json.loads(raw)["result"][key]
+    if not isinstance(items, list):
+        raise TypeError(key)
+    return [i for i in items if isinstance(i, dict)]
+
+
+try:
+    workspaces = entries(ws_raw, "workspaces")
+    agents = entries(ag_raw, "agents")
+except (ValueError, KeyError, TypeError):
+    sys.exit("herdr-close-stale: unexpected herdr output")
+
+
+def session(agent):
+    s = agent.get("agent_session")
+    v = s.get("value") if isinstance(s, dict) else None
+    return v if isinstance(v, str) and v else None
+
+
+# Newest transcript mtime per session. Ids are compared with file names, never
+# joined into a path, so an id holding "/" or ".." matches nothing.
+wanted = {session(a) for a in agents} - {None}
+mtimes = {}
+for root in filter(None, roots.split(":")):
+    try:
+        projects = [d.path for d in os.scandir(os.path.join(root, "projects")) if d.is_dir()]
+    except OSError:
+        continue
+    for project in projects:
+        try:
+            files = list(os.scandir(project))
+        except OSError:
+            continue
+        for f in files:
+            sid, ext = os.path.splitext(f.name)
+            if ext != ".jsonl" or sid not in wanted:
+                continue
+            try:
+                m = f.stat().st_mtime
+            except OSError:
+                continue
+            mtimes[sid] = max(m, mtimes.get(sid, m))
+
+
+def control(c):
+    return ord(c) < 32 or ord(c) == 127
+
+
+cutoff = int(now) - int(days) * 86400
+for w in workspaces:
+    wid = w.get("workspace_id")
+    # A control character would split the line the bash loop reads.
+    if not isinstance(wid, str) or not wid or any(control(c) for c in wid):
+        continue
+    if w.get("focused"):
+        continue
+    members = [a for a in agents if a.get("workspace_id") == wid]
+    if any(a.get("agent_status") != "idle" for a in members):
+        continue
+    sids = [session(a) for a in members]
+    panes = w.get("pane_count")
+    if not sids or None in sids or not isinstance(panes, int) or panes > len(sids):
+        continue
+    if any(s not in mtimes for s in sids):
+        continue
+    latest = max(mtimes[s] for s in sids)
+    if latest >= cutoff:
+        continue
+    label = "".join(" " if control(c) else c for c in str(w.get("label") or wid))
+    print("%s\t%s\t%s" % (wid, label, time.strftime("%Y-%m-%d", time.localtime(latest))))
+PY
+)"; then
+  exit 0
+fi
+
+count=0
+while IFS=$'\t' read -r id label day; do
+  [ -n "$id" ] || continue
+  if [ "$dry_run" -eq 1 ]; then
+    echo "would close $label $day"
+  elif "$herdr" workspace close "$id" </dev/null >/dev/null; then
+    echo "closed $label $day"
+  else
+    echo "failed $label" >&2
+    continue
+  fi
+  count=$((count + 1))
+done <<<"$stale"
+
+if [ "$dry_run" -eq 1 ]; then
+  echo "would close $count"
+else
+  echo "closed $count"
+fi
