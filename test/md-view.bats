@@ -60,3 +60,28 @@ teardown() { rm -rf "$TEST_TMPDIR"; }
   [ "$status" -eq 0 ]
   [ "$output" = "$first" ]
 }
+
+@test "ページの題は最初の H1 で、ファイル名の題を本文に足さない" {
+  run "$CMD" "$TEST_TMPDIR/plan.md"
+  [ "$status" -eq 0 ]
+  grep -qF '<title>見出し</title>' "$TEST_TMPDIR/plan.html"
+  [ "$(grep -c 'plan.md' "$TEST_TMPDIR/plan.html")" -eq 0 ]
+  [ "$(grep -c '<h1' "$TEST_TMPDIR/plan.html")" -eq 1 ]
+}
+
+@test "H1 が無ければファイル名を題にする" {
+  printf '本文だけ\n' > "$TEST_TMPDIR/memo.md"
+  run "$CMD" "$TEST_TMPDIR/memo.md"
+  [ "$status" -eq 0 ]
+  grep -qF '<title>memo</title>' "$TEST_TMPDIR/memo.html"
+}
+
+@test "見出しへの目次が付き、暗い配色も持つ" {
+  printf '# 題\n\n## 背景\n\n本文\n\n## 方針\n\n本文\n' > "$TEST_TMPDIR/plan.md"
+  run "$CMD" "$TEST_TMPDIR/plan.md"
+  [ "$status" -eq 0 ]
+  grep -qF '<nav class="toc">' "$TEST_TMPDIR/plan.html"
+  grep -qF 'href="#背景"' "$TEST_TMPDIR/plan.html"
+  grep -qF 'prefers-color-scheme: dark' "$TEST_TMPDIR/plan.html"
+  [ "$(grep -c 'max-width: 36em' "$TEST_TMPDIR/plan.html")" -eq 0 ]
+}
