@@ -76,12 +76,11 @@ teardown() { rm -rf "$TEST_TMPDIR"; }
   grep -qF '<title>memo</title>' "$TEST_TMPDIR/memo.html"
 }
 
-@test "見出しへの目次が付き、暗い配色も持つ" {
+@test "見出しへの目次が付き、pandoc 既定の幅制限を持たない" {
   printf '# 題\n\n## 背景\n\n本文\n\n## 方針\n\n本文\n' > "$TEST_TMPDIR/plan.md"
   run "$CMD" "$TEST_TMPDIR/plan.md"
   [ "$status" -eq 0 ]
   grep -qF '<nav class="toc">' "$TEST_TMPDIR/plan.html"
   grep -qF 'href="#背景"' "$TEST_TMPDIR/plan.html"
-  grep -qF 'prefers-color-scheme: dark' "$TEST_TMPDIR/plan.html"
   [ "$(grep -c 'max-width: 36em' "$TEST_TMPDIR/plan.html")" -eq 0 ]
 }
