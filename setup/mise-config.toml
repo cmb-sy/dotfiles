@@ -10,3 +10,4 @@ node = "20"
 # the 2024 python-build-standalone releases have none, so the install fails on a
 # clean machine (measured on the CI runner). Newer builds carry them.
 python = "3.13.9"
+terraform = "1.16.4"

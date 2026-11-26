@@ -130,8 +130,8 @@ gh pr list --repo Resily/{repo} --state all --limit 10 --json number,title,state
 
 確認結果から:
 - **重複候補**があれば既存 issue を提示し、`AskUserQuestion`（header: `重複`）で `既存を更新（推奨）` / `別物として新規作成` / `コメントで追記` を選ばせる
-  - `既存を更新`: 既存 issue の現本文を `gh issue view {number} --repo Resily/{repo} --json title,body` で取り、追記・修正の差分案を提示する。承認後に `gh issue edit {number} --repo Resily/{repo} [--title "..."] [--body "..."]` で更新し、Step 8 へ進む。Step 4〜7d（ボード追加・Status 設定・ラベル・タイプ・優先度/サイズ・milestone）は行わず、既存の item を変えない
-  - `コメントで追記`: 追記内容を提示し、承認後に `gh issue comment` で投稿して Step 8 へ進む。Step 4〜7d は行わない
+  - `既存を更新`: 既存 issue の現本文を `gh issue view {number} --repo Resily/{repo} --json title,body` で取り、追記・修正の差分案を提示する。承認後に `gh issue edit {number} --repo Resily/{repo} [--title "..."] [--body "..."]` で更新し、Step 8 へ進む。Step 4〜7c（ボード追加・Status 設定・ラベル・タイプ・優先度/サイズ・milestone）は行わず、既存の item を変えない
+  - `コメントで追記`: 追記内容を提示し、承認後に `gh issue comment` で投稿して Step 8 へ進む。Step 4〜7c は行わない
   - `別物として新規作成`: Step 4 へ進む
 - 関連する既存 issue があれば、本文に `関連: #{number}` として参照を入れる
 - 直近のコミット/PR から読み取れる実装状況を踏まえ、本文の前提・スコープを調整する
@@ -271,7 +271,7 @@ gh project item-edit \
 ```
 
 - project 26 = AITF ボード。`projectId=PVT_kwDOArEsis4BIUQA`、Status フィールド `PVTSSF_lADOArEsis4BIUQAzg4z98s`
-- Status オプション（Step 6d の選択肢）: Backlog `f75ad846` / Ready `61e4505c` / In progress `47fc9ee4` / In review `df73e18b`。Done `98236657` は設定しない
+- Status オプション（Step 6d の選択肢）: Backlog `f75ad846` / Todo `61e4505c` / In progress `47fc9ee4` / In review `df73e18b`。Done `98236657` は設定しない
 - これは org の共有ボードを変更する操作だが、運用上 create とセットで常に実行する（ユーザーの恒久指示）
 - 失敗した場合（権限・project scope 不足など）はエラーを報告し、手動追加を案内する
 

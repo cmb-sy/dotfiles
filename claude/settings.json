@@ -178,6 +178,7 @@
     ],
     "defaultMode": "auto"
   },
+  "model": "opus",
   "hooks": {
     "Notification": [
       {
@@ -373,12 +374,23 @@
       }
     }
   },
+  "modelSettings": {
+    "claude-opus-5-5": {
+      "effortLevel": "low"
+    },
+    "claude-fable-5-1": {
+      "effortLevel": "medium"
+    },
+    "claude-fable-5-2": {
+      "effortLevel": "low"
+    }
+  },
   "tui": "fullscreen",
-  "autoScrollEnabled": false,
   "skipDangerousModePermissionPrompt": true,
   "theme": "dark",
   "preferredNotifChannel": "terminal_bell",
   "switchModelsOnFlag": true,
+  "autoScrollEnabled": false,
   "inputNeededNotifEnabled": true,
   "agentPushNotifEnabled": true
 }
