@@ -1,0 +1,121 @@
+#!/usr/bin/env python3
+"""Serve the pages md-view renders, to this machine only.
+
+  md-view-server
+
+The terminal reveals a file:// link in Finder, while an http:// one opens in
+the browser. md-view therefore copies each page into ~/.cache/md-view and
+prints its URL on this server, which listens on 127.0.0.1:8765.
+
+Answered: GET and HEAD for a regular .html file inside the served directory.
+Refused: any other method (405), a Host header that is not exactly
+127.0.0.1:<port> or localhost:<port> (403), and a path that resolves to
+anything else -- outside the directory, a directory, another file type (404).
+Nothing is listed.
+
+Overrides: MD_VIEW_DIR (the served directory, absolute) and MD_VIEW_PORT;
+md-view reads the same two. Exit 2 on a bad override, 1 when the port is
+taken. Kept running by launchd via macos/local.md-view-server.plist.
+"""
+import http.server
+import os
+import re
+import socketserver
+import sys
+import urllib.parse
+from http import HTTPStatus
+
+
+def die(status, message):
+    print(f"md-view-server: {message}", file=sys.stderr)
+    sys.exit(status)
+
+
+def settings():
+    """The served directory and the port, as md-view also reads them."""
+    root = os.environ.get("MD_VIEW_DIR") or os.path.expanduser("~/.cache/md-view")
+    # Relative would mean one directory here and another in md-view.
+    if not os.path.isabs(root):
+        die(2, f"MD_VIEW_DIR must be an absolute path: {root}")
+    port = os.environ.get("MD_VIEW_PORT") or "8765"
+    # Digits only, no leading zero: md-view writes the same text into the URL,
+    # and the Host header is compared against it.
+    if not re.fullmatch("[1-9][0-9]{0,4}", port) or int(port) > 65535:
+        die(2, f"MD_VIEW_PORT must be an integer from 1 to 65535: {port}")
+    return root, int(port)
+
+
+ROOT, PORT = settings()
+# A page on another site can point a name it owns at 127.0.0.1 and have the
+# browser ask here under that name, so only requests that name this machine
+# are answered.
+HOSTS = (f"127.0.0.1:{PORT}", f"localhost:{PORT}")
+
+
+def page(target):
+    """The page a request target names, as bytes, or None when it names none."""
+    path = urllib.parse.unquote(target)
+    # realpath raises on a NUL from python 3.10 on.
+    if "\0" in path:
+        return None
+    # Compared after resolving, so neither ../ nor a symlink leads outside.
+    # Resolved per request: the directory may not exist yet at start.
+    root = os.path.realpath(ROOT)
+    real = os.path.realpath(os.path.join(root, path.lstrip("/")))
+    inside = real.startswith(root + os.sep)
+    if not (inside and real.endswith(".html") and os.path.isfile(real)):
+        return None
+    try:
+        with open(real, "rb") as f:
+            return f.read()
+    except OSError:
+        return None
+
+
+class Handler(http.server.BaseHTTPRequestHandler):
+    def parse_request(self):
+        """Refuse, before any do_* runs, all but a GET or HEAD that names this machine."""
+        if not super().parse_request():
+            return False
+        if self.headers.get("Host") not in HOSTS:
+            self.send_error(HTTPStatus.FORBIDDEN)
+        elif self.command not in ("GET", "HEAD"):
+            self.send_response(HTTPStatus.METHOD_NOT_ALLOWED)
+            self.send_header("Allow", "GET, HEAD")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+        else:
+            return True
+        return False
+
+    def do_GET(self):
+        data = page(self.path)
+        if data is None:
+            self.send_error(HTTPStatus.NOT_FOUND)
+            return
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        if self.command == "GET":
+            self.wfile.write(data)
+
+    do_HEAD = do_GET
+
+
+# Threaded: a browser holds spare connections open without sending anything,
+# and one of those would otherwise keep every other request waiting.
+class Server(http.server.ThreadingHTTPServer):
+    def server_bind(self):
+        # HTTPServer.server_bind resolves the host with socket.getfqdn, which
+        # can take tens of seconds. The name is never used here, so bind
+        # without the lookup.
+        socketserver.TCPServer.server_bind(self)
+        self.server_name, self.server_port = self.server_address[:2]
+
+
+try:
+    server = Server(("127.0.0.1", PORT), Handler)
+except OSError as err:
+    die(1, f"cannot listen on 127.0.0.1:{PORT}: {err}")
+server.serve_forever()
