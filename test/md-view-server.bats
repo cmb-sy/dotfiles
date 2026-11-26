@@ -179,6 +179,16 @@ refused() {
   expect 200 "$BASE/h/page.html"
 }
 
+@test "MD_VIEW_DIR が無ければ ~/.cache/md-view を配る" {
+  stop_server
+  unset MD_VIEW_DIR
+  export HOME="$TEST_TMPDIR/home"
+  mkdir -p "$HOME/.cache/md-view/h"
+  printf '<h1>既定</h1>\n' > "$HOME/.cache/md-view/h/page.html"
+  start_server
+  expect 200 "$BASE/h/page.html"
+}
+
 @test "配信フォルダが symlink でも返す" {
   stop_server
   ln -s "$TEST_TMPDIR/served" "$TEST_TMPDIR/alias"
@@ -189,7 +199,7 @@ refused() {
 
 @test "MD_VIEW_PORT が 1〜65535 の整数でなければ起動せず 2 で終わる" {
   stop_server
-  for bad in abc 0 01 65536 "$MD_VIEW_PORT " -1 1.5; do
+  for bad in abc 0 01 65536 99999999999999999999 "$MD_VIEW_PORT " -1 1.5; do
     MD_VIEW_PORT="$bad" refused 2 'MD_VIEW_PORT'
   done
 }
