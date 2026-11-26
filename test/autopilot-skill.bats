@@ -50,6 +50,11 @@ setup() {
   grep -qF '"$HOME/dotfiles/bin/md-view"' "$SK"
 }
 
+@test "md-view の出す URL は種類を決めつけずにそのまま貼る" {
+  grep -qF '出力された URL をそのままチャットに貼る' "$SK"
+  [ "$(grep -c 'file://' "$SK")" -eq 0 ]
+}
+
 @test "git 管理外は info/exclude" {
   grep -qF '.git/info/exclude' "$SK"
   grep -qF 'git check-ignore' "$SK"

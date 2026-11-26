@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Serves the pages bin/md-view renders on 127.0.0.1:8765, so the URL md-view
+  prints opens in the browser with a click. See bin/md-view-server for what is
+  served and what is refused.
+
+  KeepAlive: the URLs only work while the server runs, so launchd starts it at
+  login and again whenever it exits. md-view falls back to a file:// URL in
+  between.
+
+  No PATH is set: the server needs nothing beyond the system python3.
+
+  The program path below is a placeholder; setup/install.zsh substitutes the
+  repo path into it at install time, so the repo can live anywhere.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>local.md-view-server</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>__DOTFILES__/bin/md-view-server</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/tmp/md-view-server.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/md-view-server.log</string>
+</dict>
+</plist>

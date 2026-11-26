@@ -31,6 +31,18 @@ agent_plists() {
   [ "$missing" -eq 0 ]
 }
 
+@test "install.zsh の確認文は入れる LaunchAgent をすべて挙げる" {
+  # The prompt is all the person sees before saying yes.
+  prompt=$(grep -F 'util::confirm "Install user LaunchAgents' "$REPO_DIR/setup/install.zsh")
+  missing=0
+  while IFS= read -r plist; do
+    name=$(basename "$plist" .plist)
+    hits=$(printf '%s\n' "$prompt" | grep -cF -- "${name#local.}") || hits=0
+    if [ "$hits" -eq 0 ]; then echo "NOT IN PROMPT: ${name#local.}"; missing=$((missing + 1)); fi
+  done < <(agent_plists)
+  [ "$missing" -eq 0 ]
+}
+
 @test "install.zsh substitutes and bootstraps on live code, not in a comment" {
   code=$(grep -v '^[[:space:]]*#' "$REPO_DIR/setup/install.zsh")
   printf '%s' "$code" | grep -qF 'sed "s|__DOTFILES__|'

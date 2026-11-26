@@ -65,7 +65,7 @@ git check-ignore -q docs/superpowers/x/x.html || echo 'docs/superpowers/**/*.htm
 ```
 
 - 足す先は `.git/info/exclude`（worktree でも `git rev-parse --git-path` で本体のものを指す）。リポジトリの .gitignore とグローバル gitignore は触らない
-- md をチャットで見せるときは `"$HOME/dotfiles/bin/md-view" <md>` を実行し、出力された `file://` の URL をそのままチャットに貼る
+- md をチャットで見せるときは `"$HOME/dotfiles/bin/md-view" <md>` を実行し、出力された URL をそのままチャットに貼る
 
 ## 報告 md
 

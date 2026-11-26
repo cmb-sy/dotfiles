@@ -212,3 +212,12 @@ refused() {
 @test "ポートが使われていれば起動せず 1 行で理由を出す" {
   refused 1 'md-view-server: '
 }
+
+@test "LaunchAgent はログイン時に立ち上げ、落ちても戻し、/tmp/md-view-server.log に書く" {
+  plist="$REPO_DIR/macos/local.md-view-server.plist"
+  key() { /usr/libexec/PlistBuddy -c "Print :$1" "$plist"; }
+  [ "$(key RunAtLoad)" = true ]
+  [ "$(key KeepAlive)" = true ]
+  [ "$(key StandardOutPath)" = /tmp/md-view-server.log ]
+  [ "$(key StandardErrorPath)" = /tmp/md-view-server.log ]
+}
