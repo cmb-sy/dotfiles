@@ -173,9 +173,9 @@ Step 1 の入力を、Step 3 で得た文脈を踏まえて GitHub issue 形に�
 gh api "repos/Resily/{repo}/milestones?state=open" --jq '.[] | "\(.title)\t\(.due_on // "期日なし")"'
 ```
 
-### Step 5b: ラベル・タイプ・優先度/サイズの候補取得
+### Step 5b: ラベル・タイプの候補取得
 
-**Issue には常にラベル・タイプ・（Project ボードの）優先度/サイズを設定する。** 該当する既存の値が無ければ、その場で新規作成する（後述）。
+**Issue には常にラベル・タイプを設定する。** 該当する既存の値が無ければ、その場で新規作成する（後述）。
 
 ```bash
 # 既存ラベル一覧
@@ -189,14 +189,7 @@ gh api graphql -f query='
 }'
 ```
 
-優先度（Priority）・サイズ（Size）は AITF ボード（project 26）の固定フィールドを使う（値は既知、再取得不要）:
-
-| フィールド | field-id | 選択肢 |
-|---|---|---|
-| Priority | `PVTSSF_lADOArEsis4BIUQAzg4z9-k` | P0(`79628723`) / P1(`0a877460`) / P2(`da944a9c`) |
-| Size | `PVTSSF_lADOArEsis4BIUQAzg4z9-o` | XS(`6c6483d2`) / S(`f784b110`) / M(`7515a9f1`) / L(`817d0097`) / XL(`db339eb2`) |
-
-他のボードに追加する場合（project 26 以外）は、都度 `gh api graphql` で当該 project の `fields` を問い合わせて field-id・option-id を取得し直す（ハードコードしない）。
+AITF ボード（project 26）の Priority・Size・Estimate は使わない。設定しない。
 
 ### Step 6: 期日の選択
 
@@ -236,10 +229,6 @@ gh api graphql -f query='
   }' -f ownerId="$ORG_ID" -f name="{name}" -f description="{説明}"
   ```
 
-### Step 6c: 優先度・サイズの選択
-
-`AskUserQuestion` で **2 問まとめて**聞く（header: `優先度` / `サイズ`）。選択肢は Step 5b の Priority(P0/P1/P2) / Size(XS/S/M/L/XL)。**「未設定」も選択肢に含める**（すべての issue に無理に優先度・サイズを付けない。判断材料が無ければ未設定を推奨として出す）。
-
 ### Step 6d: ステータスの選択
 
 `AskUserQuestion`（header: `ステータス`）で AITF ボードの Status を選ばせる。選択肢と option-id（Step 7b で使う）:
@@ -247,7 +236,7 @@ gh api graphql -f query='
 | 選択肢 | option-id |
 |---|---|
 | `Backlog（推奨）` | `f75ad846` |
-| `Ready` | `61e4505c` |
+| `Todo` | `61e4505c` |
 | `In progress` | `47fc9ee4` |
 | `In review` | `df73e18b` |
 
@@ -255,7 +244,7 @@ gh api graphql -f query='
 
 ### Step 7: 最終確認と作成
 
-確定した repo / title / body / 期日 / ラベル / タイプ / 優先度 / サイズ / ステータス をまとめて提示し、最終確認を取る。承認後に実行（`--assignee` は付けない）:
+確定した repo / title / body / 期日 / ラベル / タイプ / ステータス をまとめて提示し、最終確認を取る。承認後に実行（`--assignee` は付けない）:
 
 ```bash
 gh issue create --repo Resily/{repo} \
@@ -302,23 +291,10 @@ mutation($issueId: ID!, $typeId: ID!) {
 
 失敗した場合はエラーを報告し、タイプ無しのまま続行してよいか確認する。
 
-### Step 7d: 優先度・サイズの設定
-
-Step 6c で「未設定」以外を選んだ場合、Step 7b で取得した `$ITEM_ID` に対して同じ project item-edit パターンで設定する。
-
-```bash
-# 優先度
-gh project item-edit --id "$ITEM_ID" --project-id PVT_kwDOArEsis4BIUQA \
-  --field-id PVTSSF_lADOArEsis4BIUQAzg4z9-k --single-select-option-id "{選んだ Priority の option-id}"
-# サイズ
-gh project item-edit --id "$ITEM_ID" --project-id PVT_kwDOArEsis4BIUQA \
-  --field-id PVTSSF_lADOArEsis4BIUQAzg4z9-o --single-select-option-id "{選んだ Size の option-id}"
-```
-
 ### Step 8: リンク返却
 
 作成または更新した issue の **URL を必ず報告する**（`gh issue create` の標準出力に URL が返る）。
-`#{number} {タイトル} → {URL}` 形式で出し、**AITF ボードへ追加した旨、設定した Status・ラベル・タイプ・優先度・サイズ・milestone（新規作成した場合はその旨）も添える**。Step 3 で既存を更新・コメントした場合は、更新またはコメントした旨と URL だけを出す。議事録から複数件を回した場合は、全項目の結果（作成・更新・スキップ）を最後にまとめて出す。
+`#{number} {タイトル} → {URL}` 形式で出し、**AITF ボードへ追加した旨、設定した Status・ラベル・タイプ・milestone（新規作成した場合はその旨）も添える**。Step 3 で既存を更新・コメントした場合は、更新またはコメントした旨と URL だけを出す。議事録から複数件を回した場合は、全項目の結果（作成・更新・スキップ）を最後にまとめて出す。
 
 ---
 
@@ -418,6 +394,6 @@ issue 系と共通（未認証・リポジトリ外・リモート未設定は�
 5. **リポジトリが特定できない場合は推測せず確認する**
 6. **実行後は issue 番号と URL を報告する**
 7. **create した issue は必ず AITF ボード（project 26）に追加し、Status は Step 6d で選んだ値（既定 `Backlog`）に設定する** — 手順・フィールド ID は Step 7b を参照（追加直後の Status は `Done` になり隠れるため Status 設定まで必須）。Step 3 で既存を更新した場合はボード追加・Status 設定を行わない
-8. **create した issue には必ずラベル・タイプ・優先度/サイズを設定する** — 該当する既存の値が無ければ、確認せずその場で新規作成する（ラベル: `gh label create`、タイプ: `createIssueType` GraphQL mutation。タイプ新規作成が権限不足で失敗した場合のみ、既存タイプへのフォールバックを確認する）。優先度・サイズは「未設定」も正当な選択肢とする
+8. **create した issue には必ずラベル・タイプを設定する** — 該当する既存の値が無ければ、確認せずその場で新規作成する（ラベル: `gh label create`、タイプ: `createIssueType` GraphQL mutation。タイプ新規作成が権限不足で失敗した場合のみ、既存タイプへのフォールバックを確認する）
 9. **ユーザーが具体的な期限を明言した場合、その期限に対応する milestone を使う** — 既存 milestone に一致する `due_on` が無ければ、確認せずその場で新規作成し issue に付与する。期限の明言が無い相対表現（今週中/今月末）のみの場合は、従来どおり本文への期日追記に留め milestone は作成しない
-10. **一度確立したこれらの標準動作（ラベル・タイプ・フィールド・milestone の自動補完）は、以後のすべての create 操作に適用する** — 個別の issue ごとに毎回確認を求めない
+10. **一度確立したこれらの標準動作（ラベル・タイプ・milestone の自動補完）は、以後のすべての create 操作に適用する** — 個別の issue ごとに毎回確認を求めない
