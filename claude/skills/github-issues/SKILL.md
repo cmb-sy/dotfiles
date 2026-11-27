@@ -238,7 +238,6 @@ AITF ボード（project 26）の Priority・Size・Estimate は使わない。�
 | `Backlog（推奨）` | `f75ad846` |
 | `Todo` | `61e4505c` |
 | `In progress` | `47fc9ee4` |
-| `Waiting`（他部門・相手の回答待ち） | `2ae36ee9` |
 | `In review` | `df73e18b` |
 
 `Done` は選択肢に出さない。
@@ -272,7 +271,7 @@ gh project item-edit \
 ```
 
 - project 26 = AITF ボード。`projectId=PVT_kwDOArEsis4BIUQA`、Status フィールド `PVTSSF_lADOArEsis4BIUQAzg4z98s`
-- Status オプション（Step 6d の選択肢）: Backlog `f75ad846` / Todo `61e4505c` / In progress `47fc9ee4` / Waiting `2ae36ee9` / In review `df73e18b`。Done `98236657` は設定しない
+- Status オプション（Step 6d の選択肢）: Backlog `f75ad846` / Todo `61e4505c` / In progress `47fc9ee4` / In review `df73e18b`。Done `98236657` は設定しない
 - これは org の共有ボードを変更する操作だが、運用上 create とセットで常に実行する（ユーザーの恒久指示）
 - 失敗した場合（権限・project scope 不足など）はエラーを報告し、手動追加を案内する
 
