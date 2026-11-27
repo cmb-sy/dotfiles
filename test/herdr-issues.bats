@@ -127,12 +127,17 @@ print(json.dumps(line, ensure_ascii=False))' "$2" "$(iso $((NOW - DAY)))" "${3:-
 # "<mark> <issue>|<state>|<time>|<summary>"; a blank mark leaves it "|<issue>|...".
 cells() { printf '%s\n' "$output" | sed -E 's/  +/|/g'; }
 
+# rows / heads: the row lines (a mark or a blank one, then a space) and the
+# repository headings, in order.
+rows() { printf '%s\n' "$output" | grep -E '^(▶|●|✓| ) '; }
+heads() { printf '%s\n' "$output" | grep -vE '^$|^(▶|●|✓| ) |^放置'; }
+
 # order <ERE>: the matches in the output, in reading order, space-separated.
 order() { printf '%s\n' "$output" | grep -oE "$1" | tr '\n' ' '; }
 
 # board <rows> <cols> <action>...: run the live board in a pty of that size.
-# Actions: wait:<text> (until the screen shows it), click:<text> (left click on
-# that text), key:<chars>.
+# Actions: wait:<text> (until the screen shows it), has:<bytes> (until the raw
+# output holds them; \e is ESC), click:<text> (left click on that text), key:<chars>.
 # Prints status=, restored= (mouse off and cursor back), frame_rows=, missed= for
 # each wait that timed out or click that found nothing, then the last frame.
 board() {
@@ -194,6 +199,13 @@ for action in actions:
         if not any(arg in line for line in frame()):
             missed.append(action)
         pump(0.3)
+    elif kind == "has":
+        needle = arg.replace("\\e", "\x1b").encode()
+        end = time.time() + 10
+        while time.time() < end and needle not in out:
+            pump(0.1)
+        if needle not in out:
+            missed.append(action)
     elif kind == "click":
         hit = next(((i, line) for i, line in enumerate(frame()) if arg in line), None)
         if hit is None:
@@ -241,7 +253,6 @@ no_missed() { [ "$(printf '%s\n' "$output" | grep -c '^missed=')" -eq 0 ]; }
   for i in 1 2 3 4 5; do log_at "s$i" $((i * 60)); done
   run "$CMD" --once
   [ "$status" -eq 0 ]
-  cells | grep -qxF "■ dots (5)|あなたの番 2"
   cells | grep -qxF "▶ alpha|あなたの番|1分前|方針を選んでほしい"
   cells | grep -qxF "▶ beta|要対応|2分前|テストが通らない"
   cells | grep -qxF "✓ gamma|完了|3分前|直して push した"
@@ -295,12 +306,12 @@ no_missed() { [ "$(printf '%s\n' "$output" | grep -c '^missed=')" -eq 0 ]; }
   log_at s2 600
   run "$CMD" --once
   [ "$status" -eq 0 ]
-  [ "$output" = "$(printf '%s\n' '■ app (2)  あなたの番 1' \
+  [ "$output" = "$(printf '%s\n' 'app' \
     '▶ #12   あなたの番  5分前   ログイン画面の修正方針を決めてほしい' \
     '● #130  作業中      10分前  画面調整 — o/a の題 130')" ]
 }
 
-@test "リポジトリごとに見出しを付けて分け、間を空ける" {
+@test "リポジトリ名だけの見出しの下に並べ、リポジトリの間を空ける" {
   state "$(ws w1 🤖app),$(ws w2 🤖lib)" "$(tab w1:t1 alpha),$(tab w1:t2 beta),$(tab w2:t1 gamma)" \
     "$(ag w1:t1 idle s1),$(ag w1:t2 idle s2),$(ag w2:t1 idle s3)"
   log_at s1 60
@@ -308,8 +319,8 @@ no_missed() { [ "$(printf '%s\n' "$output" | grep -c '^missed=')" -eq 0 ]; }
   log_at s3 180
   run "$CMD" --once
   [ "$status" -eq 0 ]
-  [ "$output" = "$(printf '%s\n' '■ app (2)' '  alpha  待機  1分前' '  beta   待機  2分前' '' \
-    '■ lib (1)' '  gamma  待機  3分前')" ]
+  [ "$output" = "$(printf '%s\n' 'app' '  alpha  待機  1分前' '  beta   待機  2分前' '' \
+    'lib' '  gamma  待機  3分前')" ]
 }
 
 @test "見出しは最後に見出しを持つ返答から取り、利用者の発言やサブエージェントは見ない" {
@@ -346,7 +357,7 @@ no_missed() { [ "$(printf '%s\n' "$output" | grep -c '^missed=')" -eq 0 ]; }
   log_at s1 60
   run "$CMD" --once
   [ "$status" -eq 0 ]
-  [ "$output" = "$(printf '%s\n' '■ dots (1)' '  alpha  待機  1分前')" ]
+  [ "$output" = "$(printf '%s\n' 'dots' '  alpha  待機  1分前')" ]
 }
 
 @test "タブ名の絵文字や記号は出さない" {
@@ -421,9 +432,7 @@ no_missed() { [ "$(printf '%s\n' "$output" | grep -c '^missed=')" -eq 0 ]; }
   log_at s5 600
   run "$CMD" --once
   [ "$status" -eq 0 ]
-  [ "$(printf '%s\n' "$output" | grep '^■' | grep -oE 'aaa|bbb|ccc|ddd' | tr '\n' ' ')" = "bbb aaa ccc ddd " ]
-  cells | grep -qxF "■ bbb (2)|あなたの番 2"
-  cells | grep -qxF "■ ccc (1)"
+  [ "$(heads | tr '\n' ' ')" = "bbb aaa ccc ddd " ]
 }
 
 @test "リポジトリの中はあなたの番・要対応、作業中、完了、片付け候補、回答済み・待機の順で、同じなら新しい順" {
@@ -470,7 +479,7 @@ no_missed() { [ "$(printf '%s\n' "$output" | grep -c '^missed=')" -eq 0 ]; }
   log_at s4 $((30 * DAY))
   run "$CMD" --once
   [ "$status" -eq 0 ]
-  [ "$(printf '%s\n' "$output" | head -n 1)" = "■ dots (2)" ]
+  [ "$(printf '%s\n' "$output" | head -n 1)" = "dots" ]
   cells | grep -qxF "|alpha|待機|昨日"
   cells | grep -qxF "|gamma|待機|14日前"
   [ "$(printf '%s\n' "$output" | grep -cE 'beta|delta')" -eq 0 ]
@@ -519,7 +528,7 @@ no_missed() { [ "$(printf '%s\n' "$output" | grep -c '^missed=')" -eq 0 ]; }
   for i in 1 2 3 4 5 6 7 8; do log_at "s$i" $((i * 60)); done
   run "$CMD" --once
   [ "$status" -eq 0 ]
-  [ "$(cells | grep -v '^■' | cut -d'|' -f2 | tr '\n' ',')" = "#304,#182,#2386,#2499,debug2,1,v2 移行,123456," ]
+  [ "$(rows | sed -E 's/  +/|/g' | cut -d'|' -f2 | tr '\n' ',')" = "#304,#182,#2386,#2499,debug2,1,v2 移行,123456," ]
   # No repository behind these tabs, so gh is never asked.
   [ ! -e "$TEST_TMPDIR/gh-calls" ]
 }
@@ -532,7 +541,7 @@ no_missed() { [ "$(printf '%s\n' "$output" | grep -c '^missed=')" -eq 0 ]; }
   log_at s2 300
   run "$CMD" --once
   [ "$status" -eq 0 ]
-  [ "$(printf '%s\n' "$output" | head -n 1)" = "■ app (1)" ]
+  [ "$(printf '%s\n' "$output" | head -n 1)" = "app" ]
   cells | grep -qxF "|#12 (2タブ)|待機|5分前|後半 — o/a の題 12"
   [ "$(cat "$TEST_TMPDIR/gh-calls")" = "issue view 12 --repo o/a --json title,state" ]
 }
@@ -723,13 +732,26 @@ no_missed() { [ "$(printf '%s\n' "$output" | grep -c '^missed=')" -eq 0 ]; }
   [ "$(cat "$TEST_TMPDIR/calls")" = "tab focus w1:t2" ]
 }
 
+@test "端末では見出しを画面幅いっぱいの 1 色の帯にし、上を 1 行空ける" {
+  state "$(ws w1 🤖app),$(ws w2 🔥lib)" "$(tab w1:t1 alpha),$(tab w2:t1 beta)" \
+    "$(ag w1:t1 idle s1),$(ag w2:t1 idle s2)"
+  log_at s1 60
+  log_at s2 120
+  run board 24 100 wait:beta 'has:\e[1;97;48;5;24m app ' 'has:\e[1;97;48;5;24m lib ' key:q
+  [ "${lines[0]}" = "status=0" ]
+  no_missed
+  # The bands span the screen but its spare last column.
+  [ "$(printf '%s\n' "$output" | grep -E '^ (app|lib) +$' | awk '{print length($0)}' | tr '\n' ' ')" = "99 99 " ]
+  printf '%s\n' "$output" | awk '/^ (app|lib) +$/ { n++; if (prev != "") bad = 1 } { prev = $0 } END { exit !(n == 2 && !bad) }'
+}
+
 @test "画面に収まらない行は…ほか N 件にまとめ、その行や見出しはクリックしても移らない" {
   state "$(ws w1 🤖dots)" \
     "$(tab w1:t1 alpha),$(tab w1:t2 beta),$(tab w1:t3 gamma),$(tab w1:t4 delta),$(tab w1:t5 epsilon),$(tab w1:t6 zeta)" \
     "$(ag w1:t1 idle s1),$(ag w1:t2 idle s2),$(ag w1:t3 idle s3),$(ag w1:t4 idle s4),$(ag w1:t5 idle s5),$(ag w1:t6 idle s6)"
   for i in 1 2 3 4 5 6; do log_at "s$i" $((i * 60)); done
   # 8 rows: the title and a gap leave 6 for the heading and the rows.
-  run board 8 100 "wait:…ほか 2 件" "click:…ほか" "click:■ dots" key:q
+  run board 8 100 "wait:…ほか 2 件" "click:…ほか" "click:dots" key:q
   [ "${lines[0]}" = "status=0" ]
   [ "${lines[1]}" = "restored=1" ]
   [ "${lines[2]}" = "frame_rows=8" ]

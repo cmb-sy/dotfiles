@@ -87,6 +87,8 @@ PLACE = {"turn": 0, "fix": 0, "working": 1, "done": 2, "closed": 3, "answered": 
 RANK = {"blocked": 0, "done": 1, "working": 2, "idle": 3}
 # A long tab label gives way so the other columns stay put.
 ISSUE_WIDTH = 24
+# Repository headings on a screen: bold bright white on one dark blue band.
+HEADING_STYLE = "1;97;48;5;24"
 
 # "#123" anywhere, else a word of 2-5 digits ("2386 ✅"). "1" or "debug2" is no issue.
 HASH_ISSUE = re.compile(r"#([1-9][0-9]{0,5})(?![0-9])")
@@ -488,8 +490,8 @@ def build(t, me):
 
 
 def sections(rows):
-    # [(repository, rows, rows on the user's turn)]: repositories with the most
-    # rows on the user's turn first, then the most recent.
+    # [(repository, rows)]: repositories with the most rows on the user's turn
+    # first, then the most recent.
     by = {}
     for r in rows:
         by.setdefault(r["ws"], []).append(r)
@@ -498,9 +500,9 @@ def sections(rows):
         group.sort(key=lambda r: (PLACE[r["state"]], r["last"] is None, -(r["last"] or 0)))
         turns = sum(PLACE[r["state"]] == 0 for r in group)
         latest = max((r["last"] for r in group if r["last"] is not None), default=None)
-        out.append((-turns, latest is None, -(latest or 0), name, group, turns))
+        out.append((-turns, latest is None, -(latest or 0), name, group))
     out.sort(key=lambda s: s[:3])
-    return [(name, group, turns) for _, _, _, name, group, turns in out]
+    return [(name, group) for _, _, _, name, group in out]
 
 
 def cell_width(c):
@@ -564,16 +566,16 @@ def cells(r, t):
             when(r["last"], t))
 
 
-def table(rows, t):
-    # A bold heading per repository, its rows under it, a gap between repositories.
+def table(rows, t, band=None):
+    # Each repository's name, then its rows, with a gap between repositories.
+    # Given a width, the name is a coloured band that wide; without one it is plain text.
     # Each line is (pieces, tab id or None); columns line up across repositories.
     widths = [max((width(cells(r, t)[i]) for r in rows), default=0) for i in range(3)]
     lines = []
-    for name, group, turns in sections(rows):
+    for name, group in sections(rows):
         if lines:
             lines.append(([], None))
-        lines.append(([("■ %s (%d)" % (name, len(group)), "1")]
-                      + ([("  あなたの番 %d" % turns, "1;31")] if turns else []), None))
+        lines.append(([(pad(" %s " % name, band), HEADING_STYLE)] if band else [(name, "1")], None))
         for r in group:
             ident, state, ago = cells(r, t)
             color = "1;" + COLORS[r["state"]]
@@ -603,7 +605,8 @@ def once():
         except ValueError:
             limit = 160
         limit = limit if limit > 0 else 160
-    out = [paint(pieces, color, limit).rstrip() for pieces, _ in table(rows, t)]
+    out = [paint(pieces, color, limit).rstrip()
+           for pieces, _ in table(rows, t, limit if color else None)]
     if stale:
         out += ([""] if out else []) + [paint([("放置 %d 件" % stale, "90")], color, limit)]
     if out:
@@ -628,7 +631,8 @@ def draw(me, size):
         screen.append(([("herdr の状態を読めません: %s" % e, "31")], None))
         stale = 0
     else:
-        lines = table(rows, t) or [([("Claude のタブがありません", "90")], None)]
+        # One column spare, as for every line below.
+        lines = table(rows, t, size.columns - 1) or [([("Claude のタブがありません", "90")], None)]
         room = size.lines - len(screen) - (1 if stale else 0)
         if len(lines) > room:
             # What does not fit folds into one line, so no row moves under the pointer.
