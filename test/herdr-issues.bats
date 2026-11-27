@@ -14,7 +14,10 @@ setup() {
 #!/bin/bash
 case "\$1 \$2" in
   "workspace list") printf '%s' "\${FAKE_WS:-}"; exit "\${FAKE_HERDR_EXIT:-0}" ;;
-  "tab list") printf '%s' "\${FAKE_TABS:-}"; exit "\${FAKE_HERDR_EXIT:-0}" ;;
+  "tab list")
+    # A file lets a test change the tabs while the board runs.
+    if [ -n "\${FAKE_TABS_FILE:-}" ]; then cat "\$FAKE_TABS_FILE"; else printf '%s' "\${FAKE_TABS:-}"; fi
+    exit "\${FAKE_HERDR_EXIT:-0}" ;;
   "agent list") printf '%s' "\${FAKE_AGENTS:-}"; exit "\${FAKE_HERDR_EXIT:-0}" ;;
   "workspace create") printf "%s\\n" "\$*" >> "$TEST_TMPDIR/calls"; printf '%s' "\${FAKE_CREATE:-}"; exit 0 ;;
   "pane list") printf '%s' "\${FAKE_PANES:-}"; exit 0 ;;
@@ -136,13 +139,15 @@ heads() { printf '%s\n' "$output" | grep -vE '^$|^(▶|●|✓| ) |^放置'; }
 order() { printf '%s\n' "$output" | grep -oE "$1" | tr '\n' ' '; }
 
 # board <rows> <cols> <action>...: run the live board in a pty of that size.
-# Actions: wait:<text> (until the screen shows it), has:<bytes> (until the raw
-# output holds them; \e is ESC), click:<text> (left click on that text), key:<chars>.
+# Actions: wait:<text> / gone:<text> (until the screen shows / stops showing it),
+# cursor:<text> (until the reverse-video row shows it, within 3 s), has:<bytes>
+# (until the raw output holds them), click:<text> (left click on that text),
+# key:<chars>, exec:<command, no shell>. In has: and key:, \e is ESC and \r is Enter.
 # Prints status=, restored= (mouse off and cursor back), frame_rows=, missed= for
 # each wait that timed out or click that found nothing, then the last frame.
 board() {
   python3 - "$CMD" "$@" <<'PY'
-import fcntl, os, pty, re, select, struct, sys, termios, time, unicodedata
+import fcntl, os, pty, re, select, shlex, struct, subprocess, sys, termios, time, unicodedata
 
 cmd, rows, cols, actions = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), sys.argv[4:]
 pid, fd = pty.fork()
@@ -177,12 +182,28 @@ def send(data):
         pass
 
 
-def frame():
-    # The last drawn screen: everything after the last cursor-home, escapes removed.
+ESCAPES = r"\x1b\[[0-9;?<]*[A-Za-z]"
+# An SGR sequence that turns on reverse video (parameter 7).
+REVERSE = re.compile(r"\x1b\[(?:[0-9]*;)*7(?:;[0-9]*)*m")
+
+
+def raw_frame():
+    # The last drawn screen, line by line, escapes kept.
     text = out.decode("utf-8", "replace")
     home = text.rfind("\x1b[H")
-    text = text[home + 3:] if home >= 0 else text
-    return re.sub(r"\x1b\[[0-9;?<]*[A-Za-z]", "", text).split("\r\n")
+    return (text[home + 3:] if home >= 0 else text).split("\r\n")
+
+
+def frame():
+    return [re.sub(ESCAPES, "", line) for line in raw_frame()]
+
+
+def cursor_row():
+    return next((re.sub(ESCAPES, "", line) for line in raw_frame() if REVERSE.search(line)), "")
+
+
+def keys(arg):
+    return arg.replace("\\e", "\x1b").replace("\\r", "\r").encode()
 
 
 def width(s):
@@ -190,22 +211,31 @@ def width(s):
                2 if unicodedata.east_asian_width(c) in ("W", "F") else 1 for c in s)
 
 
+def until(test, seconds):
+    end = time.time() + seconds
+    while time.time() < end and not test():
+        pump(0.1)
+    return test()
+
+
 for action in actions:
     kind, _, arg = action.partition(":")
     if kind == "wait":
-        end = time.time() + 10
-        while time.time() < end and not any(arg in line for line in frame()):
-            pump(0.1)
-        if not any(arg in line for line in frame()):
+        if not until(lambda: any(arg in line for line in frame()), 10):
             missed.append(action)
         pump(0.3)
-    elif kind == "has":
-        needle = arg.replace("\\e", "\x1b").encode()
-        end = time.time() + 10
-        while time.time() < end and needle not in out:
-            pump(0.1)
-        if needle not in out:
+    elif kind == "gone":
+        if not until(lambda: not any(arg in line for line in frame()), 10):
             missed.append(action)
+    elif kind == "cursor":
+        # Shorter than the 5 s redraw: a key must show at once.
+        if not until(lambda: arg in cursor_row(), 3):
+            missed.append(action)
+    elif kind == "has":
+        if not until(lambda: keys(arg) in out, 10):
+            missed.append(action)
+    elif kind == "exec":
+        subprocess.run(shlex.split(arg))
     elif kind == "click":
         hit = next(((i, line) for i, line in enumerate(frame()) if arg in line), None)
         if hit is None:
@@ -215,7 +245,7 @@ for action in actions:
         send(b"\x1b[<0;%d;%dM\x1b[<0;%d;%dm" % (x, y, x, y))
         pump(1.0)
     elif kind == "key":
-        send(arg.encode())
+        send(keys(arg))
         pump(0.3)
 
 status = None
@@ -718,18 +748,88 @@ no_missed() { [ "$(printf '%s\n' "$output" | grep -c '^missed=')" -eq 0 ]; }
   [ ! -e "$TEST_TMPDIR/calls" ]
 }
 
-@test "端末ではクリックした行のタブへ移り、q で端末を元に戻す" {
+@test "端末ではクリックした行のタブへ移ってカーソルもその行へ動き、q で端末を元に戻す" {
   state "$(ws w1 🤖dots)" "$(tab w1:t1 alpha),$(tab w1:t2 beta),$(tab w1:t3 gamma)" \
     "$(ag w1:t1 idle s1),$(ag w1:t2 idle s2),$(ag w1:t3 idle s3)"
   reply s2 '## 【完了】 [b] ベータの結論'
+  reply s3 '## 【回答】 [c] ガンマの結論'
   log_at s1 60
   log_at s2 120
   log_at s3 180
-  run board 24 100 wait:gamma click:ベータの結論 key:q
+  # beta is done, so it leads and holds the cursor; gamma is last.
+  run board 24 100 wait:gamma cursor:beta click:ガンマの結論 cursor:gamma key:q
   [ "${lines[0]}" = "status=0" ]
   [ "${lines[1]}" = "restored=1" ]
   no_missed
-  [ "$(cat "$TEST_TMPDIR/calls")" = "tab focus w1:t2" ]
+  [ "$(cat "$TEST_TMPDIR/calls")" = "tab focus w1:t3" ]
+}
+
+# two_repos: app holds alpha and beta, lib holds gamma; newest first.
+two_repos() {
+  state "$(ws w1 🤖app),$(ws w2 🤖lib)" "$(tab w1:t1 alpha),$(tab w1:t2 beta),$(tab w2:t1 gamma)" \
+    "$(ag w1:t1 idle s1),$(ag w1:t2 idle s2),$(ag w2:t1 idle s3)"
+  log_at s1 60
+  log_at s2 120
+  log_at s3 180
+}
+
+@test "↑↓ と j/k でカーソルを動かし、見出しや空行は飛ばして端で止まる" {
+  two_repos
+  run board 24 100 "wait:↑↓ で選ぶ・Enter で移動・クリックでも移動・q で終了" cursor:alpha \
+    key:j cursor:beta 'key:\e[B' cursor:gamma key:j cursor:gamma \
+    key:k cursor:beta 'key:\e[A' cursor:alpha key:k cursor:alpha key:q
+  [ "${lines[0]}" = "status=0" ]
+  no_missed
+  [ ! -e "$TEST_TMPDIR/calls" ]
+}
+
+@test "Enter でカーソルの行のタブへ移る" {
+  two_repos
+  run board 24 100 wait:gamma cursor:alpha key:j key:j cursor:gamma 'key:\r' key:q
+  [ "${lines[0]}" = "status=0" ]
+  no_missed
+  [ "$(cat "$TEST_TMPDIR/calls")" = "tab focus w2:t1" ]
+}
+
+@test "修飾キーつきの矢印（ESC[1;9A や ESC O B）でもカーソルが動く" {
+  two_repos
+  run board 24 100 wait:gamma cursor:alpha 'key:\e[1;9B' cursor:beta 'key:\eOB' cursor:gamma \
+    'key:\e[1;9A' cursor:beta 'key:\eOA' cursor:alpha key:q
+  [ "${lines[0]}" = "status=0" ]
+  no_missed
+}
+
+@test "並びが変わってもカーソルは同じタブに付いていく" {
+  state "$(ws w1 🤖dots)" "$(tab w1:t1 alpha),$(tab w1:t2 beta),$(tab w1:t3 gamma)" \
+    "$(ag w1:t1 idle s1),$(ag w1:t2 idle s2),$(ag w1:t3 idle s3)"
+  log_at s1 60
+  log_at s2 120
+  log_at s3 180
+  # gamma becomes the newest, so the order turns into gamma, alpha, beta.
+  cp "$(tx s3)" "$TEST_TMPDIR/s3-new.jsonl"
+  printf '{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"ok"}]},"timestamp":"%s"}\n' \
+    "$(iso $((NOW - 10)))" >> "$TEST_TMPDIR/s3-new.jsonl"
+  run board 24 100 wait:gamma cursor:alpha key:j cursor:beta "exec:cp $TEST_TMPDIR/s3-new.jsonl $(tx s3)" \
+    wait:たった今 cursor:beta key:q
+  [ "${lines[0]}" = "status=0" ]
+  no_missed
+  [ "$(order 'alpha|beta|gamma')" = "gamma alpha beta " ]
+}
+
+@test "カーソルのタブが消えたら同じ位置に留まる" {
+  state "$(ws w1 🤖dots)" "$(tab w1:t1 alpha),$(tab w1:t2 beta),$(tab w1:t3 gamma)" \
+    "$(ag w1:t1 idle s1),$(ag w1:t2 idle s2),$(ag w1:t3 idle s3)"
+  log_at s1 60
+  log_at s2 120
+  log_at s3 180
+  printf '%s' "$FAKE_TABS" > "$TEST_TMPDIR/tabs.json"
+  export FAKE_TABS_FILE="$TEST_TMPDIR/tabs.json"
+  printf '{"result":{"tabs":[%s,%s]}}' "$(tab w1:t1 alpha)" "$(tab w1:t3 gamma)" > "$TEST_TMPDIR/two.json"
+  run board 24 100 wait:gamma cursor:alpha key:j cursor:beta "exec:cp $TEST_TMPDIR/two.json $TEST_TMPDIR/tabs.json" \
+    gone:beta cursor:gamma key:q
+  [ "${lines[0]}" = "status=0" ]
+  no_missed
+  [ "$(order 'alpha|beta|gamma')" = "alpha gamma " ]
 }
 
 @test "端末では見出しを画面幅いっぱいの 1 色の帯にし、上を 1 行空ける" {

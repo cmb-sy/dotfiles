@@ -1,8 +1,10 @@
 #!/bin/bash
 # A live board of herdr tabs, one row per issue or tab under a heading per
-# repository, saying whose turn it is. Clicking a row focuses that tab.
+# repository, saying whose turn it is. Enter on the cursor row, or a click on
+# any row, focuses that tab.
 #
-#   herdr-issues          redraw every 5 s; q or Ctrl-C quits
+#   herdr-issues          redraw every 5 s; up/down or j/k move the cursor;
+#                         q or Ctrl-C quits
 #   herdr-issues --once   print the board once, lines cut at $COLUMNS
 #                         (160 when unset; the terminal width on a tty)
 #   herdr-issues --jump   focus the board's workspace, first creating it or
@@ -89,6 +91,8 @@ RANK = {"blocked": 0, "done": 1, "working": 2, "idle": 3}
 ISSUE_WIDTH = 24
 # Repository headings on a screen: bold bright white on one dark blue band.
 HEADING_STYLE = "1;97;48;5;24"
+# The cursor row: bold reverse video across the screen.
+CURSOR_STYLE = "1;7"
 
 # "#123" anywhere, else a word of 2-5 digits ("2386 ✅"). "1" or "debug2" is no issue.
 HASH_ISSUE = re.compile(r"#([1-9][0-9]{0,5})(?![0-9])")
@@ -100,10 +104,13 @@ BIDI = {chr(c) for c in (0x061C, 0x200E, 0x200F, *range(0x202A, 0x202F), *range(
 EMOJI_PARTS = {chr(c) for c in (0x200D, 0x20E3, 0xFE0E, 0xFE0F)}
 
 REFRESH = 5
-# SGR mouse reports (ESC [ < button ; column ; row, then M or m), other escapes, keys.
-INPUT = re.compile(rb"\x1b\[<(\d+);(\d+);(\d+)([Mm])|\x1b(?:\[[0-?]*[ -/]*[@-~]|[^\[])|(.)", re.S)
+# SGR mouse reports (ESC [ < button ; column ; row, then M or m); up and down
+# arrows in any form a terminal sends them, modifiers included (ESC [ A,
+# ESC [ 1 ; 9 A, ESC O A); other escapes; single keys.
+INPUT = re.compile(rb"\x1b\[<(\d+);(\d+);(\d+)([Mm])|\x1b(?:\[[0-9;]*|O)([AB])"
+                   rb"|\x1b(?:\[[0-?]*[ -/]*[@-~]|[^\[])|(.)", re.S)
 # An escape sequence cut off by the end of a read, finished by the next one.
-PARTIAL = re.compile(rb"\x1b(?:\[[0-?]*[ -/]*)?$")
+PARTIAL = re.compile(rb"\x1b(?:\[[0-?]*[ -/]*|O)?$")
 
 
 class HerdrError(Exception):
@@ -619,10 +626,12 @@ def write(s):
     sys.stdout.flush()
 
 
-def draw(me, size):
-    # Paint one frame from the top left; return {screen row: tab id} of the rows drawn.
+def draw(me, size, chosen):
+    # Paint one frame from the top left. `chosen` is the cursor's (tab id, index):
+    # it stays on its tab, or on its index when that tab is gone. Returns
+    # {screen row: tab id}, the tabs of the rows drawn in order, and the cursor.
     t = now()
-    note = "  %s 更新  行をクリックでそのタブへ移動・q で終了" \
+    note = "  %s 更新  ↑↓ で選ぶ・Enter で移動・クリックでも移動・q で終了" \
         % time.strftime("%H:%M:%S", time.localtime(t))
     screen = [([("issue 一覧", "1;4"), (note, "90")], None), ([], None)]
     try:
@@ -646,24 +655,41 @@ def draw(me, size):
         screen += [([], None)] * (size.lines - 1 - len(screen))
         screen.append(([("放置 %d 件" % stale, "90")], None))
     screen = screen[:size.lines]
+    order = [tab for _, tab in screen if tab]
+    tab, index = chosen
+    if order:
+        index = order.index(tab) if tab in order else min(index, len(order) - 1)
+        tab = order[index]
+    else:
+        tab = None
     # One column spare: a full last column makes some terminals wrap.
-    write("\x1b[H" + "\r\n".join(paint(pieces, True, size.columns - 1) + "\x1b[K"
+    span = size.columns - 1
+    screen = [([(pad("".join(p for p, _ in pieces), span), CURSOR_STYLE)]
+               if row_tab and row_tab == tab else pieces, row_tab) for pieces, row_tab in screen]
+    write("\x1b[H" + "\r\n".join(paint(pieces, True, span) + "\x1b[K"
                                  for pieces, _ in screen) + "\x1b[J")
-    return {row: tab for row, (_, tab) in enumerate(screen, 1) if tab}
+    hits = {row: row_tab for row, (_, row_tab) in enumerate(screen, 1) if row_tab}
+    return hits, order, (tab, index)
 
 
 def read_input(buf):
-    # (quit?, screen rows clicked with the left button, bytes kept for the next read)
+    # (quit?, events, bytes kept for the next read). Events: ("click", screen row)
+    # for a left press, ("move", -1 or 1) for up or down, ("enter",).
     tail = PARTIAL.search(buf)
     done, rest = (buf[:tail.start()], buf[tail.start():]) if tail else (buf, b"")
-    stop, rows = False, []
+    stop, events = False, []
     for m in INPUT.finditer(done):
+        key = m.group(6)
         if m.group(1) is not None:
             if m.group(1) == b"0" and m.group(4) == b"M":
-                rows.append(int(m.group(3)))
-        elif m.group(5) in (b"q", b"\x03"):
+                events.append(("click", int(m.group(3))))
+        elif m.group(5) is not None or key in (b"j", b"k"):
+            events.append(("move", -1 if m.group(5) == b"A" or key == b"k" else 1))
+        elif key in (b"\r", b"\n"):
+            events.append(("enter",))
+        elif key in (b"q", b"\x03"):
             stop = True
-    return stop, rows, rest
+    return stop, events, rest
 
 
 def focus(tab):
@@ -748,11 +774,12 @@ def live():
     try:
         tty.setraw(fd)
         write("\x1b[?1049h\x1b[?25l\x1b[?1000h\x1b[?1006h")
-        hits, pending, due, size = {}, b"", 0.0, None
+        # The cursor starts on the first row and outlives redraws.
+        hits, order, chosen, pending, due, size = {}, [], (None, 0), b"", 0.0, None
         while True:
             if time.time() >= due or os.get_terminal_size() != size:
                 size = os.get_terminal_size()
-                hits = draw(me, size)
+                hits, order, chosen = draw(me, size, chosen)
                 due = time.time() + REFRESH
             ready, _, _ = select.select([fd], [], [], 0.5)
             if not ready:
@@ -760,11 +787,19 @@ def live():
             data = os.read(fd, 1024)
             if not data:
                 return 0
-            stop, clicks, pending = read_input(pending + data)
-            for row in clicks:
-                if row in hits:
-                    focus(hits[row])
-                    due = 0
+            stop, events, pending = read_input(pending + data)
+            for event in events:
+                if event[0] == "move" and order:
+                    index = max(0, min(chosen[1] + event[1], len(order) - 1))
+                    chosen = (order[index], index)
+                elif event[0] == "enter" and chosen[0]:
+                    focus(chosen[0])
+                elif event[0] == "click" and event[1] in hits:
+                    tab = hits[event[1]]
+                    focus(tab)
+                    chosen = (tab, order.index(tab))
+                # Show the change now, not at the next tick.
+                due = 0
             if stop:
                 return 0
     except KeyboardInterrupt:
