@@ -1,9 +1,11 @@
 #!/bin/bash
-# A live board of herdr tabs: the issue each one works on, its state, the
-# last activity and a summary. Clicking a row focuses that tab.
+# A live board of herdr tabs: one column per repository, one item per issue
+# or tab, saying whose turn it is. Clicking an item focuses that tab.
 #
-#   herdr-issues          redraw every 5 s; q or Ctrl-C quits
-#   herdr-issues --once   print the rows once (plain text when not a tty)
+#   herdr-issues          redraw every 5 s; left/right arrows, horizontal wheel
+#                         or shift+wheel move one column; q or Ctrl-C quits
+#   herdr-issues --once   print the columns once, all of them, in bands as wide
+#                         as $COLUMNS (160 when unset; the terminal on a tty)
 #   herdr-issues --jump   focus the board's workspace, first creating it or
 #                         restarting a stopped board; there is only ever one
 #
@@ -11,9 +13,12 @@
 # workspace lists with the transcripts (<root>/projects/*/<session>.jsonl).
 # A tab's issue is "#N" in its label, else a word of 2-5 digits; its repository
 # is the origin of an agent's cwd, and tabs on one issue of one repository
-# share a row. Rows waiting on an answer or unread come first, the rest newest
-# first; rows quiet for over 14 days collapse into one count. Tabs without a
-# Claude agent and the board's own tab are left out.
+# share an item. The state comes from herdr while Claude works or waits on a
+# permission, else from the tag of Claude's last reply heading
+# ("## 【要判断】 [作業名] 結論"), whose conclusion is the item's summary.
+# Items needing the user come first in a column, and columns with the most of
+# them come first; items quiet for over 14 days collapse into one count.
+# Tabs without a Claude agent and the board's own tab are left out.
 #
 # Overrides: HERDR_BIN, GH_BIN, HERDR_ISSUES_ROOTS (colon-separated dirs
 # holding projects/), HERDR_ISSUES_NOW (epoch seconds), HERDR_ISSUES_CACHE
@@ -66,37 +71,41 @@ CACHE_TTL = 600
 # A failed gh lookup is retried after this long, not on every redraw.
 RETRY_AFTER = 60
 
-WORDS = {"blocked": "返事待ち", "done": "完了・未確認", "working": "作業中", "idle": "待機中",
-         "closed": "片付け候補"}
-STYLES = {"blocked": "1;31", "done": "33", "working": "32", "idle": "90", "closed": "35"}
-# Lower is more urgent; a tab with several agents shows its most urgent one.
+# The heading every Claude reply starts with: "## 【要判断】 [作業名] 結論".
+HEADING = re.compile(r"^##\s*【(完了|要判断|失敗|回答)】\s*(?:\[[^\]\n]*\]\s*)?(.*?)\s*$", re.M)
+HEADING_MARK = "【".encode()
+# How far back from the end of a transcript to look for the last reply heading.
+REPLY_SCAN = 2 << 20
+TAGS = {"要判断": "turn", "失敗": "fix", "完了": "done", "回答": "answered"}
+WORDS = {"turn": "あなたの番", "fix": "要対応", "working": "作業中", "done": "完了",
+         "closed": "片付け候補", "answered": "回答済み", "waiting": "待機"}
+COLORS = {"turn": "31", "fix": "31", "working": "34", "done": "32", "closed": "35",
+          "answered": "90", "waiting": "90"}
+MARKS = {"turn": "▶", "fix": "▶", "working": "●", "done": "✓"}
+# Place inside a column: the user's turn first, idle answers last.
+PLACE = {"turn": 0, "fix": 0, "working": 1, "done": 2, "closed": 3, "answered": 4, "waiting": 4}
+# herdr's statuses, most urgent first; a merged item shows its most urgent tab.
 RANK = {"blocked": 0, "done": 1, "working": 2, "idle": 3}
-# Rows waiting on the user stay on top; the rest go newest first.
-PINNED = {"blocked": 0, "done": 1}
-HEADINGS = ("最終対応", "状態", "issue", "リポジトリ", "概要")
+
+MIN_COLUMN = 32
+GAP = " │ "
+SUMMARY_LINES = 2
 
 # "#123" anywhere, else a word of 2-5 digits ("2386 ✅"). "1" or "debug2" is no issue.
 HASH_ISSUE = re.compile(r"#([1-9][0-9]{0,5})(?![0-9])")
 BARE_ISSUE = re.compile(r"(?<!\S)([1-9][0-9]{1,4})(?!\S)")
 REMOTE = re.compile(r"[:/]([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+?)(?:\.git)?/?$")
 
-PASTE = re.compile(r"<pasted_content[^>]*>.*?(?:</pasted_content[^>]*>|$)", re.S)
-# User lines Claude Code writes itself, not requests.
-NOT_ASKS = ("<", "[", "Base directory", "Caveat:", "This session is being continued",
-            "Implement the requested")
-# Shorter than this is a reply such as "はい" or "進めて".
-SHORT_ASK = 15
-ASK_SHOWN = 60
-# How far back from the end of a transcript to look for the last request.
-ASK_SCAN = 4 << 20
 BIDI = {chr(c) for c in (0x061C, 0x200E, 0x200F, *range(0x202A, 0x202F), *range(0x2066, 0x206A))}
+# What emoji are built from besides symbols: joiner, keycap, variation selectors.
+EMOJI_PARTS = {chr(c) for c in (0x200D, 0x20E3, 0xFE0E, 0xFE0F)}
 
 REFRESH = 5
-# SGR mouse reports: ESC [ < button ; column ; row, then M (press) or m (release).
-MOUSE = re.compile(rb"\x1b\[<(\d+);(\d+);(\d+)([Mm])")
-ESCAPE = re.compile(rb"\x1b(?:\[[0-?]*[ -/]*[@-~]|[^\[])")
+# Keys and SGR mouse reports (ESC [ < button ; column ; row, then M or m).
+INPUT = re.compile(rb"\x1b\[<(\d+);(\d+);(\d+)([Mm])|\x1b(?:\[[0-9;]*|O)([CD])"
+                   rb"|\x1b(?:\[[0-?]*[ -/]*[@-~]|[^\[])|(.)", re.S)
 # An escape sequence cut off by the end of a read, finished by the next one.
-PARTIAL = re.compile(rb"\x1b(?:\[[0-?]*[ -/]*)?$")
+PARTIAL = re.compile(rb"\x1b(?:\[[0-?]*[ -/]*|O)?$")
 
 
 class HerdrError(Exception):
@@ -137,10 +146,16 @@ def text(value):
 
 
 def clean(s):
-    # Labels, titles and prompts reach a raw terminal: no control, bidi or
+    # Labels, titles and headings reach a raw terminal: no control, bidi or
     # lone surrogate characters, and whitespace runs become one space.
     return " ".join("".join(" " if unicodedata.category(c) in ("Cc", "Cs") or c in BIDI else c
                             for c in s).split())
+
+
+def plain(label):
+    # A label without the user's marker emoji (🥉 📤 ✅ 🔥) or other symbols.
+    return " ".join("".join(c for c in label if c not in EMOJI_PARTS
+                            and unicodedata.category(c) not in ("So", "Sk", "Cn")).split())
 
 
 def self_tab():
@@ -229,61 +244,57 @@ def transcripts(sessions):
     return found
 
 
-def ask_text(record):
-    # The request a user line carries, or "" for replies, tool results and
-    # text Claude Code injects.
-    if not isinstance(record, dict) or record.get("type") != "user" or record.get("isMeta") \
-            or record.get("isCompactSummary") or record.get("isSidechain"):
-        return ""
+def reply_heading(record):
+    # (tag, conclusion) of the heading in a reply of the session's own Claude, or None.
+    if not isinstance(record, dict) or record.get("type") != "assistant" \
+            or record.get("isSidechain"):
+        return None
     message = record.get("message")
     content = message.get("content") if isinstance(message, dict) else None
-    if isinstance(content, list):
-        content = " ".join(p["text"] for p in content if isinstance(p, dict)
-                           and p.get("type") == "text" and isinstance(p.get("text"), str))
-    if not isinstance(content, str) or len(clean(PASTE.sub(" ", content))) < SHORT_ASK:
-        return ""
-    # Judged as typed: a prompt that merely starts with an escape code stays.
-    raw = PASTE.sub(" （貼り付け） ", content).lstrip()
-    if raw.startswith(NOT_ASKS):
-        return ""
-    ask = clean(raw)
-    return ask if len(ask) <= ASK_SHOWN else ask[:ASK_SHOWN - 1] + "…"
+    if isinstance(content, str):
+        content = [{"type": "text", "text": content}]
+    for part in content if isinstance(content, list) else ():
+        if isinstance(part, dict) and part.get("type") == "text" and isinstance(part.get("text"), str):
+            m = HEADING.search(part["text"])
+            if m:
+                return m.group(1), clean(m.group(2).replace("`", ""))
+    return None
 
 
-def scan_ask(path, size):
-    start = max(0, size - ASK_SCAN)
+def scan_reply(path, size):
+    start = max(0, size - REPLY_SCAN)
     try:
         with open(path, "rb") as f:
             f.seek(start)
             lines = f.read(size - start).split(b"\n")
     except OSError:
-        return ""
+        return None
     for line in reversed(lines[1:] if start else lines):
-        # Tool results are user lines too, and large: skip them unparsed.
-        if b'"user"' not in line or b'"tool_result"' in line:
+        # Most lines are tool traffic: skip them unparsed.
+        if b'"assistant"' not in line or HEADING_MARK not in line:
             continue
         try:
-            ask = ask_text(json.loads(line))
+            found = reply_heading(json.loads(line))
         except ValueError:
             continue
-        if ask:
-            return ask
-    return ""
+        if found:
+            return found
+    return None
 
 
-asks = {}
+replies = {}
 
 
-def last_ask(path):
+def last_reply(path):
     # Rescanned only when the transcript changed since the last redraw.
     try:
         st = os.stat(path)
     except OSError:
-        return ""
+        return None
     stamp = (st.st_size, st.st_mtime_ns)
-    if path not in asks or asks[path][0] != stamp:
-        asks[path] = (stamp, scan_ask(path, st.st_size))
-    return asks[path][1]
+    if path not in replies or replies[path][0] != stamp:
+        replies[path] = (stamp, scan_reply(path, st.st_size))
+    return replies[path][1]
 
 
 def issue_number(label):
@@ -390,7 +401,7 @@ def issue(key):
 
 
 def build(t, me):
-    # Fresh rows, most urgent first, and how many rows went stale.
+    # Fresh items and how many went stale.
     tabs = entries("tabs", "tab", "list")
     agents = entries("agents", "agent", "list")
     workspaces = entries("workspaces", "workspace", "list")
@@ -413,7 +424,7 @@ def build(t, me):
         crew = members[tid]
         status = min((text(a.get("agent_status")) for a in crew),
                      key=lambda s: RANK.get(s, RANK["idle"]))
-        # The newest transcript of the tab's agents gives its time and request.
+        # The newest transcript of the tab's agents gives its time and reply.
         last, path = None, None
         for a in crew:
             for p in files.get(session(a), ()):
@@ -429,11 +440,11 @@ def build(t, me):
         if number:
             repo = next((r for r in (repo_of(text(a.get("cwd"))) for a in crew) if r), None) \
                 or mapped.get(names.get(wid) or "")
-        # Tabs on the same issue of the same repository share a row.
+        # Tabs on the same issue of the same repository share an item.
         key = (repo or "workspace " + wid, number) if number else ("tab", tid)
         groups.setdefault(key, []).append({
             "tab": tid,
-            "label": label,
+            "label": plain(label),
             "status": status if status in RANK else "idle",
             "last": last,
             "path": path,
@@ -442,38 +453,57 @@ def build(t, me):
             "repo": repo,
         })
 
-    rows = []
+    items = []
     for group in groups.values():
-        # A row shows its most urgent tab, the newest among equals; a click goes there.
+        # An item shows its most urgent tab, the newest among equals; a click goes there.
         lead = min(group, key=lambda e: (RANK[e["status"]], e["last"] is None, -(e["last"] or 0)))
         known = [e["last"] for e in group if e["last"] is not None]
-        rows.append(dict(lead, last=max(known) if known else None, count=len(group)))
+        items.append(dict(lead, last=max(known) if known else None, count=len(group)))
 
     cutoff = t - STALE_DAYS * DAY
-    fresh = [r for r in rows if r["last"] is None or r["last"] >= cutoff]
+    fresh = [r for r in items if r["last"] is None or r["last"] >= cutoff]
     lookups = sorted({(r["repo"], r["number"]) for r in fresh if r["repo"]})
     with ThreadPoolExecutor(max_workers=8) as pool:
         infos = dict(zip(lookups, pool.map(issue, lookups)))
     for r in fresh:
         info = infos.get((r["repo"], r["number"]))
-        r["sub"] = ""
-        if r["number"]:
-            # The label stays beside the title so a title from the wrong repository shows.
-            rest = " ".join(w for w in r["label"].split()
-                            if issue_number(w) != r["number"]).strip()
-            title = clean(info["title"]) if info else ""
-            r["summary"] = " — ".join(x for x in (rest, title) if x) or r["label"]
-            # Only an idle tab is left over; one waiting, unread or running keeps its state.
-            if info and info["state"].upper() == "CLOSED" and r["status"] == "idle":
-                r["status"] = "closed"
+        tag, conclusion = (last_reply(r["path"]) if r["path"] else None) or (None, "")
+        if r["status"] == "working":
+            r["state"] = "working"
+        elif r["status"] == "blocked":
+            r["state"] = "turn"
         else:
-            # herdr names new tabs "1", "2": no summary in that.
-            r["summary"] = "" if r["label"].isdigit() else r["label"]
-            r["sub"] = last_ask(r["path"]) if r["path"] else ""
-            if not (r["summary"] or r["sub"]):
-                r["summary"] = r["label"] or "−"
-    fresh.sort(key=lambda r: (PINNED.get(r["status"], 2), r["last"] is None, -(r["last"] or 0)))
-    return fresh, len(rows) - len(fresh)
+            r["state"] = TAGS.get(tag, "waiting")
+        r["unread"] = r["status"] == "done"
+        # A closed issue is left over once nothing is running, unread or waiting on the user.
+        if info and info["state"].upper() == "CLOSED" and r["status"] == "idle" \
+                and r["state"] in ("done", "answered", "waiting"):
+            r["state"] = "closed"
+        if r["number"]:
+            r["ident"] = "#%d" % r["number"] + (" (%dタブ)" % r["count"] if r["count"] > 1 else "")
+            # The label stays beside the title so a title from the wrong repository shows.
+            rest = " ".join(w for w in r["label"].split() if issue_number(w) != r["number"])
+            fallback = " — ".join(x for x in (rest, clean(info["title"]) if info else "") if x)
+        else:
+            # The label is already the item's name.
+            r["ident"], fallback = r["label"] or "−", ""
+        r["summary"] = conclusion or fallback
+    return fresh, len(items) - len(fresh)
+
+
+def columns(items):
+    # [(repository, items)]: most items on the user's turn first, then most recent.
+    by = {}
+    for r in items:
+        by.setdefault(r["ws"], []).append(r)
+    cols = []
+    for name, group in by.items():
+        group.sort(key=lambda r: (PLACE[r["state"]], r["last"] is None, -(r["last"] or 0)))
+        turns = sum(PLACE[r["state"]] == 0 for r in group)
+        latest = max((r["last"] for r in group if r["last"] is not None), default=None)
+        cols.append((-turns, latest is None, -(latest or 0), name, group))
+    cols.sort(key=lambda c: c[:3])
+    return [(name, group) for _, _, _, name, group in cols]
 
 
 def cell_width(c):
@@ -486,8 +516,19 @@ def width(s):
     return sum(cell_width(c) for c in s)
 
 
-def pad(s, n):
-    return s + " " * (n - width(s))
+def clip(s, n):
+    # The longest start of s at most n columns wide.
+    out, used = [], 0
+    for c in s:
+        if used + cell_width(c) > n:
+            break
+        out.append(c)
+        used += cell_width(c)
+    return "".join(out)
+
+
+def shorten(s, n):
+    return s if width(s) <= n else clip(s, n - 1) + "…"
 
 
 def paint(pieces, color, limit=None):
@@ -495,45 +536,37 @@ def paint(pieces, color, limit=None):
     out, used = [], 0
     for piece, style in pieces:
         if limit is not None and used + width(piece) > limit:
-            room, kept = limit - used, []
-            for c in piece:
-                if cell_width(c) > room:
-                    break
-                kept.append(c)
-                room -= cell_width(c)
-            piece = "".join(kept)
+            piece = clip(piece, limit - used)
         used += width(piece)
         if piece:
             out.append("\x1b[%sm%s\x1b[0m" % (style, piece) if color and style else piece)
     return "".join(out)
 
 
-def issue_cell(r):
-    if not r["number"]:
-        return "−"
-    return "#%d" % r["number"] + (" (%dタブ)" % r["count"] if r["count"] > 1 else "")
+def fit(pieces, w):
+    # Pieces cut and padded to exactly w columns.
+    out, used = [], 0
+    for piece, style in pieces:
+        if used + width(piece) > w:
+            piece = clip(piece, w - used)
+        used += width(piece)
+        out.append((piece, style))
+    return out + [(" " * (w - used), None)]
 
 
-def table(rows, t, headings):
-    # The heading (or None) and one line per row, as (text, style) pieces.
-    cells = [[when(r["last"], t), WORDS[r["status"]], issue_cell(r), r["ws"]] for r in rows]
-    widths = [max([width(c[i]) for c in cells] + [width(HEADINGS[i]) if headings else 0])
-              for i in range(4)]
-
-    def line(values, styles, tail):
-        pieces = []
-        for value, w, style in zip(values, widths, styles):
-            pieces += [(pad(value, w), style), ("  ", None)]
-        return pieces + tail
-
-    head = line(HEADINGS[:4], ("1",) * 4, [(HEADINGS[4], "1")]) if headings else None
-    body = []
-    for c, r in zip(cells, rows):
-        tail = [(r["summary"], None)]
-        if r["sub"]:
-            tail.append((("  " if r["summary"] else "") + r["sub"], "90"))
-        body.append(line(c, (None, STYLES[r["status"]], "1", None), tail))
-    return head, body
+def wrap(s, w, most):
+    # s broken into lines of w columns; past `most` lines the last one ends in "…".
+    lines, line = [], ""
+    for c in s:
+        if line and width(line) + cell_width(c) > w:
+            lines.append(line)
+            line = ""
+        line += c
+    if line:
+        lines.append(line)
+    if len(lines) > most:
+        lines = lines[:most - 1] + [clip(lines[most - 1], w - 1) + "…"]
+    return lines
 
 
 def when(at, t):
@@ -550,18 +583,91 @@ def when(at, t):
     return "昨日" if days <= 1 else "%d日前" % days
 
 
+def item_lines(r, w, t):
+    # A bold line with mark, issue or label, state and time, then the summary.
+    state, color = WORDS[r["state"]], COLORS[r["state"]]
+    mark = MARKS.get(r["state"], " ") + " "
+    tail = [(" ", "1"), (state, "1;" + color)] + ([(" 未読", "1;33")] if r["unread"] else []) \
+        + [("  " + when(r["last"], t), "1")]
+    # The name gives way first, so state and time always show.
+    room = w - width(mark) - sum(width(p) for p, _ in tail)
+    lines = [[(mark, "1;" + color), (shorten(r["ident"], max(room, 1)), "1")] + tail]
+    lines += [[("  " + s, None)] for s in wrap(r["summary"], w - 2, SUMMARY_LINES)]
+    return [(line, r["tab"]) for line in lines]
+
+
+def stack(blocks, limit=None):
+    # Items one under another with a blank line between; past `limit` lines,
+    # whole items fold into "…ほか N 件".
+    keep = len(blocks)
+    if limit is not None and sum(map(len, blocks)) + len(blocks) - 1 > limit:
+        keep, used = 0, -1
+        for block in blocks:
+            if used + 1 + len(block) + 2 > limit:
+                break
+            used += 1 + len(block)
+            keep += 1
+    out = []
+    for block in blocks[:keep]:
+        out += ([([], None)] if out else []) + block
+    if keep < len(blocks):
+        out += ([([], None)] if out else []) + [([("…ほか %d 件" % (len(blocks) - keep), "90")], None)]
+    return out
+
+
+def band(cols, w, t, limit=None):
+    # Columns side by side: headings, a rule, then the items.
+    # Each line is (pieces, {column index: tab id}).
+    bodies = [stack([item_lines(r, w, t) for r in group], limit) for _, group in cols]
+    lines = [(side([[("%s (%d)" % (name, len(group)), "1")] for name, group in cols], w), {}),
+             ([("─┼─".join("─" * w for _ in cols), "90")], {})]
+    for y in range(max(map(len, bodies), default=0)):
+        cells = [body[y] if y < len(body) else ([], None) for body in bodies]
+        lines.append((side([cell for cell, _ in cells], w),
+                      {i: tab for i, (_, tab) in enumerate(cells) if tab}))
+    return lines
+
+
+def side(cells, w):
+    pieces = []
+    for i, cell in enumerate(cells):
+        pieces += ([(GAP, "90")] if i else []) + fit(cell, w)
+    return pieces
+
+
+def layout(n, total):
+    # How many columns fit side by side in `total` columns, and each one's text width.
+    shown = max(1, min(n, total // MIN_COLUMN))
+    return shown, max(MIN_COLUMN, total // shown) - len(GAP)
+
+
 def once():
     t = now()
     try:
-        rows, stale = build(t, self_tab())
+        items, stale = build(t, self_tab())
     except HerdrError as e:
         print("herdr-issues: %s" % e, file=sys.stderr)
         return 0
     color = sys.stdout.isatty()
-    for line in table(rows, t, headings=False)[1]:
-        print(paint(line, color).rstrip())
+    if color:
+        total = os.get_terminal_size().columns - 1
+    else:
+        try:
+            total = int(os.environ.get("COLUMNS") or 160)
+        except ValueError:
+            total = 160
+        total = total if total > 0 else 160
+    cols = columns(items)
+    shown, w = layout(len(cols), total)
+    out = []
+    # Every column, in bands as wide as the screen.
+    for start in range(0, len(cols), shown):
+        out += ([""] if out else []) + [paint(line, color).rstrip()
+                                        for line, _ in band(cols[start:start + shown], w, t)]
     if stale:
-        print(paint([("放置 %d 件" % stale, "90")], color))
+        out += ([""] if out else []) + [paint([("放置 %d 件" % stale, "90")], color)]
+    if out:
+        print("\n".join(out))
     return 0
 
 
@@ -570,43 +676,71 @@ def write(s):
     sys.stdout.flush()
 
 
-def draw(me, size):
-    # Paint one frame from the top left; return {screen row: tab id} of the rows drawn.
+def draw(me, size, offset):
+    # Paint one frame from the top left. Returns {(row, column index): tab id},
+    # the offset clamped to the columns there are, and the width of a column.
     t = now()
-    note = "   %s 更新   行をクリックでそのタブへ移動、q で終了" \
+    title = [("issue 一覧", "1;4")]
+    note = "  %s 更新  クリックでタブへ・←→ で列を移動・q で終了" \
         % time.strftime("%H:%M:%S", time.localtime(t))
-    screen = [([("issue 一覧", "1;4"), (note, "90")], None), ([], None)]
     try:
-        rows, stale = build(t, me)
+        items, stale = build(t, me)
     except HerdrError as e:
-        screen.append(([("herdr の状態を読めません: %s" % e, "31")], None))
+        screen = [(title + [(note, "90")], {}), ([], {}),
+                  ([("herdr の状態を読めません: %s" % e, "31")], {})]
+        cols, stale, shown, w = [], 0, 0, 0
     else:
-        head, body = table(rows, t, headings=True)
-        screen += [(head, None), ([("─" * size.columns, "90")], None)]
-        lines = [(line, r["tab"]) for line, r in zip(body, rows)]
-        room = size.lines - len(screen) - (1 if stale else 0)
-        if len(lines) > room:
-            # What does not fit folds into one line, so no row moves under the pointer.
-            keep = max(room - 1, 0)
-            lines = lines[:keep] + [([("…ほか %d 件" % (len(lines) - keep), "90")], None)]
-        screen += lines
-        if stale:
-            screen.append(([("放置 %d 件" % stale, "90")], None))
+        cols = columns(items)
+        shown, w = layout(len(cols), size.columns - 1)
+        offset = max(0, min(offset, len(cols) - shown))
+        hidden_right = len(cols) - offset - shown
+        if offset:
+            title.append(("  ◀ %d 列" % offset, "1;33"))
+        if hidden_right > 0:
+            title.append(("  %d 列 ▶" % hidden_right, "1;33"))
+        screen = [(title + [(note, "90")], {}), ([], {})]
+        if cols:
+            limit = size.lines - len(screen) - 2 - (1 if stale else 0)
+            screen += band(cols[offset:offset + shown], w, t, limit)
+        else:
+            screen.append(([("Claude のタブがありません", "90")], {}))
+    if stale:
+        # The count sits on the bottom row.
+        screen = screen[:size.lines - 1]
+        screen += [([], {})] * (size.lines - 1 - len(screen))
+        screen.append(([("放置 %d 件" % stale, "90")], {}))
     screen = screen[:size.lines]
     # One column spare: a full last column makes some terminals wrap.
     write("\x1b[H" + "\r\n".join(paint(pieces, True, size.columns - 1) + "\x1b[K"
                                  for pieces, _ in screen) + "\x1b[J")
-    return {row: tab for row, (_, tab) in enumerate(screen, 1) if tab}
+    hits = {(row, i): tab for row, (_, tabs) in enumerate(screen, 1) for i, tab in tabs.items()}
+    return hits, offset, (w + len(GAP)) if cols else 0
 
 
 def read_input(buf):
-    # (quit?, rows clicked with the left button, bytes kept for the next read)
+    # (quit?, events, bytes kept for the next read). An event is ("click", x, y)
+    # for a left press, or ("scroll", step) to move by a column.
     tail = PARTIAL.search(buf)
     done, rest = (buf[:tail.start()], buf[tail.start():]) if tail else (buf, b"")
-    rows = [int(m.group(3)) for m in MOUSE.finditer(done)
-            if m.group(1) == b"0" and m.group(4) == b"M"]
-    plain = ESCAPE.sub(b"", done)
-    return b"q" in plain or b"\x03" in plain, rows, rest
+    stop, events = False, []
+    for m in INPUT.finditer(done):
+        if m.group(1) is not None:
+            button = int(m.group(1))
+            # Wheel buttons: 64 up, 65 down, 66 left, 67 right; +4 with shift.
+            wheel, shift = button & ~(4 | 8 | 16), button & 4
+            if m.group(4) != b"M":
+                continue
+            if button == 0:
+                events.append(("click", int(m.group(2)), int(m.group(3))))
+            elif wheel == 66 or (wheel == 64 and shift):
+                events.append(("scroll", -1))
+            elif wheel == 67 or (wheel == 65 and shift):
+                events.append(("scroll", 1))
+        elif m.group(5) is not None:
+            events.append(("scroll", 1 if m.group(5) == b"C" else -1))
+        elif m.group(6) in (b"q", b"\x03"):
+            stop = True
+    return stop, events, rest
 
 
 def focus(tab):
@@ -691,11 +825,12 @@ def live():
     try:
         tty.setraw(fd)
         write("\x1b[?1049h\x1b[?25l\x1b[?1000h\x1b[?1006h")
-        hits, pending, due, size = {}, b"", 0.0, None
+        # The column offset outlives redraws; draw() clamps it.
+        hits, offset, slot, pending, due, size = {}, 0, 0, b"", 0.0, None
         while True:
             if time.time() >= due or os.get_terminal_size() != size:
                 size = os.get_terminal_size()
-                hits = draw(me, size)
+                hits, offset, slot = draw(me, size, offset)
                 due = time.time() + REFRESH
             ready, _, _ = select.select([fd], [], [], 0.5)
             if not ready:
@@ -703,11 +838,16 @@ def live():
             data = os.read(fd, 1024)
             if not data:
                 return 0
-            stop, clicks, pending = read_input(pending + data)
-            for row in clicks:
-                if row in hits:
-                    focus(hits[row])
+            stop, events, pending = read_input(pending + data)
+            for event in events:
+                if event[0] == "scroll":
+                    offset += event[1]
                     due = 0
+                elif slot:
+                    tab = hits.get((event[2], (event[1] - 1) // slot))
+                    if tab:
+                        focus(tab)
+                        due = 0
             if stop:
                 return 0
     except KeyboardInterrupt:

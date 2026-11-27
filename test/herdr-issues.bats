@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# herdr のタブを issue ごとに一覧する。herdr と gh のスタブと偽の会話ログで、--once の出力と、端末でのクリックを検査する。
+# herdr のタブをリポジトリごとの列で一覧する。herdr と gh のスタブと偽の会話ログで、--once の出力と、端末でのクリック・横スクロールを検査する。
 
 load "helpers/common"
 bats_require_minimum_version 1.5.0
@@ -14,7 +14,10 @@ setup() {
 #!/bin/bash
 case "\$1 \$2" in
   "workspace list") printf '%s' "\${FAKE_WS:-}"; exit "\${FAKE_HERDR_EXIT:-0}" ;;
-  "tab list") printf '%s' "\${FAKE_TABS:-}"; exit "\${FAKE_HERDR_EXIT:-0}" ;;
+  "tab list")
+    # A file lets a test change the tabs while the board runs.
+    if [ -n "\${FAKE_TABS_FILE:-}" ]; then cat "\$FAKE_TABS_FILE"; else printf '%s' "\${FAKE_TABS:-}"; fi
+    exit "\${FAKE_HERDR_EXIT:-0}" ;;
   "agent list") printf '%s' "\${FAKE_AGENTS:-}"; exit "\${FAKE_HERDR_EXIT:-0}" ;;
   "workspace create") printf "%s\\n" "\$*" >> "$TEST_TMPDIR/calls"; printf '%s' "\${FAKE_CREATE:-}"; exit 0 ;;
   "pane list") printf '%s' "\${FAKE_PANES:-}"; exit 0 ;;
@@ -53,6 +56,8 @@ EOF
   export TZ=UTC
   # Run inside herdr, these would hide whichever tab ran the tests.
   unset HERDR_PANE_ID HERDR_ISSUES_SELF
+  # --once falls back to 160 columns; a test sets COLUMNS when it wants another width.
+  unset COLUMNS
   CMD="$BATS_TEST_DIRNAME/../bin/herdr-issues"
 }
 
@@ -89,6 +94,12 @@ repo() {
 iso() { date -u -r "$1" +%Y-%m-%dT%H:%M:%S.000Z; }
 stamp() { date -r "$1" +%Y%m%d%H%M.%S; }
 
+# u <hex>: a JSON \u escape, built at run time so no raw control character sits in this file.
+u() { printf '\\u%s' "$1"; }
+
+# rule <n>: the line of n dashes under the column headings.
+rule() { printf '─%.0s' $(seq 1 "$1"); }
+
 # tx <session_id>: that session's transcript.
 tx() { printf '%s' "$TEST_TMPDIR/acct/projects/p/$1.jsonl"; }
 
@@ -99,22 +110,37 @@ log_at() {
     "$(iso $((NOW - $2)))" >> "$(tx "$1")"
 }
 
-# say <session_id> <content as JSON> [extra fields, each ending in ","]: a user line.
+# say <session_id> <content as JSON>: a user line.
 say() {
   mkdir -p "$TEST_TMPDIR/acct/projects/p"
-  printf '{"type":"user",%s"message":{"role":"user","content":%s},"timestamp":"%s"}\n' \
-    "${3:-}" "$2" "$(iso $((NOW - DAY)))" >> "$(tx "$1")"
+  printf '{"type":"user","message":{"role":"user","content":%s},"timestamp":"%s"}\n' \
+    "$2" "$(iso $((NOW - DAY)))" >> "$(tx "$1")"
 }
 
-# col <n>: the n-th column of every output line. Columns are split by 2+ spaces.
-col() { printf '%s\n' "$output" | awk -F '  +' -v n="$1" '{print $n}'; }
+# reply <session_id> <text> [JSON object merged into the line]: an assistant line with that text.
+reply() {
+  mkdir -p "$TEST_TMPDIR/acct/projects/p"
+  python3 -I -c '
+import json, sys
+line = {"type": "assistant", "timestamp": sys.argv[2],
+        "message": {"role": "assistant", "content": [{"type": "text", "text": sys.argv[1]}]}}
+if sys.argv[3]:
+    line.update(json.loads(sys.argv[3]))
+print(json.dumps(line, ensure_ascii=False))' "$2" "$(iso $((NOW - DAY)))" "${3:-}" >> "$(tx "$1")"
+}
+
+# order <ERE>: the matches in the output, in reading order, space-separated.
+order() { printf '%s\n' "$output" | grep -oE "$1" | tr '\n' ' '; }
 
 # board <rows> <cols> <action>...: run the live board in a pty of that size.
-# Actions: wait:<text>, click:<text> (left click on the line showing it), key:<chars>.
-# Prints status=, restored= (mouse off and cursor back), frame_rows=, then the last frame.
+# Actions: wait:<text> / gone:<text> (until the screen shows / stops showing it),
+# click:<text> (left click on that text), left, right, wheel:<SGR button>,
+# key:<chars>, exec:<shell command>.
+# Prints status=, restored= (mouse off and cursor back), frame_rows=, missed= for
+# each wait that timed out or click that found nothing, then the last frame.
 board() {
   python3 - "$CMD" "$@" <<'PY'
-import fcntl, os, pty, re, select, struct, sys, termios, time
+import fcntl, os, pty, re, select, shlex, struct, subprocess, sys, termios, time, unicodedata
 
 cmd, rows, cols, actions = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), sys.argv[4:]
 pid, fd = pty.fork()
@@ -123,6 +149,7 @@ if pid == 0:
     os.execv(cmd, [cmd])
 
 out = bytearray()
+missed = []
 
 
 def pump(seconds):
@@ -156,20 +183,48 @@ def frame():
     return re.sub(r"\x1b\[[0-9;?<]*[A-Za-z]", "", text).split("\r\n")
 
 
+def width(s):
+    return sum(0 if unicodedata.combining(c) else
+               2 if unicodedata.east_asian_width(c) in ("W", "F") else 1 for c in s)
+
+
+def until(test):
+    end = time.time() + 10
+    while time.time() < end:
+        if test(frame()):
+            pump(0.3)
+            return True
+        pump(0.1)
+    return False
+
+
 for action in actions:
     kind, _, arg = action.partition(":")
     if kind == "wait":
-        end = time.time() + 10
-        while time.time() < end and not any(arg in line for line in frame()):
-            pump(0.1)
-        pump(0.3)
+        if not until(lambda f: any(arg in line for line in f)):
+            missed.append(action)
+    elif kind == "gone":
+        if not until(lambda f: not any(arg in line for line in f)):
+            missed.append(action)
     elif kind == "click":
-        row = next((i + 1 for i, line in enumerate(frame()) if arg in line), 0)
-        send(b"\x1b[<0;3;%dM\x1b[<0;3;%dm" % (row, row))
+        hit = next(((i, line) for i, line in enumerate(frame()) if arg in line), None)
+        if hit is None:
+            missed.append(action)
+            continue
+        y, x = hit[0] + 1, width(hit[1][:hit[1].index(arg)]) + 1
+        send(b"\x1b[<0;%d;%dM\x1b[<0;%d;%dm" % (x, y, x, y))
         pump(1.0)
+    elif kind in ("left", "right"):
+        send(b"\x1b[D" if kind == "left" else b"\x1b[C")
+        pump(0.5)
+    elif kind == "wheel":
+        send(b"\x1b[<%d;10;5M" % int(arg))
+        pump(0.5)
     elif kind == "key":
         send(arg.encode())
         pump(0.3)
+    elif kind == "exec":
+        subprocess.run(shlex.split(arg))
 
 status = None
 end = time.time() + 5
@@ -186,36 +241,282 @@ on, off = out.rfind(b"\x1b[?1000h"), out.rfind(b"\x1b[?1000l")
 print("status=%s" % status)
 print("restored=%d" % (0 <= on < off and b"\x1b[?25h" in out[off:]))
 print("frame_rows=%d" % len(frame()))
+for action in missed:
+    print("missed=" + action)
 print("\n".join(frame()))
 PY
 }
 
-@test "返事待ちと完了・未確認が先頭、その後は新しい順" {
+# no_missed: every wait and click of the last board run found its text.
+no_missed() { [ "$(printf '%s\n' "$output" | grep -c '^missed=')" -eq 0 ]; }
+
+@test "最後の見出しの札で状態を決める" {
   state "$(ws w1 🤖dots)" \
-    "$(tab w1:t1 alpha),$(tab w1:t2 beta),$(tab w1:t3 gamma),$(tab w1:t4 delta),$(tab w1:t5 epsilon),$(tab w1:t6 zeta)" \
-    "$(ag w1:t1 idle s1),$(ag w1:t2 blocked s2),$(ag w1:t3 working s3),$(ag w1:t4 done s4),$(ag w1:t5 idle s5),$(ag w1:t6 blocked s6)"
-  log_at s1 3600
-  log_at s2 $((3 * DAY))
-  log_at s3 600
-  log_at s4 $((DAY + 3600))
-  log_at s5 30
-  log_at s6 7200
+    "$(tab w1:t1 alpha),$(tab w1:t2 beta),$(tab w1:t3 gamma),$(tab w1:t4 delta),$(tab w1:t5 epsilon)" \
+    "$(ag w1:t1 idle s1),$(ag w1:t2 idle s2),$(ag w1:t3 idle s3),$(ag w1:t4 idle s4),$(ag w1:t5 idle s5)"
+  reply s1 '## 【要判断】 [a] 方針を選んでほしい'
+  reply s2 '## 【失敗】 [b] テストが通らない'
+  reply s3 '## 【完了】 [c] 直して push した'
+  reply s4 '## 【回答】 [d] 原因は設定の読み順'
+  for i in 1 2 3 4 5; do log_at "s$i" $((i * 60)); done
   run "$CMD" --once
   [ "$status" -eq 0 ]
-  [ "$(col 5)" = "$(printf 'zeta\nbeta\ndelta\nepsilon\ngamma\nalpha')" ]
-  [ "$(col 2)" = "$(printf '返事待ち\n返事待ち\n完了・未確認\n待機中\n作業中\n待機中')" ]
-  [ "$(col 1)" = "$(printf '2時間前\n3日前\n昨日\nたった今\n10分前\n1時間前')" ]
-  [ "$(col 4)" = "$(printf 'dots\ndots\ndots\ndots\ndots\ndots')" ]
+  printf '%s\n' "$output" | grep -qxF "▶ alpha あなたの番  1分前"
+  printf '%s\n' "$output" | grep -qxF "▶ beta 要対応  2分前"
+  printf '%s\n' "$output" | grep -qxF "✓ gamma 完了  3分前"
+  printf '%s\n' "$output" | grep -qxF "  delta 回答済み  4分前"
+  printf '%s\n' "$output" | grep -qxF "  epsilon 待機  5分前"
 }
 
-@test "列は表示幅でそろえる" {
-  state "$(ws w1 🤖dots),$(ws w2 🤖library)" "$(tab w1:t1 alpha),$(tab w2:t1 beta)" \
-    "$(ag w1:t1 done s1),$(ag w2:t1 idle s2)"
-  log_at s1 600
-  log_at s2 300
+@test "herdr の作業中と返事待ちは札より優先する" {
+  state "$(ws w1 🤖dots)" "$(tab w1:t1 alpha),$(tab w1:t2 beta)" \
+    "$(ag w1:t1 working s1),$(ag w1:t2 blocked s2)"
+  reply s1 '## 【完了】 [a] 終えた'
+  reply s2 '## 【回答】 [b] 答えた'
+  log_at s1 60
+  log_at s2 120
   run "$CMD" --once
   [ "$status" -eq 0 ]
-  [ "$output" = "$(printf '10分前  完了・未確認  −  dots     alpha\n5分前   待機中        −  library  beta')" ]
+  printf '%s\n' "$output" | grep -qxF "● alpha 作業中  1分前"
+  printf '%s\n' "$output" | grep -qxF "▶ beta あなたの番  2分前"
+}
+
+@test "herdr の done は札の状態に未読の印を足す" {
+  state "$(ws w1 🤖dots)" "$(tab w1:t1 alpha),$(tab w1:t2 beta)" "$(ag w1:t1 done s1),$(ag w1:t2 done s2)"
+  reply s1 '## 【完了】 [a] 終えた'
+  log_at s1 60
+  log_at s2 120
+  run "$CMD" --once
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$output" | grep -qxF "✓ alpha 完了 未読  1分前"
+  printf '%s\n' "$output" | grep -qxF "  beta 待機 未読  2分前"
+}
+
+@test "見出しの結論を概要にし、無ければタブ名の残りと issue タイトルに戻る" {
+  repo ra o/a
+  state "$(ws w1 🤖app)" "$(tab w1:t1 '#12 ログイン修正'),$(tab w1:t2 '#13 画面調整')" \
+    "$(ag w1:t1 idle s1 "$TEST_TMPDIR/ra"),$(ag w1:t2 idle s2 "$TEST_TMPDIR/ra")"
+  reply s1 '## 【完了】 [ログイン] `bin/login` を直して push した'
+  log_at s1 60
+  log_at s2 120
+  run "$CMD" --once
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$output" | grep -qxF "  bin/login を直して push した"
+  printf '%s\n' "$output" | grep -qxF "  画面調整 — o/a の題 13"
+}
+
+@test "1 件は状態の行と概要の行で書き、件の間を空ける" {
+  repo ra o/a
+  state "$(ws w1 🤖app)" "$(tab w1:t1 '#12 ログイン修正'),$(tab w1:t2 '#13 画面調整')" \
+    "$(ag w1:t1 idle s1 "$TEST_TMPDIR/ra"),$(ag w1:t2 working s2 "$TEST_TMPDIR/ra")"
+  reply s1 $'作業の報告です\n\n## 【要判断】 [ログイン] ログイン画面の修正方針を決めてほしい\n\n本文'
+  log_at s1 300
+  log_at s2 600
+  run env COLUMNS=50 "$CMD" --once
+  [ "$status" -eq 0 ]
+  [ "$output" = "$(printf 'app (2)\n%s\n▶ #12 あなたの番  5分前\n  ログイン画面の修正方針を決めてほしい\n\n● #13 作業中  10分前\n  画面調整 — o/a の題 13' "$(rule 47)")" ]
+}
+
+@test "見出しは最後に見出しを持つ返答から取り、利用者の発言やサブエージェントは見ない" {
+  state "$(ws w1 🤖dots)" "$(tab w1:t1 alpha)" "$(ag w1:t1 idle s1)"
+  reply s1 '## 【要判断】 [a] この結論が出る'
+  reply s1 '途中経過だけの返答'
+  say s1 '"## 【完了】 [x] 利用者が貼った見出し"'
+  reply s1 '## 【完了】 [x] サブエージェントの見出し' '{"isSidechain": true}'
+  log_at s1 60
+  run "$CMD" --once
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$output" | grep -qxF "▶ alpha あなたの番  1分前"
+  printf '%s\n' "$output" | grep -qxF "  この結論が出る"
+  [ "$(printf '%s\n' "$output" | grep -cE '利用者が貼った|サブエージェント')" -eq 0 ]
+}
+
+@test "2 MB より前の見出しは使わない" {
+  state "$(ws w1 🤖dots)" "$(tab w1:t1 alpha)" "$(ag w1:t1 idle s1)"
+  reply s1 '## 【要判断】 [a] 遠すぎて見えない結論'
+  {
+    printf '{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"'
+    head -c 2200000 /dev/zero | tr '\0' x
+    printf '"}]},"timestamp":"%s"}\n' "$(iso $((NOW - 120)))"
+  } >> "$(tx s1)"
+  log_at s1 60
+  run "$CMD" --once
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$output" | grep -qxF "  alpha 待機  1分前"
+  [ "$(printf '%s\n' "$output" | grep -cF '遠すぎて')" -eq 0 ]
+}
+
+@test "利用者の依頼文は概要に出さない" {
+  state "$(ws w1 🤖dots)" "$(tab w1:t1 alpha)" "$(ag w1:t1 idle s1)"
+  say s1 '"テストが落ちる原因を調べて直してほしい"'
+  log_at s1 60
+  run "$CMD" --once
+  [ "$status" -eq 0 ]
+  [ "$output" = "$(printf 'dots (1)\n%s\n  alpha 待機  1分前' "$(rule 157)")" ]
+}
+
+@test "タブ名の絵文字や記号は出さない" {
+  repo ra o/a
+  state "$(ws w1 🤖app)" "$(tab w1:t1 '2499 🥉 📤'),$(tab w1:t2 'final-judge 新設 🔥'),$(tab w1:t3 '★整理 ✅')" \
+    "$(ag w1:t1 idle s1 "$TEST_TMPDIR/ra"),$(ag w1:t2 idle s2),$(ag w1:t3 idle s3)"
+  log_at s1 60
+  log_at s2 120
+  log_at s3 180
+  run "$CMD" --once
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$output" | grep -qxF "  #2499 待機  1分前"
+  printf '%s\n' "$output" | grep -qxF "  o/a の題 2499"
+  printf '%s\n' "$output" | grep -qxF "  final-judge 新設 待機  2分前"
+  printf '%s\n' "$output" | grep -qxF "  整理 待機  3分前"
+  for mark in 🥉 📤 🔥 ★ ✅; do
+    [ "$(printf '%s\n' "$output" | grep -cF "$mark")" -eq 0 ]
+  done
+}
+
+@test "closed の issue は完了・回答済み・待機なら片付け候補になる" {
+  repo ra o/a
+  export FAKE_GH_CLOSED="13 14 15"
+  state "$(ws w1 🤖app)" "$(tab w1:t1 '#13 a'),$(tab w1:t2 '#14 b'),$(tab w1:t3 '#15 c')" \
+    "$(ag w1:t1 idle s1 "$TEST_TMPDIR/ra"),$(ag w1:t2 idle s2 "$TEST_TMPDIR/ra"),$(ag w1:t3 idle s3 "$TEST_TMPDIR/ra")"
+  reply s1 '## 【完了】 [a] 終えた'
+  reply s2 '## 【回答】 [b] 答えた'
+  log_at s1 60
+  log_at s2 120
+  log_at s3 180
+  run "$CMD" --once
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$output" | grep -qxF "  #13 片付け候補  1分前"
+  printf '%s\n' "$output" | grep -qxF "  #14 片付け候補  2分前"
+  printf '%s\n' "$output" | grep -qxF "  #15 片付け候補  3分前"
+}
+
+@test "closed でもあなたの番・要対応・作業中・未読はそのまま出す" {
+  repo ra o/a
+  export FAKE_GH_CLOSED="13 14 15 16"
+  state "$(ws w1 🤖app)" "$(tab w1:t1 '#13 a'),$(tab w1:t2 '#14 b'),$(tab w1:t3 '#15 c'),$(tab w1:t4 '#16 d')" \
+    "$(ag w1:t1 idle s1 "$TEST_TMPDIR/ra"),$(ag w1:t2 idle s2 "$TEST_TMPDIR/ra"),$(ag w1:t3 working s3 "$TEST_TMPDIR/ra"),$(ag w1:t4 done s4 "$TEST_TMPDIR/ra")"
+  reply s1 '## 【要判断】 [a] 決めてほしい'
+  reply s2 '## 【失敗】 [b] 落ちた'
+  reply s4 '## 【完了】 [d] 終えた'
+  for i in 1 2 3 4; do log_at "s$i" $((i * 60)); done
+  run "$CMD" --once
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$output" | grep -qxF "▶ #13 あなたの番  1分前"
+  printf '%s\n' "$output" | grep -qxF "▶ #14 要対応  2分前"
+  printf '%s\n' "$output" | grep -qxF "● #15 作業中  3分前"
+  printf '%s\n' "$output" | grep -qxF "✓ #16 完了 未読  4分前"
+}
+
+@test "リポジトリごとの列に分け、列の見出しに件数を出す" {
+  state "$(ws w1 🤖app),$(ws w2 🤖lib)" "$(tab w1:t1 alpha),$(tab w1:t2 beta),$(tab w2:t1 gamma)" \
+    "$(ag w1:t1 idle s1),$(ag w1:t2 idle s2),$(ag w2:t1 idle s3)"
+  log_at s1 60
+  log_at s2 120
+  log_at s3 180
+  run "$CMD" --once
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$output" | head -n 1 | grep -qF "app (2)"
+  printf '%s\n' "$output" | head -n 1 | grep -qF "lib (1)"
+  printf '%s\n' "$output" | grep -F "alpha 待機" | grep -F "│" | grep -qF "gamma 待機"
+  [ "$(order 'alpha|beta|gamma')" = "alpha gamma beta " ]
+}
+
+@test "列はあなたの番と要対応の多い順、同じなら最近動いた順に並べる" {
+  state "$(ws w1 aaa),$(ws w2 bbb),$(ws w3 ccc),$(ws w4 ddd)" \
+    "$(tab w1:t1 a1),$(tab w2:t1 b1),$(tab w2:t2 b2),$(tab w3:t1 c1),$(tab w4:t1 d1)" \
+    "$(ag w1:t1 idle s1),$(ag w2:t1 idle s2),$(ag w2:t2 blocked s3),$(ag w3:t1 idle s4),$(ag w4:t1 idle s5)"
+  reply s1 '## 【要判断】 [a] 決めてほしい'
+  reply s2 '## 【失敗】 [b] 落ちた'
+  log_at s1 3600
+  log_at s2 7200
+  log_at s3 7300
+  log_at s4 60
+  log_at s5 600
+  run "$CMD" --once
+  [ "$status" -eq 0 ]
+  [ "$(printf '%s\n' "$output" | head -n 1 | grep -oE 'aaa|bbb|ccc|ddd' | tr '\n' ' ')" = "bbb aaa ccc ddd " ]
+}
+
+@test "列の中はあなたの番・要対応、作業中、完了、片付け候補、回答済み・待機の順で、同じなら新しい順" {
+  repo ra o/a
+  export FAKE_GH_CLOSED=13
+  state "$(ws w1 🤖app)" \
+    "$(tab w1:t1 alpha),$(tab w1:t2 beta),$(tab w1:t3 gamma),$(tab w1:t4 delta),$(tab w1:t5 epsilon),$(tab w1:t6 zeta),$(tab w1:t7 '#13 x')" \
+    "$(ag w1:t1 idle s1),$(ag w1:t2 idle s2),$(ag w1:t3 working s3),$(ag w1:t4 idle s4),$(ag w1:t5 idle s5),$(ag w1:t6 idle s6),$(ag w1:t7 idle s7 "$TEST_TMPDIR/ra")"
+  reply s1 '## 【回答】 [a] 答えた'
+  reply s2 '## 【完了】 [b] 終えた'
+  reply s4 '## 【要判断】 [d] 決めてほしい'
+  reply s5 '## 【失敗】 [e] 落ちた'
+  reply s7 '## 【完了】 [g] 閉じた'
+  log_at s1 60
+  log_at s2 120
+  log_at s3 180
+  log_at s4 3600
+  log_at s5 600
+  log_at s6 30
+  log_at s7 90
+  run "$CMD" --once
+  [ "$status" -eq 0 ]
+  [ "$(order 'alpha|beta|gamma|delta|epsilon|zeta|#13')" = "epsilon delta gamma beta #13 zeta alpha " ]
+}
+
+@test "長い概要は 2 行で折り返し、残りは … にする" {
+  state "$(ws w1 🤖dots)" "$(tab w1:t1 alpha)" "$(ag w1:t1 idle s1)"
+  reply s1 "## 【完了】 [a] $(printf 'あ%.0s' $(seq 1 40))"
+  log_at s1 60
+  run env COLUMNS=40 "$CMD" --once
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$output" | grep -qxF "  $(printf 'あ%.0s' $(seq 1 17))"
+  printf '%s\n' "$output" | grep -qxF "  $(printf 'あ%.0s' $(seq 1 17))…"
+  [ "$(printf '%s\n' "$output" | grep -cF 'あ')" -eq 2 ]
+}
+
+@test "列は 32 桁以上の幅で画面に入るだけ並べ、残りは次の段に出す" {
+  state "$(ws w1 aaa),$(ws w2 bbb),$(ws w3 ccc),$(ws w4 ddd)" \
+    "$(tab w1:t1 a1),$(tab w2:t1 b1),$(tab w3:t1 c1),$(tab w4:t1 d1)" \
+    "$(ag w1:t1 idle s1),$(ag w2:t1 idle s2),$(ag w3:t1 idle s3),$(ag w4:t1 idle s4)"
+  for i in 1 2 3 4; do log_at "s$i" $((i * 60)); done
+  run env COLUMNS=100 "$CMD" --once
+  [ "$status" -eq 0 ]
+  [ "$(printf '%s\n' "$output" | head -n 1)" = "$(printf '%-30s │ %-30s │ %s' 'aaa (1)' 'bbb (1)' 'ccc (1)')" ]
+  [ "$(printf '%s\n' "$output" | grep -F 'ddd (1)')" = "ddd (1)" ]
+  # 95 holds two 32-wide columns, not three: two bands of two, 47 wide each.
+  run env COLUMNS=95 "$CMD" --once
+  [ "$status" -eq 0 ]
+  [ "$(printf '%s\n' "$output" | head -n 1)" = "$(printf '%-44s │ %s' 'aaa (1)' 'bbb (1)')" ]
+  printf '%s\n' "$output" | grep -qxF "$(printf '%-44s │ %s' 'ccc (1)' 'ddd (1)')"
+  # Narrower than 32, a column still gets 32.
+  run env COLUMNS=20 "$CMD" --once
+  [ "$status" -eq 0 ]
+  [ "$(printf '%s\n' "$output" | grep -cxF "$(rule 29)")" -eq 4 ]
+}
+
+@test "--once は COLUMNS が無ければ 160 桁として並べる" {
+  state "$(ws w1 aaa),$(ws w2 bbb),$(ws w3 ccc),$(ws w4 ddd),$(ws w5 eee),$(ws w6 fff)" \
+    "$(tab w1:t1 a1),$(tab w2:t1 b1),$(tab w3:t1 c1),$(tab w4:t1 d1),$(tab w5:t1 e1),$(tab w6:t1 f1)" \
+    "$(ag w1:t1 idle s1),$(ag w2:t1 idle s2),$(ag w3:t1 idle s3),$(ag w4:t1 idle s4),$(ag w5:t1 idle s5),$(ag w6:t1 idle s6)"
+  for i in 1 2 3 4 5 6; do log_at "s$i" $((i * 60)); done
+  run "$CMD" --once
+  [ "$status" -eq 0 ]
+  [ "$(printf '%s\n' "$output" | head -n 1 | grep -o '│' | grep -c .)" -eq 4 ]
+  [ "$(printf '%s\n' "$output" | head -n 1 | awk '{print index($0, "│")}')" -eq 31 ]
+  [ "$(printf '%s\n' "$output" | grep -F 'fff (1)')" = "fff (1)" ]
+}
+
+@test "14 日より前は最後の行で 放置 N 件 にまとめる" {
+  state "$(ws w1 🤖dots)" "$(tab w1:t1 alpha),$(tab w1:t2 beta),$(tab w1:t3 gamma),$(tab w1:t4 delta)" \
+    "$(ag w1:t1 idle s1),$(ag w1:t2 blocked s2),$(ag w1:t3 idle s3),$(ag w1:t4 idle s4)"
+  log_at s1 "$DAY"
+  log_at s2 $((14 * DAY + 1))
+  log_at s3 $((14 * DAY))
+  log_at s4 $((30 * DAY))
+  run "$CMD" --once
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$output" | head -n 1 | grep -qxF "dots (2)"
+  printf '%s\n' "$output" | grep -qxF "  alpha 待機  昨日"
+  printf '%s\n' "$output" | grep -qxF "  gamma 待機  14日前"
+  [ "$(printf '%s\n' "$output" | grep -cE 'beta|delta')" -eq 0 ]
+  [ "$(printf '%s\n' "$output" | tail -n 1)" = "放置 2 件" ]
 }
 
 @test "番号ありはタブ名の残りと issue タイトルを並べて概要にする" {
@@ -224,7 +525,8 @@ PY
   log_at s1 120
   run "$CMD" --once
   [ "$status" -eq 0 ]
-  [ "$output" = "2分前  作業中  #12  app  ログイン修正 — o/a の題 12" ]
+  printf '%s\n' "$output" | grep -qxF "● #12 作業中  2分前"
+  printf '%s\n' "$output" | grep -qxF "  ログイン修正 — o/a の題 12"
   [ "$(cat "$TEST_TMPDIR/gh-calls")" = "issue view 12 --repo o/a --json title,state" ]
 }
 
@@ -236,9 +538,10 @@ PY
     "$(ag w1:t1 idle s1 "$TEST_TMPDIR/plain"),$(ag w2:t1 idle s2 "$TEST_TMPDIR/plain")"
   log_at s1 60
   log_at s2 120
-  run "$CMD" --once
+  run env COLUMNS=40 "$CMD" --once
   [ "$status" -eq 0 ]
-  [ "$(col 5)" = "$(printf '🔥 — o/mapped の題 2413\nx')" ]
+  printf '%s\n' "$output" | grep -qxF "  o/mapped の題 2413"
+  printf '%s\n' "$output" | grep -qxF "  x"
   [ "$(cat "$TEST_TMPDIR/gh-calls")" = "issue view 2413 --repo o/mapped --json title,state" ]
 }
 
@@ -259,35 +562,19 @@ PY
   for i in 1 2 3 4 5 6 7 8; do log_at "s$i" $((i * 60)); done
   run "$CMD" --once
   [ "$status" -eq 0 ]
-  [ "$(col 3)" = "$(printf '#304\n#182\n#2386\n#2499\n−\n−\n−\n−')" ]
+  printf '%s\n' "$output" | grep -qxF "  #304 待機  1分前"
+  printf '%s\n' "$output" | grep -qxF "  #182 待機  2分前"
+  printf '%s\n' "$output" | grep -qxF "  #2386 待機  3分前"
+  printf '%s\n' "$output" | grep -qxF "  #2499 待機  4分前"
+  printf '%s\n' "$output" | grep -qxF "  debug2 待機  5分前"
+  printf '%s\n' "$output" | grep -qxF "  1 待機  6分前"
+  printf '%s\n' "$output" | grep -qxF "  v2 移行 待機  7分前"
+  printf '%s\n' "$output" | grep -qxF "  123456 待機  8分前"
   # No repository behind these tabs, so gh is never asked.
   [ ! -e "$TEST_TMPDIR/gh-calls" ]
 }
 
-@test "closed の issue は片付け候補になる" {
-  repo ra o/a
-  export FAKE_GH_CLOSED=13
-  state "$(ws w1 🤖app)" "$(tab w1:t1 '#13 古い修正')" "$(ag w1:t1 idle s1 "$TEST_TMPDIR/ra")"
-  log_at s1 60
-  run "$CMD" --once
-  [ "$status" -eq 0 ]
-  [ "$output" = "1分前  片付け候補  #13  app  古い修正 — o/a の題 13" ]
-}
-
-@test "closed でも返事待ち・完了・作業中のタブは状態を変えない" {
-  repo ra o/a
-  export FAKE_GH_CLOSED="13 14 15"
-  state "$(ws w1 🤖app)" "$(tab w1:t1 '#13 a'),$(tab w1:t2 '#14 b'),$(tab w1:t3 '#15 c')" \
-    "$(ag w1:t1 blocked s1 "$TEST_TMPDIR/ra"),$(ag w1:t2 done s2 "$TEST_TMPDIR/ra"),$(ag w1:t3 working s3 "$TEST_TMPDIR/ra")"
-  log_at s1 60
-  log_at s2 120
-  log_at s3 180
-  run "$CMD" --once
-  [ "$status" -eq 0 ]
-  [ "$(col 2)" = "$(printf '返事待ち\n完了・未確認\n作業中')" ]
-}
-
-@test "同じ issue のタブは 1 行にまとめる" {
+@test "同じ issue のタブは 1 件にまとめる" {
   repo ra o/a
   state "$(ws w1 🤖app)" "$(tab w1:t1 '#12 前半'),$(tab w1:t2 '#12 後半')" \
     "$(ag w1:t1 idle s1 "$TEST_TMPDIR/ra"),$(ag w1:t2 idle s2 "$TEST_TMPDIR/ra")"
@@ -295,7 +582,9 @@ PY
   log_at s2 300
   run "$CMD" --once
   [ "$status" -eq 0 ]
-  [ "$output" = "5分前  待機中  #12 (2タブ)  app  後半 — o/a の題 12" ]
+  printf '%s\n' "$output" | head -n 1 | grep -qxF "app (1)"
+  printf '%s\n' "$output" | grep -qxF "  #12 (2タブ) 待機  5分前"
+  printf '%s\n' "$output" | grep -qxF "  後半 — o/a の題 12"
   [ "$(cat "$TEST_TMPDIR/gh-calls")" = "issue view 12 --repo o/a --json title,state" ]
 }
 
@@ -308,76 +597,9 @@ PY
   log_at s2 600
   run "$CMD" --once
   [ "$status" -eq 0 ]
-  [ "$(col 3)" = "$(printf '#12\n#12')" ]
-  [ "$(col 4)" = "$(printf 'app\nlib')" ]
-  [ "$(col 5)" = "$(printf 'a — o/a の題 12\nb — o/b の題 12')" ]
-}
-
-@test "14 日より前は放置 N 件にまとめる" {
-  state "$(ws w1 🤖dots)" "$(tab w1:t1 a),$(tab w1:t2 b),$(tab w1:t3 c),$(tab w1:t4 d)" \
-    "$(ag w1:t1 idle s1),$(ag w1:t2 blocked s2),$(ag w1:t3 idle s3),$(ag w1:t4 idle s4)"
-  log_at s1 "$DAY"
-  log_at s2 $((14 * DAY + 1))
-  log_at s3 $((14 * DAY))
-  log_at s4 $((30 * DAY))
-  run "$CMD" --once
-  [ "$status" -eq 0 ]
-  [ "${#lines[@]}" -eq 3 ]
-  [ "$(printf '%s\n' "$output" | head -n 2 | awk -F '  +' '{print $1 "|" $5}')" = "$(printf '昨日|a\n14日前|c')" ]
-  [ "${lines[2]}" = "放置 2 件" ]
-}
-
-@test "番号なしはタブ名と最後の依頼文を概要にする（短い返事・< や [ 始まり・システム文は除く）" {
-  state "$(ws w1 🤖dots)" "$(tab w1:t1 調査)" "$(ag w1:t1 idle s1)"
-  say s1 '"古い依頼なのでこれは出てこないはずの文章"'
-  say s1 '"テストが落ちる原因を調べて直してほしい"'
-  say s1 '"<command-name>/clear</command-name> を実行した記録の行"'
-  say s1 '"[Request interrupted by user for tool use]"'
-  say s1 '"はい、それで進めて"'
-  say s1 '[{"type":"tool_result","tool_use_id":"t1","content":"ツールの結果がここに長く書かれている"}]'
-  say s1 '[{"type":"text","text":"スキルの本文がここに入っていて十分に長いテキスト"}]' '"isMeta":true,'
-  log_at s1 60
-  run "$CMD" --once
-  [ "$status" -eq 0 ]
-  [ "$output" = "1分前  待機中  −  dots  調査  テストが落ちる原因を調べて直してほしい" ]
-}
-
-@test "貼り付けは（貼り付け）と書き、貼り付けだけの依頼は飛ばす" {
-  state "$(ws w1 🤖dots)" "$(tab w1:t1 調査),$(tab w1:t2 確認)" "$(ag w1:t1 idle s1),$(ag w1:t2 idle s2)"
-  say s1 '"<pasted_content id=\"1\">Traceback (most recent call last): boom</pasted_content id=\"1\">\nこのエラーの原因を調べて直してください"'
-  say s2 '"ログの読み方を教えてほしいので説明をお願いします"'
-  say s2 '"<pasted_content id=\"2\">とても長い貼り付けの中身がここに入る</pasted_content id=\"2\">"'
-  log_at s1 60
-  log_at s2 120
-  run "$CMD" --once
-  [ "$status" -eq 0 ]
-  [ "$(col 6)" = "$(printf '（貼り付け） このエラーの原因を調べて直してください\nログの読み方を教えてほしいので説明をお願いします')" ]
-}
-
-@test "長い依頼文は 60 文字で切って … を付ける" {
-  state "$(ws w1 🤖dots)" "$(tab w1:t1 調査)" "$(ag w1:t1 idle s1)"
-  say s1 "\"$(printf 'あ%.0s' $(seq 1 70))\""
-  log_at s1 60
-  run "$CMD" --once
-  [ "$status" -eq 0 ]
-  [ "$(col 6)" = "$(printf 'あ%.0s' $(seq 1 59))…" ]
-}
-
-@test "状態の分からないエージェントは待機中として出す" {
-  state "$(ws w1 🤖dots)" "$(tab w1:t1 alpha)" "$(ag w1:t1 unknown s1)"
-  log_at s1 60
-  run "$CMD" --once
-  [ "$status" -eq 0 ]
-  [ "$(col 2)" = 待機中 ]
-}
-
-@test "数字だけのタブ名は概要に出さない" {
-  state "$(ws w1 🤖dots)" "$(tab w1:t1 2)" "$(ag w1:t1 idle s1)"
-  say s1 '"設定ファイルの書き方を見直してほしい"'
-  log_at s1 60
-  run "$CMD" --once
-  [ "$status" -eq 0 ]
-  [ "$output" = "1分前  待機中  −  dots  設定ファイルの書き方を見直してほしい" ]
+  printf '%s\n' "$output" | grep -qF "a — o/a の題 12"
+  printf '%s\n' "$output" | grep -qF "b — o/b の題 12"
+  [ "$(printf '%s\n' "$output" | grep -cF '(2タブ)')" -eq 0 ]
 }
 
 @test "一覧自身のタブは出さない" {
@@ -386,17 +608,17 @@ PY
   log_at s2 120
   run env HERDR_ISSUES_SELF=w1:t2 "$CMD" --once
   [ "$status" -eq 0 ]
-  [ "$(col 5)" = alpha ]
+  [ "$(order 'alpha|board')" = "alpha " ]
   # Without the override it is the tab holding $HERDR_PANE_ID.
   export FAKE_PANE_ID=w1:p9
   export FAKE_PANE='{"result":{"pane":{"pane_id":"w1:p9","tab_id":"w1:t2"}}}'
   run env HERDR_PANE_ID=w1:p9 "$CMD" --once
   [ "$status" -eq 0 ]
-  [ "$(col 5)" = alpha ]
+  [ "$(order 'alpha|board')" = "alpha " ]
   # A pane herdr does not know hides nothing.
   run env HERDR_PANE_ID=w1:p8 "$CMD" --once
   [ "$status" -eq 0 ]
-  [ "$(col 5)" = "$(printf 'alpha\nboard')" ]
+  [ "$(order 'alpha|board')" = "alpha board " ]
 }
 
 @test "エージェントのいないタブは出さない" {
@@ -404,18 +626,27 @@ PY
   log_at s1 60
   run "$CMD" --once
   [ "$status" -eq 0 ]
-  [ "$(col 5)" = alpha ]
+  [ "$(order 'alpha|terminal')" = "alpha " ]
 }
 
-@test "会話ログの最後の行が途中で切れていれば最終対応は − にして行は出す" {
+@test "会話ログの最後の行が途中で切れていれば最終対応は − にして件は出す" {
   state "$(ws w1 🤖dots)" "$(tab w1:t1 alpha),$(tab w1:t2 beta)" "$(ag w1:t1 idle s1),$(ag w1:t2 idle s2)"
   log_at s1 600
   printf '{"type":"assistant","timestamp":"%s","message":{"te' "$(iso $((NOW - 60)))" >> "$(tx s1)"
   log_at s2 300
   run "$CMD" --once
   [ "$status" -eq 0 ]
-  [ "$(col 1)" = "$(printf '5分前\n−')" ]
-  [ "$(col 5)" = "$(printf 'beta\nalpha')" ]
+  printf '%s\n' "$output" | grep -qxF "  beta 待機  5分前"
+  printf '%s\n' "$output" | grep -qxF "  alpha 待機  −"
+  [ "$(order 'alpha|beta')" = "beta alpha " ]
+}
+
+@test "状態の分からないエージェントは待機として出す" {
+  state "$(ws w1 🤖dots)" "$(tab w1:t1 alpha)" "$(ag w1:t1 unknown s1)"
+  log_at s1 60
+  run "$CMD" --once
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$output" | grep -qxF "  alpha 待機  1分前"
 }
 
 @test "gh が失敗しても一覧を出し、概要はタブ名の残りにする" {
@@ -426,10 +657,12 @@ PY
   log_at s2 120
   run env FAKE_GH_FAIL=12 "$CMD" --once
   [ "$status" -eq 0 ]
-  [ "$(col 5)" = "$(printf 'ログイン修正\n画面調整 — o/a の題 13')" ]
+  printf '%s\n' "$output" | grep -qxF "  ログイン修正"
+  printf '%s\n' "$output" | grep -qxF "  画面調整 — o/a の題 13"
   run env GH_BIN="$TEST_TMPDIR/missing" HERDR_ISSUES_CACHE="$TEST_TMPDIR/cache2" "$CMD" --once
   [ "$status" -eq 0 ]
-  [ "$(col 5)" = "$(printf 'ログイン修正\n画面調整')" ]
+  printf '%s\n' "$output" | grep -qxF "  ログイン修正"
+  printf '%s\n' "$output" | grep -qxF "  画面調整"
 }
 
 @test "gh の失敗はキャッシュせず次の実行で引き直す" {
@@ -440,7 +673,7 @@ PY
   [ "$status" -eq 0 ]
   run "$CMD" --once
   [ "$status" -eq 0 ]
-  [ "$(col 5)" = "ログイン修正 — o/a の題 12" ]
+  printf '%s\n' "$output" | grep -qxF "  ログイン修正 — o/a の題 12"
 }
 
 @test "gh の結果をキャッシュし 2 回目は呼ばない" {
@@ -469,17 +702,17 @@ PY
   [ "$(grep -c . "$TEST_TMPDIR/gh-calls")" -eq 2 ]
 }
 
-@test "ラベル・ワークスペース名・依頼文の制御文字は出さない" {
-  state "$(ws w1 '🤖do\u001b[2Jts')" "$(tab w1:t1 'x\u001b]0;evil\u0007y‮z')" "$(ag w1:t1 idle s1)"
-  say s1 '"\u001b[31m赤い文字で表示してほしいという依頼の文章"'
+@test "ラベル・ワークスペース名・見出しの制御文字は出さない" {
+  state "$(ws w1 "🤖do$(u 001b)[2Jts")" "$(tab w1:t1 "x$(u 001b)]0;evil$(u 0007)y$(u 202e)z")" "$(ag w1:t1 idle s1)"
+  printf '{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"## 【完了】 [a] %s[31m赤い文字で書いた結論"}]},"timestamp":"%s"}\n' \
+    "$(u 001b)" "$(iso $((NOW - DAY)))" > "$(mkdir -p "$TEST_TMPDIR/acct/projects/p" && tx s1)"
   log_at s1 60
   run "$CMD" --once
   [ "$status" -eq 0 ]
-  [ "${#lines[@]}" -eq 1 ]
   [ "$(printf '%s' "$output" | tr -d '\033\007')" = "$output" ]
   # U+202E reverses the text after it on screen.
   [ "$(printf '%s\n' "$output" | grep -cF "$(printf '\342\200\256')")" -eq 0 ]
-  printf '%s' "$output" | grep -qF "赤い文字で表示してほしいという依頼の文章"
+  printf '%s\n' "$output" | grep -qF "赤い文字で書いた結論"
 }
 
 @test "不正な引数は使い方を出して 2 で終わる" {
@@ -526,34 +759,76 @@ PY
   [ ! -e "$TEST_TMPDIR/calls" ]
 }
 
-@test "端末ではクリックした行のタブへ移り、q で端末を元に戻す" {
+@test "端末ではクリックした件のタブへ移り、q で端末を元に戻す" {
   state "$(ws w1 🤖dots)" "$(tab w1:t1 alpha),$(tab w1:t2 beta),$(tab w1:t3 gamma)" \
     "$(ag w1:t1 idle s1),$(ag w1:t2 idle s2),$(ag w1:t3 idle s3)"
+  reply s2 '## 【完了】 [b] ベータの結論'
   log_at s1 60
   log_at s2 120
   log_at s3 180
-  run board 24 100 wait:gamma click:beta key:q
+  run board 24 100 wait:gamma click:ベータの結論 key:q
   [ "${lines[0]}" = "status=0" ]
   [ "${lines[1]}" = "restored=1" ]
+  no_missed
   [ "$(cat "$TEST_TMPDIR/calls")" = "tab focus w1:t2" ]
 }
 
-@test "画面に収まらない行は…ほか N 件にまとめ、その行はクリックしても移らない" {
+# four <tabs-or-empty>: four one-tab repositories aaa..ddd, newest first.
+four() {
+  state "$(ws w1 aaa),$(ws w2 bbb),$(ws w3 ccc),$(ws w4 ddd)" \
+    "$(tab w1:t1 alpha),$(tab w2:t1 beta),$(tab w3:t1 gamma),$(tab w4:t1 delta)" \
+    "$(ag w1:t1 idle s1),$(ag w2:t1 idle s2),$(ag w3:t1 idle s3),$(ag w4:t1 idle s4)"
+  for i in 1 2 3 4; do log_at "s$i" $((i * 60)); done
+}
+
+@test "← → とホイールで列を 1 つずつ動かし、隠れた列の数を出す" {
+  four
+  # 70 columns hold two 32-wide columns: aaa and bbb show, ccc and ddd hide.
+  run board 24 70 "wait:2 列 ▶" right "wait:◀ 1 列" "wait:1 列 ▶" "wheel:67" "wait:◀ 2 列" \
+    "wheel:68" "wait:◀ 1 列" "wheel:66" "gone:◀" "wheel:69" "wait:◀ 1 列" left "gone:◀" key:q
+  [ "${lines[0]}" = "status=0" ]
+  no_missed
+  printf '%s\n' "$output" | grep -qF "aaa (1)"
+  printf '%s\n' "$output" | grep -qF "2 列 ▶"
+}
+
+@test "列を動かした後のクリックは見えている列のタブへ移る" {
+  four
+  run board 24 70 "wait:2 列 ▶" right "wait:◀ 1 列" click:gamma key:q
+  [ "${lines[0]}" = "status=0" ]
+  no_missed
+  [ "$(cat "$TEST_TMPDIR/calls")" = "tab focus w3:t1" ]
+}
+
+@test "列が減ったら動かした位置を詰める" {
+  four
+  printf '%s' "$FAKE_TABS" > "$TEST_TMPDIR/tabs.json"
+  export FAKE_TABS_FILE="$TEST_TMPDIR/tabs.json"
+  printf '{"result":{"tabs":[%s,%s]}}' "$(tab w1:t1 alpha)" "$(tab w2:t1 beta)" > "$TEST_TMPDIR/two.json"
+  run board 24 70 "wait:2 列 ▶" right right "wait:◀ 2 列" \
+    "exec:cp '$TEST_TMPDIR/two.json' '$TEST_TMPDIR/tabs.json'" "gone:◀" key:q
+  [ "${lines[0]}" = "status=0" ]
+  no_missed
+  printf '%s\n' "$output" | grep -qF "aaa (1)"
+  printf '%s\n' "$output" | grep -qF "bbb (1)"
+}
+
+@test "画面に収まらない件は列ごとに…ほか N 件にまとめ、その行はクリックしても移らない" {
   state "$(ws w1 🤖dots)" \
     "$(tab w1:t1 alpha),$(tab w1:t2 beta),$(tab w1:t3 gamma),$(tab w1:t4 delta),$(tab w1:t5 epsilon),$(tab w1:t6 zeta)" \
     "$(ag w1:t1 idle s1),$(ag w1:t2 idle s2),$(ag w1:t3 idle s3),$(ag w1:t4 idle s4),$(ag w1:t5 idle s5),$(ag w1:t6 idle s6)"
   for i in 1 2 3 4 5 6; do log_at "s$i" $((i * 60)); done
-  run board 8 100 wait:ほか click:ほか key:q
+  run board 10 100 "wait:…ほか 4 件" "click:…ほか" key:q
   [ "${lines[0]}" = "status=0" ]
   [ "${lines[1]}" = "restored=1" ]
-  [ "${lines[2]}" = "frame_rows=8" ]
-  printf '%s\n' "$output" | grep -qF "gamma"
-  printf '%s\n' "$output" | grep -qF "…ほか 3 件"
-  [ "$(printf '%s\n' "$output" | grep -cF delta)" -eq 0 ]
+  no_missed
+  [ "$(printf '%s\n' "${lines[2]}" | cut -d= -f2)" -le 10 ]
+  printf '%s\n' "$output" | grep -qF "beta 待機"
+  [ "$(printf '%s\n' "$output" | grep -cF gamma)" -eq 0 ]
   [ ! -e "$TEST_TMPDIR/calls" ]
 }
 
-@test "まとめた行のクリックは、状態を決めたタブか最も新しいタブへ移る" {
+@test "まとめた件のクリックは、状態を決めたタブか最も新しいタブへ移る" {
   repo ra o/a
   state "$(ws w1 🤖app)" \
     "$(tab w1:t1 '#12 前半'),$(tab w1:t2 '#12 後半'),$(tab w1:t3 '#13 前半'),$(tab w1:t4 '#13 後半')" \
@@ -562,8 +837,9 @@ PY
   log_at s2 300
   log_at s3 3600
   log_at s4 600
-  run board 24 100 "wait:o/a の題 13" "click:o/a の題 12" "click:o/a の題 13" key:q
+  run board 24 100 "wait:#13 (2タブ)" "click:#12 (2タブ)" "click:#13 (2タブ)" key:q
   [ "${lines[0]}" = "status=0" ]
+  no_missed
   [ "$(cat "$TEST_TMPDIR/calls")" = "$(printf 'tab focus w1:t1\ntab focus w1:t4')" ]
 }
 
