@@ -9,6 +9,7 @@ new_tab = "ctrl+f10"            # Cmd+Opt+T
 close_workspace = "shift+f10"   # Cmd+Opt+W
 previous_workspace = "ctrl+f11" # Cmd+Opt+Up
 next_workspace = "ctrl+f12"     # Cmd+Opt+Down
+toggle_sidebar = "ctrl+shift+f9" # Cmd+Ctrl+B
 
 # lazygit in a throwaway pane: opens on Cmd+Ctrl+G, closes when lazygit exits.
 # Lets git state be reviewed visually instead of reading raw diffs.
