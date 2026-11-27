@@ -16,6 +16,9 @@ case "\$1 \$2" in
   "workspace list") printf '%s' "\${FAKE_WS:-}"; exit "\${FAKE_HERDR_EXIT:-0}" ;;
   "tab list") printf '%s' "\${FAKE_TABS:-}"; exit "\${FAKE_HERDR_EXIT:-0}" ;;
   "agent list") printf '%s' "\${FAKE_AGENTS:-}"; exit "\${FAKE_HERDR_EXIT:-0}" ;;
+  "workspace create") printf "%s\\n" "\$*" >> "$TEST_TMPDIR/calls"; printf '%s' "\${FAKE_CREATE:-}"; exit 0 ;;
+  "pane list") printf '%s' "\${FAKE_PANES:-}"; exit 0 ;;
+  "pane process-info") printf '%s' "\${FAKE_PROC:-}"; exit 0 ;;
   "pane get")
     if [ "\$3" = "\${FAKE_PANE_ID:-}" ]; then printf '%s' "\${FAKE_PANE:-}"; fi
     exit 0 ;;
@@ -45,6 +48,7 @@ EOF
   export HERDR_ISSUES_CACHE="$TEST_TMPDIR/cache"
   export HERDR_ISSUES_NOW="$NOW"
   export HERDR_ISSUES_REPOS="$TEST_TMPDIR/repos"
+  export HERDR_ISSUES_SOCKET="$TEST_TMPDIR/no-socket"
   # Relative dates count calendar days in local time; pin the zone.
   export TZ=UTC
   # Run inside herdr, these would hide whichever tab ran the tests.
@@ -486,7 +490,7 @@ PY
     echo "args=$args"
     [ "$status" -eq 2 ]
     [ -z "$output" ]
-    printf '%s' "$stderr" | grep -qF "usage: herdr-issues [--once]"
+    printf '%s' "$stderr" | grep -qF "usage: herdr-issues [--once | --jump]"
   done
   [ ! -e "$TEST_TMPDIR/calls" ]
 }
@@ -561,4 +565,53 @@ PY
   run board 24 100 "wait:o/a の題 13" "click:o/a の題 12" "click:o/a の題 13" key:q
   [ "${lines[0]}" = "status=0" ]
   [ "$(cat "$TEST_TMPDIR/calls")" = "$(printf 'tab focus w1:t1\ntab focus w1:t4')" ]
+}
+
+board_ws() { printf '{"result":{"workspaces":[%s]}}' "$1"; }
+board_proc() {
+  printf '{"result":{"process_info":{"foreground_processes":[{"argv":["%s","-I"]}]}}}' "$1"
+}
+
+@test "--jump: 一覧のスペースが無ければ作って一覧を起動し、そこへ移る" {
+  export FAKE_WS="$(board_ws "$(ws w1 🤖app)")"
+  export FAKE_CREATE='{"result":{"root_pane":{"pane_id":"wB:p1"},"workspace":{"workspace_id":"wB"}}}'
+  run "$CMD" --jump
+  [ "$status" -eq 0 ]
+  [ "$(sed -n 1p "$TEST_TMPDIR/calls")" = "workspace create --label 📋 issue 一覧 --no-focus" ]
+  [ "$(sed -n 2p "$TEST_TMPDIR/calls")" = "pane run wB:p1 $CMD" ]
+  [ "$(sed -n 3p "$TEST_TMPDIR/calls")" = "workspace focus wB" ]
+  [ "$(wc -l < "$TEST_TMPDIR/calls")" -eq 3 ]
+}
+
+@test "--jump: 一覧が動いていれば起動し直さず移るだけ" {
+  export FAKE_WS="$(board_ws "$(ws w1 🤖app),$(ws wB '📋 issue 一覧')")"
+  export FAKE_PANES='{"result":{"panes":[{"pane_id":"wB:p1"}]}}'
+  export FAKE_PROC="$(board_proc herdr-issues)"
+  run "$CMD" --jump
+  [ "$status" -eq 0 ]
+  [ "$(cat "$TEST_TMPDIR/calls")" = "workspace focus wB" ]
+}
+
+@test "--jump: 一覧が止まっていれば起動し直す" {
+  export FAKE_WS="$(board_ws "$(ws wB '📋 issue 一覧')")"
+  export FAKE_PANES='{"result":{"panes":[{"pane_id":"wB:p1"}]}}'
+  export FAKE_PROC="$(board_proc -zsh)"
+  run "$CMD" --jump
+  [ "$status" -eq 0 ]
+  [ "$(cat "$TEST_TMPDIR/calls")" = "$(printf 'pane run wB:p1 %s\nworkspace focus wB' "$CMD")" ]
+}
+
+@test "--jump: 一覧のスペースが 2 つあれば 1 つだけ残して閉じる" {
+  export FAKE_WS="$(board_ws "$(ws wB '📋 issue 一覧'),$(ws w1 🤖app),$(ws wC '📋 issue 一覧')")"
+  export FAKE_PANES='{"result":{"panes":[{"pane_id":"wB:p1"}]}}'
+  export FAKE_PROC="$(board_proc herdr-issues)"
+  run "$CMD" --jump
+  [ "$status" -eq 0 ]
+  [ "$(cat "$TEST_TMPDIR/calls")" = "$(printf 'workspace close wC\nworkspace focus wB')" ]
+}
+
+@test "--jump: herdr が読めなければ何もせず 1 で終わる" {
+  run env FAKE_HERDR_EXIT=1 "$CMD" --jump
+  [ "$status" -eq 1 ]
+  [ ! -e "$TEST_TMPDIR/calls" ]
 }

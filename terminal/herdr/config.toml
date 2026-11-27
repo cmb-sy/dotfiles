@@ -24,6 +24,13 @@ key = "shift+f9"                # Cmd+Ctrl+H
 type = "pane"
 command = 'sh -c "$HOME/dotfiles/bin/help_key | less -R"'
 
+# Issue board: Cmd+Ctrl+I focuses it, creating or restarting it when needed.
+# The throwaway pane closes as soon as --jump returns.
+[[keys.command]]
+key = "ctrl+f9"                 # Cmd+Ctrl+I
+type = "pane"
+command = 'sh -c "$HOME/dotfiles/bin/herdr-issues --jump"'
+
 [ui]
 # priority orders rows by agent state (sessions that need you come first) and
 # ignores the manual workspace order. Markers from bin/herdr-mark still show

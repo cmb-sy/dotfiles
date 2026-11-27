@@ -4,6 +4,8 @@
 #
 #   herdr-issues          redraw every 5 s; q or Ctrl-C quits
 #   herdr-issues --once   print the rows once (plain text when not a tty)
+#   herdr-issues --jump   focus the board's workspace, first creating it or
+#                         restarting a stopped board; there is only ever one
 #
 # Nothing is stored but gh answers: every redraw joins herdr's tab, agent and
 # workspace lists with the transcripts (<root>/projects/*/<session>.jsonl).
@@ -17,13 +19,14 @@
 # holding projects/), HERDR_ISSUES_NOW (epoch seconds), HERDR_ISSUES_CACHE
 # (gh answers, kept 10 min), HERDR_ISSUES_REPOS ("<workspace> <owner/repo>" lines
 # for checkouts without a remote; default ~/.config/dotfiles-local/herdr-issues-repos),
-# HERDR_ISSUES_SELF (tab to leave out; by default
+# HERDR_ISSUES_SOCKET (herdr's API socket, used to keep the board's
+# workspace first), HERDR_ISSUES_SELF (tab to leave out; by default
 # the tab of $HERDR_PANE_ID).
 
 set -euo pipefail
 
 usage() {
-  echo "usage: herdr-issues [--once]" >&2
+  echo "usage: herdr-issues [--once | --jump]" >&2
   exit 2
 }
 
@@ -31,6 +34,7 @@ mode=live
 while [ $# -gt 0 ]; do
   case "$1" in
     --once) mode=once ;;
+    --jump) mode=jump ;;
     *) usage ;;
   esac
   shift
@@ -613,6 +617,67 @@ def focus(tab):
         pass
 
 
+BOARD = "📋 issue 一覧"
+SOCKET = os.environ.get("HERDR_ISSUES_SOCKET") or os.path.join(HOME, ".config", "herdr", "herdr.sock")
+
+
+def move_first(wid):
+    # workspace.move has no CLI command; best effort through the API socket.
+    import socket
+    try:
+        with socket.socket(socket.AF_UNIX) as s:
+            s.settimeout(3)
+            s.connect(SOCKET)
+            s.sendall((json.dumps({"id": "herdr-issues", "method": "workspace.move",
+                                   "params": {"workspace_id": wid, "insert_index": 0}}) + "\n").encode())
+            s.recv(65536)
+    except OSError:
+        pass
+
+
+def running(pane):
+    # The board runs as argv[0] "herdr-issues" (exec -a in the bash entry).
+    try:
+        info = herdr("pane", "process-info", "--pane", pane)["process_info"]
+        return any(isinstance(p, dict) and (p.get("argv") or [""])[0] == "herdr-issues"
+                   for p in info.get("foreground_processes") or [])
+    except (HerdrError, KeyError, TypeError, AttributeError):
+        return False
+
+
+def jump(script):
+    import shlex
+    try:
+        boards = [text(w.get("workspace_id")) for w in entries("workspaces", "workspace", "list")
+                  if text(w.get("label")) == BOARD]
+        for extra in boards[1:]:
+            herdr_call("workspace", "close", extra)
+        if boards:
+            wid = boards[0]
+            panes = entries("panes", "pane", "list", "--workspace", wid)
+            pane = text(panes[0].get("pane_id")) if panes else ""
+            if pane and not running(pane):
+                herdr_call("pane", "run", pane, shlex.quote(script))
+        else:
+            made = herdr("workspace", "create", "--label", BOARD, "--no-focus")
+            wid = text(made["workspace"]["workspace_id"])
+            herdr_call("pane", "run", text(made["root_pane"]["pane_id"]), shlex.quote(script))
+    except (HerdrError, KeyError, TypeError) as e:
+        print("herdr-issues: %s" % e, file=sys.stderr)
+        return 1
+    move_first(wid)
+    herdr_call("workspace", "focus", wid)
+    return 0
+
+
+def herdr_call(*args):
+    try:
+        subprocess.run([HERDR, *args], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                       stderr=subprocess.DEVNULL, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        pass
+
+
 def live():
     if not (sys.stdin.isatty() and sys.stdout.isatty()):
         print("herdr-issues: needs a terminal; use --once", file=sys.stderr)
@@ -658,8 +723,9 @@ def live():
             pass
 
 
-sys.exit(once() if sys.argv[1] == "once" else live())
+sys.exit(once() if sys.argv[1] == "once" else jump(sys.argv[2]) if sys.argv[1] == "jump" else live())
 PY
 
 # Through -c, not stdin: the live board reads keys and clicks from stdin.
-exec python3 -I -c "$program" "$mode"
+# argv[0] "herdr-issues" lets --jump tell a running board from a bare shell.
+exec -a herdr-issues python3 -I -c "$program" "$mode" "$0"
