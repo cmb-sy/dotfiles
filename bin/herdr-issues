@@ -1,0 +1,638 @@
+#!/bin/bash
+# A live board of herdr tabs: the issue each one works on, its state, the
+# last activity and a summary. Clicking a row focuses that tab.
+#
+#   herdr-issues          redraw every 5 s; q or Ctrl-C quits
+#   herdr-issues --once   print the rows once (plain text when not a tty)
+#
+# Nothing is stored but gh answers: every redraw joins herdr's tab, agent and
+# workspace lists with the transcripts (<root>/projects/*/<session>.jsonl).
+# A tab's issue is "#N" in its label, else a word of 2-5 digits; its repository
+# is the origin of an agent's cwd, and tabs on one issue of one repository
+# share a row. Rows waiting on an answer or unread come first, the rest newest
+# first; rows quiet for over 14 days collapse into one count. Tabs without a
+# Claude agent and the board's own tab are left out.
+#
+# Overrides: HERDR_BIN, GH_BIN, HERDR_ISSUES_ROOTS (colon-separated dirs
+# holding projects/), HERDR_ISSUES_NOW (epoch seconds), HERDR_ISSUES_CACHE
+# (gh answers, kept 10 min), HERDR_ISSUES_SELF (tab to leave out; by default
+# the tab of $HERDR_PANE_ID).
+
+set -euo pipefail
+
+usage() {
+  echo "usage: herdr-issues [--once]" >&2
+  exit 2
+}
+
+mode=live
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --once) mode=once ;;
+    *) usage ;;
+  esac
+  shift
+done
+
+herdr="${HERDR_BIN:-herdr}"
+if ! command -v "$herdr" >/dev/null 2>&1; then
+  echo "herdr-issues: herdr not found" >&2
+  exit 0
+fi
+
+IFS= read -r -d '' program <<'PY' || true
+import json, os, re, select, signal, subprocess, sys, termios, time, tty, unicodedata
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
+
+HERDR = os.environ.get("HERDR_BIN") or "herdr"
+GH = os.environ.get("GH_BIN") or "gh"
+HOME = os.path.expanduser("~")
+ROOTS = [r for r in (os.environ.get("HERDR_ISSUES_ROOTS")
+                     or HOME + "/.claude-private:" + HOME + "/.claude-work").split(":") if r]
+CACHE = os.environ.get("HERDR_ISSUES_CACHE") or os.path.join(HOME, ".cache", "herdr-issues")
+DAY = 86400
+STALE_DAYS = 14
+CACHE_TTL = 600
+# A failed gh lookup is retried after this long, not on every redraw.
+RETRY_AFTER = 60
+
+WORDS = {"blocked": "返事待ち", "done": "完了・未確認", "working": "作業中", "idle": "待機中",
+         "closed": "片付け候補"}
+STYLES = {"blocked": "1;31", "done": "33", "working": "32", "idle": "90", "closed": "35"}
+# Lower is more urgent; a tab with several agents shows its most urgent one.
+RANK = {"blocked": 0, "done": 1, "working": 2, "idle": 3}
+# Rows waiting on the user stay on top; the rest go newest first.
+PINNED = {"blocked": 0, "done": 1}
+HEADINGS = ("最終対応", "状態", "issue", "リポジトリ", "概要")
+
+# "#123" anywhere, else a word of 2-5 digits ("2386 ✅"). "1" or "debug2" is no issue.
+HASH_ISSUE = re.compile(r"#([1-9][0-9]{0,5})(?![0-9])")
+BARE_ISSUE = re.compile(r"(?<!\S)([1-9][0-9]{1,4})(?!\S)")
+REMOTE = re.compile(r"[:/]([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+?)(?:\.git)?/?$")
+
+PASTE = re.compile(r"<pasted_content[^>]*>.*?(?:</pasted_content[^>]*>|$)", re.S)
+# User lines Claude Code writes itself, not requests.
+NOT_ASKS = ("<", "[", "Base directory", "Caveat:", "This session is being continued",
+            "Implement the requested")
+# Shorter than this is a reply such as "はい" or "進めて".
+SHORT_ASK = 15
+ASK_SHOWN = 60
+# How far back from the end of a transcript to look for the last request.
+ASK_SCAN = 4 << 20
+BIDI = {chr(c) for c in (0x061C, 0x200E, 0x200F, *range(0x202A, 0x202F), *range(0x2066, 0x206A))}
+
+REFRESH = 5
+# SGR mouse reports: ESC [ < button ; column ; row, then M (press) or m (release).
+MOUSE = re.compile(rb"\x1b\[<(\d+);(\d+);(\d+)([Mm])")
+ESCAPE = re.compile(rb"\x1b(?:\[[0-?]*[ -/]*[@-~]|[^\[])")
+# An escape sequence cut off by the end of a read, finished by the next one.
+PARTIAL = re.compile(rb"\x1b(?:\[[0-?]*[ -/]*)?$")
+
+
+class HerdrError(Exception):
+    pass
+
+
+def now():
+    try:
+        return int(os.environ["HERDR_ISSUES_NOW"])
+    except (KeyError, ValueError):
+        return time.time()
+
+
+def herdr(*args):
+    try:
+        p = subprocess.run([HERDR, *args], stdin=subprocess.DEVNULL, capture_output=True,
+                           encoding="utf-8", errors="replace", timeout=10)
+    except (OSError, subprocess.SubprocessError) as e:
+        raise HerdrError(str(e))
+    if p.returncode != 0:
+        raise HerdrError("herdr %s failed" % " ".join(args))
+    try:
+        return json.loads(p.stdout)["result"]
+    except (ValueError, KeyError, TypeError):
+        raise HerdrError("unexpected herdr output")
+
+
+def entries(key, *args):
+    result = herdr(*args)
+    items = result.get(key) if isinstance(result, dict) else None
+    if not isinstance(items, list):
+        raise HerdrError("unexpected herdr output")
+    return [i for i in items if isinstance(i, dict)]
+
+
+def text(value):
+    return value if isinstance(value, str) else ""
+
+
+def clean(s):
+    # Labels, titles and prompts reach a raw terminal: no control, bidi or
+    # lone surrogate characters, and whitespace runs become one space.
+    return " ".join("".join(" " if unicodedata.category(c) in ("Cc", "Cs") or c in BIDI else c
+                            for c in s).split())
+
+
+def self_tab():
+    # The board's own tab, left out of the board.
+    if "HERDR_ISSUES_SELF" in os.environ:
+        return os.environ["HERDR_ISSUES_SELF"]
+    pane = os.environ.get("HERDR_PANE_ID")
+    if not pane:
+        return ""
+    try:
+        return text(herdr("pane", "get", pane)["pane"]["tab_id"])
+    except (HerdrError, KeyError, TypeError):
+        return ""
+
+
+def session(agent):
+    s = agent.get("agent_session")
+    v = s.get("value") if isinstance(s, dict) else None
+    return v if isinstance(v, str) and v else None
+
+
+def epoch(ts):
+    if not isinstance(ts, str):
+        return None
+    try:
+        d = datetime.fromisoformat(ts[:-1] + "+00:00" if ts.endswith("Z") else ts)
+    except ValueError:
+        return None
+    return (d if d.tzinfo else d.replace(tzinfo=timezone.utc)).timestamp()
+
+
+def last_activity(path):
+    # The last line carrying a "timestamp", read from the end of the file.
+    # None when no line has one, or when that last one cannot be read.
+    with open(path, "rb") as f:
+        pos = f.seek(0, os.SEEK_END)
+        carry = b""
+        while pos > 0:
+            step = min(65536, pos)
+            pos -= step
+            f.seek(pos)
+            lines = (f.read(step) + carry).split(b"\n")
+            # Unless this read reached the start, its first line is partial.
+            carry = lines.pop(0) if pos > 0 else b""
+            for line in reversed(lines):
+                if b'"timestamp"' not in line:
+                    continue
+                try:
+                    record = json.loads(line)
+                except ValueError:
+                    # A truncated last line: older lines would understate activity.
+                    return None
+                try:
+                    ts = record["timestamp"]
+                except (KeyError, TypeError):
+                    continue
+                return epoch(ts)
+    return None
+
+
+def activity(path):
+    try:
+        return last_activity(path)
+    except OSError:
+        return None
+
+
+def transcripts(sessions):
+    # Session id -> its transcripts. Ids are compared with file names, never
+    # joined into a path, so an id holding "/" or ".." matches nothing.
+    found = {}
+    for root in ROOTS:
+        try:
+            projects = [d.path for d in os.scandir(os.path.join(root, "projects")) if d.is_dir()]
+        except OSError:
+            continue
+        for project in projects:
+            try:
+                files = list(os.scandir(project))
+            except OSError:
+                continue
+            for f in files:
+                sid, ext = os.path.splitext(f.name)
+                if ext == ".jsonl" and sid in sessions:
+                    found.setdefault(sid, []).append(f.path)
+    return found
+
+
+def ask_text(record):
+    # The request a user line carries, or "" for replies, tool results and
+    # text Claude Code injects.
+    if not isinstance(record, dict) or record.get("type") != "user" or record.get("isMeta") \
+            or record.get("isCompactSummary") or record.get("isSidechain"):
+        return ""
+    message = record.get("message")
+    content = message.get("content") if isinstance(message, dict) else None
+    if isinstance(content, list):
+        content = " ".join(p["text"] for p in content if isinstance(p, dict)
+                           and p.get("type") == "text" and isinstance(p.get("text"), str))
+    if not isinstance(content, str) or len(clean(PASTE.sub(" ", content))) < SHORT_ASK:
+        return ""
+    # Judged as typed: a prompt that merely starts with an escape code stays.
+    raw = PASTE.sub(" （貼り付け） ", content).lstrip()
+    if raw.startswith(NOT_ASKS):
+        return ""
+    ask = clean(raw)
+    return ask if len(ask) <= ASK_SHOWN else ask[:ASK_SHOWN - 1] + "…"
+
+
+def scan_ask(path, size):
+    start = max(0, size - ASK_SCAN)
+    try:
+        with open(path, "rb") as f:
+            f.seek(start)
+            lines = f.read(size - start).split(b"\n")
+    except OSError:
+        return ""
+    for line in reversed(lines[1:] if start else lines):
+        # Tool results are user lines too, and large: skip them unparsed.
+        if b'"user"' not in line or b'"tool_result"' in line:
+            continue
+        try:
+            ask = ask_text(json.loads(line))
+        except ValueError:
+            continue
+        if ask:
+            return ask
+    return ""
+
+
+asks = {}
+
+
+def last_ask(path):
+    # Rescanned only when the transcript changed since the last redraw.
+    try:
+        st = os.stat(path)
+    except OSError:
+        return ""
+    stamp = (st.st_size, st.st_mtime_ns)
+    if path not in asks or asks[path][0] != stamp:
+        asks[path] = (stamp, scan_ask(path, st.st_size))
+    return asks[path][1]
+
+
+def issue_number(label):
+    m = HASH_ISSUE.search(label) or BARE_ISSUE.search(label)
+    return int(m.group(1)) if m else None
+
+
+slugs = {}
+
+
+def repo_of(cwd):
+    # "owner/name" of the origin remote of cwd, or None.
+    if not cwd:
+        return None
+    if cwd not in slugs:
+        slugs[cwd] = None
+        try:
+            p = subprocess.run(["git", "-C", cwd, "remote", "get-url", "origin"],
+                               stdin=subprocess.DEVNULL, capture_output=True,
+                               encoding="utf-8", errors="replace", timeout=5)
+        except (OSError, subprocess.SubprocessError):
+            return None
+        m = REMOTE.search(p.stdout.strip()) if p.returncode == 0 else None
+        # Owner and name also name the cache file, so "." and ".." are refused.
+        if m and all(part.strip(".") for part in m.groups()):
+            slugs[cwd] = "%s/%s" % m.groups()
+    return slugs[cwd]
+
+
+def valid(info):
+    if isinstance(info, dict) and isinstance(info.get("title"), str) \
+            and isinstance(info.get("state"), str):
+        return {"title": info["title"], "state": info["state"]}
+    return None
+
+
+def cached(path):
+    try:
+        if time.time() - os.stat(path).st_mtime >= CACHE_TTL:
+            return None
+        with open(path, encoding="utf-8") as f:
+            return valid(json.load(f))
+    except (OSError, ValueError):
+        return None
+
+
+def store(path, info):
+    tmp = "%s.%d.tmp" % (path, os.getpid())
+    try:
+        os.makedirs(CACHE, exist_ok=True)
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(info, f, ensure_ascii=False)
+        os.replace(tmp, path)
+    except OSError:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+
+
+def fetch(repo, number):
+    try:
+        p = subprocess.run([GH, "issue", "view", str(number), "--repo", repo,
+                            "--json", "title,state"],
+                           stdin=subprocess.DEVNULL, capture_output=True,
+                           encoding="utf-8", errors="replace", timeout=20)
+        return valid(json.loads(p.stdout)) if p.returncode == 0 else None
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return None
+
+
+failed = {}
+
+
+def issue(key):
+    # The issue's title and state, or None when gh cannot tell.
+    repo, number = key
+    path = os.path.join(CACHE, "%s_%d.json" % (repo.replace("/", "_"), number))
+    info = cached(path)
+    if info or time.time() - failed.get(path, 0) < RETRY_AFTER:
+        return info
+    info = fetch(repo, number)
+    if info:
+        store(path, info)
+    else:
+        failed[path] = time.time()
+    return info
+
+
+def build(t, me):
+    # Fresh rows, most urgent first, and how many rows went stale.
+    tabs = entries("tabs", "tab", "list")
+    agents = entries("agents", "agent", "list")
+    workspaces = entries("workspaces", "workspace", "list")
+
+    names = {}
+    for w in workspaces:
+        # Workspace labels start with a marker emoji (herdr-mark).
+        names[text(w.get("workspace_id"))] = re.sub(r"^\W+", "", clean(text(w.get("label"))))
+    members = {}
+    for a in agents:
+        members.setdefault(text(a.get("tab_id")), []).append(a)
+    files = transcripts({session(a) for a in agents} - {None})
+
+    groups = {}
+    for tab in tabs:
+        tid = text(tab.get("tab_id"))
+        if not tid or tid == me or tid not in members:
+            continue
+        crew = members[tid]
+        status = min((text(a.get("agent_status")) for a in crew),
+                     key=lambda s: RANK.get(s, RANK["idle"]))
+        # The newest transcript of the tab's agents gives its time and request.
+        last, path = None, None
+        for a in crew:
+            for p in files.get(session(a), ()):
+                at = activity(p)
+                if path is None:
+                    path = p
+                if at is not None and (last is None or at > last):
+                    last, path = at, p
+        label = clean(text(tab.get("label")))
+        wid = text(tab.get("workspace_id"))
+        number = issue_number(label)
+        repo = None
+        if number:
+            repo = next((r for r in (repo_of(text(a.get("cwd"))) for a in crew) if r), None)
+        # Tabs on the same issue of the same repository share a row.
+        key = (repo or "workspace " + wid, number) if number else ("tab", tid)
+        groups.setdefault(key, []).append({
+            "tab": tid,
+            "label": label,
+            "status": status if status in RANK else "idle",
+            "last": last,
+            "path": path,
+            "ws": names.get(wid) or "−",
+            "number": number,
+            "repo": repo,
+        })
+
+    rows = []
+    for group in groups.values():
+        # A row shows its most urgent tab, the newest among equals; a click goes there.
+        lead = min(group, key=lambda e: (RANK[e["status"]], e["last"] is None, -(e["last"] or 0)))
+        known = [e["last"] for e in group if e["last"] is not None]
+        rows.append(dict(lead, last=max(known) if known else None, count=len(group)))
+
+    cutoff = t - STALE_DAYS * DAY
+    fresh = [r for r in rows if r["last"] is None or r["last"] >= cutoff]
+    lookups = sorted({(r["repo"], r["number"]) for r in fresh if r["repo"]})
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        infos = dict(zip(lookups, pool.map(issue, lookups)))
+    for r in fresh:
+        info = infos.get((r["repo"], r["number"]))
+        r["sub"] = ""
+        if r["number"]:
+            r["summary"] = (clean(info["title"]) if info else "") or r["label"]
+            # Only an idle tab is left over; one waiting, unread or running keeps its state.
+            if info and info["state"].upper() == "CLOSED" and r["status"] == "idle":
+                r["status"] = "closed"
+        else:
+            # herdr names new tabs "1", "2": no summary in that.
+            r["summary"] = "" if r["label"].isdigit() else r["label"]
+            r["sub"] = last_ask(r["path"]) if r["path"] else ""
+            if not (r["summary"] or r["sub"]):
+                r["summary"] = r["label"] or "−"
+    fresh.sort(key=lambda r: (PINNED.get(r["status"], 2), r["last"] is None, -(r["last"] or 0)))
+    return fresh, len(rows) - len(fresh)
+
+
+def cell_width(c):
+    if unicodedata.category(c) in ("Mn", "Me", "Cf"):
+        return 0
+    return 2 if unicodedata.east_asian_width(c) in ("W", "F") else 1
+
+
+def width(s):
+    return sum(cell_width(c) for c in s)
+
+
+def pad(s, n):
+    return s + " " * (n - width(s))
+
+
+def paint(pieces, color, limit=None):
+    # Join (text, style) pieces, cut to `limit` display columns.
+    out, used = [], 0
+    for piece, style in pieces:
+        if limit is not None and used + width(piece) > limit:
+            room, kept = limit - used, []
+            for c in piece:
+                if cell_width(c) > room:
+                    break
+                kept.append(c)
+                room -= cell_width(c)
+            piece = "".join(kept)
+        used += width(piece)
+        if piece:
+            out.append("\x1b[%sm%s\x1b[0m" % (style, piece) if color and style else piece)
+    return "".join(out)
+
+
+def issue_cell(r):
+    if not r["number"]:
+        return "−"
+    return "#%d" % r["number"] + (" (%dタブ)" % r["count"] if r["count"] > 1 else "")
+
+
+def table(rows, t, headings):
+    # The heading (or None) and one line per row, as (text, style) pieces.
+    cells = [[when(r["last"], t), WORDS[r["status"]], issue_cell(r), r["ws"]] for r in rows]
+    widths = [max([width(c[i]) for c in cells] + [width(HEADINGS[i]) if headings else 0])
+              for i in range(4)]
+
+    def line(values, styles, tail):
+        pieces = []
+        for value, w, style in zip(values, widths, styles):
+            pieces += [(pad(value, w), style), ("  ", None)]
+        return pieces + tail
+
+    head = line(HEADINGS[:4], ("1",) * 4, [(HEADINGS[4], "1")]) if headings else None
+    body = []
+    for c, r in zip(cells, rows):
+        tail = [(r["summary"], None)]
+        if r["sub"]:
+            tail.append((("  " if r["summary"] else "") + r["sub"], "90"))
+        body.append(line(c, (None, STYLES[r["status"]], "1", None), tail))
+    return head, body
+
+
+def when(at, t):
+    if at is None:
+        return "−"
+    d = t - at
+    if d < 60:
+        return "たった今"
+    if d < 3600:
+        return "%d分前" % (d // 60)
+    if d < DAY:
+        return "%d時間前" % (d // 3600)
+    days = (datetime.fromtimestamp(t).date() - datetime.fromtimestamp(at).date()).days
+    return "昨日" if days <= 1 else "%d日前" % days
+
+
+def once():
+    t = now()
+    try:
+        rows, stale = build(t, self_tab())
+    except HerdrError as e:
+        print("herdr-issues: %s" % e, file=sys.stderr)
+        return 0
+    color = sys.stdout.isatty()
+    for line in table(rows, t, headings=False)[1]:
+        print(paint(line, color).rstrip())
+    if stale:
+        print(paint([("放置 %d 件" % stale, "90")], color))
+    return 0
+
+
+def write(s):
+    sys.stdout.write(s)
+    sys.stdout.flush()
+
+
+def draw(me, size):
+    # Paint one frame from the top left; return {screen row: tab id} of the rows drawn.
+    t = now()
+    note = "   %s 更新   行をクリックでそのタブへ移動、q で終了" \
+        % time.strftime("%H:%M:%S", time.localtime(t))
+    screen = [([("issue 一覧", "1;4"), (note, "90")], None), ([], None)]
+    try:
+        rows, stale = build(t, me)
+    except HerdrError as e:
+        screen.append(([("herdr の状態を読めません: %s" % e, "31")], None))
+    else:
+        head, body = table(rows, t, headings=True)
+        screen += [(head, None), ([("─" * size.columns, "90")], None)]
+        lines = [(line, r["tab"]) for line, r in zip(body, rows)]
+        room = size.lines - len(screen) - (1 if stale else 0)
+        if len(lines) > room:
+            # What does not fit folds into one line, so no row moves under the pointer.
+            keep = max(room - 1, 0)
+            lines = lines[:keep] + [([("…ほか %d 件" % (len(lines) - keep), "90")], None)]
+        screen += lines
+        if stale:
+            screen.append(([("放置 %d 件" % stale, "90")], None))
+    screen = screen[:size.lines]
+    # One column spare: a full last column makes some terminals wrap.
+    write("\x1b[H" + "\r\n".join(paint(pieces, True, size.columns - 1) + "\x1b[K"
+                                 for pieces, _ in screen) + "\x1b[J")
+    return {row: tab for row, (_, tab) in enumerate(screen, 1) if tab}
+
+
+def read_input(buf):
+    # (quit?, rows clicked with the left button, bytes kept for the next read)
+    tail = PARTIAL.search(buf)
+    done, rest = (buf[:tail.start()], buf[tail.start():]) if tail else (buf, b"")
+    rows = [int(m.group(3)) for m in MOUSE.finditer(done)
+            if m.group(1) == b"0" and m.group(4) == b"M"]
+    plain = ESCAPE.sub(b"", done)
+    return b"q" in plain or b"\x03" in plain, rows, rest
+
+
+def focus(tab):
+    try:
+        subprocess.run([HERDR, "tab", "focus", tab], stdin=subprocess.DEVNULL,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+    except (OSError, subprocess.SubprocessError):
+        pass
+
+
+def live():
+    if not (sys.stdin.isatty() and sys.stdout.isatty()):
+        print("herdr-issues: needs a terminal; use --once", file=sys.stderr)
+        return 2
+    me = self_tab()
+    fd = sys.stdin.fileno()
+    saved = termios.tcgetattr(fd)
+    # Closing the tab or a kill still runs the restore below.
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
+    signal.signal(signal.SIGHUP, lambda *_: sys.exit(0))
+    try:
+        tty.setraw(fd)
+        write("\x1b[?1049h\x1b[?25l\x1b[?1000h\x1b[?1006h")
+        hits, pending, due, size = {}, b"", 0.0, None
+        while True:
+            if time.time() >= due or os.get_terminal_size() != size:
+                size = os.get_terminal_size()
+                hits = draw(me, size)
+                due = time.time() + REFRESH
+            ready, _, _ = select.select([fd], [], [], 0.5)
+            if not ready:
+                continue
+            data = os.read(fd, 1024)
+            if not data:
+                return 0
+            stop, clicks, pending = read_input(pending + data)
+            for row in clicks:
+                if row in hits:
+                    focus(hits[row])
+                    due = 0
+            if stop:
+                return 0
+    except KeyboardInterrupt:
+        return 0
+    finally:
+        try:
+            termios.tcsetattr(fd, termios.TCSADRAIN, saved)
+        except termios.error:
+            pass
+        try:
+            write("\x1b[?1006l\x1b[?1000l\x1b[?25h\x1b[?1049l")
+        except OSError:
+            pass
+
+
+sys.exit(once() if sys.argv[1] == "once" else live())
+PY
+
+# Through -c, not stdin: the live board reads keys and clicks from stdin.
+exec python3 -I -c "$program" "$mode"
