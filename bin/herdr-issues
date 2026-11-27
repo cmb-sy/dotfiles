@@ -15,7 +15,9 @@
 #
 # Overrides: HERDR_BIN, GH_BIN, HERDR_ISSUES_ROOTS (colon-separated dirs
 # holding projects/), HERDR_ISSUES_NOW (epoch seconds), HERDR_ISSUES_CACHE
-# (gh answers, kept 10 min), HERDR_ISSUES_SELF (tab to leave out; by default
+# (gh answers, kept 10 min), HERDR_ISSUES_REPOS ("<workspace> <owner/repo>" lines
+# for checkouts without a remote; default ~/.config/dotfiles-local/herdr-issues-repos),
+# HERDR_ISSUES_SELF (tab to leave out; by default
 # the tab of $HERDR_PANE_ID).
 
 set -euo pipefail
@@ -50,6 +52,9 @@ GH = os.environ.get("GH_BIN") or "gh"
 HOME = os.path.expanduser("~")
 ROOTS = [r for r in (os.environ.get("HERDR_ISSUES_ROOTS")
                      or HOME + "/.claude-private:" + HOME + "/.claude-work").split(":") if r]
+# "<workspace> <owner/repo>" per line, for checkouts without an origin remote.
+REPOS = os.environ.get("HERDR_ISSUES_REPOS") or os.path.join(
+    HOME, ".config", "dotfiles-local", "herdr-issues-repos")
 CACHE = os.environ.get("HERDR_ISSUES_CACHE") or os.path.join(HOME, ".cache", "herdr-issues")
 DAY = 86400
 STALE_DAYS = 14
@@ -285,6 +290,22 @@ def issue_number(label):
 slugs = {}
 
 
+def repo_map():
+    # Workspace name -> "owner/repo" from REPOS; malformed lines are skipped.
+    out = {}
+    try:
+        with open(REPOS, encoding="utf-8", errors="replace") as f:
+            for line in f:
+                parts = line.split()
+                if len(parts) == 2 and not parts[0].startswith("#") \
+                        and REMOTE.search("/" + parts[1]) \
+                        and all(x.strip(".") for x in parts[1].split("/")):
+                    out[parts[0]] = parts[1]
+    except OSError:
+        pass
+    return out
+
+
 def repo_of(cwd):
     # "owner/name" of the origin remote of cwd, or None.
     if not cwd:
@@ -378,6 +399,7 @@ def build(t, me):
     for a in agents:
         members.setdefault(text(a.get("tab_id")), []).append(a)
     files = transcripts({session(a) for a in agents} - {None})
+    mapped = repo_map()
 
     groups = {}
     for tab in tabs:
@@ -401,7 +423,8 @@ def build(t, me):
         number = issue_number(label)
         repo = None
         if number:
-            repo = next((r for r in (repo_of(text(a.get("cwd"))) for a in crew) if r), None)
+            repo = next((r for r in (repo_of(text(a.get("cwd"))) for a in crew) if r), None) \
+                or mapped.get(names.get(wid) or "")
         # Tabs on the same issue of the same repository share a row.
         key = (repo or "workspace " + wid, number) if number else ("tab", tid)
         groups.setdefault(key, []).append({
@@ -431,7 +454,11 @@ def build(t, me):
         info = infos.get((r["repo"], r["number"]))
         r["sub"] = ""
         if r["number"]:
-            r["summary"] = (clean(info["title"]) if info else "") or r["label"]
+            # The label stays beside the title so a title from the wrong repository shows.
+            rest = " ".join(w for w in r["label"].split()
+                            if issue_number(w) != r["number"]).strip()
+            title = clean(info["title"]) if info else ""
+            r["summary"] = " — ".join(x for x in (rest, title) if x) or r["label"]
             # Only an idle tab is left over; one waiting, unread or running keeps its state.
             if info and info["state"].upper() == "CLOSED" and r["status"] == "idle":
                 r["status"] = "closed"

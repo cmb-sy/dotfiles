@@ -44,6 +44,7 @@ EOF
   export HERDR_ISSUES_ROOTS="$TEST_TMPDIR/acct"
   export HERDR_ISSUES_CACHE="$TEST_TMPDIR/cache"
   export HERDR_ISSUES_NOW="$NOW"
+  export HERDR_ISSUES_REPOS="$TEST_TMPDIR/repos"
   # Relative dates count calendar days in local time; pin the zone.
   export TZ=UTC
   # Run inside herdr, these would hide whichever tab ran the tests.
@@ -213,13 +214,37 @@ PY
   [ "$output" = "$(printf '10分前  完了・未確認  −  dots     alpha\n5分前   待機中        −  library  beta')" ]
 }
 
-@test "番号ありは issue タイトルを概要にする" {
+@test "番号ありはタブ名の残りと issue タイトルを並べて概要にする" {
   repo ra o/a
   state "$(ws w1 🤖app)" "$(tab w1:t1 '#12 ログイン修正')" "$(ag w1:t1 working s1 "$TEST_TMPDIR/ra")"
   log_at s1 120
   run "$CMD" --once
   [ "$status" -eq 0 ]
-  [ "$output" = "2分前  作業中  #12  app  o/a の題 12" ]
+  [ "$output" = "2分前  作業中  #12  app  ログイン修正 — o/a の題 12" ]
+  [ "$(cat "$TEST_TMPDIR/gh-calls")" = "issue view 12 --repo o/a --json title,state" ]
+}
+
+@test "remote が無ければワークスペース名の対応表からリポジトリを決める" {
+  mkdir -p "$TEST_TMPDIR/plain"
+  printf '%s\n' '# workspace  owner/repo' 'app  o/mapped' 'bad' > "$HERDR_ISSUES_REPOS"
+  state "$(ws w1 🤖app),$(ws w2 other)" \
+    "$(tab w1:t1 '2413 🔥'),$(tab w2:t1 '#7 x')" \
+    "$(ag w1:t1 idle s1 "$TEST_TMPDIR/plain"),$(ag w2:t1 idle s2 "$TEST_TMPDIR/plain")"
+  log_at s1 60
+  log_at s2 120
+  run "$CMD" --once
+  [ "$status" -eq 0 ]
+  [ "$(col 5)" = "$(printf '🔥 — o/mapped の題 2413\nx')" ]
+  [ "$(cat "$TEST_TMPDIR/gh-calls")" = "issue view 2413 --repo o/mapped --json title,state" ]
+}
+
+@test "remote があれば対応表より remote を使う" {
+  repo ra o/a
+  printf '%s\n' 'app  o/mapped' > "$HERDR_ISSUES_REPOS"
+  state "$(ws w1 🤖app)" "$(tab w1:t1 '#12 x')" "$(ag w1:t1 idle s1 "$TEST_TMPDIR/ra")"
+  log_at s1 60
+  run "$CMD" --once
+  [ "$status" -eq 0 ]
   [ "$(cat "$TEST_TMPDIR/gh-calls")" = "issue view 12 --repo o/a --json title,state" ]
 }
 
@@ -242,7 +267,7 @@ PY
   log_at s1 60
   run "$CMD" --once
   [ "$status" -eq 0 ]
-  [ "$output" = "1分前  片付け候補  #13  app  o/a の題 13" ]
+  [ "$output" = "1分前  片付け候補  #13  app  古い修正 — o/a の題 13" ]
 }
 
 @test "closed でも返事待ち・完了・作業中のタブは状態を変えない" {
@@ -266,7 +291,7 @@ PY
   log_at s2 300
   run "$CMD" --once
   [ "$status" -eq 0 ]
-  [ "$output" = "5分前  待機中  #12 (2タブ)  app  o/a の題 12" ]
+  [ "$output" = "5分前  待機中  #12 (2タブ)  app  後半 — o/a の題 12" ]
   [ "$(cat "$TEST_TMPDIR/gh-calls")" = "issue view 12 --repo o/a --json title,state" ]
 }
 
@@ -281,7 +306,7 @@ PY
   [ "$status" -eq 0 ]
   [ "$(col 3)" = "$(printf '#12\n#12')" ]
   [ "$(col 4)" = "$(printf 'app\nlib')" ]
-  [ "$(col 5)" = "$(printf 'o/a の題 12\no/b の題 12')" ]
+  [ "$(col 5)" = "$(printf 'a — o/a の題 12\nb — o/b の題 12')" ]
 }
 
 @test "14 日より前は放置 N 件にまとめる" {
@@ -389,7 +414,7 @@ PY
   [ "$(col 5)" = "$(printf 'beta\nalpha')" ]
 }
 
-@test "gh が失敗しても一覧を出し、概要はタブ名にする" {
+@test "gh が失敗しても一覧を出し、概要はタブ名の残りにする" {
   repo ra o/a
   state "$(ws w1 🤖app)" "$(tab w1:t1 '#12 ログイン修正'),$(tab w1:t2 '#13 画面調整')" \
     "$(ag w1:t1 idle s1 "$TEST_TMPDIR/ra"),$(ag w1:t2 idle s2 "$TEST_TMPDIR/ra")"
@@ -397,10 +422,10 @@ PY
   log_at s2 120
   run env FAKE_GH_FAIL=12 "$CMD" --once
   [ "$status" -eq 0 ]
-  [ "$(col 5)" = "$(printf '#12 ログイン修正\no/a の題 13')" ]
+  [ "$(col 5)" = "$(printf 'ログイン修正\n画面調整 — o/a の題 13')" ]
   run env GH_BIN="$TEST_TMPDIR/missing" HERDR_ISSUES_CACHE="$TEST_TMPDIR/cache2" "$CMD" --once
   [ "$status" -eq 0 ]
-  [ "$(col 5)" = "$(printf '#12 ログイン修正\n#13 画面調整')" ]
+  [ "$(col 5)" = "$(printf 'ログイン修正\n画面調整')" ]
 }
 
 @test "gh の失敗はキャッシュせず次の実行で引き直す" {
@@ -411,7 +436,7 @@ PY
   [ "$status" -eq 0 ]
   run "$CMD" --once
   [ "$status" -eq 0 ]
-  [ "$(col 5)" = "o/a の題 12" ]
+  [ "$(col 5)" = "ログイン修正 — o/a の題 12" ]
 }
 
 @test "gh の結果をキャッシュし 2 回目は呼ばない" {
