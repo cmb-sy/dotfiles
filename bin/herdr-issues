@@ -785,4 +785,6 @@ PY
 
 # Through -c, not stdin: the live board reads keys and clicks from stdin.
 # argv[0] "herdr-issues" lets --jump tell a running board from a bare shell.
-exec -a herdr-issues python3 -I -c "$program" "$mode" "$0"
+# --jump hands this path to a pane with another cwd, so make it absolute.
+self="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+exec -a herdr-issues python3 -I -c "$program" "$mode" "$self"

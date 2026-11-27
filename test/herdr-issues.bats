@@ -787,7 +787,7 @@ board_proc() {
   run "$CMD" --jump
   [ "$status" -eq 0 ]
   [ "$(sed -n 1p "$TEST_TMPDIR/calls")" = "workspace create --label 📋 issue 一覧 --no-focus" ]
-  [ "$(sed -n 2p "$TEST_TMPDIR/calls")" = "pane run wB:p1 $CMD" ]
+  [ "$(sed -n 2p "$TEST_TMPDIR/calls")" = "pane run wB:p1 $(cd "$(dirname "$CMD")" && pwd)/herdr-issues" ]
   [ "$(sed -n 3p "$TEST_TMPDIR/calls")" = "workspace focus wB" ]
   [ "$(wc -l < "$TEST_TMPDIR/calls")" -eq 3 ]
 }
@@ -807,7 +807,7 @@ board_proc() {
   export FAKE_PROC="$(board_proc -zsh)"
   run "$CMD" --jump
   [ "$status" -eq 0 ]
-  [ "$(cat "$TEST_TMPDIR/calls")" = "$(printf 'pane run wB:p1 %s\nworkspace focus wB' "$CMD")" ]
+  [ "$(cat "$TEST_TMPDIR/calls")" = "$(printf 'pane run wB:p1 %s\nworkspace focus wB' "$(cd "$(dirname "$CMD")" && pwd)/herdr-issues")" ]
 }
 
 @test "--jump: 一覧のスペースが 2 つあれば 1 つだけ残して閉じる" {
