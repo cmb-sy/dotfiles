@@ -2,18 +2,18 @@
 # Put a marker on the focused herdr session, chosen from a list. Typing a
 # symbol the list does not have adds it to the set.
 #
-# A row in the agents panel reads "<workspace label> · <tab label>", so the left
-# edge of every row is the workspace name. The marker goes there, which means a
-# workspace holding several sessions shows it on all of them. That is the
-# accepted trade: a marker on the tab reaches one row but sits after the
-# separator, where it does not line up with the rest and is easy to miss.
+# The marker goes on the tab label. A tab is one session working on one issue,
+# so each session gets its own marker, and herdr-issues shows it as that row's
+# state. In the agents panel it sits after the "<workspace> ·" part of a row;
+# one marker per session is worth that. Workspace labels are never touched,
+# markers already on them included.
 #
 # herdr has no pin or star. Names are the only per-row field that survives a
 # server restart (session.json custom_name), so the marker is a name prefix.
 #
 # Bound to Cmd+Opt+M in terminal/herdr/config.toml, which opens a throwaway
 # pane so fzf has a terminal to draw in. The pane lives in the current tab, so
-# the focused workspace and tab are still the ones the marker should land on.
+# the focused tab is still the one the marker should land on.
 #
 #   herdr-mark                 pick from the list, or type a new marker
 #   herdr-mark set <marker>    apply one marker without the picker
@@ -93,9 +93,7 @@ for w in workspaces:
 [ -n "$ws_line" ] || die "no focused workspace"
 
 ws_id="$(printf '%s' "$ws_line" | cut -f1)"
-ws_label="$(printf '%s' "$ws_line" | cut -f2-)"
 [ -n "$ws_id" ] || die "workspace list returned no id"
-[ -n "$ws_label" ] || die "focused workspace $ws_id has no label"
 tab_line="$(herdr tab list --workspace "$ws_id" 2>/dev/null | python3 -c '
 import json, sys
 try:
@@ -114,15 +112,13 @@ tab_label="$(printf '%s' "$tab_line" | cut -f2-)"
 [ -n "$tab_id" ] || die "tab list returned no id"
 [ -n "$tab_label" ] || die "focused tab $tab_id has no label"
 
-ws_base="$(strip_mark "$ws_label")"
 tab_base="$(strip_mark "$tab_label")"
 # A label that is nothing but a marker would rename to the empty string.
-[ -n "$ws_base" ] || die "label of $ws_id is only a marker; rename it by hand"
 [ -n "$tab_base" ] || die "label of $tab_id is only a marker; rename it by hand"
 
 if [ "$action" = pick ]; then
   command -v fzf >/dev/null 2>&1 || die "fzf not found on PATH"
-  current="$ws_label"
+  current="$tab_label"
   menu="$(marks_entries | awk -F'\t' '{ if ($2 == "") print $1; else print $1 " " $2 }')"
   menu="${menu}
 ${CLEAR_KEY} 印を外す"
@@ -174,18 +170,6 @@ else
   want="$2"
 fi
 
-rename_ws() {
-  if [ "$1" != "$ws_label" ]; then
-    herdr workspace rename "$ws_id" "$1" >/dev/null || die "rename failed for $ws_id"
-  fi
-}
-rename_tab() {
-  if [ "$1" != "$tab_label" ]; then
-    herdr tab rename "$tab_id" "$1" >/dev/null || die "rename failed for $tab_id"
-  fi
-}
-
-# The tab is always cleared alongside: a marker left there would show a second
-# symbol in the middle of the row, and earlier versions put it there.
-rename_ws "${want}${ws_base}"
-rename_tab "$tab_base"
+if [ "${want}${tab_base}" != "$tab_label" ]; then
+  herdr tab rename "$tab_id" "${want}${tab_base}" >/dev/null || die "rename failed for $tab_id"
+fi

@@ -1,10 +1,9 @@
 #!/usr/bin/env bats
 # フォーカス中のセッションに、一覧から選んだ印を付け外しする。
 #
-# agents パネルの 1 行は「ワークスペース名 · タブ名」なので、行の左端は必ず
-# ワークスペース名。印は左端に揃えたいので常にワークスペース名へ付ける。
-# 複数セッションを持つワークスペースでは全行に出るが、それは受け入れた対価。
-# タブ側は常に掃除する（以前の版がそこに付けていたため）。
+# 印はタブ名の先頭に付ける。1 つのタブが 1 つの issue・セッションなので、印も
+# セッションごとに 1 つになり、herdr-issues がタブ名から読んで状態の列に出す。
+# ワークスペース名には触らない（すでに付いている印も移さず剥がさない）。
 #
 # herdr も fzf も呼ばない。PATH の先頭にスタブを差し込み、workspace list と
 # tab list には固定の JSON を返させ、rename 系は引数を記録させて検査する。
@@ -23,7 +22,8 @@ setup() {
   TAB_JSON="$TEST_TMPDIR/tab.json"
   BREAD="$TEST_TMPDIR/breadcrumb"
   FZF_MENU="$TEST_TMPDIR/fzf-menu"
-  export CALLS WS_JSON TAB_JSON FZF_MENU
+  FZF_ARGS="$TEST_TMPDIR/fzf-args"
+  export CALLS WS_JSON TAB_JSON FZF_MENU FZF_ARGS
   export HERDR_MARK_BREADCRUMB="$BREAD"
   # 印の集合は実行時に書き換わるので、毎テスト使い捨ての場所に置く。
   export HERDR_MARKS_FILE="$TEST_TMPDIR/marks.tsv"
@@ -50,6 +50,7 @@ STUB
   cat >"$STUB/fzf" <<'STUB'
 #!/bin/bash
 cat >"$FZF_MENU"
+printf '%s\n' "$@" >"$FZF_ARGS"
 printf '%s\n' "${FZF_QUERY:-}"
 printf '%s\n' "${FZF_KEY:-}"
 if [ -n "${FZF_PICK:-}" ]; then printf '%s\n' "$FZF_PICK"; exit 0; fi
@@ -78,7 +79,6 @@ tab() {
     "$1" "$2" >"$TAB_JSON"
 }
 
-ws_renamed_to() { printf 'ws\tw1\t%s' "$1"; }
 tab_renamed_to() { printf 'tab\tw1:t1\t%s' "$1"; }
 # rename だけを数える。並べ替えも同じファイルに記録するため、全行を数えると
 # 「rename を呼ばない」の検査が並べ替えの 1 行で必ず落ちる。
@@ -101,31 +101,49 @@ call_count() {
   [ "$n" -eq 4 ]
 }
 
-@test "セッションが複数でも印はワークスペース名に付く（左端に揃える）" {
-  # 兄弟セッションにも出るが、左端に揃うことを優先した結果。
+@test "印はフォーカス中のタブ名の先頭に付き、ワークスペース名には触らない" {
   workspace 'probe-analysis' 5 true
   tab 'general' true
   FZF_PICK='📤 返事待ち' run bash "$REPO_DIR/bin/herdr-mark"
   [ "$status" -eq 0 ]
-  cat "$CALLS" | grep -qF "$(ws_renamed_to '📤probe-analysis')"
+  [ "$(cat "$CALLS")" = "$(tab_renamed_to '📤general')" ]
 }
 
-@test "セッションが 1 つならワークスペース名に付く" {
-  workspace 'distill-vault' 1 true
-  tab 'AI-コーチング' true
-  FZF_PICK='🟢 general' run bash "$REPO_DIR/bin/herdr-mark"
+@test "ワークスペース名に付いている印は移さず剥がさない" {
+  workspace '🤖proj' 3 true
+  tab 'general' true
+  run bash "$REPO_DIR/bin/herdr-mark" set '📤'
   [ "$status" -eq 0 ]
-  cat "$CALLS" | grep -qF "$(ws_renamed_to '🟢distill-vault')"
-  n=$(grep -c '^tab' "$CALLS") || n=0
-  [ "$n" -eq 0 ]
+  [ "$(cat "$CALLS")" = "$(tab_renamed_to '📤general')" ]
+  : >"$CALLS"
+  tab '📤general' true
+  run bash "$REPO_DIR/bin/herdr-mark" off
+  [ "$status" -eq 0 ]
+  [ "$(cat "$CALLS")" = "$(tab_renamed_to 'general')" ]
+}
+
+@test "ワークスペース名が印だけでもタブには付けられる" {
+  workspace '🤖' 1 true
+  tab 'general' true
+  run bash "$REPO_DIR/bin/herdr-mark" set '🟢'
+  [ "$status" -eq 0 ]
+  [ "$(cat "$CALLS")" = "$(tab_renamed_to '🟢general')" ]
 }
 
 @test "別の印を選ぶと前の印を重ねずに置き換わる" {
-  workspace '🤖proj' 3 true
-  tab 'general' true
+  workspace 'proj' 3 true
+  tab '🤖general' true
   FZF_PICK='📤 返事待ち' run bash "$REPO_DIR/bin/herdr-mark"
   [ "$status" -eq 0 ]
-  cat "$CALLS" | grep -qF "$(ws_renamed_to '📤proj')"
+  [ "$(cat "$CALLS")" = "$(tab_renamed_to '📤general')" ]
+}
+
+@test "選ぶ画面の入力欄にタブ名を出す（今の印が見える）" {
+  workspace '🟢proj' 3 true
+  tab '📤general' true
+  FZF_PICK='🤖 対応中' run bash "$REPO_DIR/bin/herdr-mark"
+  [ "$status" -eq 0 ]
+  grep -qxF -- '--prompt=📤general > ' "$FZF_ARGS"
 }
 
 @test "「外す」を選ぶと印が消える" {
@@ -137,12 +155,12 @@ call_count() {
 }
 
 @test "集合から外した旧印も剥がせる" {
-  # 🔵 は選択肢に無いが、以前付けた行が残っているため剥がせる必要がある。
-  workspace '🔵distill-vault' 1 true
-  tab 'AI-コーチング' true
+  # 🔵 は選択肢に無いが、以前付けたタブが残っているため剥がせる必要がある。
+  workspace 'distill-vault' 1 true
+  tab '🔵AI-コーチング' true
   run bash "$REPO_DIR/bin/herdr-mark" off
   [ "$status" -eq 0 ]
-  cat "$CALLS" | grep -qF "$(ws_renamed_to 'distill-vault')"
+  [ "$(cat "$CALLS")" = "$(tab_renamed_to 'AI-コーチング')" ]
 }
 
 @test "選択を中断したら何も変えない" {
@@ -162,11 +180,11 @@ call_count() {
 }
 
 @test "名前に空白を含んでも欠けずに印が付く" {
-  workspace 'my long project' 3 true
-  tab 'general' true
+  workspace 'proj' 3 true
+  tab 'my long tab' true
   run bash "$REPO_DIR/bin/herdr-mark" set '🟢'
   [ "$status" -eq 0 ]
-  cat "$CALLS" | grep -qF "$(ws_renamed_to '🟢my long project')"
+  [ "$(cat "$CALLS")" = "$(tab_renamed_to '🟢my long tab')" ]
 }
 
 @test "集合に無い印を set に渡すと理由を示して失敗する" {
@@ -262,7 +280,7 @@ call_count() {
   tab 'general' true
   FZF_QUERY='🔥' run bash -c "'$REPO_DIR/bin/herdr-mark' </dev/null 2>&1"
   [ "$status" -eq 0 ]
-  cat "$CALLS" | grep -qF "$(ws_renamed_to '🔥proj')"
+  [ "$(cat "$CALLS")" = "$(tab_renamed_to '🔥general')" ]
   cut -f1 "$HERDR_MARKS_FILE" | grep -qxF '🔥'
 }
 
