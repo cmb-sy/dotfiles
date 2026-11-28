@@ -68,7 +68,7 @@ panel_run() {
 import fcntl, os, pty, select, struct, sys, termios, time
 pid, fd = pty.fork()
 if pid == 0:
-    fcntl.ioctl(0, termios.TIOCSWINSZ, struct.pack("HHHH", 10, 20, 0, 0))
+    fcntl.ioctl(0, termios.TIOCSWINSZ, struct.pack("HHHH", 30, 20, 0, 0))
     os.execv(sys.argv[1], [sys.argv[1], "panel", sys.argv[2]])
 out, end = b"", time.time() + 5
 while time.time() < end and sys.argv[3].encode() not in out:
@@ -125,6 +125,22 @@ sys.stdout.write(out.decode())' "$CMD" "$1" "$2"
   printf '%s' "$output" | grep -qF "● working"
   plain="$(printf '%s' "$output" | sed 's/\x1b\[[0-9;?]*[A-Za-z]//g' | tr -d '\r' | grep -v '^ *$')"
   [ "$(printf '%s\n' "$plain" | sed -n 2p)" = " State" ]
+}
+
+@test "panel: セッションの subagent を working から並べ、古いものは出さず、# の行は見せない" {
+  mkdir -p "$HERDR_STATUSLINE_DIR" "$TEST_TMPDIR/s1/subagents"
+  sub="$TEST_TMPDIR/s1/subagents"
+  printf '{"name":"busy","description":"doing it"}' > "$sub/agent-a1.meta.json"; : > "$sub/agent-a1.jsonl"
+  printf '{"name":"rest"}' > "$sub/agent-a2.meta.json"; : > "$sub/agent-a2.jsonl"
+  touch -t "$(date -v-5M +%Y%m%d%H%M)" "$sub/agent-a2.jsonl"
+  printf '{"name":"old"}' > "$sub/agent-a3.meta.json"; : > "$sub/agent-a3.jsonl"
+  touch -t "$(date -v-3H +%Y%m%d%H%M)" "$sub/agent-a3.jsonl"
+  printf 'Model\tOpus\n#transcript\t%s\n' "$TEST_TMPDIR/s1.jsonl" > "$HERDR_STATUSLINE_DIR/w1:p2"
+  panel_run w1:p2 "○ rest"
+  printf '%s\n' "$output" | grep -qxF "status=0"
+  plain="$(printf '%s' "$output" | sed 's/\x1b\[[0-9;?]*[A-Za-z]//g' | tr -d '\r')"
+  [ "$(printf '%s\n' "$plain" | grep -A2 -x ' *Agents' | tail -2 | tr '\n' '|')" = "  ● busy  doing it|  ○ rest|" ]
+  [ "$(printf '%s\n' "$plain" | grep -c -e old -e transcript)" -eq 0 ]
 }
 
 @test "panel: ファイルがまだ無ければ待っていると出す" {

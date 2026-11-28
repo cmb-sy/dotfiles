@@ -124,6 +124,48 @@ def state(pid):
     return "State\t%s %s" % (STATE_MARK.get(got, "·"), got)
 
 
+# A subagent counts as working while its transcript changed this recently.
+BUSY_SECONDS = 30
+# Subagents quiet for longer than this are left out.
+AGENT_WINDOW = 3600
+MAX_AGENTS = 8
+
+
+def agents(transcript):
+    # "Agents" lines for the session's subagents, working first, then newest.
+    folder = os.path.join(transcript[:-len(".jsonl")] if transcript.endswith(".jsonl")
+                          else transcript, "subagents")
+    try:
+        names = os.listdir(folder)
+    except OSError:
+        return []
+    t, found = time.time(), []
+    for name in names:
+        if not name.endswith(".jsonl"):
+            continue
+        path = os.path.join(folder, name)
+        try:
+            age = t - os.stat(path).st_mtime
+        except OSError:
+            continue
+        if age > AGENT_WINDOW:
+            continue
+        try:
+            with open(path[:-len(".jsonl")] + ".meta.json", encoding="utf-8") as f:
+                meta = json.load(f)
+        except (OSError, ValueError):
+            meta = {}
+        label = text(meta.get("name")) or text(meta.get("agentType")) or name[6:-6][:12]
+        desc = text(meta.get("description"))
+        found.append((age > BUSY_SECONDS, age, label, desc))
+    found.sort()
+    out = ["Agents\t%s %s%s" % ("○" if idle else "●", label, "  " + desc if desc else "")
+           for idle, _, label, desc in found[:MAX_AGENTS]]
+    if len(found) > MAX_AGENTS:
+        out.append("Agents\t+%d more" % (len(found) - MAX_AGENTS))
+    return out
+
+
 def bar(percent):
     filled = round(max(0, min(percent, 100)) * BAR / 100)
     return "▰" * filled + "\x1b[%sm%s\x1b[0m" % (DIM, "▱" * (BAR - filled))
@@ -138,6 +180,11 @@ def lines(pid):
             got = [l for l in f.read().splitlines() if l.strip()]
     except OSError:
         got = []
+    # "#" lines carry data for the pane, not lines to show.
+    meta = dict(l[1:].partition("\t")[::2] for l in got if l.startswith("#"))
+    got = [l for l in got if not l.startswith("#")]
+    if meta.get("transcript"):
+        got += agents(meta["transcript"])
     now = state(pid)
     if now:
         got.insert(0, now)
