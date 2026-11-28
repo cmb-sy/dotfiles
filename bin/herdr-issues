@@ -695,14 +695,16 @@ def fetch_board(me):
     return t, rows, stale, None
 
 
-def draw(data, size, chosen):
+def draw(data, size, chosen, armed=False):
     # Paint one frame from the top left. `chosen` is the cursor's (tab id, index):
     # it stays on its tab, or on its index when that tab is gone. Returns
     # {screen row: tab id}, the tabs of the rows drawn in order, and the cursor.
     t, rows, stale, error = data
-    note = "  %s 更新  ↑↓ で選ぶ・Enter で移動・クリックでも移動・q で終了" \
+    note = "  %s 更新  ↑↓ で選ぶ・Enter で移動・クリックでも移動・dd でタブを閉じる・q で終了" \
         % time.strftime("%H:%M:%S", time.localtime(t))
-    screen = [([("issue 一覧", "1;4"), (note, "90")], None), ([], None)]
+    # After one d the top line asks for the second, in red.
+    warn = [("  もう一度 d でこのタブを閉じる（中の Claude も終わる）・ほかのキーで取り消し", "1;31")]
+    screen = [([("issue 一覧", "1;4")] + (warn if armed else [(note, "90")]), None), ([], None)]
     if error is not None:
         screen.append(([("herdr の状態を読めません: %s" % error, "31")], None))
     else:
@@ -751,6 +753,8 @@ def read_input(buf):
                 events.append(("click", int(m.group(3))))
         elif m.group(5) is not None or key in (b"j", b"k"):
             events.append(("move", -1 if m.group(5) == b"A" or key == b"k" else 1))
+        elif key == b"d":
+            events.append(("delete",))
         elif key in (b"\r", b"\n"):
             events.append(("enter",))
         elif key in (b"q", b"\x03"):
@@ -843,24 +847,27 @@ def live():
         # The cursor starts on the first row and outlives redraws.
         hits, order, chosen, pending, size = {}, [], (None, 0), b"", None
         # A thread fetches; the loop only paints, so keys never wait on herdr or gh.
-        latest, fresh = [None], threading.Event()
+        latest, fresh, wake = [None], threading.Event(), threading.Event()
 
         def fetcher():
             while True:
                 latest[0] = fetch_board(me)
                 fresh.set()
-                time.sleep(REFRESH)
+                # A closed tab asks for a fetch at once instead of on the timer.
+                wake.wait(REFRESH)
+                wake.clear()
 
         threading.Thread(target=fetcher, daemon=True).start()
         fresh.wait()
-        board, dirty = None, False
+        # The tab a first d marked; a second d on it closes it.
+        board, dirty, armed = None, False, None
         while True:
             if fresh.is_set():
                 fresh.clear()
                 board, dirty = latest[0], True
             if dirty or os.get_terminal_size() != size:
                 size = os.get_terminal_size()
-                hits, order, chosen = draw(board, size, chosen)
+                hits, order, chosen = draw(board, size, chosen, armed is not None)
                 dirty = False
             ready, _, _ = select.select([fd], [], [], 0.1)
             if not ready:
@@ -870,6 +877,17 @@ def live():
                 return 0
             stop, events, pending = read_input(pending + data)
             for event in events:
+                if event[0] == "delete" and chosen[0]:
+                    if armed == chosen[0]:
+                        herdr_call("tab", "close", armed)
+                        armed = None
+                        wake.set()
+                    else:
+                        armed = chosen[0]
+                    dirty = True
+                    continue
+                # Any other key or click calls the close off.
+                armed = None
                 if event[0] == "move" and order:
                     index = (chosen[1] + event[1]) % len(order)  # past either end wraps round
                     chosen = (order[index], index)

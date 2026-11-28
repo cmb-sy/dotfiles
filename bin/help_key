@@ -34,7 +34,7 @@ show_ghostty() {
   kv "Cmd+/"              "Toggle comment in nvim"
   kv "Cmd+Ctrl+G"         "lazygit in a herdr pane"
   kv "Cmd+Ctrl+H"         "This cheat sheet in a herdr pane (q to close)"
-  kv "Cmd+Ctrl+I"         "Issue board (herdr-issues): click a row to jump to that tab"
+  kv "Cmd+Ctrl+I"         "Issue board (herdr-issues): click a row to jump, dd closes that tab"
   kv "Cmd+Ctrl+Left"      "Fold or unfold the herdr sidebar"
   kv "Cmd+Ctrl+C"         "Next dark background colour (ghostty-bg-cycle)"
   kv "Cmd+Ctrl+L"         "Reorder issue board repositories (J/K move, d drops, q saves)"

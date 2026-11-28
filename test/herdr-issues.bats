@@ -859,7 +859,7 @@ two_repos() {
 
 @test "↑↓ と j/k でカーソルを動かし、見出しや空行は飛ばし、端からは反対の端へ回る" {
   two_repos
-  run board 24 100 "wait:↑↓ で選ぶ・Enter で移動・クリックでも移動・q で終了" cursor:alpha \
+  run board 24 100 "wait:↑↓ で選ぶ・Enter で移動" cursor:alpha \
     key:j cursor:beta 'key:\e[B' cursor:gamma key:j cursor:alpha \
     key:k cursor:gamma 'key:\e[A' cursor:beta key:k cursor:alpha key:q
   [ "${lines[0]}" = "status=0" ]
@@ -875,6 +875,15 @@ two_repos() {
     key:j cursor:beta key:j cursor:gamma key:q
   [ "${lines[0]}" = "status=0" ]
   no_missed
+}
+
+@test "d を 2 回でカーソルのタブを閉じ、1 回目は警告だけで、ほかのキーで取り消す" {
+  two_repos
+  run board 24 100 wait:gamma cursor:alpha key:d "wait:もう一度 d でこのタブを閉じる" key:j \
+    "gone:もう一度 d" cursor:beta key:d key:d key:q
+  [ "${lines[0]}" = "status=0" ]
+  no_missed
+  [ "$(cat "$TEST_TMPDIR/calls")" = "tab close w1:t2" ]
 }
 
 @test "Enter でカーソルの行のタブへ移る" {
