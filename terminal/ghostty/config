@@ -20,23 +20,27 @@ minimum-contrast = 1.2
 # ---------------------------------------------------------------------------
 # Font
 # ---------------------------------------------------------------------------
-font-family = Monaspace Neon
-font-feature = calt
-font-feature = liga
-font-feature = dlig
+# Zenn's fonts: SF Mono for Latin text (its code font) and Hiragino Kaku
+# Gothic ProN for Japanese (its body font). SF Mono is not installed as a
+# user font on macOS; copy it from Terminal.app first:
+#   cp /System/Applications/Utilities/Terminal.app/Contents/Resources/Fonts/SF-Mono-*.otf ~/Library/Fonts/
+font-family = SF Mono
 font-size = 15
+adjust-cell-height = 20%
+# Two SF Mono cells are wider than a Japanese glyph, which left a gap after
+# every character; narrower cells close most of it. Strokes a little heavier,
+# as a browser draws them.
+adjust-cell-width = -8%
 font-thicken = true
-font-thicken-strength = 140
-adjust-cell-height = 10%
+font-thicken-strength = 60
 
-# HackGen
-font-family = HackGen
-font-codepoint-map = U+3000-U+303F,U+3040-U+309F,U+30A0-U+30FF,U+4E00-U+9FFF,U+FF00-U+FFEF=HackGen
-font-codepoint-map = U+3400-U+4DBF,U+20000-U+2A6DF=HackGen
+font-family = Hiragino Kaku Gothic ProN
+font-codepoint-map = U+3000-U+303F,U+3040-U+309F,U+30A0-U+30FF,U+4E00-U+9FFF,U+FF00-U+FFEF=Hiragino Kaku Gothic ProN
+font-codepoint-map = U+3400-U+4DBF,U+20000-U+2A6DF=Hiragino Kaku Gothic ProN
 
-# Nerd Font icons. Neither Monaspace Neon nor HackGen carries the private-use
-# codepoints the file-type icons live in (checked with fc-list: they have none
-# of U+E5FF, U+F07B, U+F15B), so without this every icon renders as a box.
+# Nerd Font icons. Neither SF Mono nor Hiragino carries the private-use
+# codepoints the file-type icons live in, so without this every icon renders
+# as a box.
 #
 # The ranges are derived from the icons nvim-web-devicons actually ships rather
 # than written by hand -- a hand-written set left 86 of its 338 glyphs outside
