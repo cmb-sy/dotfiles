@@ -70,3 +70,16 @@ dark_name = "catppuccin"
 key = "alt+f9"                  # Cmd+Opt+M
 type = "pane"
 command = 'sh -c "$HOME/dotfiles/bin/herdr-mark pick"'
+
+# Dark background colour: Cmd+Ctrl+C steps to the next one (bin/ghostty-bg-cycle).
+# The throwaway pane closes as soon as the script returns.
+[[keys.command]]
+key = "ctrl+f8"                 # Cmd+Ctrl+C
+type = "pane"
+command = 'sh -c "$HOME/dotfiles/bin/ghostty-bg-cycle"'
+
+# Repository order of the issue board: Cmd+Ctrl+L, q saves, Esc cancels.
+[[keys.command]]
+key = "shift+f8"                # Cmd+Ctrl+L
+type = "pane"
+command = 'sh -c "$HOME/dotfiles/bin/herdr-issues --order"'

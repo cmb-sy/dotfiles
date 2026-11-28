@@ -10,6 +10,9 @@
 #                         (160 when unset; the terminal width on a tty)
 #   herdr-issues --jump   focus the board's workspace, first creating it or
 #                         restarting a stopped board; there is only ever one
+#   herdr-issues --order  reorder the repository sections: up/down or j/k
+#                         choose, Shift+up/down or J/K move, q saves to
+#                         $HERDR_ISSUES_ORDER, Esc or Ctrl-C leaves it as it was
 #
 # Nothing is stored but gh answers: every redraw joins herdr's tab, agent and
 # workspace lists with the transcripts (<root>/projects/*/<session>.jsonl).
@@ -35,7 +38,7 @@
 set -euo pipefail
 
 usage() {
-  echo "usage: herdr-issues [--once | --jump]" >&2
+  echo "usage: herdr-issues [--once | --jump | --order]" >&2
   exit 2
 }
 
@@ -44,6 +47,7 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --once) mode=once ;;
     --jump) mode=jump ;;
+    --order) mode=order ;;
     *) usage ;;
   esac
   shift
@@ -93,6 +97,11 @@ ISSUE_WIDTH = 24
 HEADING_STYLE = "1;97;48;5;24"
 # The cursor row: bold reverse video across the screen.
 CURSOR_STYLE = "1;7"
+# Times from today stand out in green.
+TODAY_STYLE = "1;32"
+# Agent states, busiest first: a row shows the busiest of its tabs' agents.
+STATUS_RANK = ["working", "blocked", "waiting", "done", "idle"]
+STATUS_STYLE = {"working": "1;32", "blocked": "1;33", "waiting": "1;33", "idle": "90"}
 
 # "#123" anywhere, else a word of 2-5 digits ("2386 ✅"). "1" or "debug2" is no issue.
 HASH_ISSUE = re.compile(r"#([1-9][0-9]{0,5})(?![0-9])")
@@ -480,6 +489,7 @@ def build(t, me):
             "last": last,
             "path": path,
             "ws": names.get(wid) or "−",
+            "status": busiest(clean(text(a.get("agent_status"))) for a in crew),
             "number": number,
             "repo": repo,
         })
@@ -489,7 +499,8 @@ def build(t, me):
         # A row shows a tab the user marked if any, the newest among them; a click goes there.
         lead = max(group, key=lambda e: (bool(e["marker"]), e["last"] is not None, e["last"] or 0))
         known = [e["last"] for e in group if e["last"] is not None]
-        rows.append(dict(lead, last=max(known) if known else None, count=len(group)))
+        rows.append(dict(lead, last=max(known) if known else None, count=len(group),
+                         status=busiest(e["status"] for e in group)))
 
     cutoff = t - STALE_DAYS * DAY
     fresh = [r for r in rows if r["last"] is None or r["last"] >= cutoff]
@@ -509,6 +520,15 @@ def build(t, me):
             r["ident"], fallback = r["label"] or "−", ""
         r["summary"] = conclusion or fallback
     return fresh, len(rows) - len(fresh)
+
+
+def busiest(states):
+    # The highest-ranked known state; unknown ones only when nothing else is there.
+    states = [x for x in states if x]
+    known = [x for x in states if x in STATUS_RANK]
+    if known:
+        return min(known, key=STATUS_RANK.index)
+    return states[0] if states else ""
 
 
 def newest(r):
@@ -602,14 +622,21 @@ def when(at, t):
 
 
 def cells(r, t):
-    return shorten(r["ident"], ISSUE_WIDTH), r["marker"], when(r["last"], t)
+    return shorten(r["ident"], ISSUE_WIDTH), r["marker"], r.get("status", ""), when(r["last"], t)
+
+
+def styles(r, t):
+    # One style per cell, in the order of cells().
+    today = r["last"] is not None and \
+        datetime.fromtimestamp(r["last"]).date() == datetime.fromtimestamp(t).date()
+    return "1", "1", STATUS_STYLE.get(r.get("status", ""), "1"), TODAY_STYLE if today else "1"
 
 
 def table(rows, t, band=None):
     # Each repository's name, then its rows, with a gap between repositories.
     # Given a width, the name is a coloured band that wide; without one it is plain text.
     # Each line is (pieces, tab id or None); columns line up across repositories.
-    widths = [max((width(cells(r, t)[i]) for r in rows), default=0) for i in range(3)]
+    widths = [max((width(cells(r, t)[i]) for r in rows), default=0) for i in range(4)]
     lines = []
     for name, group in sections(rows):
         if lines:
@@ -618,10 +645,10 @@ def table(rows, t, band=None):
         for r in group:
             # Rows sit indented under their heading.
             pieces = [("  ", None)]
-            for i, (value, w) in enumerate(zip(cells(r, t), widths)):
+            for i, (value, w, style) in enumerate(zip(cells(r, t), widths, styles(r, t))):
                 # A column with nothing in any row (no markers at all) takes no room.
                 if w:
-                    pieces += [(centre(value, w) if i == 1 else pad(value, w), "1"), ("  ", None)]
+                    pieces += [(centre(value, w) if i == 1 else pad(value, w), style), ("  ", None)]
             lines.append((pieces + [(r["summary"], "1")], r["tab"]))
     return lines
 
@@ -845,7 +872,125 @@ def live():
             pass
 
 
-sys.exit(once() if sys.argv[1] == "once" else jump(sys.argv[2]) if sys.argv[1] == "jump" else live())
+def order_names(me):
+    # The saved order, then the repositories on the board that it misses.
+    try:
+        with open(ORDER, encoding="utf-8", errors="replace") as f:
+            names = [l.strip() for l in f if l.strip() and not l.strip().startswith("#")]
+    except OSError:
+        names = []
+    names = list(dict.fromkeys(names))
+    try:
+        rows, _ = build(now(), me)
+    except HerdrError:
+        rows = []
+    for name, _ in sections(rows):
+        if name not in names:
+            names.append(name)
+    return names
+
+
+def save_order(names):
+    # Through a temporary file, so a crash never leaves half a list behind.
+    os.makedirs(os.path.dirname(ORDER) or ".", exist_ok=True)
+    tmp = ORDER + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        f.write("".join(n + "\n" for n in names))
+    os.replace(tmp, ORDER)
+
+
+def order_input(buf):
+    # (outcome, events, bytes kept). outcome: None, "save" or "cancel".
+    # Events: ("move", -1 or 1) for the cursor, ("drag", -1 or 1) for the row.
+    tail = PARTIAL.search(buf)
+    done, rest = (buf[:tail.start()], buf[tail.start():]) if tail else (buf, b"")
+    outcome, events = None, []
+    for m in INPUT.finditer(done):
+        whole, key = m.group(0), m.group(6)
+        if whole in (b"\x1b[1;2A", b"K"):
+            events.append(("drag", -1))
+        elif whole in (b"\x1b[1;2B", b"J"):
+            events.append(("drag", 1))
+        elif m.group(5) is not None or key in (b"j", b"k"):
+            events.append(("move", -1 if m.group(5) == b"A" or key == b"k" else 1))
+        elif key == b"q":
+            outcome = outcome or "save"
+        elif key == b"\x03" or whole == b"\x1b\x1b":
+            outcome = outcome or "cancel"
+    return outcome, events, rest
+
+
+def draw_order(names, index, size):
+    note = "  ↑↓ で選ぶ・Shift+↑↓ か J/K で動かす・q で保存・Esc で取り消し"
+    screen = [[("リポジトリの順序", "1;4"), (note, "90")], []]
+    if not names:
+        screen.append([("リポジトリがありません", "90")])
+    span = size.columns - 1
+    for i, name in enumerate(names):
+        line = "%2d  %s" % (i + 1, name)
+        screen.append([(pad(line, span), CURSOR_STYLE)] if i == index else [(line, "")])
+    screen = screen[:size.lines]
+    write("\x1b[H" + "\r\n".join(paint(p, True, span) + "\x1b[K" for p in screen) + "\x1b[J")
+
+
+def reorder():
+    if not (sys.stdin.isatty() and sys.stdout.isatty()):
+        print("herdr-issues: --order needs a terminal", file=sys.stderr)
+        return 2
+    names = order_names(self_tab())
+    fd = sys.stdin.fileno()
+    saved = termios.tcgetattr(fd)
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
+    signal.signal(signal.SIGHUP, lambda *_: sys.exit(0))
+    index, pending, outcome = 0, b"", None
+    try:
+        tty.setraw(fd)
+        write("\x1b[?1049h\x1b[?25l")
+        while outcome is None:
+            draw_order(names, index, os.get_terminal_size())
+            ready, _, _ = select.select([fd], [], [], 0.3)
+            if not ready:
+                # A lone ESC with nothing after it is the Esc key.
+                if pending == b"\x1b":
+                    outcome = "cancel"
+                continue
+            data = os.read(fd, 1024)
+            if not data:
+                outcome = "cancel"
+                break
+            outcome, events, pending = order_input(pending + data)
+            for kind, step in events:
+                if not names:
+                    continue
+                if kind == "move":
+                    index = (index + step) % len(names)
+                else:
+                    other = index + step
+                    if 0 <= other < len(names):
+                        names[index], names[other] = names[other], names[index]
+                        index = other
+    except KeyboardInterrupt:
+        outcome = "cancel"
+    finally:
+        try:
+            termios.tcsetattr(fd, termios.TCSADRAIN, saved)
+        except termios.error:
+            pass
+        try:
+            write("\x1b[?25h\x1b[?1049l")
+        except OSError:
+            pass
+    if outcome == "save":
+        try:
+            save_order(names)
+        except OSError as e:
+            print("herdr-issues: cannot save the order: %s" % e, file=sys.stderr)
+            return 1
+    return 0
+
+
+sys.exit(once() if sys.argv[1] == "once" else jump(sys.argv[2]) if sys.argv[1] == "jump"
+         else reorder() if sys.argv[1] == "order" else live())
 PY
 
 # Through -c, not stdin: the live board reads keys and clicks from stdin.

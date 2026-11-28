@@ -131,7 +131,9 @@ print(json.dumps(line, ensure_ascii=False))' "$2" "$(iso $((NOW - DAY)))" "${3:-
 # cells: the output with each run of 2+ spaces as "|". A row reads
 # "|<issue>|<marker and meaning>|<time>|<summary>"; a row without a marker
 # reads "|<issue>|<time>|<summary>".
-cells() { printf '%s\n' "$output" | sed -E 's/  +/|/g'; }
+# The agent state column is left out; its own tests read it with states.
+cells() { printf '%s\n' "$output" | sed -E 's/  +/|/g; s/\|(working|blocked|waiting|done|idle)\|/|/'; }
+states() { printf '%s\n' "$output" | sed -E 's/  +/|/g'; }
 
 # rows / heads: the row lines (indented under their heading) and the
 # repository headings, in order.
@@ -156,7 +158,7 @@ cmd, rows, cols, actions = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), sys.
 pid, fd = pty.fork()
 if pid == 0:
     fcntl.ioctl(0, termios.TIOCSWINSZ, struct.pack("HHHH", rows, cols, 0, 0))
-    os.execv(cmd, [cmd])
+    os.execv(cmd, [cmd] + shlex.split(os.environ.get("BOARD_ARGS", "")))
 
 out = bytearray()
 missed = []
@@ -308,8 +310,8 @@ no_missed() { [ "$(printf '%s\n' "$output" | grep -c '^missed=')" -eq 0 ]; }
   log_at s2 120
   run "$CMD" --once
   [ "$status" -eq 0 ]
-  printf '%s\n' "$output" | grep -qxF "  #2413  🥇 📤  1分前"
-  printf '%s\n' "$output" | grep -qxF "  #2410   ✅    2分前"
+  printf '%s\n' "$output" | grep -qxF "  #2413  🥇 📤  idle  1分前"
+  printf '%s\n' "$output" | grep -qxF "  #2410   ✅    idle  2分前"
 }
 
 @test "登録した順にリポジトリを固定し、登録の無いものは下に新しい順で出す" {
@@ -331,7 +333,7 @@ no_missed() { [ "$(printf '%s\n' "$output" | grep -c '^missed=')" -eq 0 ]; }
   log_at s1 60
   run "$CMD" --once
   [ "$status" -eq 0 ]
-  printf '%s\n' "$output" | grep -qxF "  alpha  1分前"
+  printf '%s\n' "$output" | grep -qxF "  alpha  idle  1分前"
 }
 
 @test "印の意味が空なら印だけを出す" {
@@ -350,7 +352,7 @@ no_missed() { [ "$(printf '%s\n' "$output" | grep -c '^missed=')" -eq 0 ]; }
   cells | grep -qxF "|alpha|1分前"
 }
 
-@test "herdr の状態や返答の札からは状態を出さない" {
+@test "印の列には herdr の状態や返答の札を出さず、herdr の状態は専用の列に出す" {
   state "$(ws w1 🤖dots)" "$(tab w1:t1 alpha),$(tab w1:t2 beta),$(tab w1:t3 gamma)" \
     "$(ag w1:t1 working s1),$(ag w1:t2 blocked s2),$(ag w1:t3 done s3)"
   reply s1 '## 【要判断】 [a] 決めてほしい'
@@ -360,10 +362,51 @@ no_missed() { [ "$(printf '%s\n' "$output" | grep -c '^missed=')" -eq 0 ]; }
   log_at s3 180
   run "$CMD" --once
   [ "$status" -eq 0 ]
-  cells | grep -qxF "|alpha|1分前|決めてほしい"
-  cells | grep -qxF "|beta|2分前|落ちた"
-  cells | grep -qxF "|gamma|3分前"
+  states | grep -qxF "|alpha|working|1分前|決めてほしい"
+  states | grep -qxF "|beta|blocked|2分前|落ちた"
+  states | grep -qxF "|gamma|done|3分前"
   [ "$(printf '%s\n' "$output" | grep -cE 'あなたの番|要対応|作業中|完了|回答済み|待機|片付け候補|未読|▶|●|✓')" -eq 0 ]
+}
+
+@test "同じ issue のタブは最も忙しい状態を出し、知らない状態もそのまま出す" {
+  repo ra o/a
+  state "$(ws w1 app)" "$(tab w1:t1 '#5 a'),$(tab w1:t2 '#5 b'),$(tab w1:t3 other)" \
+    "$(ag w1:t1 idle s1 "$TEST_TMPDIR/ra"),$(ag w1:t2 working s2 "$TEST_TMPDIR/ra"),$(ag w1:t3 sleeping s3)"
+  log_at s1 60
+  log_at s2 120
+  log_at s3 180
+  run "$CMD" --once
+  [ "$status" -eq 0 ]
+  states | grep -q "^|#5 (2タブ)|working|"
+  states | grep -q "^|other|sleeping|"
+}
+
+@test "端末では今日の時刻を緑にし、working を緑・idle を灰色にする" {
+  state "$(ws w1 app)" "$(tab w1:t1 alpha),$(tab w1:t2 beta)" "$(ag w1:t1 working s1),$(ag w1:t2 idle s2)"
+  log_at s1 60
+  log_at s2 $((3 * DAY))
+  run python3 -c '
+import fcntl, os, pty, struct, sys, termios
+pid, fd = pty.fork()
+if pid == 0:
+    fcntl.ioctl(0, termios.TIOCSWINSZ, struct.pack("HHHH", 24, 120, 0, 0))
+    os.execv(sys.argv[1], [sys.argv[1], "--once"])
+out = b""
+while True:
+    try:
+        chunk = os.read(fd, 65536)
+    except OSError:
+        break
+    if not chunk:
+        break
+    out += chunk
+os.waitpid(pid, 0)
+sys.stdout.write(out.decode())' "$CMD"
+  [ "$status" -eq 0 ]
+  printf '%s' "$output" | grep -qF $'\e[1;32mworking'
+  printf '%s' "$output" | grep -qF $'\e[90midle'
+  printf '%s' "$output" | grep -qF $'\e[1;32m1分前'
+  printf '%s' "$output" | grep -qF $'\e[1m3日前'
 }
 
 @test "見出しの結論を概要にし、無ければタブ名の残りと issue タイトルに戻る" {
@@ -398,8 +441,8 @@ no_missed() { [ "$(printf '%s\n' "$output" | grep -c '^missed=')" -eq 0 ]; }
   run "$CMD" --once
   [ "$status" -eq 0 ]
   [ "$output" = "$(printf '%s\n' 'app' \
-    '  #12   📤  5分前   ログイン画面の修正方針を決めてほしい' \
-    "$(printf '  #130%6s10分前  画面調整 — o/a の題 130' '')")" ]
+    '  #12   📤  idle     5分前   ログイン画面の修正方針を決めてほしい' \
+    "$(printf '  #130%6sworking  10分前  画面調整 — o/a の題 130' '')")" ]
 }
 
 @test "リポジトリ名だけの見出しの下に並べ、リポジトリの間を空ける" {
@@ -410,7 +453,7 @@ no_missed() { [ "$(printf '%s\n' "$output" | grep -c '^missed=')" -eq 0 ]; }
   log_at s3 180
   run "$CMD" --once
   [ "$status" -eq 0 ]
-  [ "$output" = "$(printf '%s\n' 'app' '  alpha  1分前' '  beta   2分前' '' 'lib' '  gamma  3分前')" ]
+  [ "$output" = "$(printf '%s\n' 'app' '  alpha  idle  1分前' '  beta   idle  2分前' '' 'lib' '  gamma  idle  3分前')" ]
 }
 
 @test "見出しは最後に見出しを持つ返答から取り、利用者の発言やサブエージェントは見ない" {
@@ -458,7 +501,7 @@ no_missed() { [ "$(printf '%s\n' "$output" | grep -c '^missed=')" -eq 0 ]; }
   log_at s1 60
   run "$CMD" --once
   [ "$status" -eq 0 ]
-  [ "$output" = "$(printf '%s\n' 'dots' '  alpha  1分前')" ]
+  [ "$output" = "$(printf '%s\n' 'dots' '  alpha  idle  1分前')" ]
 }
 
 @test "タブ名の絵文字は状態の列にだけ出し、issue と概要の列には出さない" {
@@ -520,10 +563,10 @@ no_missed() { [ "$(printf '%s\n' "$output" | grep -c '^missed=')" -eq 0 ]; }
   log_at s1 60
   run "$CMD" --once
   [ "$status" -eq 0 ]
-  cells | grep -qxF "|alpha|1分前|$(printf 'x%.0s' $(seq 1 143))…"
+  cells | grep -qxF "|alpha|1分前|$(printf 'x%.0s' $(seq 1 137))…"
   run env COLUMNS=40 "$CMD" --once
   [ "$status" -eq 0 ]
-  cells | grep -qxF "|alpha|1分前|$(printf 'x%.0s' $(seq 1 23))…"
+  cells | grep -qxF "|alpha|1分前|$(printf 'x%.0s' $(seq 1 17))…"
 }
 
 @test "14 日より前は最後の行で 放置 N 件 にまとめる" {
@@ -751,7 +794,7 @@ no_missed() { [ "$(printf '%s\n' "$output" | grep -c '^missed=')" -eq 0 ]; }
     echo "args=$args"
     [ "$status" -eq 2 ]
     [ -z "$output" ]
-    printf '%s' "$stderr" | grep -qF "usage: herdr-issues [--once | --jump]"
+    printf '%s' "$stderr" | grep -qF "usage: herdr-issues [--once | --jump | --order]"
   done
   [ ! -e "$TEST_TMPDIR/calls" ]
 }
@@ -962,4 +1005,37 @@ board_proc() {
   run env FAKE_HERDR_EXIT=1 "$CMD" --jump
   [ "$status" -eq 1 ]
   [ ! -e "$TEST_TMPDIR/calls" ]
+}
+
+@test "--order: 保存済みの順序に一覧のリポジトリを足し、J/K で動かして q で保存する" {
+  two_repos
+  printf '%s\n' '# comment' 'gone' 'lib' > "$HERDR_ISSUES_ORDER"
+  BOARD_ARGS=--order run board 24 100 "wait:リポジトリの順序" cursor:gone \
+    key:J cursor:gone 'key:\e[1;2B' cursor:gone key:k cursor:app key:K cursor:app key:q
+  [ "${lines[0]}" = "status=0" ]
+  no_missed
+  [ "$(cat "$HERDR_ISSUES_ORDER")" = "$(printf '%s\n' app lib gone)" ]
+}
+
+@test "--order: Esc では保存しない" {
+  two_repos
+  printf '%s\n' lib > "$HERDR_ISSUES_ORDER"
+  BOARD_ARGS=--order run board 24 100 "wait:リポジトリの順序" cursor:lib key:J 'key:\e'
+  [ "${lines[0]}" = "status=0" ]
+  no_missed
+  [ "$(cat "$HERDR_ISSUES_ORDER")" = "lib" ]
+}
+
+@test "--order: 順序のファイルもリポジトリも無ければ空と出し、q で何も壊さない" {
+  state "" "" ""
+  export HERDR_ISSUES_ORDER="$TEST_TMPDIR/new/dir/order"
+  BOARD_ARGS=--order run board 24 100 "wait:リポジトリがありません" key:j key:J key:q
+  [ "${lines[0]}" = "status=0" ]
+  no_missed
+  [ -f "$HERDR_ISSUES_ORDER" ] && [ ! -s "$HERDR_ISSUES_ORDER" ]
+}
+
+@test "--order: 端末でなければ 2 で終わる" {
+  run "$CMD" --order </dev/null
+  [ "$status" -eq 2 ]
 }
