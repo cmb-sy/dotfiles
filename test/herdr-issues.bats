@@ -1017,6 +1017,16 @@ board_proc() {
   [ "$(cat "$HERDR_ISSUES_ORDER")" = "$(printf '%s\n' app lib gone)" ]
 }
 
+@test "--order: d と Delete で外して保存し、空になっても q で保存できる" {
+  state "" "" ""
+  printf '%s\n' a b c > "$HERDR_ISSUES_ORDER"
+  BOARD_ARGS=--order run board 24 100 "wait:リポジトリの順序" cursor:a key:j cursor:b key:d cursor:c \
+    'key:\e[3~' cursor:a key:d "wait:リポジトリがありません" key:d key:q
+  [ "${lines[0]}" = "status=0" ]
+  no_missed
+  [ ! -s "$HERDR_ISSUES_ORDER" ]
+}
+
 @test "--order: Esc では保存しない" {
   two_repos
   printf '%s\n' lib > "$HERDR_ISSUES_ORDER"

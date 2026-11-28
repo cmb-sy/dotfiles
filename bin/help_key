@@ -37,7 +37,7 @@ show_ghostty() {
   kv "Cmd+Ctrl+I"         "Issue board (herdr-issues): click a row to jump to that tab"
   kv "Cmd+Ctrl+B"         "Fold or unfold the herdr sidebar"
   kv "Cmd+Ctrl+C"         "Next dark background colour (ghostty-bg-cycle)"
-  kv "Cmd+Ctrl+L"         "Reorder issue board repositories (J/K move, q saves)"
+  kv "Cmd+Ctrl+L"         "Reorder issue board repositories (J/K move, d drops, q saves)"
   kv "Shift+Enter"        "Newline (Claude Code, etc.)"
 }
 

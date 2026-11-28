@@ -11,7 +11,8 @@
 #   herdr-issues --jump   focus the board's workspace, first creating it or
 #                         restarting a stopped board; there is only ever one
 #   herdr-issues --order  reorder the repository sections: up/down or j/k
-#                         choose, Shift+up/down or J/K move, q saves to
+#                         choose, Shift+up/down or J/K move, d or Delete
+#                         drops one (it falls back to newest-first), q saves to
 #                         $HERDR_ISSUES_ORDER, Esc or Ctrl-C leaves it as it was
 #
 # Nothing is stored but gh answers: every redraw joins herdr's tab, agent and
@@ -901,7 +902,8 @@ def save_order(names):
 
 def order_input(buf):
     # (outcome, events, bytes kept). outcome: None, "save" or "cancel".
-    # Events: ("move", -1 or 1) for the cursor, ("drag", -1 or 1) for the row.
+    # Events: ("move", -1 or 1) for the cursor, ("drag", -1 or 1) for the row,
+    # ("drop", 0) to take the row out of the list.
     tail = PARTIAL.search(buf)
     done, rest = (buf[:tail.start()], buf[tail.start():]) if tail else (buf, b"")
     outcome, events = None, []
@@ -913,6 +915,8 @@ def order_input(buf):
             events.append(("drag", 1))
         elif m.group(5) is not None or key in (b"j", b"k"):
             events.append(("move", -1 if m.group(5) == b"A" or key == b"k" else 1))
+        elif key == b"d" or whole == b"\x1b[3~":
+            events.append(("drop", 0))
         elif key == b"q":
             outcome = outcome or "save"
         elif key == b"\x03" or whole == b"\x1b\x1b":
@@ -921,7 +925,7 @@ def order_input(buf):
 
 
 def draw_order(names, index, size):
-    note = "  ↑↓ で選ぶ・Shift+↑↓ か J/K で動かす・q で保存・Esc で取り消し"
+    note = "  ↑↓ で選ぶ・Shift+↑↓ か J/K で動かす・d で外す・q で保存・Esc で取り消し"
     screen = [[("リポジトリの順序", "1;4"), (note, "90")], []]
     if not names:
         screen.append([("リポジトリがありません", "90")])
@@ -964,6 +968,9 @@ def reorder():
                     continue
                 if kind == "move":
                     index = (index + step) % len(names)
+                elif kind == "drop":
+                    del names[index]
+                    index = min(index, max(len(names) - 1, 0))
                 else:
                     other = index + step
                     if 0 <= other < len(names):
