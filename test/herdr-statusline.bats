@@ -62,13 +62,13 @@ panes() { local IFS=,; export FAKE_PANES="{\"result\":{\"panes\":[$*]}}"; }
   [ "$status" -eq 2 ]
 }
 
-# panel_run <pane> <text to wait for>: run the panel in a 30x40 pty, then q.
+# panel_run <pane> <text to wait for>: run the panel in a 10x20 pty, then q.
 panel_run() {
   run python3 -c '
 import fcntl, os, pty, select, struct, sys, termios, time
 pid, fd = pty.fork()
 if pid == 0:
-    fcntl.ioctl(0, termios.TIOCSWINSZ, struct.pack("HHHH", 30, 40, 0, 0))
+    fcntl.ioctl(0, termios.TIOCSWINSZ, struct.pack("HHHH", 30, 20, 0, 0))
     os.execv(sys.argv[1], [sys.argv[1], "panel", sys.argv[2]])
 out, end = b"", time.time() + 5
 while time.time() < end and sys.argv[3].encode() not in out:
@@ -99,33 +99,34 @@ sys.stdout.write(out.decode())' "$CMD" "$1" "$2"
   panel_run w1:p2 "Ctx 80%"
   printf '%s\n' "$output" | grep -qxF "status=0"
   printf '%s' "$output" | grep -qF "Opus"
-  # 40 columns less one on each side: 38, then the rest after a 4-column indent.
+  # 20 columns less one on each side: 18, then the rest after a 3-column indent.
   plain="$(printf '%s' "$output" | sed 's/\x1b\[[0-9;?]*[A-Za-z]//g' | tr -d '\r')"
-  printf '%s\n' "$plain" | grep -qxF " $(printf 'x%.0s' $(seq 1 38))"
-  printf '%s\n' "$plain" | grep -qxF "     xx"
+  printf '%s\n' "$plain" | grep -qxF " $(printf 'x%.0s' $(seq 1 18))"
+  printf '%s\n' "$plain" | grep -qxF "    $(printf 'x%.0s' $(seq 1 15))"
+  printf '%s\n' "$plain" | grep -qxF "    $(printf 'x%.0s' $(seq 1 7))"
 }
 
-@test "panel: 1 項目 1 行で左に見出しを置き、残りの割合には小さなバーを付ける" {
+@test "panel: 見出しごとにまとめて間を 1 行空け、残りの割合には小さなバーを付ける" {
   mkdir -p "$HERDR_STATUSLINE_DIR"
   printf 'Model\tOpus\nUsage left\t5h 25%%\nUsage left\t7d --%%\n' > "$HERDR_STATUSLINE_DIR/w1:p2"
   panel_run w1:p2 "7d --%"
   printf '%s\n' "$output" | grep -qxF "status=0"
   plain="$(printf '%s' "$output" | sed 's/\x1b\[[0-9;?]*[A-Za-z]//g' | tr -d '\r')"
-  printf '%s\n' "$plain" | grep -qxF " Model    Opus"
-  printf '%s\n' "$plain" | grep -qxF " 5h       ▰▰▱▱▱▱▱▱ 25%"
-  printf '%s\n' "$plain" | grep -qxF " 7d       --%"
-  printf '%s' "$output" | grep -qF $'\e[1;34mModel\e[0m'
-  [ "$(printf '%s\n' "$plain" | grep -c '^ *$')" -eq 0 ]
+  [ "$(printf '%s\n' "$plain" | grep -c -e '^ *Model$' -e '^ *Usage left$')" -eq 2 ]
+  printf '%s\n' "$plain" | grep -qxF "  Opus"
+  printf '%s\n' "$plain" | grep -qxF "  ▰▰▱▱▱▱▱▱ 5h 25%"
+  # One blank row between the groups.
+  printf '%s\n' "$plain" | grep -A1 -xF "  Opus" | tail -1 | grep -qx " *"
 }
 
-@test "panel: agent の状態を一番上に herdr と同じ色で出す" {
+@test "panel: agent の状態を一番上に出す" {
   mkdir -p "$HERDR_STATUSLINE_DIR"
   printf 'Model\tOpus\n' > "$HERDR_STATUSLINE_DIR/w1:p2"
   FAKE_STATE=working panel_run w1:p2 "Opus"
   printf '%s\n' "$output" | grep -qxF "status=0"
-  printf '%s' "$output" | grep -qF $'\e[33m● working'
+  printf '%s' "$output" | grep -qF "● working"
   plain="$(printf '%s' "$output" | sed 's/\x1b\[[0-9;?]*[A-Za-z]//g' | tr -d '\r' | grep -v '^ *$')"
-  [ "$(printf '%s\n' "$plain" | sed -n 2p)" = " State    ● working" ]
+  [ "$(printf '%s\n' "$plain" | sed -n 2p)" = " State" ]
 }
 
 @test "panel: セッションの subagent を working から並べ、古いものは出さず、# の行は見せない" {
@@ -140,8 +141,8 @@ sys.stdout.write(out.decode())' "$CMD" "$1" "$2"
   panel_run w1:p2 "○ rest"
   printf '%s\n' "$output" | grep -qxF "status=0"
   plain="$(printf '%s' "$output" | sed 's/\x1b\[[0-9;?]*[A-Za-z]//g' | tr -d '\r')"
-  [ "$(printf '%s\n' "$plain" | grep -A2 -x ' *Agents' | tail -2 | tr '\n' '|')" = " ● busy|   doing it|" ]
-  printf '%s\n' "$plain" | grep -qxF " ○ rest"
+  [ "$(printf '%s\n' "$plain" | grep -A2 -x ' *Agents' | tail -2 | tr '\n' '|')" = "  ● busy|    doing it|" ]
+  printf '%s\n' "$plain" | grep -qxF "  ○ rest"
   [ "$(printf '%s\n' "$plain" | grep -c -e old -e transcript)" -eq 0 ]
 }
 
