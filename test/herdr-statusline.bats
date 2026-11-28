@@ -12,7 +12,7 @@ setup() {
 #!/bin/bash
 printf '%s\\n' "\$*" >> "$TEST_TMPDIR/calls"
 case "\$1 \$2" in
-  "pane get") printf '%s' '{"result":{"pane":{"pane_id":"w1:pk","tab_id":"w1:t1","workspace_id":"w1"}}}' ;;
+  "pane get") printf '{"result":{"pane":{"pane_id":"%s","tab_id":"w1:t1","workspace_id":"w1","agent_status":"%s"}}}' "\$3" "\${FAKE_STATE:-unknown}" ;;
   "pane list") printf '%s' "\${FAKE_PANES:-}" ;;
   "pane split") printf '%s' '{"result":{"pane":{"pane_id":"w1:p9"}}}'; exit "\${FAKE_SPLIT_EXIT:-0}" ;;
   "pane run") ;;
@@ -75,7 +75,20 @@ while time.time() < end and sys.argv[3].encode() not in out:
     if select.select([fd], [], [], 0.2)[0]:
         out += os.read(fd, 65536)
 os.write(fd, b"q")
-_, raw = os.waitpid(pid, 0)
+# Keep draining: a pty nobody reads can hold the panel on its last write.
+end = time.time() + 5
+while True:
+    done, raw = os.waitpid(pid, os.WNOHANG)
+    if done or time.time() > end:
+        break
+    try:
+        if select.select([fd], [], [], 0.1)[0]:
+            os.read(fd, 65536)
+    except OSError:
+        pass
+if not done:
+    os.kill(pid, 9)
+    _, raw = os.waitpid(pid, 0)
 print("status=%d" % os.waitstatus_to_exitcode(raw))
 sys.stdout.write(out.decode())' "$CMD" "$1" "$2"
 }
@@ -91,30 +104,40 @@ sys.stdout.write(out.decode())' "$CMD" "$1" "$2"
   [ "$(printf '%s' "$output" | grep -c "$(printf 'x%.0s' $(seq 1 19))")" -eq 0 ]
 }
 
-@test "panel: 見出しごとにまとめ、見出しの間を 1 行空ける" {
+@test "panel: 見出しごとにまとめて間を 1 行空け、残りの割合には小さなバーを付ける" {
   mkdir -p "$HERDR_STATUSLINE_DIR"
-  printf 'モデル\tOpus\n利用枠\t5h 1%%\n利用枠\t7d 2%%\n' > "$HERDR_STATUSLINE_DIR/w1:p2"
-  panel_run w1:p2 "7d 2%"
+  printf 'Model\tOpus\nUsage left\t5h 25%%\nUsage left\t7d --%%\n' > "$HERDR_STATUSLINE_DIR/w1:p2"
+  panel_run w1:p2 "7d --%"
   printf '%s\n' "$output" | grep -qxF "status=0"
   plain="$(printf '%s' "$output" | sed 's/\x1b\[[0-9;?]*[A-Za-z]//g' | tr -d '\r')"
-  [ "$(printf '%s\n' "$plain" | grep -c -e '^ *モデル$' -e '^ *利用枠$')" -eq 2 ]
+  [ "$(printf '%s\n' "$plain" | grep -c -e '^ *Model$' -e '^ *Usage left$')" -eq 2 ]
   printf '%s\n' "$plain" | grep -qxF "  Opus"
-  printf '%s\n' "$plain" | grep -qxF "  7d 2%"
+  printf '%s\n' "$plain" | grep -qxF "  ▰▰▱▱▱▱▱▱ 5h 25%"
   # One blank row between the groups.
   printf '%s\n' "$plain" | grep -A1 -xF "  Opus" | tail -1 | grep -qx " *"
 }
 
-@test "panel: ファイルがまだ無ければ待っていると出す" {
-  panel_run w1:p2 "返事を待"
+@test "panel: agent の状態を一番上に出す" {
+  mkdir -p "$HERDR_STATUSLINE_DIR"
+  printf 'Model\tOpus\n' > "$HERDR_STATUSLINE_DIR/w1:p2"
+  FAKE_STATE=working panel_run w1:p2 "Opus"
   printf '%s\n' "$output" | grep -qxF "status=0"
-  printf '%s' "$output" | grep -qF "返事を待"
+  printf '%s' "$output" | grep -qF "● working"
+  plain="$(printf '%s' "$output" | sed 's/\x1b\[[0-9;?]*[A-Za-z]//g' | tr -d '\r' | grep -v '^ *$')"
+  [ "$(printf '%s\n' "$plain" | sed -n 2p)" = " State" ]
+}
+
+@test "panel: ファイルがまだ無ければ待っていると出す" {
+  panel_run w1:p2 "Waiting"
+  printf '%s\n' "$output" | grep -qxF "status=0"
+  printf '%s' "$output" | grep -qF "Waiting"
 }
 
 @test "statusline.sh: herdr の中ではファイルへ 1 項目 1 行で書き、画面には何も出さない" {
   run bash -c 'echo "{\"context_window\":{\"used_percentage\":20}}" | HERDR_PANE_ID=w1:p2 "$1"' _ "$REPO_DIR/claude/statusline.sh"
   [ "$status" -eq 0 ]
   [ -z "$output" ]
-  grep -qxF "$(printf 'コンテキストの残り\t80%% (160k)')" <(sed 's/\x1b\[[0-9;]*m//g' "$HERDR_STATUSLINE_DIR/w1:p2")
+  grep -qxF "$(printf 'Context left\t80%% (160k)')" <(sed 's/\x1b\[[0-9;]*m//g' "$HERDR_STATUSLINE_DIR/w1:p2")
 }
 
 @test "statusline.sh: herdr の外や書けないときは今までどおり画面に出す" {

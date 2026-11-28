@@ -325,22 +325,27 @@ done
 [ -n "$line2" ] && out="${out}"$'\n'"${line2}"
 
 # Inside herdr the status goes to the side pane (bin/herdr-statusline) as
-# "<heading>\t<value>" lines, and nothing shows under the prompt. Outside herdr
+# "<heading>\t<plain value>" lines, and nothing shows under the prompt. Outside herdr
 # it stays there.
 if [ -n "${HERDR_PANE_ID:-}" ]; then
   dir="${HERDR_STATUSLINE_DIR:-$HOME/.cache/claude-statusline}"
   file="$dir/${HERDR_PANE_ID//[^A-Za-z0-9:_-]/_}"
   panel=""
-  add() { [ -n "$2" ] && panel+="$1"$'\t'"$2"$'\n'; }
-  add "モデル" "$sec_model"
-  add "アカウント" "$sec_account"
-  add "コンテキストの残り" "${sec_ctx#"${WHT}Ctx${RST} "}"
-  add "利用枠の残り" "${sec_limits%% ${WHT}·${RST} *}"
-  [ "${sec_limits}" != "${sec_limits#* ${WHT}·${RST} }" ] && add "利用枠の残り" "${sec_limits#* ${WHT}·${RST} }"
-  add "音声入力" "${sec_voice#"${WHT}voice${RST} "}"
-  add "場所" "$pane_dir"
-  add "場所" "$pane_branch"
-  add "更新" "$(date +%H:%M)"
+  # Plain text: the pane colours headings only, so values share one colour.
+  add() {
+    local v
+    v=$(printf '%s' "$2" | sed $'s/\x1b\\[[0-9;]*m//g')
+    [ -n "$v" ] && panel+="$1"$'\t'"$v"$'\n'
+  }
+  add "Model" "$sec_model"
+  add "Account" "$sec_account"
+  add "Context left" "${sec_ctx#"${WHT}Ctx${RST} "}"
+  add "Usage left" "${sec_limits%% ${WHT}·${RST} *}"
+  [ "${sec_limits}" != "${sec_limits#* ${WHT}·${RST} }" ] && add "Usage left" "${sec_limits#* ${WHT}·${RST} }"
+  add "Voice" "${sec_voice#"${WHT}voice${RST} "}"
+  add "Location" "$pane_dir"
+  add "Location" "$pane_branch"
+  add "Time" "$(date +%H:%M)"
   # Through a temporary file so the pane never reads half a write.
   if mkdir -p "$dir" 2>/dev/null && printf '%s\n' "$panel" >| "$file.tmp.$$" 2>/dev/null \
      && mv -f "$file.tmp.$$" "$file" 2>/dev/null; then
