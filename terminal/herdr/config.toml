@@ -39,6 +39,8 @@ command = 'sh -c "$HOME/dotfiles/bin/herdr-issues --jump"'
 agent_panel_sort = "priority"
 # A folded sidebar (Cmd+Ctrl+Left) takes no width at all, not a numbered rail.
 sidebar_collapsed_mode = "hidden"
+# No frame around split panes (the statusline pane splits every Claude tab).
+pane_borders = false
 
 # Background notifications. Change these with bin/herdr-notify, which edits the
 # values below and reloads the server.
