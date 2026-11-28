@@ -62,6 +62,9 @@ panes() { local IFS=,; export FAKE_PANES="{\"result\":{\"panes\":[$*]}}"; }
   [ "$status" -eq 2 ]
 }
 
+# unframe: drop the pane's own border so rows read as their content.
+unframe() { sed -E 's/^[│╭╰]//; s/[│╮╯] *$//; s/ +$//'; }
+
 # panel_run <pane> <text to wait for>: run the panel in a 10x20 pty, then q.
 panel_run() {
   run python3 -c '
@@ -99,11 +102,11 @@ sys.stdout.write(out.decode())' "$CMD" "$1" "$2"
   panel_run w1:p2 "Ctx 80%"
   printf '%s\n' "$output" | grep -qxF "status=0"
   printf '%s' "$output" | grep -qF "Opus"
-  # 20 columns less one on each side: 18, then the rest after a 3-column indent.
-  plain="$(printf '%s' "$output" | sed 's/\x1b\[[0-9;?]*[A-Za-z]//g' | tr -d '\r')"
-  printf '%s\n' "$plain" | grep -qxF " $(printf 'x%.0s' $(seq 1 18))"
-  printf '%s\n' "$plain" | grep -qxF "    $(printf 'x%.0s' $(seq 1 15))"
-  printf '%s\n' "$plain" | grep -qxF "    $(printf 'x%.0s' $(seq 1 7))"
+  # 20 columns less the frame and a space each side: 16, then the rest after a 3-column indent.
+  plain="$(printf '%s' "$output" | sed 's/\x1b\[[0-9;?]*[A-Za-z]//g' | tr -d '\r' | unframe)"
+  printf '%s\n' "$plain" | grep -qxF " $(printf 'x%.0s' $(seq 1 16))"
+  printf '%s\n' "$plain" | grep -qxF "    $(printf 'x%.0s' $(seq 1 13))"
+  printf '%s\n' "$plain" | grep -qxF "    $(printf 'x%.0s' $(seq 1 11))"
 }
 
 @test "panel: 見出しごとにまとめて間を 1 行空け、残りの割合には小さなバーを付ける" {
@@ -111,7 +114,7 @@ sys.stdout.write(out.decode())' "$CMD" "$1" "$2"
   printf 'Model\tOpus\nUsage left\t5h 25%%\nUsage left\t7d --%% (12/05 02:00)\n' > "$HERDR_STATUSLINE_DIR/w1:p2"
   panel_run w1:p2 "7d --%"
   printf '%s\n' "$output" | grep -qxF "status=0"
-  plain="$(printf '%s' "$output" | sed 's/\x1b\[[0-9;?]*[A-Za-z]//g' | tr -d '\r')"
+  plain="$(printf '%s' "$output" | sed 's/\x1b\[[0-9;?]*[A-Za-z]//g' | tr -d '\r' | unframe)"
   [ "$(printf '%s\n' "$plain" | grep -c -E -e '^ *Model( +[0-9:]+)?$' -e '^ *Usage left$')" -eq 2 ]
   printf '%s\n' "$plain" | grep -qxF "  Opus"
   printf '%s\n' "$plain" | grep -qxF "  ▰▰▱▱▱▱▱▱ 5h 25%"
@@ -127,8 +130,8 @@ sys.stdout.write(out.decode())' "$CMD" "$1" "$2"
   FAKE_STATE=working panel_run w1:p2 "Opus"
   printf '%s\n' "$output" | grep -qxF "status=0"
   printf '%s' "$output" | grep -qF $'\e[33m● working\e[0m'
-  plain="$(printf '%s' "$output" | sed 's/\x1b\[[0-9;?]*[A-Za-z]//g' | tr -d '\r' | grep -v '^ *$')"
-  printf '%s\n' "$plain" | sed -n 2p | grep -qE '^ State +[0-9]{2}:[0-9]{2}$'
+  plain="$(printf '%s' "$output" | sed 's/\x1b\[[0-9;?]*[A-Za-z]//g' | tr -d '\r' | unframe | grep -v '^ *$')"
+  printf '%s\n' "$plain" | sed -n 3p | grep -qE '^ State +[0-9]{2}:[0-9]{2}$'
 }
 
 @test "panel: ファイルに入った制御文字は端末へ渡さない" {
@@ -157,7 +160,7 @@ def pump(until):
         if select.select([fd], [], [], 0.1)[0]:
             out += os.read(fd, 65536)
 pump(b"(12/05)")
-os.write(fd, b"\x1b[<35;5;2M")
+os.write(fd, b"\x1b[<35;5;3M")
 pump(b"02:00")
 os.write(fd, b"q")
 end = time.time() + 5
@@ -207,10 +210,18 @@ print("closed")' "$CMD"
   mkdir -p "$HERDR_STATUSLINE_DIR"
   printf 'Model\tOpus\nTime\t01:23\n' > "$HERDR_STATUSLINE_DIR/w1:p2"
   panel_run w1:p2 "Opus"
-  plain="$(printf '%s' "$output" | sed 's/\x1b\[[0-9;?]*[A-Za-z]//g' | tr -d '\r')"
+  plain="$(printf '%s' "$output" | sed 's/\x1b\[[0-9;?]*[A-Za-z]//g' | tr -d '\r' | unframe)"
   [ "$(printf '%s\n' "$plain" | grep -c -e Time -e 01:23)" -eq 0 ]
   printf '%s\n' "$plain" | grep -qE '^ Model +[0-9]{2}:[0-9]{2}$'
-  [ "$(printf '%s\n' "$plain" | grep -E '^ Model ' | head -1 | awk '{print length($0)}')" -eq 19 ]
+  [ "$(printf '%s\n' "$plain" | grep -E '^ Model ' | head -1 | awk '{print length($0)}')" -eq 17 ]
+}
+
+@test "panel: ペイン自身が角の丸い枠を描く" {
+  mkdir -p "$HERDR_STATUSLINE_DIR"
+  printf 'Model\tOpus\n' > "$HERDR_STATUSLINE_DIR/w1:p2"
+  panel_run w1:p2 "╰"
+  printf '%s' "$output" | grep -qF "╭─ statusline "
+  printf '%s' "$output" | grep -qF "╰──"
 }
 
 @test "panel: ファイルがまだ無ければ待っていると出す" {

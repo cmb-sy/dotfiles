@@ -213,6 +213,23 @@ def build(pid, room, height, hover):
     return frame
 
 
+BORDER = "90"
+
+
+def boxed(rows, cols, height):
+    # A rounded frame drawn by the pane itself, so only this pane has one
+    # (herdr's pane_borders is off for the conversation beside it).
+    inner = cols - 2
+    title = " statusline "
+    top = "╭─" + title + "─" * max(inner - 1 - len(title), 0) + "╮"
+    body = ["│" + "\x1b[0m" + r + " " * max(inner - width(ESC.sub("", r)), 0) +
+            "\x1b[%sm│\x1b[0m" % BORDER for r in rows]
+    body += ["│" + " " * inner + "\x1b[%sm│\x1b[0m" % BORDER] * max(height - 2 - len(rows), 0)
+    body = ["\x1b[%sm" % BORDER + r for r in body]
+    return ["\x1b[%sm%s\x1b[0m" % (BORDER, top)] + body[:max(height - 2, 0)] + \
+        ["\x1b[%sm╰%s╯\x1b[0m" % (BORDER, "─" * inner)]
+
+
 def panel(pid):
     if not (sys.stdin.isatty() and sys.stdout.isatty()):
         print("herdr-statusline: panel needs a terminal", file=sys.stderr)
@@ -227,8 +244,9 @@ def panel(pid):
         while True:
             size = os.get_terminal_size()
             # One spare column on each side.
-            room = max(size.columns - 2, 4)
-            frame = build(pid, room, size.lines, hover)
+            # Inside the frame: one column of border and one of space a side.
+            room = max(size.columns - 4, 4)
+            frame = boxed(build(pid, room, size.lines - 2, hover - 1), size.columns, size.lines)
             if (frame, size) != last:
                 sys.stdout.write("\x1b[H" + "\x1b[K\r\n".join(frame) + "\x1b[K\x1b[J")
                 sys.stdout.flush()
