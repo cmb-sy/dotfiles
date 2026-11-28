@@ -250,8 +250,9 @@ fi
 # ==============================================================================
 
 sec_dir=""
+tilde="~"  # bash 3.2 keeps the backslash of \~ in a substitution
 if has_val "$DIR"; then
-  sec_dir="${C_REPO}$(printf '\xef\x81\xbc') ${DIR/#$HOME/\~}${RST}"
+  sec_dir="${C_REPO}$(printf '\xef\x81\xbc') ${DIR/#$HOME/$tilde}${RST}"
   if git -C "$DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     # Branch name. Detached HEAD prints nothing, so fall back to a short SHA
     # rather than rendering empty parentheses.
@@ -319,4 +320,22 @@ for s in "$sec_dir" "$sec_time"; do
   [ -n "$s" ] && line2="${line2:+${line2}${SEP}}${s}"
 done
 [ -n "$line2" ] && out="${out}"$'\n'"${line2}"
+
+# Inside herdr the status goes to the side pane (bin/herdr-statusline), one item
+# per line, and nothing shows under the prompt. Outside herdr it stays there.
+if [ -n "${HERDR_PANE_ID:-}" ]; then
+  dir="${HERDR_STATUSLINE_DIR:-$HOME/.cache/claude-statusline}"
+  file="$dir/${HERDR_PANE_ID//[^A-Za-z0-9:_-]/_}"
+  panel=""
+  for s in "$sec_model" "$sec_account" "$sec_ctx" "${sec_limits// ${WHT}·${RST} /$'\n'}" \
+           "$sec_voice" "$sec_dir" "$sec_time"; do
+    [ -n "$s" ] && panel="${panel:+${panel}$'\n'}${s}"
+  done
+  # Through a temporary file so the pane never reads half a write.
+  if mkdir -p "$dir" 2>/dev/null && printf '%s\n' "$panel" >| "$file.tmp.$$" 2>/dev/null \
+     && mv -f "$file.tmp.$$" "$file" 2>/dev/null; then
+    exit 0
+  fi
+  rm -f "$file.tmp.$$" 2>/dev/null
+fi
 printf '%s\n' "$out"

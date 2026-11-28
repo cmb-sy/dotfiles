@@ -1,0 +1,114 @@
+#!/usr/bin/env bats
+# bin/herdr-statusline and the file claude/statusline.sh hands it.
+
+load "helpers/common"
+
+setup() {
+  make_tmpdir
+  CMD="$REPO_DIR/bin/herdr-statusline"
+  export HERDR_BIN="$TEST_TMPDIR/herdr" HERDR_PANE_ID="w1:pk" HERDR_STATUSLINE_SELF="/x/herdr-statusline"
+  export HERDR_STATUSLINE_DIR="$TEST_TMPDIR/sl"
+  cat > "$HERDR_BIN" <<EOF
+#!/bin/bash
+printf '%s\\n' "\$*" >> "$TEST_TMPDIR/calls"
+case "\$1 \$2" in
+  "pane get") printf '%s' '{"result":{"pane":{"pane_id":"w1:pk","tab_id":"w1:t1","workspace_id":"w1"}}}' ;;
+  "pane list") printf '%s' "\${FAKE_PANES:-}" ;;
+  "pane split") printf '%s' '{"result":{"pane":{"pane_id":"w1:p9"}}}'; exit "\${FAKE_SPLIT_EXIT:-0}" ;;
+  "pane run") ;;
+  *) printf '{"result":{"type":"ok"}}' ;;
+esac
+EOF
+  chmod +x "$HERDR_BIN"
+}
+
+teardown() { rm -rf "$TEST_TMPDIR"; }
+
+# pane <id> [label] [agent] [tab]
+pane() { printf '{"pane_id":"%s","tab_id":"%s","workspace_id":"w1","label":"%s","agent":"%s"}' "$1" "${4:-w1:t1}" "${2:-}" "${3:-}"; }
+panes() { local IFS=,; export FAKE_PANES="{\"result\":{\"panes\":[$*]}}"; }
+
+@test "toggle: 無ければ agent のペインの右に開き、名前を付けて panel を動かす" {
+  panes "$(pane w1:p1)" "$(pane w1:p2 '' claude)" "$(pane w1:pk)" "$(pane w1:px statusline '' w1:t2)"
+  run "$CMD" toggle
+  [ "$status" -eq 0 ]
+  grep -qxF "pane split w1:p2 --direction right --ratio 0.75 --no-focus" "$TEST_TMPDIR/calls"
+  grep -qxF "pane rename w1:p9 statusline" "$TEST_TMPDIR/calls"
+  grep -qxF "pane run w1:p9 exec '/x/herdr-statusline' panel 'w1:p2'" "$TEST_TMPDIR/calls"
+  # Another tab's pane is not this tab's.
+  [ "$(grep -c '^pane close' "$TEST_TMPDIR/calls")" -eq 0 ]
+}
+
+@test "toggle: このタブにあれば閉じるだけ" {
+  panes "$(pane w1:p2 '' claude)" "$(pane w1:p9 statusline)" "$(pane w1:pk)"
+  run "$CMD" toggle
+  [ "$status" -eq 0 ]
+  grep -qxF "pane close w1:p9" "$TEST_TMPDIR/calls"
+  [ "$(grep -c '^pane split' "$TEST_TMPDIR/calls")" -eq 0 ]
+}
+
+@test "toggle: 分割に失敗すれば 1 で終わり、名前付けへ進まない" {
+  panes "$(pane w1:p2 '' claude)" "$(pane w1:pk)"
+  FAKE_SPLIT_EXIT=1 run "$CMD" toggle
+  [ "$status" -eq 1 ]
+  [ "$(grep -c '^pane rename' "$TEST_TMPDIR/calls")" -eq 0 ]
+}
+
+@test "toggle: herdr の外では 1、引数違いは 2 で終わる" {
+  HERDR_PANE_ID= run "$CMD" toggle
+  [ "$status" -eq 1 ]
+  [ ! -e "$TEST_TMPDIR/calls" ]
+  run "$CMD" panel
+  [ "$status" -eq 2 ]
+}
+
+# panel_run <pane> <text to wait for>: run the panel in a 10x20 pty, then q.
+panel_run() {
+  run python3 -c '
+import fcntl, os, pty, select, struct, sys, termios, time
+pid, fd = pty.fork()
+if pid == 0:
+    fcntl.ioctl(0, termios.TIOCSWINSZ, struct.pack("HHHH", 10, 20, 0, 0))
+    os.execv(sys.argv[1], [sys.argv[1], "panel", sys.argv[2]])
+out, end = b"", time.time() + 5
+while time.time() < end and sys.argv[3].encode() not in out:
+    if select.select([fd], [], [], 0.2)[0]:
+        out += os.read(fd, 65536)
+os.write(fd, b"q")
+_, raw = os.waitpid(pid, 0)
+print("status=%d" % os.waitstatus_to_exitcode(raw))
+sys.stdout.write(out.decode())' "$CMD" "$1" "$2"
+}
+
+@test "panel: statusline のファイルを 1 行ずつ出し、幅で切り、q で閉じる" {
+  mkdir -p "$HERDR_STATUSLINE_DIR"
+  printf 'Opus\nCtx 80%%\n%s\n' "$(printf 'x%.0s' $(seq 1 40))" > "$HERDR_STATUSLINE_DIR/w1:p2"
+  panel_run w1:p2 "Ctx 80%"
+  printf '%s\n' "$output" | grep -qxF "status=0"
+  printf '%s' "$output" | grep -qF "Opus"
+  # 20 columns less one on each side.
+  printf '%s' "$output" | grep -qF " $(printf 'x%.0s' $(seq 1 18))"
+  [ "$(printf '%s' "$output" | grep -c "$(printf 'x%.0s' $(seq 1 19))")" -eq 0 ]
+}
+
+@test "panel: ファイルがまだ無ければ待っていると出す" {
+  panel_run w1:p2 "返事を待"
+  printf '%s\n' "$output" | grep -qxF "status=0"
+  printf '%s' "$output" | grep -qF "返事を待"
+}
+
+@test "statusline.sh: herdr の中ではファイルへ 1 項目 1 行で書き、画面には何も出さない" {
+  run bash -c 'echo "{\"context_window\":{\"used_percentage\":20}}" | HERDR_PANE_ID=w1:p2 "$1"' _ "$REPO_DIR/claude/statusline.sh"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  grep -qF "Ctx 80%" <(sed 's/\x1b\[[0-9;]*m//g' "$HERDR_STATUSLINE_DIR/w1:p2")
+}
+
+@test "statusline.sh: herdr の外や書けないときは今までどおり画面に出す" {
+  run bash -c 'echo "{\"context_window\":{\"used_percentage\":20}}" | HERDR_PANE_ID= "$1"' _ "$REPO_DIR/claude/statusline.sh"
+  printf '%s' "$output" | grep -qF "Ctx"
+  : > "$TEST_TMPDIR/file"
+  export HERDR_STATUSLINE_DIR="$TEST_TMPDIR/file/sub"
+  run bash -c 'echo "{\"context_window\":{\"used_percentage\":20}}" | HERDR_PANE_ID=w1:p2 "$1"' _ "$REPO_DIR/claude/statusline.sh"
+  printf '%s' "$output" | grep -qF "Ctx"
+}

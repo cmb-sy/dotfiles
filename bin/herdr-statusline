@@ -1,0 +1,156 @@
+#!/usr/bin/env -S python3 -I
+"""Claude Code's statusline in a pane on the right of the agent pane.
+
+  herdr-statusline toggle        open the pane beside this tab's agent pane, or
+                                 close it when the tab has one (Cmd+Ctrl+P)
+  herdr-statusline panel <pane>  show that pane's statusline; q closes it
+
+claude/statusline.sh writes the lines to $HERDR_STATUSLINE_DIR/<pane id>
+(default ~/.cache/claude-statusline) instead of under the prompt. The pane
+carries the label "statusline", which is how toggle finds it.
+Overrides: HERDR_BIN, HERDR_PANE_ID (the pane toggle runs in),
+HERDR_STATUSLINE_SELF (the command a new pane runs; default this file).
+"""
+import json, os, re, select, subprocess, sys, termios, time, tty, unicodedata
+
+HERDR = os.environ.get("HERDR_BIN") or "herdr"
+DIR = os.environ.get("HERDR_STATUSLINE_DIR") or os.path.join(
+    os.path.expanduser("~"), ".cache", "claude-statusline")
+LABEL = "statusline"
+# The pane takes the right quarter of the pane it splits.
+RATIO = "0.75"
+REFRESH = 1.0
+ESC = re.compile(r"\x1b\[[0-9;]*m")
+
+
+class HerdrError(Exception):
+    pass
+
+
+def herdr(*args):
+    try:
+        p = subprocess.run([HERDR, *args], stdin=subprocess.DEVNULL, capture_output=True,
+                           text=True, timeout=10)
+    except (OSError, subprocess.SubprocessError) as e:
+        raise HerdrError(str(e))
+    if p.returncode != 0:
+        raise HerdrError((p.stderr or p.stdout).strip() or "herdr %s failed" % args[0])
+    if not p.stdout.strip():
+        # Some commands (pane run) answer with nothing on success.
+        return {}
+    try:
+        return json.loads(p.stdout).get("result") or {}
+    except ValueError:
+        raise HerdrError("herdr %s: not JSON" % " ".join(args[:2]))
+
+
+def text(v):
+    return v if isinstance(v, str) else ""
+
+
+def toggle():
+    me = os.environ.get("HERDR_PANE_ID") or ""
+    if not me:
+        print("herdr-statusline: run inside herdr", file=sys.stderr)
+        return 1
+    try:
+        here = herdr("pane", "get", me).get("pane") or {}
+        tab, ws = text(here.get("tab_id")), text(here.get("workspace_id"))
+        panes = [p for p in herdr("pane", "list", "--workspace", ws).get("panes") or []
+                 if text(p.get("tab_id")) == tab and text(p.get("pane_id")) != me]
+        mine = [p for p in panes if text(p.get("label")) == LABEL]
+        if mine:
+            for p in mine:
+                herdr("pane", "close", text(p["pane_id"]))
+            return 0
+        # The agent's pane, else the first one; the key's own pane is never split.
+        target = next((p for p in panes if p.get("agent")), panes[0] if panes else None)
+        if target is None:
+            return 0
+        pid = text(target.get("pane_id"))
+        new = text((herdr("pane", "split", pid, "--direction", "right", "--ratio", RATIO,
+                          "--no-focus").get("pane") or {}).get("pane_id"))
+        if not new:
+            raise HerdrError("split gave no pane")
+        herdr("pane", "rename", new, LABEL)
+        self = (os.environ.get("HERDR_STATUSLINE_SELF") or os.path.abspath(__file__)).replace("'", "")
+        # exec, so the pane closes when the panel quits.
+        herdr("pane", "run", new, "exec '%s' panel '%s'" % (self, pid.replace("'", "")))
+    except HerdrError as e:
+        print("herdr-statusline: %s" % e, file=sys.stderr)
+        return 1
+    return 0
+
+
+def width(s):
+    return sum(0 if unicodedata.category(c) in ("Mn", "Me", "Cf") or 0xFE00 <= ord(c) <= 0xFE0F
+               else 2 if unicodedata.east_asian_width(c) in ("W", "F") else 1 for c in s)
+
+
+def fit(line, room):
+    # Cut a coloured line to `room` columns, keeping its escapes.
+    out, used = [], 0
+    for part in re.split(r"(\x1b\[[0-9;]*m)", line):
+        if ESC.fullmatch(part or "x"):
+            out.append(part)
+            continue
+        for c in part:
+            w = width(c)
+            if used + w > room:
+                return "".join(out) + "\x1b[0m"
+            out.append(c)
+            used += w
+    return "".join(out)
+
+
+def lines(pid):
+    path = os.path.join(DIR, re.sub(r"[^A-Za-z0-9:_-]", "_", pid))
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            got = f.read().splitlines()
+    except OSError:
+        got = []
+    return got or ["\x1b[90mClaude の返事を待っています\x1b[0m"]
+
+
+def panel(pid):
+    if not (sys.stdin.isatty() and sys.stdout.isatty()):
+        print("herdr-statusline: panel needs a terminal", file=sys.stderr)
+        return 2
+    fd = sys.stdin.fileno()
+    saved = termios.tcgetattr(fd)
+    try:
+        tty.setraw(fd)
+        sys.stdout.write("\x1b[?1049h\x1b[?25l")
+        last = None
+        while True:
+            size = os.get_terminal_size()
+            # One spare column on each side.
+            frame = [" " + fit(l, max(size.columns - 2, 1)) for l in lines(pid)][:size.lines]
+            if (frame, size) != last:
+                sys.stdout.write("\x1b[H" + "\x1b[K\r\n".join(frame) + "\x1b[K\x1b[J")
+                sys.stdout.flush()
+                last = (frame, size)
+            if select.select([fd], [], [], REFRESH)[0]:
+                data = os.read(fd, 64)
+                if not data or b"q" in data or b"\x03" in data:
+                    return 0
+    except KeyboardInterrupt:
+        return 0
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, saved)
+        sys.stdout.write("\x1b[?25h\x1b[?1049l")
+        sys.stdout.flush()
+
+
+def main(argv):
+    if argv == ["toggle"]:
+        return toggle()
+    if len(argv) == 2 and argv[0] == "panel" and argv[1]:
+        return panel(argv[1])
+    print("usage: herdr-statusline toggle | panel <pane_id>", file=sys.stderr)
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

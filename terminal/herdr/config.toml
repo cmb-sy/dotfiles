@@ -85,3 +85,9 @@ command = 'sh -c "$HOME/dotfiles/bin/ghostty-bg-cycle"'
 key = "shift+f8"                # Cmd+Ctrl+L
 type = "pane"
 command = 'sh -c "$HOME/dotfiles/bin/herdr-issues --order"'
+
+# Claude Code's statusline in a pane on the right: Cmd+Ctrl+P opens it, again closes it.
+[[keys.command]]
+key = "alt+f8"                  # Cmd+Ctrl+P
+type = "pane"
+command = 'sh -c "$HOME/dotfiles/bin/herdr-statusline toggle"'

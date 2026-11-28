@@ -9,6 +9,8 @@
 load "helpers/common"
 
 setup() {
+  # Inside herdr the statusline writes to a file instead of stdout.
+  unset HERDR_PANE_ID
   export HOME="$BATS_TEST_TMPDIR/home"
   unset CLAUDE_CONFIG_DIR
   mkdir -p "$HOME"

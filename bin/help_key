@@ -38,6 +38,7 @@ show_ghostty() {
   kv "Cmd+Ctrl+B"         "Fold or unfold the herdr sidebar"
   kv "Cmd+Ctrl+C"         "Next dark background colour (ghostty-bg-cycle)"
   kv "Cmd+Ctrl+L"         "Reorder issue board repositories (J/K move, d drops, q saves)"
+  kv "Cmd+Ctrl+P"         "Claude statusline in a right pane (again closes)"
   kv "Shift+Enter"        "Newline (Claude Code, etc.)"
 }
 
@@ -63,6 +64,7 @@ show_herdr() {
   kv "Cmd+Ctrl+B"         "Fold the sidebar"
   kv "Cmd+Ctrl+C"         "Next dark background colour"
   kv "Cmd+Ctrl+L"         "Reorder issue board repositories"
+  kv "Cmd+Ctrl+P"         "Claude statusline pane"
 }
 
 show_cmux() {

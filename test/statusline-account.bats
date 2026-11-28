@@ -11,6 +11,8 @@
 # bash 3.2 errexit skips both, so those forms silently pass mid-test.
 
 setup() {
+  # Inside herdr the statusline writes to a file instead of stdout.
+  unset HERDR_PANE_ID
   TEST_DIR="$(mktemp -d /private/tmp/sl-acct-test.XXXXXX)"
   export HOME="$TEST_DIR/home"
   # clp/clw export this in the developer's shell. Leaving it set makes the
