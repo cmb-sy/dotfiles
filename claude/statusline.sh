@@ -8,7 +8,6 @@ set -o pipefail
 
 RST=$'\e[0m'                  # Reset all attributes
 WHT=$'\e[1;38;5;255m'         # Bright white  - labels, separators
-GRAY=$'\e[38;5;242m'          # Muted gray    - progress bar empty slots
 C_RESET_ETA=$'\e[38;5;249m'  # Light gray    - time until reset
 C_MODEL=$'\e[1;38;5;183m'     # Lavender      - model name
 C_CTX=$'\e[38;5;114m'         # Mint green    - context window metrics
@@ -35,17 +34,6 @@ has_val() { [ -n "$1" ] && [ "$1" != "null" ]; }
 # Drop trailing context-window hint from model label, e.g. " (1M)" or " （1M）"
 strip_model_suffix() {
   printf '%s' "$1" | sed -E 's/[[:space:]]*(\([^)]*\)|（[^）]*）)$//'
-}
-
-# Render a progress bar: filled blocks (█) in accent color, empty slots (▒) in gray
-# Usage: bar <percent> <width> <color>
-bar() {
-  local w="${2:-12}" col="$3" filled=$(( $1 * ${2:-12} / 100 )) i=0 out=""
-  while [ "$i" -lt "$w" ]; do
-    [ "$i" -lt "$filled" ] && out+="${col}█" || out+="${GRAY}▒"
-    i=$((i + 1))
-  done
-  printf '%s%s' "$out" "$RST"
 }
 
 # Format token count as human-readable (e.g., 170000 -> "170k")
@@ -213,7 +201,7 @@ if has_val "$USED"; then
     fi
     [ "$left" -lt 0 ] && left=0
     left=$(fmt_tokens "$left")
-    sec_ctx="${WHT}Ctx${RST} $(bar "$r" 12 "$C_CTX") ${C_CTX}${r}%${RST} ${C_CTX}(${left})${RST}"
+    sec_ctx="${WHT}Ctx${RST} ${C_CTX}${r}%${RST} ${C_CTX}(${left})${RST}"
   fi
 fi
 
