@@ -15,7 +15,8 @@
 # workspace lists with the transcripts (<root>/projects/*/<session>.jsonl).
 # A tab's issue is "#N" in its label, else a word of 2-5 digits; its repository
 # is the origin of an agent's cwd, and tabs on one issue of one repository
-# share a row. The state is only the marker leading the tab label, as long as
+# share a row. The state is only the marker leading the tab label (else the
+# workspace label), as long as
 # it is in the user's set; nothing else decides it. The summary is the
 # conclusion of Claude's last reply heading ("## 【完了】 結論"), else the rest
 # of the label beside the issue's title. Rows and repositories go newest first;
@@ -437,6 +438,8 @@ def build(t, me):
     files = transcripts({session(a) for a in agents} - {None})
     mapped = repo_map()
     marks = markers()
+    ws_marks = {text(w.get("workspace_id")): split_marker(clean(text(w.get("label"))), marks)[0]
+                for w in workspaces}
 
     groups = {}
     for tab in tabs:
@@ -456,6 +459,8 @@ def build(t, me):
         # The marker leads the label, so the issue is read from what follows it.
         marker, label = split_marker(clean(text(tab.get("label"))), marks)
         wid = text(tab.get("workspace_id"))
+        # Markers used to sit on workspace names; one there still counts when the tab has none.
+        marker = marker or ws_marks.get(wid, "")
         number = issue_number(label)
         repo = None
         if number:
