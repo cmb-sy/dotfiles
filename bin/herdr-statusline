@@ -21,6 +21,12 @@ LABEL = "statusline"
 RATIO = "0.8"
 REFRESH = 1.0
 ESC = re.compile(r"\x1b\[[0-9;]*m")
+# Control characters (ESC included): file contents must not drive the terminal.
+CONTROL = re.compile(r"[\x00-\x1f\x7f-\x9f]")
+
+
+def clean(s):
+    return CONTROL.sub("", ESC.sub("", s))
 
 
 class HerdrError(Exception):
@@ -155,8 +161,8 @@ def agents(transcript):
                 meta = json.load(f)
         except (OSError, ValueError):
             meta = {}
-        label = text(meta.get("name")) or text(meta.get("agentType")) or name[6:-6][:12]
-        desc = text(meta.get("description"))
+        label = clean(text(meta.get("name")) or text(meta.get("agentType")) or name[6:-6])[:24]
+        desc = clean(text(meta.get("description")))[:80]
         found.append((age > BUSY_SECONDS, age, label, desc))
     found.sort()
     out = ["Agents\t%s %s%s" % ("○" if idle else "●", label, "  " + desc if desc else "")
@@ -194,15 +200,16 @@ def lines(pid):
     for line in got:
         head, tab, value = line.partition("\t")
         if not tab:
-            out.append(line)
+            out.append(clean(line))
             continue
+        head = clean(head)
         if head != last:
             if out:
                 out.append("")
             out.append("\x1b[%sm%s\x1b[0m" % (HEADING, head))
             last = head
         m = PERCENT.search(value) if head in BARRED else None
-        out.append(" " + (bar(int(m.group(1))) + " " if m else "") + ESC.sub("", value))
+        out.append(" " + (bar(int(m.group(1))) + " " if m else "") + clean(value))
     return out
 
 

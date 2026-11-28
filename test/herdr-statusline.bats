@@ -143,6 +143,17 @@ sys.stdout.write(out.decode())' "$CMD" "$1" "$2"
   [ "$(printf '%s\n' "$plain" | grep -c -e old -e transcript)" -eq 0 ]
 }
 
+@test "panel: ファイルや subagent の名前に入った制御文字は端末へ渡さない" {
+  mkdir -p "$HERDR_STATUSLINE_DIR" "$TEST_TMPDIR/s1/subagents"
+  printf '{"name":"ev\\u001b]0;pwn\\u0007il"}' > "$TEST_TMPDIR/s1/subagents/agent-a1.meta.json"
+  : > "$TEST_TMPDIR/s1/subagents/agent-a1.jsonl"
+  printf 'Mo\033[2Jdel\tO\033]0;x\007pus\n#transcript\t%s\n' "$TEST_TMPDIR/s1.jsonl" > "$HERDR_STATUSLINE_DIR/w1:p2"
+  panel_run w1:p2 "il"
+  printf '%s\n' "$output" | grep -qxF "status=0"
+  [ "$(printf '%s' "$output" | grep -c -e $'\e]0' -e $'\e\[2J' -e $'\a')" -eq 0 ]
+  printf '%s' "$output" | grep -qF "ev]0;pwnil"
+}
+
 @test "panel: ファイルがまだ無ければ待っていると出す" {
   panel_run w1:p2 "Waiting"
   printf '%s\n' "$output" | grep -qxF "status=0"
