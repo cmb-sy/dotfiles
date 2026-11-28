@@ -820,7 +820,7 @@ def live():
             stop, events, pending = read_input(pending + data)
             for event in events:
                 if event[0] == "move" and order:
-                    index = max(0, min(chosen[1] + event[1], len(order) - 1))
+                    index = (chosen[1] + event[1]) % len(order)  # past either end wraps round
                     chosen = (order[index], index)
                 elif event[0] == "enter" and chosen[0]:
                     focus(chosen[0])

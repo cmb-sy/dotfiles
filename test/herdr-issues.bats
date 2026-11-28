@@ -812,11 +812,11 @@ two_repos() {
   log_at s3 180
 }
 
-@test "↑↓ と j/k でカーソルを動かし、見出しや空行は飛ばして端で止まる" {
+@test "↑↓ と j/k でカーソルを動かし、見出しや空行は飛ばし、端からは反対の端へ回る" {
   two_repos
   run board 24 100 "wait:↑↓ で選ぶ・Enter で移動・クリックでも移動・q で終了" cursor:alpha \
-    key:j cursor:beta 'key:\e[B' cursor:gamma key:j cursor:gamma \
-    key:k cursor:beta 'key:\e[A' cursor:alpha key:k cursor:alpha key:q
+    key:j cursor:beta 'key:\e[B' cursor:gamma key:j cursor:alpha \
+    key:k cursor:gamma 'key:\e[A' cursor:beta key:k cursor:alpha key:q
   [ "${lines[0]}" = "status=0" ]
   no_missed
   [ ! -e "$TEST_TMPDIR/calls" ]
