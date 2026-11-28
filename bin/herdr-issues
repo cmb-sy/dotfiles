@@ -553,6 +553,12 @@ def pad(s, n):
     return s + " " * (n - width(s))
 
 
+def centre(s, n):
+    # Markers sit in the middle of their column, so a lone one lines up under a pair.
+    left = (n - width(s)) // 2
+    return " " * left + pad(s, n - left)
+
+
 def paint(pieces, color, limit=None):
     # Join (text, style) pieces; a line wider than `limit` is cut and ends in "…".
     if limit is not None and sum(width(p) for p, _ in pieces) > limit:
@@ -597,10 +603,10 @@ def table(rows, t, band=None):
         for r in group:
             # Rows sit indented under their heading.
             pieces = [("  ", None)]
-            for value, w in zip(cells(r, t), widths):
+            for i, (value, w) in enumerate(zip(cells(r, t), widths)):
                 # A column with nothing in any row (no markers at all) takes no room.
                 if w:
-                    pieces += [(pad(value, w), "1"), ("  ", None)]
+                    pieces += [(centre(value, w) if i == 1 else pad(value, w), "1"), ("  ", None)]
             lines.append((pieces + [(r["summary"], "1")], r["tab"]))
     return lines
 

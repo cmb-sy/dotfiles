@@ -301,6 +301,16 @@ no_missed() { [ "$(printf '%s\n' "$output" | grep -c '^missed=')" -eq 0 ]; }
   cells | grep -qxF "|#2497|🥉 ✅|3分前"
 }
 
+@test "印の列は中央にそろえ、1 つだけの印も 2 つ並びの真ん中に置く" {
+  state "$(ws w1 dxp)" "$(tab w1:t1 '2413 🥇 📤'),$(tab w1:t2 '2410 ✅')" "$(ag w1:t1 idle s1),$(ag w1:t2 idle s2)"
+  log_at s1 60
+  log_at s2 120
+  run "$CMD" --once
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$output" | grep -qxF "  #2413  🥇 📤  1分前"
+  printf '%s\n' "$output" | grep -qxF "  #2410   ✅    2分前"
+}
+
 @test "どのタブにも印が無ければ状態の列を詰める" {
   state "$(ws w1 🟢app)" "$(tab w1:t1 alpha)" "$(ag w1:t1 idle s1)"
   log_at s1 60
