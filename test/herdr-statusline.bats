@@ -192,6 +192,36 @@ sys.stdout.write(out.decode())' "$CMD"
   printf '%s' "$output" | grep -qF $'\e[?1003l'
 }
 
+@test "panel: q を含む貼り付けでは閉じず、q 1 文字で閉じる" {
+  mkdir -p "$HERDR_STATUSLINE_DIR"
+  printf 'Model\tOpus\n' > "$HERDR_STATUSLINE_DIR/w1:p2"
+  run python3 -c '
+import fcntl, os, pty, select, struct, sys, termios, time
+pid, fd = pty.fork()
+if pid == 0:
+    fcntl.ioctl(0, termios.TIOCSWINSZ, struct.pack("HHHH", 30, 40, 0, 0))
+    os.execv(sys.argv[1], [sys.argv[1], "panel", "w1:p2"])
+def drain(seconds):
+    end = time.time() + seconds
+    while time.time() < end:
+        try:
+            if select.select([fd], [], [], 0.1)[0]:
+                os.read(fd, 65536)
+        except OSError:
+            return
+drain(1.5)
+os.write(fd, b"/tmp/screenshot quick.png")
+drain(1.5)
+print("after-paste=%d" % os.waitpid(pid, os.WNOHANG)[0])
+os.write(fd, b"q")
+end = time.time() + 5
+while not os.waitpid(pid, os.WNOHANG)[0] and time.time() < end:
+    drain(0.1)
+print("closed")' "$CMD"
+  printf '%s\n' "$output" | grep -qxF "after-paste=0"
+  printf '%s\n' "$output" | grep -qxF "closed"
+}
+
 @test "panel: ファイルがまだ無ければ待っていると出す" {
   panel_run w1:p2 "Waiting"
   printf '%s\n' "$output" | grep -qxF "status=0"

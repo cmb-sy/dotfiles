@@ -285,7 +285,9 @@ def panel(pid):
                 for m in MOUSE.finditer(data):
                     hover = int(m.group(2))
                 data = MOUSE.sub(b"", data)
-                if b"q" in data or b"\x03" in data:
+                # Only a lone q or Ctrl-C closes it; a paste that lands here
+                # (focus follows a click) must not.
+                if data in (b"q", b"\x03"):
                     return 0
     except KeyboardInterrupt:
         return 0
