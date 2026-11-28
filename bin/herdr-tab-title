@@ -4,7 +4,7 @@
 #   herdr-tab-title <name...>
 #
 # Outside herdr this is a no-op. Names are cut to 20 characters (not bytes);
-# a trailing state mark on the current label is kept.
+# the current label's leading marker (herdr-mark) and trailing state mark are kept.
 
 set -euo pipefail
 
@@ -21,11 +21,13 @@ herdr="${HERDR_BIN:-herdr}"
 command -v "$herdr" >/dev/null 2>&1 || exit 0
 
 # The current label's trailing state mark (📤 🪵 🔥 ✅, set by github-sync / next-task)
-# survives the rename, so the tab keeps showing the issue's state.
+# survives the rename, so the tab keeps showing the issue's state. So does a
+# leading marker from the user's set, which herdr-issues shows as the state.
 current="$("$herdr" tab list 2>/dev/null || true)"
-name="$(python3 - "$name" "$HERDR_TAB_ID" "$current" <<'PY'
+marks="${HERDR_MARKS_FILE:-$HOME/.local/state/herdr/marks.tsv}"
+name="$(python3 - "$name" "$HERDR_TAB_ID" "$current" "$marks" <<'PY'
 import json, re, sys
-name, tab_id, raw = sys.argv[1][:20], sys.argv[2], sys.argv[3]
+name, tab_id, raw, marks = sys.argv[1][:20], sys.argv[2], sys.argv[3], sys.argv[4]
 mark_re = re.compile(r"\s*(📤|🪵|🔥|✅)\ufe0f?$")
 try:
     tabs = json.loads(raw)["result"]["tabs"]
@@ -35,6 +37,15 @@ except (ValueError, KeyError, TypeError, StopIteration):
 m = mark_re.search(label)
 if m and not mark_re.search(name):
     name = f"{name} {m.group(1)}"
+try:
+    with open(marks, encoding="utf-8") as f:
+        markers = [line.split("\t")[0].strip() for line in f]
+except OSError:
+    markers = []
+# The longest first, so a marker is not mistaken for a shorter one it starts with.
+lead = next((k for k in sorted(markers, key=len, reverse=True) if k and label.startswith(k)), "")
+if lead and not name.startswith(lead):
+    name = lead + name
 print(name)
 PY
 )"

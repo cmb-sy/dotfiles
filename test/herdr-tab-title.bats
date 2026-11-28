@@ -15,6 +15,9 @@ EOF
   chmod +x "$TEST_TMPDIR/herdr"
   export HERDR_BIN="$TEST_TMPDIR/herdr"
   export HERDR_TAB_ID="tab-1"
+  # The user's marker set (herdr-mark); never the real one.
+  export HERDR_MARKS_FILE="$TEST_TMPDIR/marks.tsv"
+  printf '%s\t%s\n' '📤' '返事待ち' '🤖' '対応中' > "$HERDR_MARKS_FILE"
   CMD="$BATS_TEST_DIRNAME/../bin/herdr-tab-title"
 }
 
@@ -63,4 +66,32 @@ teardown() { rm -rf "$TEST_TMPDIR"; }
   [ "$(tail -n1 "$TEST_TMPDIR/calls")" = "名前" ]
   FAKE_TABS='not json' run "$CMD" 名前2
   [ "$(tail -n1 "$TEST_TMPDIR/calls")" = "名前2" ]
+}
+
+@test "今のタブ名の先頭の印は、新しい名前の先頭に引き継ぐ" {
+  FAKE_TABS='{"result":{"tabs":[{"tab_id":"tab-1","label":"📤2488 旧名"}]}}' run "$CMD" 2488 etlデプロイ
+  [ "$status" -eq 0 ]
+  [ "$(tail -n1 "$TEST_TMPDIR/calls")" = "📤2488 etlデプロイ" ]
+}
+
+@test "先頭の印と末尾の状態の印は両方とも引き継ぐ" {
+  FAKE_TABS='{"result":{"tabs":[{"tab_id":"tab-1","label":"🤖2488 🔥"}]}}' run "$CMD" 2488 etl
+  [ "$(tail -n1 "$TEST_TMPDIR/calls")" = "🤖2488 etl 🔥" ]
+}
+
+@test "先頭の記号が印の一覧に無ければ引き継がない" {
+  FAKE_TABS='{"result":{"tabs":[{"tab_id":"tab-1","label":"🔵旧名"}]}}' run "$CMD" 名前
+  [ "$(tail -n1 "$TEST_TMPDIR/calls")" = "名前" ]
+}
+
+@test "新しい名前が同じ印で始まっていれば重ねない" {
+  FAKE_TABS='{"result":{"tabs":[{"tab_id":"tab-1","label":"📤旧名"}]}}' run "$CMD" 📤新名
+  [ "$(tail -n1 "$TEST_TMPDIR/calls")" = "📤新名" ]
+}
+
+@test "印の一覧が無ければ先頭の印は引き継がない" {
+  FAKE_TABS='{"result":{"tabs":[{"tab_id":"tab-1","label":"📤旧名"}]}}' \
+    HERDR_MARKS_FILE="$TEST_TMPDIR/missing.tsv" run "$CMD" 名前
+  [ "$status" -eq 0 ]
+  [ "$(tail -n1 "$TEST_TMPDIR/calls")" = "名前" ]
 }
