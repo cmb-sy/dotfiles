@@ -36,6 +36,7 @@ show_ghostty() {
   kv "Cmd+Ctrl+H"         "This cheat sheet in a herdr pane (q to close)"
   kv "Cmd+Ctrl+I"         "Issue board (herdr-issues): click a row to jump to that tab"
   kv "Cmd+Ctrl+B"         "Fold or unfold the herdr sidebar"
+  kv "Cmd+Ctrl+D"         "Next dark background shade (ghostty-bg-cycle)"
   kv "Shift+Enter"        "Newline (Claude Code, etc.)"
 }
 

@@ -1,0 +1,41 @@
+#!/bin/bash
+# Step the dark-mode background of Ghostty to the next shade, then reload.
+#
+#   ghostty-bg-cycle          move to the next shade
+#   ghostty-bg-cycle show     print the current shade
+#
+# Bound to Cmd+Ctrl+D (Ghostty sends ctrl+F8, herdr runs this in a pane).
+# The shades are terminal/ghostty/themes/Mocha *: Catppuccin Mocha with only
+# the background changed, so text colours stay the same. The light theme is
+# untouched. The choice lives in a state file outside the repo, which the
+# Ghostty config loads last, so cycling never dirties the tracked config.
+
+set -euo pipefail
+
+SHADES=("Catppuccin Mocha" "Mocha Mantle" "Mocha Crust" "Mocha Neutral" "Mocha Ink" "Mocha Black")
+STATE="${GHOSTTY_BG_STATE:-$HOME/.local/state/ghostty/background.conf}"
+
+current() {
+  [ -f "$STATE" ] && sed -n 's/^theme = .*dark:\(.*\)$/\1/p' "$STATE" | head -1 || true
+}
+
+cur="$(current)"; cur="${cur:-${SHADES[0]}}"
+if [ "${1:-}" = "show" ]; then echo "$cur"; exit 0; fi
+[ $# -eq 0 ] || { sed -n '2,5p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2; }
+
+next="${SHADES[0]}"
+for i in "${!SHADES[@]}"; do
+  if [ "${SHADES[$i]}" = "$cur" ]; then
+    next="${SHADES[$(( (i + 1) % ${#SHADES[@]} ))]}"
+    break
+  fi
+done
+
+mkdir -p "$(dirname "$STATE")"
+printf 'theme = light:Catppuccin Latte,dark:%s\n' "$next" > "$STATE"
+
+# Reload through Ghostty's AppleScript interface; the config does not watch files.
+osascript -e 'tell application "Ghostty" to perform action "reload_config" on focused terminal of selected tab of front window' >/dev/null 2>&1 \
+  || echo "reload failed: press Cmd+Shift+, to apply" >&2
+
+echo "$next"
