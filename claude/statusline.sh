@@ -299,10 +299,11 @@ if [ -s "$HANDY_SETTINGS" ]; then
 fi
 
 # ==============================================================================
-# [7] Assemble sections with separator and output, each line pushed to the
-# right edge. Widths come from unicodedata (wide and emoji count 2, combining
-# and variation selectors 0); wc -m counts the clock emoji as 1 and ran past
-# the edge. A line wider than $COLUMNS, or no $COLUMNS, stays left.
+# [7] Assemble sections with separator and output. The clock is rendered
+# inline as the final section rather than right-aligned — a prior right-pad-
+# to-terminal-width approach undercounted the clock emoji's display width
+# (wc -m counts it as 1 column, terminals render it as 2), so the line ran
+# past the real width and Claude Code's UI clipped the clock off entirely.
 # ==============================================================================
 
 sec_time="${WHT}🕐 $(date +%H:%M)${RST}"
@@ -318,18 +319,4 @@ for s in "$sec_dir" "$sec_time"; do
   [ -n "$s" ] && line2="${line2:+${line2}${SEP}}${s}"
 done
 [ -n "$line2" ] && out="${out}"$'\n'"${line2}"
-printf '%s\n' "$out" | python3 -I -c '
-import os, re, sys, unicodedata
-try:
-    cols = int(os.environ.get("COLUMNS") or 0)
-except ValueError:
-    cols = 0
-def width(s):
-    s = re.sub(r"\x1b\[[0-9;]*m", "", s)
-    return sum(0 if unicodedata.category(c) in ("Mn", "Me", "Cf") or 0xFE00 <= ord(c) <= 0xFE0F
-               else 2 if unicodedata.east_asian_width(c) in ("W", "F") else 1 for c in s)
-for line in sys.stdin.read().splitlines():
-    # Two columns spare: Claude Code clips a line that touches the edge.
-    pad = cols - width(line) - 2
-    print(" " * pad + line if pad > 0 else line)
-' || printf '%s\n' "$out"
+printf '%s\n' "$out"
