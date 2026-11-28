@@ -73,7 +73,6 @@ eval "$(echo "$input" | jq -r '
   @sh "MODE=\(.output_style.name // .agent.name // "")",
   @sh "EFFORT=\(.effort.level // "medium")",
   @sh "SESSION_ID=\(.session_id // "")",
-  @sh "TRANSCRIPT=\(.transcript_path // "")",
   @sh "U5_PCT=\((.rate_limits.five_hour.used_percentage | floor?) // "")",
   @sh "R5_TS=\(.rate_limits.five_hour.resets_at // "")",
   @sh "U7_PCT=\((.rate_limits.seven_day.used_percentage | floor?) // "")",
@@ -351,8 +350,6 @@ if [ -n "${HERDR_PANE_ID:-}" ]; then
   elif [ -n "$pane_branch" ]; then
     add "Changes" "none"
   fi
-  # Not shown: tells the pane where this session's subagents live.
-  [ -n "$TRANSCRIPT" ] && panel+="#transcript"$'\t'"$TRANSCRIPT"$'\n'
   # Through a temporary file so the pane never reads half a write.
   if mkdir -p "$dir" 2>/dev/null && printf '%s\n' "$panel" >| "$file.tmp.$$" 2>/dev/null \
      && mv -f "$file.tmp.$$" "$file" 2>/dev/null; then

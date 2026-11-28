@@ -131,32 +131,13 @@ sys.stdout.write(out.decode())' "$CMD" "$1" "$2"
   printf '%s\n' "$plain" | sed -n 2p | grep -qE '^ State +[0-9]{2}:[0-9]{2}$'
 }
 
-@test "panel: セッションの subagent を working から並べ、古いものは出さず、# の行は見せない" {
-  mkdir -p "$HERDR_STATUSLINE_DIR" "$TEST_TMPDIR/s1/subagents"
-  sub="$TEST_TMPDIR/s1/subagents"
-  printf '{"name":"busy","description":"doing it"}' > "$sub/agent-a1.meta.json"; : > "$sub/agent-a1.jsonl"
-  printf '{"name":"rest"}' > "$sub/agent-a2.meta.json"; : > "$sub/agent-a2.jsonl"
-  touch -t "$(date -v-5M +%Y%m%d%H%M)" "$sub/agent-a2.jsonl"
-  printf '{"name":"old"}' > "$sub/agent-a3.meta.json"; : > "$sub/agent-a3.jsonl"
-  touch -t "$(date -v-3H +%Y%m%d%H%M)" "$sub/agent-a3.jsonl"
-  printf 'Model\tOpus\n#transcript\t%s\n' "$TEST_TMPDIR/s1.jsonl" > "$HERDR_STATUSLINE_DIR/w1:p2"
-  panel_run w1:p2 "○ rest"
-  printf '%s\n' "$output" | grep -qxF "status=0"
-  plain="$(printf '%s' "$output" | sed 's/\x1b\[[0-9;?]*[A-Za-z]//g' | tr -d '\r')"
-  [ "$(printf '%s\n' "$plain" | grep -A2 -x ' *Agents' | tail -2 | tr '\n' '|')" = "  ● busy|    doing it|" ]
-  printf '%s\n' "$plain" | grep -qxF "  ○ rest"
-  [ "$(printf '%s\n' "$plain" | grep -c -e old -e transcript)" -eq 0 ]
-}
-
-@test "panel: ファイルや subagent の名前に入った制御文字は端末へ渡さない" {
-  mkdir -p "$HERDR_STATUSLINE_DIR" "$TEST_TMPDIR/s1/subagents"
-  printf '{"name":"ev\\u001b]0;pwn\\u0007il"}' > "$TEST_TMPDIR/s1/subagents/agent-a1.meta.json"
-  : > "$TEST_TMPDIR/s1/subagents/agent-a1.jsonl"
-  printf 'Mo\033[2Jdel\tO\033]0;x\007pus\n#transcript\t%s\n' "$TEST_TMPDIR/s1.jsonl" > "$HERDR_STATUSLINE_DIR/w1:p2"
-  panel_run w1:p2 "il"
+@test "panel: ファイルに入った制御文字は端末へ渡さない" {
+  mkdir -p "$HERDR_STATUSLINE_DIR"
+  printf 'Mo\033[2Jdel\tO\033]0;x\007pus\n' > "$HERDR_STATUSLINE_DIR/w1:p2"
+  panel_run w1:p2 "pus"
   printf '%s\n' "$output" | grep -qxF "status=0"
   [ "$(printf '%s' "$output" | grep -c -e $'\e]0' -e $'\e\[2J' -e $'\a')" -eq 0 ]
-  printf '%s' "$output" | grep -qF "ev]0;pwnil"
+  printf '%s' "$output" | grep -qF "O]0;xpus"
 }
 
 @test "panel: ポインタが利用枠の行に乗ると 7d のリセット時刻も出す" {
