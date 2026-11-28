@@ -209,7 +209,7 @@ def build(pid, room, height, hover):
     clock = time.strftime("%H:%M")
     if frame and width(ESC.sub("", frame[0])) + 1 + len(clock) <= room + 1:
         frame[0] += " " * (room + 1 - width(ESC.sub("", frame[0])) - len(clock)) \
-            + "\x1b[%sm%s\x1b[0m" % (DIM, clock)
+            + "\x1b[1;97m%s\x1b[0m" % clock
     return frame
 
 
