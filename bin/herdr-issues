@@ -1,7 +1,8 @@
 #!/bin/bash
 # A live board of herdr tabs, one row per issue or tab under a heading per
-# repository, saying whose turn it is. Enter on the cursor row, or a click on
-# any row, focuses that tab.
+# repository: the issue or label, the marker the user put on the tab
+# (herdr-mark) with its meaning, the last activity and a summary. Enter on the
+# cursor row, or a click on any row, focuses that tab.
 #
 #   herdr-issues          redraw every 5 s; up/down or j/k move the cursor;
 #                         q or Ctrl-C quits
@@ -14,16 +15,18 @@
 # workspace lists with the transcripts (<root>/projects/*/<session>.jsonl).
 # A tab's issue is "#N" in its label, else a word of 2-5 digits; its repository
 # is the origin of an agent's cwd, and tabs on one issue of one repository
-# share a row. The state comes from herdr while Claude works or waits on a
-# permission, else from the tag of Claude's last reply heading
-# ("## 【要判断】 [作業名] 結論"), whose conclusion is the row's summary.
-# Rows needing the user come first in a repository, and repositories with the
-# most of them come first; rows quiet for over 14 days collapse into one count.
-# Tabs without a Claude agent and the board's own tab are left out.
+# share a row. The state is only the marker leading the tab label, as long as
+# it is in the user's set; nothing else decides it. The summary is the
+# conclusion of Claude's last reply heading ("## 【完了】 結論"), else the rest
+# of the label beside the issue's title. Rows and repositories go newest first;
+# rows quiet for over 14 days collapse into one count. Tabs without a Claude
+# agent and the board's own tab are left out.
 #
 # Overrides: HERDR_BIN, GH_BIN, HERDR_ISSUES_ROOTS (colon-separated dirs
 # holding projects/), HERDR_ISSUES_NOW (epoch seconds), HERDR_ISSUES_CACHE
-# (gh answers, kept 10 min), HERDR_ISSUES_REPOS ("<workspace> <owner/repo>" lines
+# (gh answers, kept 10 min), HERDR_MARKS_FILE (the markers, "<marker>\t<meaning>"
+# lines; default ~/.local/state/herdr/marks.tsv, shared with herdr-mark),
+# HERDR_ISSUES_REPOS ("<workspace> <owner/repo>" lines
 # for checkouts without a remote; default ~/.config/dotfiles-local/herdr-issues-repos),
 # HERDR_ISSUES_SOCKET (herdr's API socket, used to keep the board's
 # workspace first), HERDR_ISSUES_SELF (tab to leave out; by default
@@ -66,27 +69,21 @@ ROOTS = [r for r in (os.environ.get("HERDR_ISSUES_ROOTS")
 REPOS = os.environ.get("HERDR_ISSUES_REPOS") or os.path.join(
     HOME, ".config", "dotfiles-local", "herdr-issues-repos")
 CACHE = os.environ.get("HERDR_ISSUES_CACHE") or os.path.join(HOME, ".cache", "herdr-issues")
+# The user's markers, "<marker><TAB><meaning>" per line (bin/lib/herdr-marks.sh).
+MARKS_FILE = os.environ.get("HERDR_MARKS_FILE") or os.path.join(
+    HOME, ".local", "state", "herdr", "marks.tsv")
 DAY = 86400
 STALE_DAYS = 14
 CACHE_TTL = 600
 # A failed gh lookup is retried after this long, not on every redraw.
 RETRY_AFTER = 60
 
-# The heading every Claude reply starts with: "## 【要判断】 [作業名] 結論".
-HEADING = re.compile(r"^##\s*【(完了|要判断|失敗|回答)】\s*(?:\[[^\]\n]*\]\s*)?(.*?)\s*$", re.M)
+# The heading Claude's replies start with, "## 【完了】 [作業名] 結論"; only
+# the conclusion is used, so any tag and an absent [作業名] are fine.
+HEADING = re.compile(r"^##\s*【[^】\n]+】\s*(?:\[[^\]\n]*\]\s*)?(.*?)\s*$", re.M)
 HEADING_MARK = "【".encode()
 # How far back from the end of a transcript to look for the last reply heading.
 REPLY_SCAN = 2 << 20
-TAGS = {"要判断": "turn", "失敗": "fix", "完了": "done", "回答": "answered"}
-WORDS = {"turn": "あなたの番", "fix": "要対応", "working": "作業中", "done": "完了",
-         "closed": "片付け候補", "answered": "回答済み", "waiting": "待機"}
-COLORS = {"turn": "31", "fix": "31", "working": "34", "done": "32", "closed": "35",
-          "answered": "90", "waiting": "90"}
-MARKS = {"turn": "▶", "fix": "▶", "working": "●", "done": "✓"}
-# Place inside a repository: the user's turn first, idle answers last.
-PLACE = {"turn": 0, "fix": 0, "working": 1, "done": 2, "closed": 3, "answered": 4, "waiting": 4}
-# herdr's statuses, most urgent first; a merged row shows its most urgent tab.
-RANK = {"blocked": 0, "done": 1, "working": 2, "idle": 3}
 # A long tab label gives way so the other columns stay put.
 ISSUE_WIDTH = 24
 # Repository headings on a screen: bold bright white on one dark blue band.
@@ -250,7 +247,7 @@ def transcripts(sessions):
 
 
 def reply_heading(record):
-    # (tag, conclusion) of the heading in a reply of the session's own Claude, or None.
+    # The conclusion in the heading of a reply by the session's own Claude, or None.
     if not isinstance(record, dict) or record.get("type") != "assistant" \
             or record.get("isSidechain"):
         return None
@@ -262,7 +259,7 @@ def reply_heading(record):
         if isinstance(part, dict) and part.get("type") == "text" and isinstance(part.get("text"), str):
             m = HEADING.search(part["text"])
             if m:
-                return m.group(1), clean(m.group(2).replace("`", ""))
+                return clean(m.group(1).replace("`", ""))
     return None
 
 
@@ -282,7 +279,8 @@ def scan_reply(path, size):
             found = reply_heading(json.loads(line))
         except ValueError:
             continue
-        if found:
+        # The newest heading decides, even when its conclusion is empty.
+        if found is not None:
             return found
     return None
 
@@ -300,6 +298,26 @@ def last_reply(path):
     if path not in replies or replies[path][0] != stamp:
         replies[path] = (stamp, scan_reply(path, st.st_size))
     return replies[path][1]
+
+
+def markers():
+    # [(marker, meaning)] from the user's set, longest marker first so one is
+    # never taken for a shorter marker it starts with.
+    try:
+        with open(MARKS_FILE, encoding="utf-8", errors="replace") as f:
+            pairs = [line.rstrip("\n").split("\t", 1) for line in f]
+    except OSError:
+        return []
+    found = [(clean(p[0]), clean(p[1]) if len(p) > 1 else "") for p in pairs]
+    return sorted((p for p in found if p[0]), key=lambda p: -len(p[0]))
+
+
+def split_marker(label, marks):
+    # ("<marker> <meaning>" or "", the label after it).
+    for marker, meaning in marks:
+        if label.startswith(marker):
+            return " ".join(x for x in (marker, meaning) if x), label[len(marker):].strip()
+    return "", label
 
 
 def issue_number(label):
@@ -346,9 +364,8 @@ def repo_of(cwd):
 
 
 def valid(info):
-    if isinstance(info, dict) and isinstance(info.get("title"), str) \
-            and isinstance(info.get("state"), str):
-        return {"title": info["title"], "state": info["state"]}
+    if isinstance(info, dict) and isinstance(info.get("title"), str):
+        return {"title": info["title"]}
     return None
 
 
@@ -378,8 +395,7 @@ def store(path, info):
 
 def fetch(repo, number):
     try:
-        p = subprocess.run([GH, "issue", "view", str(number), "--repo", repo,
-                            "--json", "title,state"],
+        p = subprocess.run([GH, "issue", "view", str(number), "--repo", repo, "--json", "title"],
                            stdin=subprocess.DEVNULL, capture_output=True,
                            encoding="utf-8", errors="replace", timeout=20)
         return valid(json.loads(p.stdout)) if p.returncode == 0 else None
@@ -391,7 +407,7 @@ failed = {}
 
 
 def issue(key):
-    # The issue's title and state, or None when gh cannot tell.
+    # The issue's title, or None when gh cannot tell.
     repo, number = key
     path = os.path.join(CACHE, "%s_%d.json" % (repo.replace("/", "_"), number))
     info = cached(path)
@@ -413,13 +429,14 @@ def build(t, me):
 
     names = {}
     for w in workspaces:
-        # Workspace labels start with a marker emoji (herdr-mark).
+        # A workspace label may start with an emoji the user put there.
         names[text(w.get("workspace_id"))] = re.sub(r"^\W+", "", clean(text(w.get("label"))))
     members = {}
     for a in agents:
         members.setdefault(text(a.get("tab_id")), []).append(a)
     files = transcripts({session(a) for a in agents} - {None})
     mapped = repo_map()
+    marks = markers()
 
     groups = {}
     for tab in tabs:
@@ -427,8 +444,6 @@ def build(t, me):
         if not tid or tid == me or tid not in members:
             continue
         crew = members[tid]
-        status = min((text(a.get("agent_status")) for a in crew),
-                     key=lambda s: RANK.get(s, RANK["idle"]))
         # The newest transcript of the tab's agents gives its time and reply.
         last, path = None, None
         for a in crew:
@@ -438,7 +453,8 @@ def build(t, me):
                     path = p
                 if at is not None and (last is None or at > last):
                     last, path = at, p
-        label = clean(text(tab.get("label")))
+        # The marker leads the label, so the issue is read from what follows it.
+        marker, label = split_marker(clean(text(tab.get("label"))), marks)
         wid = text(tab.get("workspace_id"))
         number = issue_number(label)
         repo = None
@@ -450,7 +466,7 @@ def build(t, me):
         groups.setdefault(key, []).append({
             "tab": tid,
             "label": plain(label),
-            "status": status if status in RANK else "idle",
+            "marker": marker,
             "last": last,
             "path": path,
             "ws": names.get(wid) or "−",
@@ -460,8 +476,8 @@ def build(t, me):
 
     rows = []
     for group in groups.values():
-        # A row shows its most urgent tab, the newest among equals; a click goes there.
-        lead = min(group, key=lambda e: (RANK[e["status"]], e["last"] is None, -(e["last"] or 0)))
+        # A row shows a tab the user marked if any, the newest among them; a click goes there.
+        lead = max(group, key=lambda e: (bool(e["marker"]), e["last"] is not None, e["last"] or 0))
         known = [e["last"] for e in group if e["last"] is not None]
         rows.append(dict(lead, last=max(known) if known else None, count=len(group)))
 
@@ -472,18 +488,7 @@ def build(t, me):
         infos = dict(zip(lookups, pool.map(issue, lookups)))
     for r in fresh:
         info = infos.get((r["repo"], r["number"]))
-        tag, conclusion = (last_reply(r["path"]) if r["path"] else None) or (None, "")
-        if r["status"] == "working":
-            r["state"] = "working"
-        elif r["status"] == "blocked":
-            r["state"] = "turn"
-        else:
-            r["state"] = TAGS.get(tag, "waiting")
-        r["unread"] = r["status"] == "done"
-        # A closed issue is left over once nothing is running, unread or waiting on the user.
-        if info and info["state"].upper() == "CLOSED" and r["status"] == "idle" \
-                and r["state"] in ("done", "answered", "waiting"):
-            r["state"] = "closed"
+        conclusion = last_reply(r["path"]) if r["path"] else None
         if r["number"]:
             r["ident"] = "#%d" % r["number"] + (" (%dタブ)" % r["count"] if r["count"] > 1 else "")
             # The label stays beside the title so a title from the wrong repository shows.
@@ -496,20 +501,20 @@ def build(t, me):
     return fresh, len(rows) - len(fresh)
 
 
+def newest(r):
+    # Sort key: the most recent activity first, unknown times last.
+    return r["last"] is None, -(r["last"] or 0)
+
+
 def sections(rows):
-    # [(repository, rows)]: repositories with the most rows on the user's turn
-    # first, then the most recent.
+    # [(repository, rows)], newest first both ways: a repository goes by its
+    # newest row.
     by = {}
     for r in rows:
         by.setdefault(r["ws"], []).append(r)
-    out = []
-    for name, group in by.items():
-        group.sort(key=lambda r: (PLACE[r["state"]], r["last"] is None, -(r["last"] or 0)))
-        turns = sum(PLACE[r["state"]] == 0 for r in group)
-        latest = max((r["last"] for r in group if r["last"] is not None), default=None)
-        out.append((-turns, latest is None, -(latest or 0), name, group))
-    out.sort(key=lambda s: s[:3])
-    return [(name, group) for _, _, _, name, group in out]
+    for group in by.values():
+        group.sort(key=newest)
+    return sorted(by.items(), key=lambda item: newest(item[1][0]))
 
 
 def cell_width(c):
@@ -569,8 +574,7 @@ def when(at, t):
 
 
 def cells(r, t):
-    return (shorten(r["ident"], ISSUE_WIDTH), WORDS[r["state"]] + (" 未読" if r["unread"] else ""),
-            when(r["last"], t))
+    return shorten(r["ident"], ISSUE_WIDTH), r["marker"], when(r["last"], t)
 
 
 def table(rows, t, band=None):
@@ -584,15 +588,11 @@ def table(rows, t, band=None):
             lines.append(([], None))
         lines.append(([(pad(" %s " % name, band), HEADING_STYLE)] if band else [(name, "1")], None))
         for r in group:
-            ident, state, ago = cells(r, t)
-            color = "1;" + COLORS[r["state"]]
-            pieces = [(MARKS.get(r["state"], " ") + " ", color), (pad(ident, widths[0]), "1"),
-                      ("  ", None), (WORDS[r["state"]], color)]
-            if r["unread"]:
-                pieces.append((" 未読", "1;33"))
-            pieces += [(" " * (widths[1] - width(state)) + "  ", None),
-                       (pad(ago, widths[2]), "1"), ("  ", None), (r["summary"], "1")]
-            lines.append((pieces, r["tab"]))
+            # Rows sit indented under their heading.
+            pieces = [("  ", None)]
+            for value, w in zip(cells(r, t), widths):
+                pieces += [(pad(value, w), "1"), ("  ", None)]
+            lines.append((pieces + [(r["summary"], "1")], r["tab"]))
     return lines
 
 
