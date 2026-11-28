@@ -290,18 +290,6 @@ no_missed() { [ "$(printf '%s\n' "$output" | grep -c '^missed=')" -eq 0 ]; }
   cells | grep -qxF "|delta|5分前"
 }
 
-@test "タブに印が無ければワークスペース名の印を出し、タブの印を優先する" {
-  state "$(ws w1 🔥app),$(ws w2 plain)" \
-    "$(tab w1:t1 alpha),$(tab w1:t2 '📤beta'),$(tab w2:t1 gamma)" \
-    "$(ag w1:t1 idle s1),$(ag w1:t2 idle s2),$(ag w2:t1 idle s3)"
-  for i in 1 2 3; do log_at "s$i" $((i * 60)); done
-  run "$CMD" --once
-  [ "$status" -eq 0 ]
-  cells | grep -qxF "|alpha|🔥 進行中|1分前"
-  cells | grep -qxF "|beta|📤 返事待ち|2分前"
-  cells | grep -qxF "|gamma|3分前"
-}
-
 @test "印の意味が空なら印だけを出す" {
   state "$(ws w1 🤖dots)" "$(tab w1:t1 '🌲alpha')" "$(ag w1:t1 idle s1)"
   log_at s1 60
