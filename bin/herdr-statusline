@@ -134,8 +134,6 @@ def wrap(line, room, indent="   "):
 HEADING = "1;34"
 DIM = "90"
 STATE_MARK = {"working": "●", "blocked": "!", "idle": "○"}
-# Groups whose values start with a percentage get a small bar before them.
-BARRED = ("Context left", "Usage left")
 BAR = 8
 PERCENT = re.compile(r"(\d{1,3})%")
 
@@ -201,9 +199,54 @@ def bar(percent):
     return "▰" * filled + "\x1b[%sm%s\x1b[0m" % (DIM, "▱" * (BAR - filled))
 
 
+# Two columns: a coloured label this wide, then the value.
+LABEL_WIDTH = 8
+# herdr's own state colours: idle green, working yellow, blocked red.
+STATE_STYLE = {"idle": "32", "working": "33", "blocked": "31"}
+LIMIT = re.compile(r"^(\S+) (\S+%)(?: \((.*)\))?$")
+
+
+def rows(got):
+    # (label, value) pairs from "<heading>\t<value>" lines, values coloured.
+    out, places, listed = [], 0, False
+    for line in got:
+        head, tab, value = line.partition("\t")
+        head, value = clean(head), clean(value)
+        if not tab:
+            out.append(("", head))
+        elif head == "State":
+            word = value.split()[-1] if value.split() else ""
+            out.append(("State", "\x1b[%sm%s\x1b[0m" % (STATE_STYLE.get(word, "1"), value)))
+        elif head == "Account":
+            out.append(("Account", value.split(" (")[0]))
+        elif head == "Context left":
+            m = PERCENT.search(value)
+            out.append(("Context", (bar(int(m.group(1))) + " " if m else "") + value))
+        elif head == "Usage left":
+            m = LIMIT.match(value)
+            if not m:
+                out.append(("Usage", value))
+                continue
+            p = PERCENT.search(m.group(2))
+            # The 7d reset is days away; its date is enough in this width.
+            reset = (m.group(3) or "").split(" ")[0]
+            out.append((m.group(1), (bar(int(p.group(1))) + " " if p else "") +
+                        " ".join(x for x in (m.group(2), reset) if x)))
+        elif head == "Location":
+            out.append(("Dir" if places == 0 else "Branch", value))
+            places += 1
+        elif head == "Agents":
+            if not listed:
+                out += [("", ""), ("Agents", "")]
+                listed = True
+            out.append(("", value))
+        else:
+            out.append((head, value))
+    return out
+
+
 def lines(pid):
-    # "<heading>\t<value>" lines become a heading over its indented values,
-    # with a blank line between groups; a line without a tab shows as it is.
+    # The rows of one frame: "<label>  <value>", the label in the heading colour.
     path = os.path.join(DIR, re.sub(r"[^A-Za-z0-9:_-]", "_", pid))
     try:
         with open(path, encoding="utf-8", errors="replace") as f:
@@ -219,21 +262,18 @@ def lines(pid):
     if now:
         got.insert(0, now)
     if not got:
-        return ["\x1b[%smWaiting for Claude\x1b[0m" % DIM]
-    out, last = [], None
-    for line in got:
-        head, tab, value = line.partition("\t")
-        if not tab:
-            out.append(clean(line))
-            continue
-        head = clean(head)
-        if head != last:
-            if out:
-                out.append("")
-            out.append("\x1b[%sm%s\x1b[0m" % (HEADING, head))
-            last = head
-        m = PERCENT.search(value) if head in BARRED else None
-        out.append(" " + (bar(int(m.group(1))) + " " if m else "") + clean(value))
+        return [("\x1b[%smWaiting for Claude\x1b[0m" % DIM, "")]
+    # (row, indent for its wrapped rest)
+    out = []
+    for label, value in rows(got):
+        if label == "Agents":
+            out.append(("\x1b[%smAgents\x1b[0m" % HEADING, ""))
+        elif label:
+            label = label[:LABEL_WIDTH]
+            out.append(("\x1b[%sm%s\x1b[0m%s%s" % (HEADING, label, " " * (LABEL_WIDTH - width(label) + 1),
+                                                   value), " " * (LABEL_WIDTH + 1)))
+        else:
+            out.append((value, "    "))
     return out
 
 
@@ -251,7 +291,8 @@ def panel(pid):
             size = os.get_terminal_size()
             # One spare column on each side.
             room = max(size.columns - 2, 4)
-            frame = [" " + row for l in lines(pid) for row in wrap(l, room)][:size.lines]
+            frame = [" " + row for l, indent in lines(pid)
+                     for row in wrap(l, room, indent)][:size.lines]
             if (frame, size) != last:
                 sys.stdout.write("\x1b[H" + "\x1b[K\r\n".join(frame) + "\x1b[K\x1b[J")
                 sys.stdout.flush()
