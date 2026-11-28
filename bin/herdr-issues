@@ -591,7 +591,9 @@ def table(rows, t, band=None):
             # Rows sit indented under their heading.
             pieces = [("  ", None)]
             for value, w in zip(cells(r, t), widths):
-                pieces += [(pad(value, w), "1"), ("  ", None)]
+                # A column with nothing in any row (no markers at all) takes no room.
+                if w:
+                    pieces += [(pad(value, w), "1"), ("  ", None)]
             lines.append((pieces + [(r["summary"], "1")], r["tab"]))
     return lines
 

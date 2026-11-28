@@ -290,6 +290,14 @@ no_missed() { [ "$(printf '%s\n' "$output" | grep -c '^missed=')" -eq 0 ]; }
   cells | grep -qxF "|delta|5分前"
 }
 
+@test "どのタブにも印が無ければ状態の列を詰める" {
+  state "$(ws w1 🟢app)" "$(tab w1:t1 alpha)" "$(ag w1:t1 idle s1)"
+  log_at s1 60
+  run "$CMD" --once
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$output" | grep -qxF "  alpha  1分前"
+}
+
 @test "印の意味が空なら印だけを出す" {
   state "$(ws w1 🤖dots)" "$(tab w1:t1 '🌲alpha')" "$(ag w1:t1 idle s1)"
   log_at s1 60
@@ -366,7 +374,7 @@ no_missed() { [ "$(printf '%s\n' "$output" | grep -c '^missed=')" -eq 0 ]; }
   log_at s3 180
   run "$CMD" --once
   [ "$status" -eq 0 ]
-  [ "$output" = "$(printf '%s\n' 'app' '  alpha    1分前' '  beta     2分前' '' 'lib' '  gamma    3分前')" ]
+  [ "$output" = "$(printf '%s\n' 'app' '  alpha  1分前' '  beta   2分前' '' 'lib' '  gamma  3分前')" ]
 }
 
 @test "見出しは最後に見出しを持つ返答から取り、利用者の発言やサブエージェントは見ない" {
@@ -414,7 +422,7 @@ no_missed() { [ "$(printf '%s\n' "$output" | grep -c '^missed=')" -eq 0 ]; }
   log_at s1 60
   run "$CMD" --once
   [ "$status" -eq 0 ]
-  [ "$output" = "$(printf '%s\n' 'dots' '  alpha    1分前')" ]
+  [ "$output" = "$(printf '%s\n' 'dots' '  alpha  1分前')" ]
 }
 
 @test "タブ名の絵文字や記号は出さない" {
@@ -477,10 +485,10 @@ no_missed() { [ "$(printf '%s\n' "$output" | grep -c '^missed=')" -eq 0 ]; }
   log_at s1 60
   run "$CMD" --once
   [ "$status" -eq 0 ]
-  cells | grep -qxF "|alpha|1分前|$(printf 'x%.0s' $(seq 1 141))…"
+  cells | grep -qxF "|alpha|1分前|$(printf 'x%.0s' $(seq 1 143))…"
   run env COLUMNS=40 "$CMD" --once
   [ "$status" -eq 0 ]
-  cells | grep -qxF "|alpha|1分前|$(printf 'x%.0s' $(seq 1 21))…"
+  cells | grep -qxF "|alpha|1分前|$(printf 'x%.0s' $(seq 1 23))…"
 }
 
 @test "14 日より前は最後の行で 放置 N 件 にまとめる" {
