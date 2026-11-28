@@ -108,13 +108,15 @@ sys.stdout.write(out.decode())' "$CMD" "$1" "$2"
 
 @test "panel: 見出しごとにまとめて間を 1 行空け、残りの割合には小さなバーを付ける" {
   mkdir -p "$HERDR_STATUSLINE_DIR"
-  printf 'Model\tOpus\nUsage left\t5h 25%%\nUsage left\t7d --%%\n' > "$HERDR_STATUSLINE_DIR/w1:p2"
+  printf 'Model\tOpus\nUsage left\t5h 25%%\nUsage left\t7d --%% (12/05 02:00)\n' > "$HERDR_STATUSLINE_DIR/w1:p2"
   panel_run w1:p2 "7d --%"
   printf '%s\n' "$output" | grep -qxF "status=0"
   plain="$(printf '%s' "$output" | sed 's/\x1b\[[0-9;?]*[A-Za-z]//g' | tr -d '\r')"
   [ "$(printf '%s\n' "$plain" | grep -c -e '^ *Model$' -e '^ *Usage left$')" -eq 2 ]
   printf '%s\n' "$plain" | grep -qxF "  Opus"
   printf '%s\n' "$plain" | grep -qxF "  ▰▰▱▱▱▱▱▱ 5h 25%"
+  # The 7d reset keeps its date only.
+  printf '%s\n' "$plain" | grep -qxF "  7d --% (12/05)"
   # One blank row between the groups.
   printf '%s\n' "$plain" | grep -A1 -xF "  Opus" | tail -1 | grep -qx " *"
 }

@@ -236,6 +236,9 @@ def lines(pid):
             last = head
         m = PERCENT.search(value) if head in BARRED else None
         value = clean(value)
+        if head == "Usage left":
+            # The 7d reset is days away: its date is enough, and the line fits.
+            value = re.sub(r"\((\d\d/\d\d) \d\d:\d\d\)", r"(\1)", value)
         if head == "State":
             word = value.split()[-1] if value.split() else ""
             value = "\x1b[%sm%s\x1b[0m" % (STATE_STYLE.get(word, "1"), value)
