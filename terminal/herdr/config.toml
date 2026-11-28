@@ -9,7 +9,7 @@ new_tab = "ctrl+f10"            # Cmd+Opt+T
 close_workspace = "shift+f10"   # Cmd+Opt+W
 previous_workspace = "ctrl+f11" # Cmd+Opt+Up
 next_workspace = "ctrl+f12"     # Cmd+Opt+Down
-toggle_sidebar = "ctrl+shift+f9" # Cmd+Ctrl+B
+toggle_sidebar = "ctrl+shift+f9" # Cmd+Ctrl+Left
 
 # lazygit in a throwaway pane: opens on Cmd+Ctrl+G, closes when lazygit exits.
 # Lets git state be reviewed visually instead of reading raw diffs.
@@ -37,7 +37,7 @@ command = 'sh -c "$HOME/dotfiles/bin/herdr-issues --jump"'
 # ignores the manual workspace order. Markers from bin/herdr-mark still show
 # in the row labels.
 agent_panel_sort = "priority"
-# A folded sidebar (Cmd+Ctrl+B) takes no width at all, not a numbered rail.
+# A folded sidebar (Cmd+Ctrl+Left) takes no width at all, not a numbered rail.
 sidebar_collapsed_mode = "hidden"
 
 # Background notifications. Change these with bin/herdr-notify, which edits the
@@ -86,8 +86,8 @@ key = "shift+f8"                # Cmd+Ctrl+L
 type = "pane"
 command = 'sh -c "$HOME/dotfiles/bin/herdr-issues --order"'
 
-# Claude Code's statusline in a pane on the right: Cmd+Ctrl+P opens it, again closes it.
+# Claude Code's statusline in a pane on the right: Cmd+Ctrl+Right opens it, again closes it.
 [[keys.command]]
-key = "alt+f8"                  # Cmd+Ctrl+P
+key = "alt+f8"                  # Cmd+Ctrl+Right
 type = "pane"
 command = 'sh -c "$HOME/dotfiles/bin/herdr-statusline toggle"'

@@ -35,10 +35,10 @@ show_ghostty() {
   kv "Cmd+Ctrl+G"         "lazygit in a herdr pane"
   kv "Cmd+Ctrl+H"         "This cheat sheet in a herdr pane (q to close)"
   kv "Cmd+Ctrl+I"         "Issue board (herdr-issues): click a row to jump to that tab"
-  kv "Cmd+Ctrl+B"         "Fold or unfold the herdr sidebar"
+  kv "Cmd+Ctrl+Left"      "Fold or unfold the herdr sidebar"
   kv "Cmd+Ctrl+C"         "Next dark background colour (ghostty-bg-cycle)"
   kv "Cmd+Ctrl+L"         "Reorder issue board repositories (J/K move, d drops, q saves)"
-  kv "Cmd+Ctrl+P"         "Claude statusline in a right pane (again closes)"
+  kv "Cmd+Ctrl+Right"     "Claude statusline in a right pane (again closes)"
   kv "Shift+Enter"        "Newline (Claude Code, etc.)"
 }
 
@@ -61,10 +61,10 @@ show_herdr() {
   kv "Cmd+Ctrl+G"         "lazygit in a throwaway pane (closes on exit)"
   kv "Cmd+Ctrl+H"         "This cheat sheet (q to close)"
   kv "Cmd+Ctrl+I"         "Issue board (herdr-issues)"
-  kv "Cmd+Ctrl+B"         "Fold the sidebar"
+  kv "Cmd+Ctrl+Left"      "Fold the sidebar"
   kv "Cmd+Ctrl+C"         "Next dark background colour"
   kv "Cmd+Ctrl+L"         "Reorder issue board repositories"
-  kv "Cmd+Ctrl+P"         "Claude statusline pane"
+  kv "Cmd+Ctrl+Right"     "Claude statusline pane"
 }
 
 show_cmux() {

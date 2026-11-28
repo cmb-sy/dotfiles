@@ -2,7 +2,7 @@
 """Claude Code's statusline in a pane on the right of the agent pane.
 
   herdr-statusline toggle        open the pane beside this tab's agent pane, or
-                                 close it when the tab has one (Cmd+Ctrl+P)
+                                 close it when the tab has one (Cmd+Ctrl+Right)
   herdr-statusline panel <pane>  show that pane's statusline; q closes it
 
 claude/statusline.sh writes the lines to $HERDR_STATUSLINE_DIR/<pane id>
