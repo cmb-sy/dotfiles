@@ -37,6 +37,8 @@ command = 'sh -c "$HOME/dotfiles/bin/herdr-issues --jump"'
 # ignores the manual workspace order. Markers from bin/herdr-mark still show
 # in the row labels.
 agent_panel_sort = "priority"
+# A folded sidebar (Cmd+Ctrl+B) takes no width at all, not a numbered rail.
+sidebar_collapsed_mode = "hidden"
 
 # Background notifications. Change these with bin/herdr-notify, which edits the
 # values below and reloads the server.
