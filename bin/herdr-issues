@@ -61,7 +61,7 @@ if ! command -v "$herdr" >/dev/null 2>&1; then
 fi
 
 IFS= read -r -d '' program <<'PY' || true
-import json, os, re, select, signal, subprocess, sys, termios, time, tty, unicodedata
+import json, os, re, select, signal, subprocess, sys, termios, threading, time, tty, unicodedata
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
@@ -684,19 +684,27 @@ def write(s):
     sys.stdout.flush()
 
 
-def draw(me, size, chosen):
-    # Paint one frame from the top left. `chosen` is the cursor's (tab id, index):
-    # it stays on its tab, or on its index when that tab is gone. Returns
-    # {screen row: tab id}, the tabs of the rows drawn in order, and the cursor.
+def fetch_board(me):
+    # (time, rows, stale count, error or None): the slow part of a frame, done
+    # on the timer only so a key press repaints without waiting on it.
     t = now()
-    note = "  %s 更新  ↑↓ で選ぶ・Enter で移動・クリックでも移動・q で終了" \
-        % time.strftime("%H:%M:%S", time.localtime(t))
-    screen = [([("issue 一覧", "1;4"), (note, "90")], None), ([], None)]
     try:
         rows, stale = build(t, me)
     except HerdrError as e:
-        screen.append(([("herdr の状態を読めません: %s" % e, "31")], None))
-        stale = 0
+        return t, [], 0, e
+    return t, rows, stale, None
+
+
+def draw(data, size, chosen):
+    # Paint one frame from the top left. `chosen` is the cursor's (tab id, index):
+    # it stays on its tab, or on its index when that tab is gone. Returns
+    # {screen row: tab id}, the tabs of the rows drawn in order, and the cursor.
+    t, rows, stale, error = data
+    note = "  %s 更新  ↑↓ で選ぶ・Enter で移動・クリックでも移動・q で終了" \
+        % time.strftime("%H:%M:%S", time.localtime(t))
+    screen = [([("issue 一覧", "1;4"), (note, "90")], None), ([], None)]
+    if error is not None:
+        screen.append(([("herdr の状態を読めません: %s" % error, "31")], None))
     else:
         # One column spare, as for every line below.
         lines = table(rows, t, size.columns - 1) or [([("Claude のタブがありません", "90")], None)]
@@ -833,13 +841,28 @@ def live():
         tty.setraw(fd)
         write("\x1b[?1049h\x1b[?25l\x1b[?1000h\x1b[?1006h")
         # The cursor starts on the first row and outlives redraws.
-        hits, order, chosen, pending, due, size = {}, [], (None, 0), b"", 0.0, None
+        hits, order, chosen, pending, size = {}, [], (None, 0), b"", None
+        # A thread fetches; the loop only paints, so keys never wait on herdr or gh.
+        latest, fresh = [None], threading.Event()
+
+        def fetcher():
+            while True:
+                latest[0] = fetch_board(me)
+                fresh.set()
+                time.sleep(REFRESH)
+
+        threading.Thread(target=fetcher, daemon=True).start()
+        fresh.wait()
+        board, dirty = None, False
         while True:
-            if time.time() >= due or os.get_terminal_size() != size:
+            if fresh.is_set():
+                fresh.clear()
+                board, dirty = latest[0], True
+            if dirty or os.get_terminal_size() != size:
                 size = os.get_terminal_size()
-                hits, order, chosen = draw(me, size, chosen)
-                due = time.time() + REFRESH
-            ready, _, _ = select.select([fd], [], [], 0.5)
+                hits, order, chosen = draw(board, size, chosen)
+                dirty = False
+            ready, _, _ = select.select([fd], [], [], 0.1)
             if not ready:
                 continue
             data = os.read(fd, 1024)
@@ -856,8 +879,8 @@ def live():
                     tab = hits[event[1]]
                     focus(tab)
                     chosen = (tab, order.index(tab))
-                # Show the change now, not at the next tick.
-                due = 0
+                # Repaint now from the rows in hand; a fetch waits for the timer.
+                dirty = True
             if stop:
                 return 0
     except KeyboardInterrupt:

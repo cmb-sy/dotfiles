@@ -15,6 +15,8 @@ setup() {
 case "\$1 \$2" in
   "workspace list") printf '%s' "\${FAKE_WS:-}"; exit "\${FAKE_HERDR_EXIT:-0}" ;;
   "tab list")
+    # A file holding seconds makes herdr slow from then on.
+    [ -n "\${FAKE_SLOW_FILE:-}" ] && [ -s "\$FAKE_SLOW_FILE" ] && sleep "\$(cat "\$FAKE_SLOW_FILE")"
     # A file lets a test change the tabs while the board runs.
     if [ -n "\${FAKE_TABS_FILE:-}" ]; then cat "\$FAKE_TABS_FILE"; else printf '%s' "\${FAKE_TABS:-}"; fi
     exit "\${FAKE_HERDR_EXIT:-0}" ;;
@@ -863,6 +865,16 @@ two_repos() {
   [ "${lines[0]}" = "status=0" ]
   no_missed
   [ ! -e "$TEST_TMPDIR/calls" ]
+}
+
+@test "herdr が遅くてもカーソルはすぐ動く" {
+  two_repos
+  export FAKE_SLOW_FILE="$TEST_TMPDIR/slow"
+  # Slow from the next fetch on (5 s timer), then keys are pressed during it.
+  run board 24 100 wait:gamma cursor:alpha "exec:sh -c 'echo 4 > $FAKE_SLOW_FILE'" "exec:sleep 5.5" \
+    key:j cursor:beta key:j cursor:gamma key:q
+  [ "${lines[0]}" = "status=0" ]
+  no_missed
 }
 
 @test "Enter でカーソルの行のタブへ移る" {
