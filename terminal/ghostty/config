@@ -106,10 +106,3 @@ notify-on-command-finish = unfocused
 # Keybindings
 # ---------------------------------------------------------------------------
 config-file = keybindings.conf
-
-# ---------------------------------------------------------------------------
-# Dark background shade (Cmd+Ctrl+D cycles it via bin/ghostty-bg-cycle)
-# Loaded last so its `theme =` overrides the one above. Lives outside the repo;
-# the leading ? keeps Ghostty quiet until the first cycle creates it.
-# ---------------------------------------------------------------------------
-config-file = ?~/.local/state/ghostty/background.conf
