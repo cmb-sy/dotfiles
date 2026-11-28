@@ -119,12 +119,12 @@ sys.stdout.write(out.decode())' "$CMD" "$1" "$2"
   printf '%s\n' "$plain" | grep -A1 -xF "  Opus" | tail -1 | grep -qx " *"
 }
 
-@test "panel: agent の状態を一番上に出す" {
+@test "panel: agent の状態を一番上に herdr と同じ色で出す" {
   mkdir -p "$HERDR_STATUSLINE_DIR"
   printf 'Model\tOpus\n' > "$HERDR_STATUSLINE_DIR/w1:p2"
   FAKE_STATE=working panel_run w1:p2 "Opus"
   printf '%s\n' "$output" | grep -qxF "status=0"
-  printf '%s' "$output" | grep -qF "● working"
+  printf '%s' "$output" | grep -qF $'\e[33m● working\e[0m'
   plain="$(printf '%s' "$output" | sed 's/\x1b\[[0-9;?]*[A-Za-z]//g' | tr -d '\r' | grep -v '^ *$')"
   [ "$(printf '%s\n' "$plain" | sed -n 2p)" = " State" ]
 }
