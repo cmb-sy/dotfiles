@@ -203,7 +203,7 @@ def bar(percent):
     return "▰" * filled + "\x1b[%sm%s\x1b[0m" % (DIM, "▱" * (BAR - filled))
 
 
-def lines(pid):
+def lines(pid, full=False):
     # "<heading>\t<value>" lines become a heading over its indented values,
     # with a blank line between groups; a line without a tab shows as it is.
     path = os.path.join(DIR, re.sub(r"[^A-Za-z0-9:_-]", "_", pid))
@@ -236,7 +236,7 @@ def lines(pid):
             last = head
         m = PERCENT.search(value) if head in BARRED else None
         value = clean(value)
-        if head == "Usage left":
+        if head == "Usage left" and not full:
             # The 7d reset is days away: its date is enough, and the line fits.
             value = re.sub(r"\((\d\d/\d\d) \d\d:\d\d\)", r"(\1)", value)
         if head == "State":
@@ -244,6 +244,17 @@ def lines(pid):
             value = "\x1b[%sm%s\x1b[0m" % (STATE_STYLE.get(word, "1"), value)
         out.append(" " + (bar(int(m.group(1))) + " " if m else "") + value)
     return out
+
+
+MOUSE = re.compile(rb"\x1b\[<(\d+);\d+;(\d+)[Mm]")
+
+
+def build(pid, room, height, hover):
+    # The frame's rows; with the pointer on a usage row, resets show in full.
+    frame = [" " + row for l in lines(pid) for row in wrap(l, room)][:height]
+    if 0 < hover <= len(frame) and re.search(r"\b(5h|7d) ", ESC.sub("", frame[hover - 1])):
+        frame = [" " + row for l in lines(pid, full=True) for row in wrap(l, room)][:height]
+    return frame
 
 
 def panel(pid):
@@ -254,26 +265,33 @@ def panel(pid):
     saved = termios.tcgetattr(fd)
     try:
         tty.setraw(fd)
-        sys.stdout.write("\x1b[?1049h\x1b[?25l")
-        last = None
+        # Any-motion mouse reports (SGR), so the pointer row is known.
+        sys.stdout.write("\x1b[?1049h\x1b[?25l\x1b[?1003h\x1b[?1006h")
+        last, hover = None, 0
         while True:
             size = os.get_terminal_size()
             # One spare column on each side.
             room = max(size.columns - 2, 4)
-            frame = [" " + row for l in lines(pid) for row in wrap(l, room)][:size.lines]
+            frame = build(pid, room, size.lines, hover)
             if (frame, size) != last:
                 sys.stdout.write("\x1b[H" + "\x1b[K\r\n".join(frame) + "\x1b[K\x1b[J")
                 sys.stdout.flush()
                 last = (frame, size)
             if select.select([fd], [], [], REFRESH)[0]:
-                data = os.read(fd, 64)
-                if not data or b"q" in data or b"\x03" in data:
+                data = os.read(fd, 256)
+                if not data:
+                    return 0
+                # Mouse reports first: a hover or click sets the row under the pointer.
+                for m in MOUSE.finditer(data):
+                    hover = int(m.group(2))
+                data = MOUSE.sub(b"", data)
+                if b"q" in data or b"\x03" in data:
                     return 0
     except KeyboardInterrupt:
         return 0
     finally:
         termios.tcsetattr(fd, termios.TCSANOW, saved)
-        sys.stdout.write("\x1b[?25h\x1b[?1049l")
+        sys.stdout.write("\x1b[?1006l\x1b[?1003l\x1b[?25h\x1b[?1049l")
         sys.stdout.flush()
 
 

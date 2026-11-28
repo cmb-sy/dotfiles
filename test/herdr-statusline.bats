@@ -159,6 +159,39 @@ sys.stdout.write(out.decode())' "$CMD" "$1" "$2"
   printf '%s' "$output" | grep -qF "ev]0;pwnil"
 }
 
+@test "panel: ポインタが利用枠の行に乗ると 7d のリセット時刻も出す" {
+  mkdir -p "$HERDR_STATUSLINE_DIR"
+  printf 'Usage left\t7d 5%% (12/05 02:00)\n' > "$HERDR_STATUSLINE_DIR/w1:p2"
+  run python3 -c '
+import fcntl, os, pty, select, struct, sys, termios, time
+pid, fd = pty.fork()
+if pid == 0:
+    fcntl.ioctl(0, termios.TIOCSWINSZ, struct.pack("HHHH", 30, 40, 0, 0))
+    os.execv(sys.argv[1], [sys.argv[1], "panel", "w1:p2"])
+out = b""
+def pump(until):
+    global out
+    end = time.time() + 5
+    while time.time() < end and until not in out:
+        if select.select([fd], [], [], 0.1)[0]:
+            out += os.read(fd, 65536)
+pump(b"(12/05)")
+os.write(fd, b"\x1b[<35;5;2M")
+pump(b"02:00")
+os.write(fd, b"q")
+end = time.time() + 5
+while not os.waitpid(pid, os.WNOHANG)[0] and time.time() < end:
+    try:
+        if select.select([fd], [], [], 0.1)[0]:
+            out += os.read(fd, 65536)
+    except OSError:
+        pass
+sys.stdout.write(out.decode())' "$CMD"
+  printf '%s' "$output" | grep -qF "7d 5% (12/05)"
+  printf '%s' "$output" | grep -qF "7d 5% (12/05 02:00)"
+  printf '%s' "$output" | grep -qF $'\e[?1003l'
+}
+
 @test "panel: ファイルがまだ無ければ待っていると出す" {
   panel_run w1:p2 "Waiting"
   printf '%s\n' "$output" | grep -qxF "status=0"
