@@ -214,7 +214,7 @@ def lines(pid, full=False):
         got = []
     # "#" lines carry data for the pane, not lines to show.
     meta = dict(l[1:].partition("\t")[::2] for l in got if l.startswith("#"))
-    got = [l for l in got if not l.startswith("#")]
+    got = [l for l in got if not l.startswith("#") and not l.startswith("Time\t")]
     if meta.get("transcript"):
         got += agents(meta["transcript"])
     now = state(pid)
@@ -254,6 +254,11 @@ def build(pid, room, height, hover):
     frame = [" " + row for l in lines(pid) for row in wrap(l, room)][:height]
     if 0 < hover <= len(frame) and re.search(r"\b(5h|7d) ", ESC.sub("", frame[hover - 1])):
         frame = [" " + row for l in lines(pid, full=True) for row in wrap(l, room)][:height]
+    # The clock sits at the right end of the top row.
+    clock = time.strftime("%H:%M")
+    if frame and width(ESC.sub("", frame[0])) + 1 + len(clock) <= room + 1:
+        frame[0] += " " * (room + 1 - width(ESC.sub("", frame[0])) - len(clock)) \
+            + "\x1b[%sm%s\x1b[0m" % (DIM, clock)
     return frame
 
 

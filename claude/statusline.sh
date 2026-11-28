@@ -346,7 +346,6 @@ if [ -n "${HERDR_PANE_ID:-}" ]; then
   add "Voice" "${sec_voice#"${WHT}voice${RST} "}"
   add "Location" "$pane_dir"
   add "Location" "$pane_branch"
-  add "Time" "$(date +%H:%M)"
   # Not shown: tells the pane where this session's subagents live.
   [ -n "$TRANSCRIPT" ] && panel+="#transcript"$'\t'"$TRANSCRIPT"$'\n'
   # Through a temporary file so the pane never reads half a write.

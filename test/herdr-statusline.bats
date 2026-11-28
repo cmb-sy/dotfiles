@@ -112,7 +112,7 @@ sys.stdout.write(out.decode())' "$CMD" "$1" "$2"
   panel_run w1:p2 "7d --%"
   printf '%s\n' "$output" | grep -qxF "status=0"
   plain="$(printf '%s' "$output" | sed 's/\x1b\[[0-9;?]*[A-Za-z]//g' | tr -d '\r')"
-  [ "$(printf '%s\n' "$plain" | grep -c -e '^ *Model$' -e '^ *Usage left$')" -eq 2 ]
+  [ "$(printf '%s\n' "$plain" | grep -c -E -e '^ *Model( +[0-9:]+)?$' -e '^ *Usage left$')" -eq 2 ]
   printf '%s\n' "$plain" | grep -qxF "  Opus"
   printf '%s\n' "$plain" | grep -qxF "  ▰▰▱▱▱▱▱▱ 5h 25%"
   # The 7d reset keeps its date only.
@@ -128,7 +128,7 @@ sys.stdout.write(out.decode())' "$CMD" "$1" "$2"
   printf '%s\n' "$output" | grep -qxF "status=0"
   printf '%s' "$output" | grep -qF $'\e[33m● working\e[0m'
   plain="$(printf '%s' "$output" | sed 's/\x1b\[[0-9;?]*[A-Za-z]//g' | tr -d '\r' | grep -v '^ *$')"
-  [ "$(printf '%s\n' "$plain" | sed -n 2p)" = " State" ]
+  printf '%s\n' "$plain" | sed -n 2p | grep -qE '^ State +[0-9]{2}:[0-9]{2}$'
 }
 
 @test "panel: セッションの subagent を working から並べ、古いものは出さず、# の行は見せない" {
@@ -220,6 +220,16 @@ while not os.waitpid(pid, os.WNOHANG)[0] and time.time() < end:
 print("closed")' "$CMD"
   printf '%s\n' "$output" | grep -qxF "after-paste=0"
   printf '%s\n' "$output" | grep -qxF "closed"
+}
+
+@test "panel: 時刻は一番上の行の右端に出し、Time の行は出さない" {
+  mkdir -p "$HERDR_STATUSLINE_DIR"
+  printf 'Model\tOpus\nTime\t01:23\n' > "$HERDR_STATUSLINE_DIR/w1:p2"
+  panel_run w1:p2 "Opus"
+  plain="$(printf '%s' "$output" | sed 's/\x1b\[[0-9;?]*[A-Za-z]//g' | tr -d '\r')"
+  [ "$(printf '%s\n' "$plain" | grep -c -e Time -e 01:23)" -eq 0 ]
+  printf '%s\n' "$plain" | grep -qE '^ Model +[0-9]{2}:[0-9]{2}$'
+  [ "$(printf '%s\n' "$plain" | grep -E '^ Model ' | head -1 | awk '{print length($0)}')" -eq 19 ]
 }
 
 @test "panel: ファイルがまだ無ければ待っていると出す" {
