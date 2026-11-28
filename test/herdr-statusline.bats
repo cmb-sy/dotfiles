@@ -93,15 +93,17 @@ print("status=%d" % os.waitstatus_to_exitcode(raw))
 sys.stdout.write(out.decode())' "$CMD" "$1" "$2"
 }
 
-@test "panel: statusline のファイルを 1 行ずつ出し、幅で切り、q で閉じる" {
+@test "panel: statusline のファイルを 1 行ずつ出し、幅を超える行は折り返し、q で閉じる" {
   mkdir -p "$HERDR_STATUSLINE_DIR"
   printf 'Opus\nCtx 80%%\n%s\n' "$(printf 'x%.0s' $(seq 1 40))" > "$HERDR_STATUSLINE_DIR/w1:p2"
   panel_run w1:p2 "Ctx 80%"
   printf '%s\n' "$output" | grep -qxF "status=0"
   printf '%s' "$output" | grep -qF "Opus"
-  # 20 columns less one on each side.
-  printf '%s' "$output" | grep -qF " $(printf 'x%.0s' $(seq 1 18))"
-  [ "$(printf '%s' "$output" | grep -c "$(printf 'x%.0s' $(seq 1 19))")" -eq 0 ]
+  # 20 columns less one on each side: 18, then the rest after a 3-column indent.
+  plain="$(printf '%s' "$output" | sed 's/\x1b\[[0-9;?]*[A-Za-z]//g' | tr -d '\r')"
+  printf '%s\n' "$plain" | grep -qxF " $(printf 'x%.0s' $(seq 1 18))"
+  printf '%s\n' "$plain" | grep -qxF "    $(printf 'x%.0s' $(seq 1 15))"
+  printf '%s\n' "$plain" | grep -qxF "    $(printf 'x%.0s' $(seq 1 7))"
 }
 
 @test "panel: 見出しごとにまとめて間を 1 行空け、残りの割合には小さなバーを付ける" {
@@ -139,7 +141,8 @@ sys.stdout.write(out.decode())' "$CMD" "$1" "$2"
   panel_run w1:p2 "○ rest"
   printf '%s\n' "$output" | grep -qxF "status=0"
   plain="$(printf '%s' "$output" | sed 's/\x1b\[[0-9;?]*[A-Za-z]//g' | tr -d '\r')"
-  [ "$(printf '%s\n' "$plain" | grep -A2 -x ' *Agents' | tail -2 | tr '\n' '|')" = "  ● busy  doing it|  ○ rest|" ]
+  [ "$(printf '%s\n' "$plain" | grep -A2 -x ' *Agents' | tail -2 | tr '\n' '|')" = "  ● busy|    doing it|" ]
+  printf '%s\n' "$plain" | grep -qxF "  ○ rest"
   [ "$(printf '%s\n' "$plain" | grep -c -e old -e transcript)" -eq 0 ]
 }
 

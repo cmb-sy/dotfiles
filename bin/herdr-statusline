@@ -93,23 +93,44 @@ def width(s):
                else 2 if unicodedata.east_asian_width(c) in ("W", "F") else 1 for c in s)
 
 
-def fit(line, room):
-    # Cut a coloured line to `room` columns, keeping its escapes.
-    out, used = [], 0
-    for part in re.split(r"(\x1b\[[0-9;]*m)", line):
-        if ESC.fullmatch(part or "x"):
-            out.append(part)
+def wrap(line, room, indent="   "):
+    # Split a coloured line into rows of at most `room` columns, breaking at a
+    # space when one is near; later rows start with `indent`. Escapes are kept
+    # and each row ends its colour.
+    rows, cur, used, style = [], "", 0, ""
+    words = re.split(r"(\x1b\[[0-9;]*m| )", line)
+    for w in words:
+        if not w:
             continue
-        for c in part:
-            w = width(c)
-            if used + w > room:
-                return "".join(out) + "\x1b[0m"
-            out.append(c)
-            used += w
-    return "".join(out)
+        if ESC.fullmatch(w):
+            cur += w
+            style = "" if w == "\x1b[0m" else w
+            continue
+        ww = width(w)
+        if used + ww > room and used > width(indent):
+            rows.append(cur + "\x1b[0m")
+            cur, used = indent + style, width(indent)
+            if w == " ":
+                continue
+        while used + ww > room:
+            # A word longer than a row is split by characters.
+            take = ""
+            for c in w:
+                if used + width(take + c) > room:
+                    break
+                take += c
+            if not take:
+                break
+            rows.append(cur + take + "\x1b[0m")
+            w = w[len(take):]
+            ww = width(w)
+            cur, used = indent + style, width(indent)
+        cur += w
+        used += ww
+    rows.append(cur)
+    return rows
 
 
-# Headings carry the only colour; values keep the terminal's own.
 HEADING = "1;34"
 DIM = "90"
 STATE_MARK = {"working": "●", "blocked": "!", "idle": "○"}
@@ -165,8 +186,11 @@ def agents(transcript):
         desc = clean(text(meta.get("description")))[:80]
         found.append((age > BUSY_SECONDS, age, label, desc))
     found.sort()
-    out = ["Agents\t%s %s%s" % ("○" if idle else "●", label, "  " + desc if desc else "")
-           for idle, _, label, desc in found[:MAX_AGENTS]]
+    out = []
+    for idle, _, label, desc in found[:MAX_AGENTS]:
+        out.append("Agents\t%s %s" % ("○" if idle else "●", label))
+        if desc:
+            out.append("Agents\t  " + desc)
     if len(found) > MAX_AGENTS:
         out.append("Agents\t+%d more" % (len(found) - MAX_AGENTS))
     return out
@@ -226,7 +250,8 @@ def panel(pid):
         while True:
             size = os.get_terminal_size()
             # One spare column on each side.
-            frame = [" " + fit(l, max(size.columns - 2, 1)) for l in lines(pid)][:size.lines]
+            room = max(size.columns - 2, 4)
+            frame = [" " + row for l in lines(pid) for row in wrap(l, room)][:size.lines]
             if (frame, size) != last:
                 sys.stdout.write("\x1b[H" + "\x1b[K\r\n".join(frame) + "\x1b[K\x1b[J")
                 sys.stdout.flush()
