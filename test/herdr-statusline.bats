@@ -253,3 +253,15 @@ print("closed")' "$CMD"
   run bash -c 'echo "{\"context_window\":{\"used_percentage\":20}}" | HERDR_PANE_ID=w1:p2 "$1"' _ "$REPO_DIR/claude/statusline.sh"
   printf '%s' "$output" | grep -qF "Ctx"
 }
+
+@test "statusline.sh: 場所はディレクトリ・ブランチ・未コミットの件数を別の見出しで渡す" {
+  repo="$(make_tmp_git_repo)"
+  run bash -c 'echo "{\"workspace\":{\"current_dir\":\"$2\"}}" | HERDR_PANE_ID=w1:p2 "$1"' _ "$REPO_DIR/claude/statusline.sh" "$repo"
+  grep -qxF "$(printf 'Branch\tmain')" "$HERDR_STATUSLINE_DIR/w1:p2"
+  grep -qxF "$(printf 'Changes\tnone')" "$HERDR_STATUSLINE_DIR/w1:p2"
+  : > "$repo/a"; : > "$repo/b"
+  run bash -c 'echo "{\"workspace\":{\"current_dir\":\"$2\"}}" | HERDR_PANE_ID=w1:p2 "$1"' _ "$REPO_DIR/claude/statusline.sh" "$repo"
+  grep -qxF "$(printf 'Changes\t2 files not committed')" "$HERDR_STATUSLINE_DIR/w1:p2"
+  grep -qF "$(printf 'Directory\t')" "$HERDR_STATUSLINE_DIR/w1:p2"
+  rm -rf "$repo"
+}

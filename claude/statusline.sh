@@ -250,7 +250,7 @@ fi
 # Repo name is still not shown; the directory path already carries it.
 # ==============================================================================
 
-sec_dir="" pane_dir="" pane_branch=""
+sec_dir="" pane_dir="" pane_branch="" pane_dirty=""
 tilde="~"  # bash 3.2 keeps the backslash of \~ in a substitution
 if has_val "$DIR"; then
   sec_dir="${C_REPO}$(printf '\xef\x81\xbc') ${DIR/#$HOME/$tilde}${RST}"
@@ -269,7 +269,7 @@ if has_val "$DIR"; then
     dirty=$(git -C "$DIR" --no-optional-locks status --porcelain 2>/dev/null | wc -l | tr -d ' ')
     if is_int "$dirty" && [ "$dirty" -gt 0 ]; then
       sec_dir+=" ${C_DIRTY}●${dirty}${RST}"
-      pane_branch+=" ${C_DIRTY}●${dirty}${RST}"
+      pane_dirty="$dirty"
     fi
   fi
 fi
@@ -344,8 +344,13 @@ if [ -n "${HERDR_PANE_ID:-}" ]; then
   add "Usage left" "${sec_limits%% ${WHT}·${RST} *}"
   [ "${sec_limits}" != "${sec_limits#* ${WHT}·${RST} }" ] && add "Usage left" "${sec_limits#* ${WHT}·${RST} }"
   add "Voice" "${sec_voice#"${WHT}voice${RST} "}"
-  add "Location" "$pane_dir"
-  add "Location" "$pane_branch"
+  add "Directory" "$pane_dir"
+  add "Branch" "$pane_branch"
+  if [ -n "$pane_dirty" ]; then
+    [ "$pane_dirty" = 1 ] && add "Changes" "1 file not committed" || add "Changes" "$pane_dirty files not committed"
+  elif [ -n "$pane_branch" ]; then
+    add "Changes" "none"
+  fi
   # Not shown: tells the pane where this session's subagents live.
   [ -n "$TRANSCRIPT" ] && panel+="#transcript"$'\t'"$TRANSCRIPT"$'\n'
   # Through a temporary file so the pane never reads half a write.
