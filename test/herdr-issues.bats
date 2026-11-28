@@ -282,12 +282,12 @@ no_missed() { [ "$(printf '%s\n' "$output" | grep -c '^missed=')" -eq 0 ]; }
   for i in 1 2 3 4 5; do log_at "s$i" $((i * 60)); done
   run "$CMD" --once
   [ "$status" -eq 0 ]
-  cells | grep -qxF "|#12|📤 返事待ち|1分前|ログイン修正 — o/a の題 12"
-  cells | grep -qxF "|alpha|✅ 自分の分は完了・クローズ待ち|2分前"
+  cells | grep -qxF "|#12|📤|1分前|ログイン修正 — o/a の題 12"
+  cells | grep -qxF "|alpha|✅|2分前"
   # No marker from the set leads these labels, so the state stays blank.
   cells | grep -qxF "|beta|3分前"
   cells | grep -qxF "|gamma|4分前"
-  cells | grep -qxF "|delta|🔥 進行中|5分前"
+  cells | grep -qxF "|delta|🔥|5分前"
 }
 
 @test "タブ名の後ろに並ぶ絵文字も状態に出し、意味は最後の印から付ける" {
@@ -296,9 +296,9 @@ no_missed() { [ "$(printf '%s\n' "$output" | grep -c '^missed=')" -eq 0 ]; }
   for i in 1 2 3; do log_at "s$i" $((i * 60)); done
   run "$CMD" --once
   [ "$status" -eq 0 ]
-  cells | grep -qxF "|#2413|🥇 📤 返事待ち|1分前"
-  cells | grep -qxF "|#2410|✅ 自分の分は完了・クローズ待ち|2分前"
-  cells | grep -qxF "|#2497|🥉 ✅ 自分の分は完了・クローズ待ち|3分前"
+  cells | grep -qxF "|#2413|🥇 📤|1分前"
+  cells | grep -qxF "|#2410|✅|2分前"
+  cells | grep -qxF "|#2497|🥉 ✅|3分前"
 }
 
 @test "どのタブにも印が無ければ状態の列を詰める" {
@@ -373,8 +373,8 @@ no_missed() { [ "$(printf '%s\n' "$output" | grep -c '^missed=')" -eq 0 ]; }
   run "$CMD" --once
   [ "$status" -eq 0 ]
   [ "$output" = "$(printf '%s\n' 'app' \
-    '  #12   📤 返事待ち  5分前   ログイン画面の修正方針を決めてほしい' \
-    "$(printf '  #130%15s10分前  画面調整 — o/a の題 130' '')")" ]
+    '  #12   📤  5分前   ログイン画面の修正方針を決めてほしい' \
+    "$(printf '  #130%6s10分前  画面調整 — o/a の題 130' '')")" ]
 }
 
 @test "リポジトリ名だけの見出しの下に並べ、リポジトリの間を空ける" {
@@ -445,9 +445,9 @@ no_missed() { [ "$(printf '%s\n' "$output" | grep -c '^missed=')" -eq 0 ]; }
   log_at s3 180
   run "$CMD" --once
   [ "$status" -eq 0 ]
-  cells | grep -qxF "|#2499|🥉 📤 返事待ち|1分前|o/a の題 2499"
-  cells | grep -qxF "|final-judge 新設|🔥 進行中|2分前"
-  cells | grep -qxF "|整理|✅ 自分の分は完了・クローズ待ち|3分前"
+  cells | grep -qxF "|#2499|🥉 📤|1分前|o/a の題 2499"
+  cells | grep -qxF "|final-judge 新設|🔥|2分前"
+  cells | grep -qxF "|整理|✅|3分前"
   # A symbol glued to a word is not a marker and is dropped.
   [ "$(printf '%s\n' "$output" | grep -cF "★")" -eq 0 ]
 }
@@ -537,7 +537,7 @@ no_missed() { [ "$(printf '%s\n' "$output" | grep -c '^missed=')" -eq 0 ]; }
   log_at s2 120
   run "$CMD" --once
   [ "$status" -eq 0 ]
-  cells | grep -qxF "|#2413|🔥 進行中|1分前|o/mapped の題 2413"
+  cells | grep -qxF "|#2413|🔥|1分前|o/mapped の題 2413"
   cells | grep -qxF "|#7|2分前|x"
   [ "$(cat "$TEST_TMPDIR/gh-calls")" = "issue view 2413 --repo o/mapped --json title" ]
 }
@@ -569,7 +569,7 @@ no_missed() { [ "$(printf '%s\n' "$output" | grep -c '^missed=')" -eq 0 ]; }
   log_at s1 60
   run "$CMD" --once
   [ "$status" -eq 0 ]
-  cells | grep -qxF "|#2386|📤 返事待ち|1分前|x"
+  cells | grep -qxF "|#2386|📤|1分前|x"
 }
 
 @test "同じ issue のタブは 1 件にまとめる" {
@@ -593,7 +593,7 @@ no_missed() { [ "$(printf '%s\n' "$output" | grep -c '^missed=')" -eq 0 ]; }
   log_at s2 300
   run "$CMD" --once
   [ "$status" -eq 0 ]
-  cells | grep -qxF "|#12 (2タブ)|📤 返事待ち|5分前|前半 — o/a の題 12"
+  cells | grep -qxF "|#12 (2タブ)|📤|5分前|前半 — o/a の題 12"
 }
 
 @test "別リポジトリの同じ番号はまとめない" {
@@ -715,7 +715,7 @@ no_missed() { [ "$(printf '%s\n' "$output" | grep -c '^missed=')" -eq 0 ]; }
   # U+202E reverses the text after it on screen.
   [ "$(printf '%s\n' "$output" | grep -cF "$(printf '\342\200\256')")" -eq 0 ]
   printf '%s\n' "$output" | grep -qF "赤い文字で書いた結論"
-  printf '%s\n' "$output" | grep -qF "📤 返事 [31m待ち"
+  printf '%s\n' "$output" | grep -qF "📤"
 }
 
 @test "不正な引数は使い方を出して 2 で終わる" {
