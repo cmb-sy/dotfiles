@@ -49,6 +49,7 @@ EOF
   export HERDR_ISSUES_CACHE="$TEST_TMPDIR/cache"
   export HERDR_ISSUES_NOW="$NOW"
   export HERDR_ISSUES_REPOS="$TEST_TMPDIR/repos"
+  export HERDR_ISSUES_ORDER="$TEST_TMPDIR/order"
   export HERDR_ISSUES_SOCKET="$TEST_TMPDIR/no-socket"
   # The user's markers (herdr-mark), never the real set. 🌲 has no meaning.
   export HERDR_MARKS_FILE="$TEST_TMPDIR/marks.tsv"
@@ -309,6 +310,20 @@ no_missed() { [ "$(printf '%s\n' "$output" | grep -c '^missed=')" -eq 0 ]; }
   [ "$status" -eq 0 ]
   printf '%s\n' "$output" | grep -qxF "  #2413  🥇 📤  1分前"
   printf '%s\n' "$output" | grep -qxF "  #2410   ✅    2分前"
+}
+
+@test "登録した順にリポジトリを固定し、登録の無いものは下に新しい順で出す" {
+  printf '%s\n' '# order' 'lib' 'app' 'none' > "$HERDR_ISSUES_ORDER"
+  state "$(ws w1 app),$(ws w2 lib),$(ws w3 new1),$(ws w4 new2)" \
+    "$(tab w1:t1 a),$(tab w2:t1 b),$(tab w3:t1 c),$(tab w4:t1 d)" \
+    "$(ag w1:t1 idle s1),$(ag w2:t1 idle s2),$(ag w3:t1 idle s3),$(ag w4:t1 idle s4)"
+  log_at s1 60
+  log_at s2 600
+  log_at s3 300
+  log_at s4 120
+  run "$CMD" --once
+  [ "$status" -eq 0 ]
+  [ "$(printf '%s\n' "$output" | grep -vE '^ |^$' | tr '\n' ' ')" = "lib app new2 new1 " ]
 }
 
 @test "どのタブにも印が無ければ状態の列を詰める" {

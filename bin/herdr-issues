@@ -68,6 +68,9 @@ ROOTS = [r for r in (os.environ.get("HERDR_ISSUES_ROOTS")
 # "<workspace> <owner/repo>" per line, for checkouts without an origin remote.
 REPOS = os.environ.get("HERDR_ISSUES_REPOS") or os.path.join(
     HOME, ".config", "dotfiles-local", "herdr-issues-repos")
+# Repository names, one per line, in the order their sections always take.
+ORDER = os.environ.get("HERDR_ISSUES_ORDER") or os.path.join(
+    HOME, ".config", "dotfiles-local", "herdr-issues-order")
 CACHE = os.environ.get("HERDR_ISSUES_CACHE") or os.path.join(HOME, ".cache", "herdr-issues")
 # The user's markers, "<marker><TAB><meaning>" per line (bin/lib/herdr-marks.sh).
 MARKS_FILE = os.environ.get("HERDR_MARKS_FILE") or os.path.join(
@@ -513,15 +516,27 @@ def newest(r):
     return r["last"] is None, -(r["last"] or 0)
 
 
+def fixed_order():
+    # {name: position} from ORDER; blank lines and "#" comments are skipped.
+    try:
+        with open(ORDER, encoding="utf-8", errors="replace") as f:
+            names = [l.strip() for l in f if l.strip() and not l.strip().startswith("#")]
+    except OSError:
+        return {}
+    return {n: i for i, n in reversed(list(enumerate(names)))}
+
+
 def sections(rows):
-    # [(repository, rows)], newest first both ways: a repository goes by its
-    # newest row.
+    # [(repository, rows)]: registered repositories in their fixed order, then
+    # the rest newest first; rows inside a repository newest first.
     by = {}
     for r in rows:
         by.setdefault(r["ws"], []).append(r)
     for group in by.values():
         group.sort(key=newest)
-    return sorted(by.items(), key=lambda item: newest(item[1][0]))
+    order = fixed_order()
+    return sorted(by.items(), key=lambda item: (
+        (0, order[item[0]]) if item[0] in order else (1, 0), newest(item[1][0])))
 
 
 def cell_width(c):
