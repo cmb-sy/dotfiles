@@ -287,7 +287,18 @@ no_missed() { [ "$(printf '%s\n' "$output" | grep -c '^missed=')" -eq 0 ]; }
   # No marker from the set leads these labels, so the state stays blank.
   cells | grep -qxF "|beta|3分前"
   cells | grep -qxF "|gamma|4分前"
-  cells | grep -qxF "|delta|5分前"
+  cells | grep -qxF "|delta|🔥 進行中|5分前"
+}
+
+@test "タブ名の後ろに並ぶ絵文字も状態に出し、意味は最後の印から付ける" {
+  state "$(ws w1 dxp)" "$(tab w1:t1 '2413 🥇 📤'),$(tab w1:t2 '2410 ✅'),$(tab w1:t3 '2497 🥉 ✅')" \
+    "$(ag w1:t1 idle s1),$(ag w1:t2 idle s2),$(ag w1:t3 idle s3)"
+  for i in 1 2 3; do log_at "s$i" $((i * 60)); done
+  run "$CMD" --once
+  [ "$status" -eq 0 ]
+  cells | grep -qxF "|#2413|🥇 📤 返事待ち|1分前"
+  cells | grep -qxF "|#2410|✅ 自分の分は完了・クローズ待ち|2分前"
+  cells | grep -qxF "|#2497|🥉 ✅ 自分の分は完了・クローズ待ち|3分前"
 }
 
 @test "どのタブにも印が無ければ状態の列を詰める" {
@@ -425,7 +436,7 @@ no_missed() { [ "$(printf '%s\n' "$output" | grep -c '^missed=')" -eq 0 ]; }
   [ "$output" = "$(printf '%s\n' 'dots' '  alpha  1分前')" ]
 }
 
-@test "タブ名の絵文字や記号は出さない" {
+@test "タブ名の絵文字は状態の列にだけ出し、issue と概要の列には出さない" {
   repo ra o/a
   state "$(ws w1 🤖app)" "$(tab w1:t1 '2499 🥉 📤'),$(tab w1:t2 'final-judge 新設 🔥'),$(tab w1:t3 '★整理 ✅')" \
     "$(ag w1:t1 idle s1 "$TEST_TMPDIR/ra"),$(ag w1:t2 idle s2),$(ag w1:t3 idle s3)"
@@ -434,12 +445,11 @@ no_missed() { [ "$(printf '%s\n' "$output" | grep -c '^missed=')" -eq 0 ]; }
   log_at s3 180
   run "$CMD" --once
   [ "$status" -eq 0 ]
-  cells | grep -qxF "|#2499|1分前|o/a の題 2499"
-  cells | grep -qxF "|final-judge 新設|2分前"
-  cells | grep -qxF "|整理|3分前"
-  for mark in 🥉 📤 🔥 ★ ✅; do
-    [ "$(printf '%s\n' "$output" | grep -cF "$mark")" -eq 0 ]
-  done
+  cells | grep -qxF "|#2499|🥉 📤 返事待ち|1分前|o/a の題 2499"
+  cells | grep -qxF "|final-judge 新設|🔥 進行中|2分前"
+  cells | grep -qxF "|整理|✅ 自分の分は完了・クローズ待ち|3分前"
+  # A symbol glued to a word is not a marker and is dropped.
+  [ "$(printf '%s\n' "$output" | grep -cF "★")" -eq 0 ]
 }
 
 @test "長いタブ名は issue の列で 24 桁に切る" {
@@ -527,7 +537,7 @@ no_missed() { [ "$(printf '%s\n' "$output" | grep -c '^missed=')" -eq 0 ]; }
   log_at s2 120
   run "$CMD" --once
   [ "$status" -eq 0 ]
-  cells | grep -qxF "|#2413|1分前|o/mapped の題 2413"
+  cells | grep -qxF "|#2413|🔥 進行中|1分前|o/mapped の題 2413"
   cells | grep -qxF "|#7|2分前|x"
   [ "$(cat "$TEST_TMPDIR/gh-calls")" = "issue view 2413 --repo o/mapped --json title" ]
 }

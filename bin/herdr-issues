@@ -313,11 +313,20 @@ def markers():
 
 
 def split_marker(label, marks):
-    # ("<marker> <meaning>" or "", the label after it).
-    for marker, meaning in marks:
+    # ("<emoji...> <meaning>" or "", the label without them). A marker from the
+    # set may lead the label; emoji words anywhere (herdr-mark leads, older
+    # habits trail: "2413 🥇 📤") all show, meaning from the last known marker.
+    known = dict(marks)
+    found = []
+    for marker, _ in marks:
         if label.startswith(marker):
-            return " ".join(x for x in (marker, meaning) if x), label[len(marker):].strip()
-    return "", label
+            found, label = [marker], label[len(marker):]
+            break
+    words = []
+    for w in label.split():
+        (found if not plain(w) else words).append(w)
+    meaning = next((known[m] for m in reversed(found) if known.get(m)), "")
+    return " ".join(found + ([meaning] if meaning else [])), " ".join(words)
 
 
 def issue_number(label):
