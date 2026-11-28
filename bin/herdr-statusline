@@ -17,8 +17,8 @@ HERDR = os.environ.get("HERDR_BIN") or "herdr"
 DIR = os.environ.get("HERDR_STATUSLINE_DIR") or os.path.join(
     os.path.expanduser("~"), ".cache", "claude-statusline")
 LABEL = "statusline"
-# The pane takes the right quarter of the pane it splits.
-RATIO = "0.75"
+# The pane takes the right fifth of the pane it splits.
+RATIO = "0.8"
 REFRESH = 1.0
 ESC = re.compile(r"\x1b\[[0-9;]*m")
 
@@ -103,14 +103,33 @@ def fit(line, room):
     return "".join(out)
 
 
+HEADING = "2;37"
+
+
 def lines(pid):
+    # "<heading>\t<value>" lines become a dim heading over its indented values,
+    # with a blank line between groups; a line without a tab shows as it is.
     path = os.path.join(DIR, re.sub(r"[^A-Za-z0-9:_-]", "_", pid))
     try:
         with open(path, encoding="utf-8", errors="replace") as f:
-            got = f.read().splitlines()
+            got = [l for l in f.read().splitlines() if l.strip()]
     except OSError:
         got = []
-    return got or ["\x1b[90mClaude の返事を待っています\x1b[0m"]
+    if not got:
+        return ["\x1b[90mClaude の返事を待っています\x1b[0m"]
+    out, last = [], None
+    for line in got:
+        head, tab, value = line.partition("\t")
+        if not tab:
+            out.append(line)
+            continue
+        if head != last:
+            if out:
+                out.append("")
+            out.append("\x1b[%sm%s\x1b[0m" % (HEADING, head))
+            last = head
+        out.append(" " + value)
+    return out
 
 
 def panel(pid):

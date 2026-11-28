@@ -249,10 +249,11 @@ fi
 # Repo name is still not shown; the directory path already carries it.
 # ==============================================================================
 
-sec_dir=""
+sec_dir="" pane_dir="" pane_branch=""
 tilde="~"  # bash 3.2 keeps the backslash of \~ in a substitution
 if has_val "$DIR"; then
   sec_dir="${C_REPO}$(printf '\xef\x81\xbc') ${DIR/#$HOME/$tilde}${RST}"
+  pane_dir="${C_REPO}${DIR/#$HOME/$tilde}${RST}"
   if git -C "$DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     # Branch name. Detached HEAD prints nothing, so fall back to a short SHA
     # rather than rendering empty parentheses.
@@ -260,12 +261,14 @@ if has_val "$DIR"; then
     has_val "$branch" || branch=$(git -C "$DIR" rev-parse --short HEAD 2>/dev/null)
     if has_val "$branch"; then
       sec_dir+=" ${C_BRANCH}(${branch})${RST}"
+      pane_branch="${C_BRANCH}${branch}${RST}"
     fi
 
     # Uncommitted change count (staged + unstaged + untracked)
     dirty=$(git -C "$DIR" --no-optional-locks status --porcelain 2>/dev/null | wc -l | tr -d ' ')
     if is_int "$dirty" && [ "$dirty" -gt 0 ]; then
       sec_dir+=" ${C_DIRTY}●${dirty}${RST}"
+      pane_branch+=" ${C_DIRTY}●${dirty}${RST}"
     fi
   fi
 fi
@@ -321,16 +324,23 @@ for s in "$sec_dir" "$sec_time"; do
 done
 [ -n "$line2" ] && out="${out}"$'\n'"${line2}"
 
-# Inside herdr the status goes to the side pane (bin/herdr-statusline), one item
-# per line, and nothing shows under the prompt. Outside herdr it stays there.
+# Inside herdr the status goes to the side pane (bin/herdr-statusline) as
+# "<heading>\t<value>" lines, and nothing shows under the prompt. Outside herdr
+# it stays there.
 if [ -n "${HERDR_PANE_ID:-}" ]; then
   dir="${HERDR_STATUSLINE_DIR:-$HOME/.cache/claude-statusline}"
   file="$dir/${HERDR_PANE_ID//[^A-Za-z0-9:_-]/_}"
   panel=""
-  for s in "$sec_model" "$sec_account" "$sec_ctx" "${sec_limits// ${WHT}·${RST} /$'\n'}" \
-           "$sec_voice" "$sec_dir" "$sec_time"; do
-    [ -n "$s" ] && panel="${panel:+${panel}$'\n'}${s}"
-  done
+  add() { [ -n "$2" ] && panel+="$1"$'\t'"$2"$'\n'; }
+  add "モデル" "$sec_model"
+  add "アカウント" "$sec_account"
+  add "コンテキストの残り" "${sec_ctx#"${WHT}Ctx${RST} "}"
+  add "利用枠の残り" "${sec_limits%% ${WHT}·${RST} *}"
+  [ "${sec_limits}" != "${sec_limits#* ${WHT}·${RST} }" ] && add "利用枠の残り" "${sec_limits#* ${WHT}·${RST} }"
+  add "音声入力" "${sec_voice#"${WHT}voice${RST} "}"
+  add "場所" "$pane_dir"
+  add "場所" "$pane_branch"
+  add "更新" "$(date +%H:%M)"
   # Through a temporary file so the pane never reads half a write.
   if mkdir -p "$dir" 2>/dev/null && printf '%s\n' "$panel" >| "$file.tmp.$$" 2>/dev/null \
      && mv -f "$file.tmp.$$" "$file" 2>/dev/null; then

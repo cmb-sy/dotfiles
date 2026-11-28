@@ -32,7 +32,7 @@ panes() { local IFS=,; export FAKE_PANES="{\"result\":{\"panes\":[$*]}}"; }
   panes "$(pane w1:p1)" "$(pane w1:p2 '' claude)" "$(pane w1:pk)" "$(pane w1:px statusline '' w1:t2)"
   run "$CMD" toggle
   [ "$status" -eq 0 ]
-  grep -qxF "pane split w1:p2 --direction right --ratio 0.75 --no-focus" "$TEST_TMPDIR/calls"
+  grep -qxF "pane split w1:p2 --direction right --ratio 0.8 --no-focus" "$TEST_TMPDIR/calls"
   grep -qxF "pane rename w1:p9 statusline" "$TEST_TMPDIR/calls"
   grep -qxF "pane run w1:p9 exec '/x/herdr-statusline' panel 'w1:p2'" "$TEST_TMPDIR/calls"
   # Another tab's pane is not this tab's.
@@ -91,6 +91,19 @@ sys.stdout.write(out.decode())' "$CMD" "$1" "$2"
   [ "$(printf '%s' "$output" | grep -c "$(printf 'x%.0s' $(seq 1 19))")" -eq 0 ]
 }
 
+@test "panel: 見出しごとにまとめ、見出しの間を 1 行空ける" {
+  mkdir -p "$HERDR_STATUSLINE_DIR"
+  printf 'モデル\tOpus\n利用枠\t5h 1%%\n利用枠\t7d 2%%\n' > "$HERDR_STATUSLINE_DIR/w1:p2"
+  panel_run w1:p2 "7d 2%"
+  printf '%s\n' "$output" | grep -qxF "status=0"
+  plain="$(printf '%s' "$output" | sed 's/\x1b\[[0-9;?]*[A-Za-z]//g' | tr -d '\r')"
+  [ "$(printf '%s\n' "$plain" | grep -c -e '^ *モデル$' -e '^ *利用枠$')" -eq 2 ]
+  printf '%s\n' "$plain" | grep -qxF "  Opus"
+  printf '%s\n' "$plain" | grep -qxF "  7d 2%"
+  # One blank row between the groups.
+  printf '%s\n' "$plain" | grep -A1 -xF "  Opus" | tail -1 | grep -qx " *"
+}
+
 @test "panel: ファイルがまだ無ければ待っていると出す" {
   panel_run w1:p2 "返事を待"
   printf '%s\n' "$output" | grep -qxF "status=0"
@@ -101,7 +114,7 @@ sys.stdout.write(out.decode())' "$CMD" "$1" "$2"
   run bash -c 'echo "{\"context_window\":{\"used_percentage\":20}}" | HERDR_PANE_ID=w1:p2 "$1"' _ "$REPO_DIR/claude/statusline.sh"
   [ "$status" -eq 0 ]
   [ -z "$output" ]
-  grep -qF "Ctx 80%" <(sed 's/\x1b\[[0-9;]*m//g' "$HERDR_STATUSLINE_DIR/w1:p2")
+  grep -qxF "$(printf 'コンテキストの残り\t80%% (160k)')" <(sed 's/\x1b\[[0-9;]*m//g' "$HERDR_STATUSLINE_DIR/w1:p2")
 }
 
 @test "statusline.sh: herdr の外や書けないときは今までどおり画面に出す" {
